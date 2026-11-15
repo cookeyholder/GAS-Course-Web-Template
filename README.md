@@ -1,6 +1,6 @@
 # Google Apps Script 網頁應用程式範本 (GAS-Course-Web-Template)
 
-本專案為獨立之 **Google Apps Script (GAS) 網頁應用程式全端範本**，衍生自 `Exam-Sections-Arranger` 並抽取其三大核心精髓：
+本專案為 **Google Apps Script (GAS) 網頁應用程式全端範本**，具備三大核心架構：
 1. **Google Identity Services (GIS) 身分驗證系統**：支援 Google One Tap、Google 登入按鈕、Google Workspace 網域登入、Google ID Token 後端憑證驗證與 CacheService Session 機制。
 2. **108 課綱課程代碼匯入與 1NF 正規化模組**：自動解析巨耀等校務系統之 39 欄課綱寬表 Excel，第一時間剔除非授課科目（屬性 0 與 6），展開為三年六學期實質開課之 14 欄標準第一正規化（1NF）課程索引表，並提供前端拖曳上傳、即時預覽統計與分頁檢索清單。
 3. **多風格現代前端設計系統**：內建極簡曜藍（Modern Slate）、圖紙風格（Blueprint）、典雅紙張（Paper）、新粗獷主義（Neo-Brutalism）、黏土擬物（Claymorphism）、紅白機像素（NES）、Happy Hues 等 13 款視覺風格切換與深淺色模式，具備完整的 Toast 通知、Modal 對話框、響應式導覽與卡片元件。
