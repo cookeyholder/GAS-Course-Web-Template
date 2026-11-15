@@ -1,0 +1,35 @@
+{
+  "name": "gas-course-web-template",
+  "version": "1.0.0",
+  "description": "Google Apps Script 網頁應用程式範本（含 GIS 登入、108 課綱課程代碼匯入與 1NF 正規化、多風格現代前端）",
+  "scripts": {
+    "build:webapp": "node scripts/build-webapp.js",
+    "push": "npm run build:webapp && clasp push",
+    "pull": "clasp pull",
+    "deploy": "clasp push && clasp deploy",
+    "open": "clasp open",
+    "logs": "clasp logs",
+    "watch": "clasp push --watch",
+    "test": "node tests/courseCodeNormalization.test.js && node tests/api.test.js",
+    "open-webapp": "clasp open --webapp",
+    "status": "clasp version && clasp deployments"
+  },
+  "keywords": [
+    "google-apps-script",
+    "gas",
+    "gis",
+    "google-identity-services",
+    "curriculum-codes",
+    "normalization",
+    "webapp-template"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@google/clasp": "^3.4.1",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

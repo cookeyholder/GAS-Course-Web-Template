@@ -1,0 +1,465 @@
+/**
+ * @file databaseInitializer.js
+ * @description Google Apps Script 資料庫工作表初始化與設定管理模組
+ *
+ * 負責自動建立與格式化純資料工作表：
+ * 1. 系統設定與授權 (SHEET_SYSTEM_CONFIG)
+ * 2. 正規化課程索引 (SHEET_COURSE_INDEX)
+ * 3. 系統使用說明 (SHEET_SYSTEM_INSTRUCTIONS)
+ */
+
+// ============================================================================
+// 工作表名稱常數
+// ============================================================================
+
+/** 系統設定與授權工作表名稱 */
+const SHEET_SYSTEM_CONFIG = "系統設定與授權";
+
+/** 1NF 正規化課程索引工作表名稱 */
+const SHEET_COURSE_INDEX = "正規化課程索引";
+
+/** 系統使用說明工作表名稱 */
+const SHEET_SYSTEM_INSTRUCTIONS = "系統使用說明";
+
+// ============================================================================
+// 預設參數與欄位定義
+// ============================================================================
+
+/** 預設系統參數（區塊 A，A1:B7） */
+const DEFAULT_SYSTEM_PARAMS = [
+  ["設定項目", "設定數值"],
+  ["學年度", "114"],
+  ["學期", "1"],
+  ["系統名稱", "Google Apps Script 應用程式範本"],
+  ["OAuth Client ID", ""],
+  ["OAuth Client Secret", ""],
+  ["登入白名單限制啟用", "false"]
+];
+
+/** 授權白名單表頭（區塊 B，D1:G1） */
+const WHITELIST_HEADERS = ["Email", "姓名/職稱", "角色", "啟用狀態"];
+
+/** 授權角色定義 */
+const ROLE_DEFINITIONS = {
+  admin: "系統管理員",
+  staff: "業務人員",
+  viewer: "檢視人員"
+};
+
+/** Node.js 單元測試用記憶體備援資料庫 */
+const MEMORY_SYSTEM_CONFIG = {
+  "學年度": "114",
+  "學期": "1",
+  "系統名稱": "Google Apps Script 應用程式範本",
+  "OAuth Client ID": "",
+  "OAuth Client Secret": "",
+  "登入白名單限制啟用": "false"
+};
+const MEMORY_WHITELIST = [];
+
+/** 角色名稱轉代碼對照 */
+function normalizeRole(role) {
+  const r = String(role || "").trim().toLowerCase();
+  if (r === "系統管理員" || r === "admin") return "admin";
+  if (r === "業務人員" || r === "staff") return "staff";
+  if (r === "檢視人員" || r === "viewer") return "viewer";
+  return r || "viewer";
+}
+
+/** 代碼轉角色名稱對照 */
+function getRoleDisplayName(role) {
+  const r = normalizeRole(role);
+  return ROLE_DEFINITIONS[r] || "檢視人員";
+}
+
+// ============================================================================
+// 工作表初始化主函式
+// ============================================================================
+
+/**
+ * 完整初始化／檢查所有後端工作表
+ *
+ * 具備安全冪等性：若工作表已存在，不會覆蓋既有設定與資料，僅補齊缺漏之結構與格式。
+ *
+ * @param {Object} [options] - 選項
+ * @param {Spreadsheet} [options.spreadsheet] - 指定試算表（預設為目前試算表）
+ * @param {boolean} [options.silent=false] - 是否靜默執行
+ * @returns {Object} `{ ok: true, sheets: Array<string> }`
+ */
+function initializeDatabaseSheets(options) {
+  options = options || {};
+  const ss = options.spreadsheet || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  if (!ss) {
+    throw new Error("找不到有效的試算表物件");
+  }
+
+  const createdSheets = [];
+
+  // 1. 初始化「系統設定與授權」工作表
+  let configSheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!configSheet) {
+    configSheet = ss.insertSheet(SHEET_SYSTEM_CONFIG);
+    configSheet.getRange(1, 1, DEFAULT_SYSTEM_PARAMS.length, 2).setValues(DEFAULT_SYSTEM_PARAMS);
+    configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
+    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
+    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
+    configSheet.setFrozenRows(1);
+    createdSheets.push(SHEET_SYSTEM_CONFIG);
+  } else {
+    // 檢查區塊 A 表頭
+    if (configSheet.getRange(1, 1).getValue() !== DEFAULT_SYSTEM_PARAMS[0][0]) {
+      configSheet.getRange(1, 1, 1, 2).setValues([DEFAULT_SYSTEM_PARAMS[0]]);
+      configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
+    }
+    // 補齊未設定之系統參數項目
+    const existingParams = readSystemSettings(ss);
+    let lastRow = configSheet.getLastRow();
+    const toAppend = [];
+    for (let i = 1; i < DEFAULT_SYSTEM_PARAMS.length; i++) {
+      const key = DEFAULT_SYSTEM_PARAMS[i][0];
+      if (typeof existingParams[key] === "undefined") {
+        toAppend.push(DEFAULT_SYSTEM_PARAMS[i]);
+      }
+    }
+    if (toAppend.length > 0) {
+      configSheet.getRange(lastRow + 1, 1, toAppend.length, 2).setValues(toAppend);
+    }
+    // 檢查區塊 B 表頭
+    if (configSheet.getMaxColumns() < 8) {
+      configSheet.insertColumnsAfter(configSheet.getMaxColumns(), 8 - configSheet.getMaxColumns());
+    }
+    if (configSheet.getRange(1, 4).getValue() !== WHITELIST_HEADERS[0]) {
+      configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
+      configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
+    }
+  }
+
+  // 2. 初始化「正規化課程索引」工作表
+  let courseSheet = ss.getSheetByName(SHEET_COURSE_INDEX);
+  if (!courseSheet) {
+    courseSheet = ss.insertSheet(SHEET_COURSE_INDEX);
+    if (courseSheet.getMaxColumns() < NORMALIZED_COURSE_HEADERS.length) {
+      courseSheet.insertColumnsAfter(courseSheet.getMaxColumns(), NORMALIZED_COURSE_HEADERS.length - courseSheet.getMaxColumns());
+    }
+    courseSheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setValues([NORMALIZED_COURSE_HEADERS]);
+    courseSheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
+    courseSheet.setFrozenRows(1);
+    createdSheets.push(SHEET_COURSE_INDEX);
+  }
+
+  // 3. 初始化「系統使用說明」工作表
+  let instructSheet = ss.getSheetByName(SHEET_SYSTEM_INSTRUCTIONS);
+  if (!instructSheet) {
+    instructSheet = ss.insertSheet(SHEET_SYSTEM_INSTRUCTIONS);
+    const instructions = [
+      ["=== Google Apps Script 應用程式範本使用說明 ==="],
+      [""],
+      ["一、功能架構："],
+      ["1. 系統設定與授權：包含系統運作基本參數（學年度、學期、OAuth Client ID）與使用者權限白名單。"],
+      ["2. 正規化課程索引：儲存自巨耀等校務系統匯出課程代碼，經 1NF 正規化後展開之 14 欄標準課程資料。"],
+      ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
+      [""],
+      ["二、OAuth 2.0 Client ID 設定步驟："],
+      ["1. 前往 Google Cloud Console (https://console.cloud.google.com/) 建立或選取專案。"],
+      ["2. 進入「API 和服務」->「憑證」，建立「OAuth 用戶端 ID」，應用程式類型選擇「網頁應用程式」。"],
+      ["3. 於「已授權的 JavaScript 來源」填入 Web App 網址（例如：https://script.google.com）。"],
+      ["4. 將取得的 Client ID 填入「系統設定與授權」工作表之 B5 儲存格（或於 Web App 設定介面輸入並儲存）。"],
+      [""],
+      ["三、角色權限（RBAC）："],
+      ["- admin（系統管理員）：完整讀寫系統參數、管理使用者名單與課程代碼匯入。"],
+      ["- staff（業務人員）：可匯入課程代碼並檢視課程索引。"],
+      ["- viewer（檢視人員）：僅能檢視課程代碼與公開設定。"]
+    ];
+    instructSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
+    instructSheet.getRange(1, 1).setFontWeight("bold").setFontSize(14);
+    createdSheets.push(SHEET_SYSTEM_INSTRUCTIONS);
+  }
+
+  return {
+    ok: true,
+    sheets: [SHEET_SYSTEM_CONFIG, SHEET_COURSE_INDEX, SHEET_SYSTEM_INSTRUCTIONS],
+    createdSheets: createdSheets
+  };
+}
+
+// ============================================================================
+// 系統設定讀寫
+// ============================================================================
+
+/**
+ * 讀取「系統設定與授權」區塊 A 之設定項目
+ *
+ * @param {Spreadsheet} [ss] - 試算表物件
+ * @returns {Object} 鍵值對設定物件
+ */
+function readSystemSettings(ss) {
+  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  if (!targetSs) {
+    const config = Object.assign({}, MEMORY_SYSTEM_CONFIG);
+    config.schoolYear = config["學年度"] || "114";
+    config.semester = config["學期"] || "1";
+    config.systemName = config["系統名稱"] || "Google Apps Script 應用程式範本";
+    config.clientId = config["OAuth Client ID"] || "";
+    config.clientSecret = config["OAuth Client Secret"] || "";
+    config.restrictWhitelist = config["登入白名單限制啟用"] === "true";
+    return config;
+  }
+
+  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!sheet) return {};
+
+  const values = sheet.getRange("A2:B20").getValues();
+  const config = {};
+
+  for (let i = 0; i < values.length; i++) {
+    const key = String(values[i][0] || "").trim();
+    if (key) {
+      config[key] = values[i][1] === null || values[i][1] === undefined ? "" : String(values[i][1]).trim();
+    }
+  }
+
+  // 便捷鍵名映射
+  config.schoolYear = config["學年度"] || "114";
+  config.semester = config["學期"] || "1";
+  config.systemName = config["系統名稱"] || "Google Apps Script 應用程式範本";
+  config.clientId = config["OAuth Client ID"] || "";
+  config.clientSecret = config["OAuth Client Secret"] || "";
+  config.restrictWhitelist = config["登入白名單限制啟用"] === "true";
+
+  return config;
+}
+
+/**
+ * 儲存系統設定
+ *
+ * @param {Object} settings - 欲更新的設定物件
+ * @param {Spreadsheet} [ss] - 試算表物件
+ * @returns {Object} `{ ok: true }`
+ */
+function saveSystemSettings(settings, ss) {
+  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  if (!targetSs) {
+    Object.assign(MEMORY_SYSTEM_CONFIG, settings || {});
+    return { ok: true };
+  }
+
+  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
+
+  const range = sheet.getRange("A2:B20");
+  const values = range.getValues();
+
+  const keyMap = {
+    schoolYear: "學年度",
+    semester: "學期",
+    systemName: "系統名稱",
+    clientId: "OAuth Client ID",
+    clientSecret: "OAuth Client Secret",
+    restrictWhitelist: "登入白名單限制啟用"
+  };
+
+  const updates = {};
+  for (const k in settings) {
+    if (keyMap[k]) {
+      updates[keyMap[k]] = String(settings[k]);
+    } else {
+      updates[k] = String(settings[k]);
+    }
+  }
+
+  for (let i = 0; i < values.length; i++) {
+    const key = String(values[i][0] || "").trim();
+    if (key && typeof updates[key] !== "undefined") {
+      values[i][1] = updates[key];
+      delete updates[key];
+    }
+  }
+
+  range.setValues(values);
+
+  // 若有尚未列入的鍵，於最後附加
+  const toAppend = [];
+  for (const remainingKey in updates) {
+    toAppend.push([remainingKey, updates[remainingKey]]);
+  }
+  if (toAppend.length > 0) {
+    const nextRow = sheet.getLastRow() + 1;
+    sheet.getRange(nextRow, 1, toAppend.length, 2).setValues(toAppend);
+  }
+
+  return { ok: true };
+}
+
+// ============================================================================
+// 授權白名單讀寫
+// ============================================================================
+
+/**
+ * 讀取授權白名單清單（區塊 B，D2:G）
+ *
+ * @param {Spreadsheet} [ss] - 試算表物件
+ * @returns {Array<Object>} 白名單帳號陣列
+ */
+function readWhitelist(ss) {
+  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  if (!targetSs) return MEMORY_WHITELIST.slice();
+
+  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!sheet) return [];
+
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+
+  const values = sheet.getRange(2, 4, lastRow - 1, 4).getValues();
+  const accounts = [];
+
+  for (let i = 0; i < values.length; i++) {
+    const email = String(values[i][0] || "").trim().toLowerCase();
+    if (!email) continue;
+    accounts.push({
+      email: email,
+      name: String(values[i][1] || "").trim(),
+      role: normalizeRole(values[i][2]),
+      roleName: getRoleDisplayName(values[i][2]),
+      enabled: values[i][3] === true || String(values[i][3] || "").toLowerCase() === "true" || String(values[i][3] || "").trim() === "是"
+    });
+  }
+
+  return accounts;
+}
+
+/**
+ * 儲存授權白名單清單
+ *
+ * @param {Array<Object>} accounts - 白名單帳號陣列
+ * @param {Spreadsheet} [ss] - 試算表物件
+ * @returns {Object} `{ ok: true, count }`
+ */
+function saveWhitelist(accounts, ss) {
+  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const list = Array.isArray(accounts) ? accounts : [];
+
+  if (!targetSs) {
+    MEMORY_WHITELIST.length = 0;
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i] || {};
+      const email = String(item.email || "").trim().toLowerCase();
+      if (!email) continue;
+      MEMORY_WHITELIST.push({
+        email: email,
+        name: String(item.name || "").trim(),
+        role: normalizeRole(item.role),
+        roleName: getRoleDisplayName(item.role),
+        enabled: item.enabled !== false
+      });
+    }
+    return { ok: true, count: MEMORY_WHITELIST.length };
+  }
+
+  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
+
+  const maxRows = Math.max(sheet.getMaxRows(), list.length + 2);
+  const rows = [];
+
+  for (let i = 0; i < list.length; i++) {
+    const item = list[i] || {};
+    const email = String(item.email || "").trim().toLowerCase();
+    if (!email) continue;
+    rows.push([
+      email,
+      String(item.name || "").trim(),
+      getRoleDisplayName(item.role),
+      item.enabled === false ? "否" : "是"
+    ]);
+  }
+
+  // 先清空既有白名單資料區間（D2:G）
+  const currentLastRow = Math.max(sheet.getLastRow(), 2);
+  sheet.getRange(2, 4, currentLastRow, 4).clearContent();
+
+  if (rows.length > 0) {
+    sheet.getRange(2, 4, rows.length, 4).setValues(rows);
+  }
+
+  return { ok: true, count: rows.length };
+}
+
+/**
+ * 取得指定 Email 之角色權限
+ *
+ * @param {string} email - 使用者 Email
+ * @param {Spreadsheet} [ss] - 試算表物件
+ * @returns {Object} `{ role, name, enabled, found }`
+ */
+function getAccountRole(email, ss) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const accounts = readWhitelist(ss);
+
+  for (let i = 0; i < accounts.length; i++) {
+    if (accounts[i].email === cleanEmail) {
+      return {
+        role: accounts[i].role,
+        roleName: accounts[i].roleName,
+        name: accounts[i].name,
+        enabled: accounts[i].enabled,
+        found: true
+      };
+    }
+  }
+
+  return {
+    role: "viewer",
+    roleName: "檢視人員",
+    name: cleanEmail,
+    enabled: true,
+    found: false
+  };
+}
+
+/**
+ * 若白名單為空，自動將首位登入者初始化為管理員
+ *
+ * @param {string} email - 使用者 Email
+ * @param {string} name - 使用者姓名
+ * @param {Spreadsheet} [ss] - 試算表物件
+ * @returns {boolean} 是否觸發管理員開通
+ */
+function bootstrapAdminIfNeeded(email, name, ss) {
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  if (!cleanEmail) return false;
+
+  const accounts = readWhitelist(ss);
+  if (accounts.length === 0) {
+    saveWhitelist([
+      {
+        email: cleanEmail,
+        name: name || cleanEmail,
+        role: "admin",
+        enabled: true
+      }
+    ], ss);
+    return true;
+  }
+  return false;
+}
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    SHEET_SYSTEM_CONFIG: SHEET_SYSTEM_CONFIG,
+    SHEET_COURSE_INDEX: SHEET_COURSE_INDEX,
+    SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
+    DEFAULT_SYSTEM_PARAMS: DEFAULT_SYSTEM_PARAMS,
+    WHITELIST_HEADERS: WHITELIST_HEADERS,
+    ROLE_DEFINITIONS: ROLE_DEFINITIONS,
+    normalizeRole: normalizeRole,
+    getRoleDisplayName: getRoleDisplayName,
+    initializeDatabaseSheets: initializeDatabaseSheets,
+    readSystemSettings: readSystemSettings,
+    saveSystemSettings: saveSystemSettings,
+    readWhitelist: readWhitelist,
+    saveWhitelist: saveWhitelist,
+    getAccountRole: getAccountRole,
+    bootstrapAdminIfNeeded: bootstrapAdminIfNeeded
+  };
+}

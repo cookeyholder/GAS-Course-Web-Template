@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light dark" />
+  <title>Google Apps Script 應用程式範本</title>
+  <?!= typeof ScriptApp !== 'undefined' && ScriptApp.getService ? '<script>window.GAS_WEBAPP_URL = "' + ScriptApp.getService().getUrl() + '";</script>' : '' ?>
+  <!-- BUILD:CSS -->
+  <link rel="stylesheet" href="styles.css" />
+  <!-- /BUILD:CSS -->
+</head>
+<body>
+  <div id="app"></div>
+  <div id="toastHost" class="toast-host" aria-live="polite"></div>
+  <div id="modalHost" class="modal-host"></div>
+  <!-- BUILD:JS -->
+  <script src="js/config.js"></script>
+  <script src="js/courseData.js"></script>
+  <script src="js/mock.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/state.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/imports.js"></script>
+  <script src="js/courses.js"></script>
+  <script src="js/accounts.js"></script>
+  <script src="js/app.js"></script>
+  <!-- /BUILD:JS -->
+</body>
+</html>

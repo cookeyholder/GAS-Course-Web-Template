@@ -1,0 +1,7 @@
+# Ignore all files by default
+**
+
+# Allow Apps Script manifest, backend scripts, and compiled index.html
+!appsscript.json
+!*.js
+!index.html
