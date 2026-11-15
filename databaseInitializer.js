@@ -156,7 +156,7 @@ function initializeDatabaseSheets(options) {
       [""],
       ["一、功能架構："],
       ["1. 系統設定與授權：包含系統運作基本參數（學年度、學期、OAuth Client ID）與使用者權限白名單。"],
-      ["2. 正規化課程索引：儲存自巨耀等校務系統匯出課程代碼，經 1NF 正規化後展開之 14 欄標準課程資料。"],
+      ["2. 正規化課程索引：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"],
       ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
       [""],
       ["二、OAuth 2.0 Client ID 設定步驟："],

@@ -137,7 +137,7 @@ window.MEA = window.MEA || {};
       + '<div class="panel-header">'
       + '  <div>'
       + '    <h2 class="panel-title">正規化課程索引清單</h2>'
-      + '    <p class="panel-sub">檢視自巨耀 39 欄課綱寬表展開後之 1NF 課程紀錄</p>'
+      + '    <p class="panel-sub">檢視自 39 欄課綱寬表展開後之 1NF 課程紀錄</p>'
       + '  </div>'
       + '  <button class="btn secondary compact" onclick="MEA.courses.fetchList(' + currentPage + ')">🔄 重新整理</button>'
       + '</div>'

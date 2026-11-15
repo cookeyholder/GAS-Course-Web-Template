@@ -2,8 +2,8 @@
  * @file subjectCodeTransformer.js
  * @description 108 課綱課程代碼對照與 1NF 正規化處理模組
  *
- * 將巨耀匯出之 39 欄寬表展開並正規化為 14 欄的第一正規化（1NF）課程索引：
- * 1. 剔除科目屬性為 "0"（不分屬性）或 "6"（特殊需求領域）之非實質授課列
+ * 將教育部課程計畫平臺下載之 39 欄課程代碼寬表展開並正規化為 14 欄的第一正規化（1NF）課程索引：
+ * 1. 全數匯入所有課程代碼，不剔除任何科目屬性（包含不分屬性 0 與特殊需求領域 6）
  * 2. 依六學期（一上、一下、二上、二下、三上、三下）開課學分與時數展開
  * 3. 代碼轉譯為可讀之群別、科別、課程類別、開課方式、科目屬性與必選修中文名稱
  */
@@ -37,8 +37,8 @@ const NORMALIZED_COURSE_HEADERS = [
 /** 一次批次寫入正規化課程索引的最大列數 */
 const COURSE_INDEX_WRITE_CHUNK_SIZE = 5000;
 
-/** 匯入時應直接剔除的科目屬性代碼（0-based index 11） */
-const EXCLUDED_SUBJECT_ATTRIBUTES = ["0", "6"];
+/** 科目屬性排除名單（本專案全數匯入，不剔除任何科目） */
+const EXCLUDED_SUBJECT_ATTRIBUTES = [];
 
 const GROUP_CODE_NAMES = {
   "11": "學術群",
@@ -177,13 +177,14 @@ function isCourseCodeHeaderRow(row) {
 }
 
 /**
- * 判斷課程列是否應於匯入時剔除（科目屬性為 0 或 6）
+ * 判斷課程列是否應於匯入時剔除（本專案全數匯入，不剔除任何科目）
  *
  * @param {Array} row - 39 欄原始課程列
- * @returns {boolean} true 表示應剔除
+ * @returns {boolean} false 表示不剔除（全數保留）
  */
 function isExcludedCourseRow(row) {
-  if (!Array.isArray(row)) return true;
+  if (!Array.isArray(row)) return false;
+  if (EXCLUDED_SUBJECT_ATTRIBUTES.length === 0) return false;
   const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
   return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(attr) !== -1;
 }
@@ -247,9 +248,9 @@ function expandCourseRow(row) {
 }
 
 /**
- * 將巨耀匯出之 39 欄寬表正規化為 14 欄 1NF 課程索引
+ * 將教育部課程計畫平臺下載之 39 欄課程代碼寬表正規化為 14 欄 1NF 課程索引
  *
- * @param {Array<Array>} rawData - 巨耀匯出課程代碼原始資料（可含表頭列）
+ * @param {Array<Array>} rawData - 教育部課程計畫平臺下載之 39 欄課程代碼原始資料（可含表頭列）
  * @param {Object} [options] - 選項
  * @param {string|number} [options.academicYear] - 僅保留指定開課學年
  * @param {string|number} [options.semester] - 僅保留指定開課學期

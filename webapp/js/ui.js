@@ -345,7 +345,7 @@ window.MEA = window.MEA || {};
       + '      <div class="feature-icon">📥</div>'
       + '      <div class="feature-text">'
       + '        <h4>課程代碼匯入與 1NF 正規化</h4>'
-      + '        <p>支援巨耀 39 欄課綱寬表 Excel 檔案上傳，自動過濾非授課科目並展開為 14 欄標準索引。</p>'
+      + '        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程索引。</p>'
       + '      </div>'
       + '    </div>'
       + '    <div class="feature-item" onclick="MEA.setTab(\'courses\')">'

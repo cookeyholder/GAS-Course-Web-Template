@@ -104,7 +104,7 @@
     "2": "選修"
   };
 
-  const EXCLUDED_SUBJECT_ATTRIBUTES = ["0", "6"];
+  const EXCLUDED_SUBJECT_ATTRIBUTES = [];
 
   const NORMALIZED_COURSE_HEADERS = [
     "開課學年", "開課學期", "修課年級", "學生入學年",
@@ -150,7 +150,8 @@
   }
 
   function isExcludedCourseRow(row) {
-    if (!Array.isArray(row)) return true;
+    if (!Array.isArray(row)) return false;
+    if (EXCLUDED_SUBJECT_ATTRIBUTES.length === 0) return false;
     const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
     return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(attr) !== -1;
   }

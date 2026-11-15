@@ -42,7 +42,7 @@ Always check `@/openspec/` or repository documentation when the request:
 ### 後端模組（根目錄 `*.js`）
 - **`main.js`**: Google 試算表工具列選單入口（`onOpen`），提供「初始化後端資料庫」與彈出視窗「開啟 Web App 網頁」功能。
 - **`databaseInitializer.js`**: 試算表資料庫純資料工作表初始化（`系統設定與授權`、`正規化課程索引`、`系統使用說明`），具安全冪等性；處理系統參數讀寫與授權白名單維護，內建首次登入管理員防鎖死機制。
-- **`subjectCodeTransformer.js`**: 108 課綱課程代碼對照字典（群別、科別、屬性、必選修）、39 欄寬表展開為 14 欄 1NF 紀錄演算法（剔除屬性 0/6）、5,000 筆分塊批次寫入（Chunking）與分頁檢索函式。
+- **`subjectCodeTransformer.js`**: 108 課綱課程代碼對照字典（群別、科別、屬性、必選修）、39 欄寬表全數展開為 14 欄 1NF 紀錄演算法、5,000 筆分塊批次寫入（Chunking）與分頁檢索函式。
 - **`webApi.js`**: Web App HTTP 入口（`doGet`, `doPost`）、避開 CORS OPTIONS 預檢之通訊協議、Google ID Token 驗證、`CacheService` Session 管理（6 小時 TTL）、`LockService` 併發寫入排隊防鎖，以及 `ROLE_PERMISSIONS` 角色權限矩陣。
 - **`utilities.js`**: 試算表安全格式化（`safeSetNumberFormat`, `safeApplySheetFontSize`）、無 UI 環境防護（`safeUiAlert`）與通用純工具。
 
@@ -63,7 +63,7 @@ Always check `@/openspec/` or repository documentation when the request:
 
 ### 建置與測試
 - **`scripts/build-webapp.js`**: 純原生 Node.js 打包腳本，將 `webapp/` 內嵌為根目錄單一 `index.html`。
-- **`tests/courseCodeNormalization.test.js`**: 課綱 39 欄展開、屬性 0/6 排除、前後端同構邏輯單元測試。
+- **`tests/courseCodeNormalization.test.js`**: 課綱 39 欄全數展開（不剔除任何科目）、前後端同構邏輯單元測試。
 - **`tests/api.test.js`**: API 路由派發、Session 生命週期與 RBAC 權限矩陣單元測試。
 - **`docs/`**: 自包含、離線可用之詳細 HTML 技術手冊庫（架構、1NF 正規化、clasp 部署、GIS 設定、RBAC 教學）。
 

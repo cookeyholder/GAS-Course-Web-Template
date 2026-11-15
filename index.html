@@ -5108,7 +5108,7 @@ window.MEA = window.MEA || {};
     "2": "選修"
   };
 
-  const EXCLUDED_SUBJECT_ATTRIBUTES = ["0", "6"];
+  const EXCLUDED_SUBJECT_ATTRIBUTES = [];
 
   const NORMALIZED_COURSE_HEADERS = [
     "開課學年", "開課學期", "修課年級", "學生入學年",
@@ -5154,7 +5154,8 @@ window.MEA = window.MEA || {};
   }
 
   function isExcludedCourseRow(row) {
-    if (!Array.isArray(row)) return true;
+    if (!Array.isArray(row)) return false;
+    if (EXCLUDED_SUBJECT_ATTRIBUTES.length === 0) return false;
     const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
     return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(attr) !== -1;
   }
@@ -5934,7 +5935,7 @@ window.MEA = window.MEA || {};
       + '      <div class="feature-icon">📥</div>'
       + '      <div class="feature-text">'
       + '        <h4>課程代碼匯入與 1NF 正規化</h4>'
-      + '        <p>支援巨耀 39 欄課綱寬表 Excel 檔案上傳，自動過濾非授課科目並展開為 14 欄標準索引。</p>'
+      + '        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程索引。</p>'
       + '      </div>'
       + '    </div>'
       + '    <div class="feature-item" onclick="MEA.setTab(\'courses\')">'
@@ -6465,7 +6466,7 @@ window.MEA = window.MEA || {};
         + ' onclick="MEA.imports.pickFile()">'
         + '  <div class="dropzone-icon">📁</div>'
         + '  <div class="dropzone-title">點擊選擇或拖曳 108 課綱課程代碼 Excel 檔案至此</div>'
-        + '  <div class="dropzone-desc">支援巨耀等校務系統匯出之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>'
+        + '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>'
         + '  <input type="file" id="fileInput" style="display:none;" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />'
         + '</div>';
     } else {
@@ -6508,9 +6509,9 @@ window.MEA = window.MEA || {};
         + '      <div class="metric-sub">來源 39 欄資料</div>'
         + '    </div>'
         + '    <div class="metric-card">'
-        + '      <div class="metric-label">排除非授課 (屬性 0/6)</div>'
-        + '      <div class="metric-value text-warn">' + MEA.ui.number(stats.excludedRows) + '</div>'
-        + '      <div class="metric-sub">團體活動與特殊需求</div>'
+        + '      <div class="metric-label">匯入科目列數</div>'
+        + '      <div class="metric-value text-accent">' + MEA.ui.number(stats.keptCourseRows) + '</div>'
+        + '      <div class="metric-sub">全數納入（不剔除任何屬性）</div>'
         + '    </div>'
         + '    <div class="metric-card">'
         + '      <div class="metric-label">1NF 展開後紀錄筆數</div>'
@@ -6698,7 +6699,7 @@ window.MEA = window.MEA || {};
       + '<div class="panel-header">'
       + '  <div>'
       + '    <h2 class="panel-title">正規化課程索引清單</h2>'
-      + '    <p class="panel-sub">檢視自巨耀 39 欄課綱寬表展開後之 1NF 課程紀錄</p>'
+      + '    <p class="panel-sub">檢視自 39 欄課綱寬表展開後之 1NF 課程紀錄</p>'
       + '  </div>'
       + '  <button class="btn secondary compact" onclick="MEA.courses.fetchList(' + currentPage + ')">🔄 重新整理</button>'
       + '</div>'

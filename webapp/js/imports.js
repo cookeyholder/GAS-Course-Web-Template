@@ -256,7 +256,7 @@ window.MEA = window.MEA || {};
         + ' onclick="MEA.imports.pickFile()">'
         + '  <div class="dropzone-icon">📁</div>'
         + '  <div class="dropzone-title">點擊選擇或拖曳 108 課綱課程代碼 Excel 檔案至此</div>'
-        + '  <div class="dropzone-desc">支援巨耀等校務系統匯出之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>'
+        + '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>'
         + '  <input type="file" id="fileInput" style="display:none;" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />'
         + '</div>';
     } else {
@@ -299,9 +299,9 @@ window.MEA = window.MEA || {};
         + '      <div class="metric-sub">來源 39 欄資料</div>'
         + '    </div>'
         + '    <div class="metric-card">'
-        + '      <div class="metric-label">排除非授課 (屬性 0/6)</div>'
-        + '      <div class="metric-value text-warn">' + MEA.ui.number(stats.excludedRows) + '</div>'
-        + '      <div class="metric-sub">團體活動與特殊需求</div>'
+        + '      <div class="metric-label">匯入科目列數</div>'
+        + '      <div class="metric-value text-accent">' + MEA.ui.number(stats.keptCourseRows) + '</div>'
+        + '      <div class="metric-sub">全數納入（不剔除任何屬性）</div>'
         + '    </div>'
         + '    <div class="metric-card">'
         + '      <div class="metric-label">1NF 展開後紀錄筆數</div>'

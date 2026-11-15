@@ -334,8 +334,8 @@
       <div class="toc-title">教學目錄</div>
       <ul class="toc-list">
         <li><a href="#why-1nf">1. 為何需要 1NF 正規化？</a></li>
-        <li><a href="#wide-table">2. 巨耀 39 欄原始寬表剖析</a></li>
-        <li><a href="#filter-rules">3. 屬性過濾 (排除 0 與 6)</a></li>
+        <li><a href="#wide-table">2. 教育部課程計畫平臺 39 欄寬表剖析</a></li>
+        <li><a href="#filter-rules">3. 屬性處理策略 (全數匯入)</a></li>
         <li><a href="#expand-logic">4. 展開演算法與欄位映射</a></li>
         <li><a href="#normalized-14">5. 14 欄標準索引表規格</a></li>
         <li><a href="#isomorphic">6. 前後端同構運算設計</a></li>
@@ -347,13 +347,13 @@
       <div class="doc-hero">
         <span class="badge">資料庫工程 · 課綱資料正規化</span>
         <h1 class="doc-title">108 課綱課程代碼 1NF 正規化工程解析</h1>
-        <p class="doc-desc">解析巨耀等校務行政系統之 39 欄課綱寬表結構，透過第一正規化（1NF）數學展開、非授課屬性排除與字典快速映射，構建高效能標準課程資料庫。</p>
+        <p class="doc-desc">解析教育部課程計畫平臺下載之 39 欄課綱寬表結構，透過第一正規化（1NF）數學展開、全數科目保留與字典快速映射，構建高效能標準課程資料庫。</p>
       </div>
 
       <!-- Section 1 -->
       <section class="section" id="why-1nf">
         <h2 class="section-title"><span class="step-num">1</span> 為什麼需要 1NF（第一正規化）？</h2>
-        <p>在台灣高中職校務系統（如巨耀資訊）匯出的 108 課綱課程代碼表中，為便於人工排版檢視，採用了<strong>多維度混合的橫向「寬表（Wide Table）」</strong>結構：</p>
+        <p>在教育部課程計畫平臺（全國高級中等學校課程計畫平臺）下載的 108 課綱課程代碼表中，為便於人工排版檢視，採用了<strong>多維度混合的橫向「寬表（Wide Table）」</strong>結構：</p>
         <ul>
           <li>單一資料列橫向包含了高一、高二、高三共<strong>六個學期</strong>的開課學分、時數與開課方式。</li>
           <li>欄位中同時包含了入學年、一年級學年、二年級學年、三年級學年。</li>
@@ -366,8 +366,8 @@
             1 列橫跨三年六學期
           </div>
           <div class="flow-node">
-            <strong>屬性過濾</strong>
-            即時剔除非授課 (0/6)
+            <strong>全數納入保留</strong>
+            全屬性代碼完整匯入
           </div>
           <div class="flow-node">
             <strong>六學期展開</strong>
@@ -382,7 +382,7 @@
 
       <!-- Section 2 -->
       <section class="section" id="wide-table">
-        <h2 class="section-title"><span class="step-num">2</span> 巨耀 39 欄原始寬表欄位剖析</h2>
+        <h2 class="section-title"><span class="step-num">2</span> 教育部課程計畫平臺 39 欄原始寬表欄位剖析</h2>
         <p>原始檔案具備以下 39 個欄位（0-based 索引 0 至 38）：</p>
 
         <table class="doc-table">
@@ -402,33 +402,39 @@
 
       <!-- Section 3 -->
       <section class="section" id="filter-rules">
-        <h2 class="section-title"><span class="step-num">3</span> 關鍵屬性過濾：剔除代碼 0 與 6 之依據</h2>
-        <p>在解析課程代碼時，並非所有科目都屬於正式考試或排程範疇。在 <code>subjectCodeTransformer.js</code> 中定義了嚴格的排除條件：</p>
+        <h2 class="section-title"><span class="step-num">3</span> 屬性處理策略：全數課程代碼完整匯入</h2>
+        <p>本專案設計為通用全端範本，為確保課程資料庫之完整性與通用查詢需求，<strong>全數匯入所有課程代碼，不剔除任何科目</strong>：</p>
 
         <div class="code-box">
           <div class="code-header"><span>subjectCodeTransformer.js</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
-          <pre><code>/** 匯入時應直接剔除的科目屬性代碼（L 欄，0-based index 11） */
-const EXCLUDED_SUBJECT_ATTRIBUTES = ["0", "6"];
+          <pre><code>/** 科目屬性排除名單（本專案全數匯入，不剔除任何科目） */
+const EXCLUDED_SUBJECT_ATTRIBUTES = [];
 
 function isExcludedCourseRow(row) {
-  if (!Array.isArray(row)) return true;
+  if (!Array.isArray(row)) return false;
+  if (EXCLUDED_SUBJECT_ATTRIBUTES.length === 0) return false;
   const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
   return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(attr) !== -1;
 }</code></pre>
         </div>
 
         <table class="doc-table">
-          <thead><tr><th style="width:20%;">屬性代碼</th><th style="width:30%;">屬性名稱</th><th>排除原因</th></tr></thead>
+          <thead><tr><th style="width:20%;">屬性代碼</th><th style="width:30%;">屬性名稱</th><th>納入說明</th></tr></thead>
           <tbody>
             <tr>
               <td><code>"0"</code></td>
               <td>不分屬性</td>
-              <td>通常為週會、班會、社團活動或每週彈性學習時間，不授予正式學科成績，無考試或補考排程需求。</td>
+              <td>包含週會、班會、社團活動或每週彈性學習時間等，於各學期有開課學分或時數時全數納入展開與索引。</td>
             </tr>
             <tr>
               <td><code>"6"</code></td>
               <td>特殊需求領域</td>
-              <td>特教資源班或個別化教育計畫（IEP）之輔助課程，評量方式採個別化評量，不納入全校常規考程編排。</td>
+              <td>包含特教或個別化教育計畫（IEP）之輔助課程，完整保留於正規化課程資料庫中，供全校性查詢。</td>
+            </tr>
+            <tr>
+              <td><code>"1" ~ "5"</code></td>
+              <td>一般/專業/實習/專題科目</td>
+              <td>常規學科與實習專業科目，全數正常展開並轉換為中文對照名稱。</td>
             </tr>
           </tbody>
         </table>
@@ -526,9 +532,9 @@ function isExcludedCourseRow(row) {
               <td>純 JavaScript 高效能 Excel 讀寫引擎，支援 <code>.xlsx</code> / <code>.xls</code> 瀏覽器端純文字矩陣解析。<br /><a href="https://sheetjs.com/" target="_blank" rel="noopener">https://sheetjs.com/</a></td>
             </tr>
             <tr>
-              <td><strong>Exam-Sections-Arranger 模組設計文獻</strong></td>
-              <td>專案實踐文獻</td>
-              <td>記錄三年 108 課綱寬表展開演算邏輯與零物件配置 O(1) 字典查找最佳實務。<br /><a href="file:///home/cookeyholder/Projects/Exam-Sections-Arranger/docs/DEVELOPMENT.md">Exam-Sections-Arranger/docs/DEVELOPMENT.md</a></td>
+              <td><strong>全國高級中等學校課程計畫平臺</strong></td>
+              <td>教育部國民及學前教育署</td>
+              <td>108 課綱課程計畫書、開課清冊資料查詢與 23 碼課程代碼檢索系統。<br /><a href="https://course.k12ea.gov.tw/courseinformation/data.asp" target="_blank" rel="noopener">課程計畫資料查詢 (data.asp)</a> ｜ <a href="https://course.k12ea.gov.tw/courseinformation/course.asp" target="_blank" rel="noopener">課程代碼查詢 (course.asp)</a></td>
             </tr>
           </tbody>
         </table>

@@ -70,24 +70,26 @@ function createSampleRow(opts) {
   assert.strictEqual(r2[2], "1", "修課年級應為 1");
 }
 
-// 2. 測試科目屬性 0（不分屬性）應於匯入時第一時間剔除
+// 2. 測試科目屬性 0（不分屬性）全數保留不剔除
 {
   const rowAttr0 = createSampleRow({ name: "團體活動時間", attr: "0" });
-  assert.strictEqual(backend.isExcludedCourseRow(rowAttr0), true, "屬性 0 應被判定為剔除列");
-  assert.strictEqual(frontend.isExcludedCourseRow(rowAttr0), true, "前端亦判定屬性 0 為剔除列");
+  assert.strictEqual(backend.isExcludedCourseRow(rowAttr0), false, "屬性 0 不應被判定為剔除列");
+  assert.strictEqual(frontend.isExcludedCourseRow(rowAttr0), false, "前端亦判定屬性 0 不剔除");
 
   const normalized = backend.normalizeCourseCodes([rowAttr0], { withStats: true });
-  assert.strictEqual(normalized.rows.length, 0, "正規化後不應包含屬性 0 之紀錄");
-  assert.strictEqual(normalized.stats.excludedRows, 1, "統計排除數應為 1");
+  assert.strictEqual(normalized.rows.length, 2, "正規化後應包含屬性 0 開課之 2 筆紀錄");
+  assert.strictEqual(normalized.stats.excludedRows, 0, "統計排除數應為 0");
+  assert.strictEqual(normalized.stats.keptCourseRows, 1, "保留科目數應為 1");
 }
 
-// 3. 測試科目屬性 6（特殊需求領域）應於匯入時剔除
+// 3. 測試科目屬性 6（特殊需求領域）全數保留不剔除
 {
   const rowAttr6 = createSampleRow({ name: "特殊需求課程", attr: "6" });
-  assert.strictEqual(backend.isExcludedCourseRow(rowAttr6), true, "屬性 6 應被判定為剔除列");
+  assert.strictEqual(backend.isExcludedCourseRow(rowAttr6), false, "屬性 6 不應被判定為剔除列");
   const normalized = backend.normalizeCourseCodes([rowAttr6], { withStats: true });
-  assert.strictEqual(normalized.rows.length, 0, "正規化後不應包含屬性 6 之紀錄");
-  assert.strictEqual(normalized.stats.excludedRows, 1, "統計排除數應為 1");
+  assert.strictEqual(normalized.rows.length, 2, "正規化後應包含屬性 6 開課之 2 筆紀錄");
+  assert.strictEqual(normalized.stats.excludedRows, 0, "統計排除數應為 0");
+  assert.strictEqual(normalized.stats.keptCourseRows, 1, "保留科目數應為 1");
 }
 
 // 4. 測試前端與後端正規化行為一致性
@@ -102,8 +104,10 @@ function createSampleRow(opts) {
   const frontendResult = frontend.normalizeCourseCodes(sampleData, { withStats: true });
 
   assert.strictEqual(backendResult.rows.length, frontendResult.rows.length, "前後端展開筆數一致");
-  assert.strictEqual(backendResult.stats.excludedRows, frontendResult.stats.excludedRows, "前後端剔除統計一致");
+  assert.strictEqual(backendResult.stats.excludedRows, 0, "排除筆數應為 0");
+  assert.strictEqual(frontendResult.stats.excludedRows, 0, "前端排除筆數應為 0");
   assert.strictEqual(backendResult.stats.sourceRows, frontendResult.stats.sourceRows, "前後端原始筆數統計一致");
+  assert.strictEqual(backendResult.rows.length, 5, "展開筆數應為 2+2+1=5 筆");
 }
 
 console.log("✓ 108 課綱課程代碼正規化單元測試全數通過！");
