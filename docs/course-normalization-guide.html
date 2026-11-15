@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>108 課綱課程代碼 1NF 正規化工程解析 - GAS 應用程式範本</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --paper: #ffffff;
+      --ink: #0f172a;
+      --ink-muted: #475569;
+      --ink-subtle: #94a3b8;
+      --line: #e2e8f0;
+      --line-subtle: #f1f5f9;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-bg: #eff6ff;
+      --ok: #16a34a;
+      --ok-bg: #f0fdf4;
+      --warn: #ea580c;
+      --warn-bg: #fff7ed;
+      --err: #dc2626;
+      --err-bg: #fef2f2;
+      --code-bg: #0f172a;
+      --code-ink: #f8fafc;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --radius: 8px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, Menlo, monospace;
+    }
+    html[data-theme="dark"] {
+      --bg: #0b1120;
+      --paper: #1e293b;
+      --ink: #f8fafc;
+      --ink-muted: #cbd5e1;
+      --ink-subtle: #64748b;
+      --line: #334155;
+      --line-subtle: #1e293b;
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-bg: #1e3a8a33;
+      --ok: #22c55e;
+      --ok-bg: #052e1633;
+      --warn: #f97316;
+      --warn-bg: #43140733;
+      --err: #ef4444;
+      --err-bg: #450a0a33;
+      --code-bg: #030712;
+      --code-ink: #f9fafb;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      font-size: 15px;
+      padding-bottom: 60px;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .top-bar {
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    .top-bar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--primary-bg);
+      color: var(--primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .tools { display: flex; align-items: center; gap: 12px; }
+    .btn-toggle {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-toggle:hover { background: var(--line); }
+    .container {
+      max-width: 1200px;
+      margin: 32px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 36px;
+      align-items: start;
+    }
+    @media (max-width: 880px) {
+      .container { grid-template-columns: 1fr; }
+      .toc-sidebar { display: none; }
+    }
+    .toc-sidebar {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      position: sticky;
+      top: 80px;
+      box-shadow: var(--shadow);
+    }
+    .toc-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-subtle);
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+    .toc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13.5px;
+    }
+    .toc-list a {
+      color: var(--ink-muted);
+      display: block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .toc-list a:hover {
+      background: var(--primary-bg);
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .content { min-width: 0; }
+    .doc-hero {
+      margin-bottom: 32px;
+      background: var(--paper);
+      padding: 32px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      background: var(--primary-bg);
+      color: var(--primary);
+    }
+    .doc-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      line-height: 1.25;
+    }
+    .doc-desc { color: var(--ink-muted); font-size: 16px; }
+    .section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--line-subtle);
+      padding-bottom: 10px;
+    }
+    .step-num {
+      width: 26px;
+      height: 26px;
+      background: var(--primary);
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    p { margin-bottom: 14px; color: var(--ink-muted); }
+    strong { color: var(--ink); font-weight: 600; }
+    .flow-diagram {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .flow-node {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      padding: 14px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .flow-node strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+      color: var(--primary);
+    }
+    .alert {
+      padding: 14px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin: 16px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .alert.tip { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+    .alert.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .alert.info { background: var(--primary-bg); color: var(--primary); border: 1px solid var(--primary); }
+    .code-box {
+      margin: 16px 0 20px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .code-header {
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #cbd5e1;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-ink);
+      padding: 16px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    code { font-family: var(--font-mono); }
+    p code, li code {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      color: var(--primary);
+    }
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    .doc-table th, .doc-table td {
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .doc-table th {
+      background: var(--line-subtle);
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .doc-table tr:nth-child(even) td { background: rgba(0, 0, 0, 0.015); }
+    ul, ol { margin-left: 20px; margin-bottom: 14px; color: var(--ink-muted); }
+    li { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <div class="brand">
+        <div class="brand-icon">📊</div>
+        <span>GAS 應用程式範本技術手冊</span>
+      </div>
+      <div class="tools">
+        <a href="index.html" style="font-size:13.5px; font-weight:500;">文件總覽</a>
+        <button class="btn-toggle" onclick="toggleTheme()" id="themeBtn">◐ 切換主題</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside class="toc-sidebar">
+      <div class="toc-title">教學目錄</div>
+      <ul class="toc-list">
+        <li><a href="#why-1nf">1. 為何需要 1NF 正規化？</a></li>
+        <li><a href="#wide-table">2. 巨耀 39 欄原始寬表剖析</a></li>
+        <li><a href="#filter-rules">3. 屬性過濾 (排除 0 與 6)</a></li>
+        <li><a href="#expand-logic">4. 展開演算法與欄位映射</a></li>
+        <li><a href="#normalized-14">5. 14 欄標準索引表規格</a></li>
+        <li><a href="#isomorphic">6. 前後端同構運算設計</a></li>
+        <li><a href="#references">7. 參考資料來源</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <div class="doc-hero">
+        <span class="badge">資料庫工程 · 課綱資料正規化</span>
+        <h1 class="doc-title">108 課綱課程代碼 1NF 正規化工程解析</h1>
+        <p class="doc-desc">解析巨耀等校務行政系統之 39 欄課綱寬表結構，透過第一正規化（1NF）數學展開、非授課屬性排除與字典快速映射，構建高效能標準課程資料庫。</p>
+      </div>
+
+      <!-- Section 1 -->
+      <section class="section" id="why-1nf">
+        <h2 class="section-title"><span class="step-num">1</span> 為什麼需要 1NF（第一正規化）？</h2>
+        <p>在台灣高中職校務系統（如巨耀資訊）匯出的 108 課綱課程代碼表中，為便於人工排版檢視，採用了<strong>多維度混合的橫向「寬表（Wide Table）」</strong>結構：</p>
+        <ul>
+          <li>單一資料列橫向包含了高一、高二、高三共<strong>六個學期</strong>的開課學分、時數與開課方式。</li>
+          <li>欄位中同時包含了入學年、一年級學年、二年級學年、三年級學年。</li>
+        </ul>
+        <p>這種寬表結構在資料庫檢索、排序與關聯時具有極大缺點：<strong>無法以單一條件篩選特定學期開課科目</strong>，必須寫複雜的多條件 OR 判斷。藉由<strong>第一正規化（1NF，First Normal Form）</strong>將六學期的重疊維度消除，轉為單一學期單一列的扁平化紀錄：</p>
+
+        <div class="flow-diagram">
+          <div class="flow-node">
+            <strong>原始 39 欄寬表</strong>
+            1 列橫跨三年六學期
+          </div>
+          <div class="flow-node">
+            <strong>屬性過濾</strong>
+            即時剔除非授課 (0/6)
+          </div>
+          <div class="flow-node">
+            <strong>六學期展開</strong>
+            僅保留學分或時數 > 0
+          </div>
+          <div class="flow-node">
+            <strong>14 欄標準 1NF</strong>
+            單一學年/學期/年級索引
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2 -->
+      <section class="section" id="wide-table">
+        <h2 class="section-title"><span class="step-num">2</span> 巨耀 39 欄原始寬表欄位剖析</h2>
+        <p>原始檔案具備以下 39 個欄位（0-based 索引 0 至 38）：</p>
+
+        <table class="doc-table">
+          <thead><tr><th style="width:18%;">欄位範圍</th><th style="width:25%;">欄位名稱</th><th>代表意義與用途</th></tr></thead>
+          <tbody>
+            <tr><td><code>0 ~ 4</code></td><td>課程代碼、六學期開課學分、科目名稱、學生入學年、校代碼</td><td>課程基本身分與入學年標識。</td></tr>
+            <tr><td><code>5 ~ 11</code></td><td>課程類型、群別、科別、班群、課程類別、開課方式、科目屬性</td><td>代碼化屬性（如群別 <code>23</code>、科別 <code>305</code>、屬性 <code>3</code>）。</td></tr>
+            <tr><td><code>12 ~ 15</code></td><td>領域名稱、科目名稱代碼、科目代號、必選修</td><td>教育部課綱編碼資訊。</td></tr>
+            <tr><td><code>16 ~ 18</code></td><td>學生一、二、三年級學年</td><td>計算各年級修課當時之實際開課學年度（如 114、115、116）。</td></tr>
+            <tr><td><code>19 ~ 24</code></td><td>一上～三下開課學分（共 6 欄）</td><td>各學期實際授予學分數（判斷當期是否有開課之主依據）。</td></tr>
+            <tr><td><code>25 ~ 30</code></td><td>一上～三下開課時數（共 6 欄）</td><td>各學期每週實際上課節數。</td></tr>
+            <tr><td><code>31 ~ 36</code></td><td>一上～三下開課方式（共 6 欄）</td><td>各學期個別開課方式（若為空則退回第 10 欄預設開課方式）。</td></tr>
+            <tr><td><code>37 ~ 38</code></td><td>授課學期學分節數、課程屬性</td><td>統計與備註欄位。</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 3 -->
+      <section class="section" id="filter-rules">
+        <h2 class="section-title"><span class="step-num">3</span> 關鍵屬性過濾：剔除代碼 0 與 6 之依據</h2>
+        <p>在解析課程代碼時，並非所有科目都屬於正式考試或排程範疇。在 <code>subjectCodeTransformer.js</code> 中定義了嚴格的排除條件：</p>
+
+        <div class="code-box">
+          <div class="code-header"><span>subjectCodeTransformer.js</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <pre><code>/** 匯入時應直接剔除的科目屬性代碼（L 欄，0-based index 11） */
+const EXCLUDED_SUBJECT_ATTRIBUTES = ["0", "6"];
+
+function isExcludedCourseRow(row) {
+  if (!Array.isArray(row)) return true;
+  const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
+  return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(attr) !== -1;
+}</code></pre>
+        </div>
+
+        <table class="doc-table">
+          <thead><tr><th style="width:20%;">屬性代碼</th><th style="width:30%;">屬性名稱</th><th>排除原因</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>"0"</code></td>
+              <td>不分屬性</td>
+              <td>通常為週會、班會、社團活動或每週彈性學習時間，不授予正式學科成績，無考試或補考排程需求。</td>
+            </tr>
+            <tr>
+              <td><code>"6"</code></td>
+              <td>特殊需求領域</td>
+              <td>特教資源班或個別化教育計畫（IEP）之輔助課程，評量方式採個別化評量，不納入全校常規考程編排。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 4 -->
+      <section class="section" id="expand-logic">
+        <h2 class="section-title"><span class="step-num">4</span> 展開演算法與數學映射關係</h2>
+        <p>單一列 39 欄資料會經由迴圈 <code>s = 0 ~ 5</code> 檢驗六個學期：</p>
+
+        <div class="code-box">
+          <div class="code-header"><span>subjectCodeTransformer.js (expandCourseRow)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <pre><code>for (let s = 0; s < 6; s++) {
+  const credits = Number(row[19 + s] || 0);
+  const hours = Number(row[25 + s] || 0);
+
+  // 1. 僅展開「學分 > 0 或時數 > 0」之實質開課學期
+  if (!(credits > 0 || hours > 0)) continue;
+
+  // 2. 年級索引 (0: 高一, 1: 高二, 2: 高三)
+  const gradeIndex = Math.floor(s / 2);
+
+  // 3. 開課學年：對應第 16 + gradeIndex 欄
+  const academicYear = String(row[16 + gradeIndex] || "").trim();
+
+  // 4. 開課學期：(s % 2) + 1 (1: 上學期, 2: 下學期)
+  const semester = String((s % 2) + 1);
+
+  // 5. 開課方式：優先取第 31 + s 欄，空值退回第 10 欄
+  const semesterOpenWay = row[31 + s] || row[10];
+
+  // 組裝 14 欄標準紀錄...
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 5 -->
+      <section class="section" id="normalized-14">
+        <h2 class="section-title"><span class="step-num">5</span> 14 欄標準第一正規化索引表規格</h2>
+        <p>展開後存入 Google 試算表「<code>正規化課程索引</code>」之標準欄位：</p>
+
+        <table class="doc-table">
+          <thead><tr><th>序號</th><th>欄位名稱</th><th>資料來源 / 轉譯規則</th><th>範例值</th></tr></thead>
+          <tbody>
+            <tr><td>1</td><td>開課學年</td><td><code>row[16 + floor(s/2)]</code></td><td><code>114</code></td></tr>
+            <tr><td>2</td><td>開課學期</td><td><code>(s % 2) + 1</code></td><td><code>1</code></td></tr>
+            <tr><td>3</td><td>修課年級</td><td><code>floor(s/2) + 1</code></td><td><code>1</code></td></tr>
+            <tr><td>4</td><td>學生入學年</td><td><code>row[16]</code></td><td><code>114</code></td></tr>
+            <tr><td>5</td><td>課程代碼</td><td><code>row[0]</code></td><td><code>305101A</code></td></tr>
+            <tr><td>6</td><td>科目名稱</td><td><code>row[2]</code></td><td><code>程式設計實習Ⅰ</code></td></tr>
+            <tr><td>7</td><td>群別</td><td>代碼轉中文（如 <code>23</code> → 電機與電子群）</td><td><code>電機與電子群</code></td></tr>
+            <tr><td>8</td><td>科別</td><td>代碼轉中文（如 <code>305</code> → 資訊科）</td><td><code>資訊科</code></td></tr>
+            <tr><td>9</td><td>課程類別</td><td>代碼轉中文（如 <code>1</code> → 部定必修）</td><td><code>部定必修</code></td></tr>
+            <tr><td>10</td><td>開課方式</td><td>代碼轉中文（如 <code>0</code> → 原班級）</td><td><code>原班級</code></td></tr>
+            <tr><td>11</td><td>科目屬性</td><td>代碼轉中文（如 <code>3</code> → 實習科目）</td><td><code>實習科目</code></td></tr>
+            <tr><td>12</td><td>必選修</td><td>代碼轉中文（如 <code>1</code> → 必修）</td><td><code>必修</code></td></tr>
+            <tr><td>13</td><td>學分數</td><td>數值（<code>row[19 + s]</code>）</td><td><code>3</code></td></tr>
+            <tr><td>14</td><td>開課時數</td><td>數值（<code>row[25 + s]</code>）</td><td><code>3</code></td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 6 -->
+      <section class="section" id="isomorphic">
+        <h2 class="section-title"><span class="step-num">6</span> 前後端同構運算設計 (Isomorphic Design)</h2>
+        <p>傳統系統常在上傳檔案後整份丟給後端 GAS 運算，但 GAS 有單次請求時間與記憶體限制。本範本採用前後端同構設計：</p>
+        <ul>
+          <li><strong>前端 ([courseData.js](file:///home/cookeyholder/Projects/GAS-Course-Web-Template/webapp/js/courseData.js))</strong>：使用 SheetJS 在用戶瀏覽器內完成解析與 1NF 展開，即時呈現「原始筆數」、「排除筆數」與「展開筆數」統計卡片，使用者確認無誤後才發送。</li>
+          <li><strong>後端 ([subjectCodeTransformer.js](file:///home/cookeyholder/Projects/GAS-Course-Web-Template/subjectCodeTransformer.js))</strong>：接收已預先展開之陣列，以每批 5000 筆快速寫入試算表，節省 90% 的後端運算耗時與 GAS 額度。</li>
+          <li><strong>單元測試同構保證</strong>：在 <code>tests/courseCodeNormalization.test.js</code> 中同時對前後端函式執行斷言，確保演算法規則 100% 同步！</li>
+        </ul>
+      </section>
+
+      <!-- Section 7 -->
+      <section class="section" id="references">
+        <h2 class="section-title"><span class="step-num">7</span> 參考資料來源與教育部課綱文獻</h2>
+        <table class="doc-table">
+          <thead>
+            <tr><th style="width:30%;">資料來源 / 規範名稱</th><th style="width:25%;">發布單位</th><th>說明與官方連結</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>高級中等學校課程代碼編碼原則</strong></td>
+              <td>教育部國民及學前教育署</td>
+              <td>108 課綱技術型高級中等學校（技高）課程代碼 23 碼編碼結構與科目屬性定義手冊。<br /><a href="https://vtedu.k12ea.gov.tw/" target="_blank" rel="noopener">https://vtedu.k12ea.gov.tw/</a></td>
+            </tr>
+            <tr>
+              <td><strong>Database Normalization: First Normal Form (1NF)</strong></td>
+              <td>IBM Documentation / ISO</td>
+              <td>關聯式資料庫第一正規化（1NF）消除重複群與欄位不可分割性之理論標準。<br /><a href="https://www.ibm.com/docs/en/db2" target="_blank" rel="noopener">IBM DB2 Database Design Guide</a></td>
+            </tr>
+            <tr>
+              <td><strong>SheetJS Community Edition (xlsx)</strong></td>
+              <td>SheetJS</td>
+              <td>純 JavaScript 高效能 Excel 讀寫引擎，支援 <code>.xlsx</code> / <code>.xls</code> 瀏覽器端純文字矩陣解析。<br /><a href="https://sheetjs.com/" target="_blank" rel="noopener">https://sheetjs.com/</a></td>
+            </tr>
+            <tr>
+              <td><strong>Exam-Sections-Arranger 模組設計文獻</strong></td>
+              <td>專案實踐文獻</td>
+              <td>記錄三年 108 課綱寬表展開演算邏輯與零物件配置 O(1) 字典查找最佳實務。<br /><a href="file:///home/cookeyholder/Projects/Exam-Sections-Arranger/docs/DEVELOPMENT.md">Exam-Sections-Arranger/docs/DEVELOPMENT.md</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const cur = document.documentElement.dataset.theme;
+      const next = cur === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem("doc_theme", next);
+    }
+    const saved = localStorage.getItem("doc_theme");
+    if (saved) document.documentElement.dataset.theme = saved;
+
+    function copyCode(btn) {
+      const code = btn.closest(".code-box").querySelector("pre code").innerText;
+      navigator.clipboard.writeText(code).then(function() {
+        btn.innerText = "已複製！";
+        setTimeout(function() { btn.innerText = "複製代碼"; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

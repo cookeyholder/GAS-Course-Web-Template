@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GAS Web App 全端架構與通訊協定指南 - GAS 應用程式範本</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --paper: #ffffff;
+      --ink: #0f172a;
+      --ink-muted: #475569;
+      --ink-subtle: #94a3b8;
+      --line: #e2e8f0;
+      --line-subtle: #f1f5f9;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-bg: #eff6ff;
+      --ok: #16a34a;
+      --ok-bg: #f0fdf4;
+      --warn: #ea580c;
+      --warn-bg: #fff7ed;
+      --err: #dc2626;
+      --err-bg: #fef2f2;
+      --code-bg: #0f172a;
+      --code-ink: #f8fafc;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --radius: 8px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, Menlo, monospace;
+    }
+    html[data-theme="dark"] {
+      --bg: #0b1120;
+      --paper: #1e293b;
+      --ink: #f8fafc;
+      --ink-muted: #cbd5e1;
+      --ink-subtle: #64748b;
+      --line: #334155;
+      --line-subtle: #1e293b;
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-bg: #1e3a8a33;
+      --ok: #22c55e;
+      --ok-bg: #052e1633;
+      --warn: #f97316;
+      --warn-bg: #43140733;
+      --err: #ef4444;
+      --err-bg: #450a0a33;
+      --code-bg: #030712;
+      --code-ink: #f9fafb;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      font-size: 15px;
+      padding-bottom: 60px;
+    }
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+    .top-bar {
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    .top-bar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--primary-bg);
+      color: var(--primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .tools { display: flex; align-items: center; gap: 12px; }
+    .btn-toggle {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-toggle:hover { background: var(--line); }
+    .container {
+      max-width: 1200px;
+      margin: 32px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 36px;
+      align-items: start;
+    }
+    @media (max-width: 880px) {
+      .container { grid-template-columns: 1fr; }
+      .toc-sidebar { display: none; }
+    }
+    .toc-sidebar {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      position: sticky;
+      top: 80px;
+      box-shadow: var(--shadow);
+    }
+    .toc-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-subtle);
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+    .toc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13.5px;
+    }
+    .toc-list a {
+      color: var(--ink-muted);
+      display: block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .toc-list a:hover {
+      background: var(--primary-bg);
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .content { min-width: 0; }
+    .doc-hero {
+      margin-bottom: 32px;
+      background: var(--paper);
+      padding: 32px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      background: var(--primary-bg);
+      color: var(--primary);
+    }
+    .doc-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      line-height: 1.25;
+    }
+    .doc-desc { color: var(--ink-muted); font-size: 16px; }
+    .section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--line-subtle);
+      padding-bottom: 10px;
+    }
+    .step-num {
+      width: 26px;
+      height: 26px;
+      background: var(--primary);
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    p { margin-bottom: 14px; color: var(--ink-muted); }
+    strong { color: var(--ink); font-weight: 600; }
+    .flow-diagram {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .flow-node {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      padding: 14px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .flow-node strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+      color: var(--primary);
+    }
+    .alert {
+      padding: 14px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin: 16px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .alert.tip { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+    .alert.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .alert.info { background: var(--primary-bg); color: var(--primary); border: 1px solid var(--primary); }
+    .code-box {
+      margin: 16px 0 20px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .code-header {
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #cbd5e1;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-ink);
+      padding: 16px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    code { font-family: var(--font-mono); }
+    p code, li code {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      color: var(--primary);
+    }
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    .doc-table th, .doc-table td {
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .doc-table th {
+      background: var(--line-subtle);
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .doc-table tr:nth-child(even) td { background: rgba(0, 0, 0, 0.015); }
+    ul, ol { margin-left: 20px; margin-bottom: 14px; color: var(--ink-muted); }
+    li { margin-bottom: 8px; }
+  </style>
+</head>
+<body>
+
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <div class="brand">
+        <div class="brand-icon">⚙️</div>
+        <span>GAS 應用程式範本技術手冊</span>
+      </div>
+      <div class="tools">
+        <a href="index.html" style="font-size:13.5px; font-weight:500;">文件總覽</a>
+        <button class="btn-toggle" onclick="toggleTheme()" id="themeBtn">◐ 切換主題</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <aside class="toc-sidebar">
+      <div class="toc-title">教學目錄</div>
+      <ul class="toc-list">
+        <li><a href="#single-html">1. 單一 HTML 建置原理</a></li>
+        <li><a href="#cors-bypass">2. 繞過 CORS OPTIONS 預檢</a></li>
+        <li><a href="#envelope">3. 信封通訊協議 (Envelope)</a></li>
+        <li><a href="#lock-service">4. 併發防護：LockService</a></li>
+        <li><a href="#cache-service">5. 效能快取：CacheService</a></li>
+        <li><a href="#sheet-db">6. 試算表作為資料庫準則</a></li>
+        <li><a href="#references">7. 參考資料來源</a></li>
+      </ul>
+    </aside>
+
+    <main class="content">
+      <div class="doc-hero">
+        <span class="badge">全端架構 · 通訊與效能</span>
+        <h1 class="doc-title">GAS Web App 全端架構與通訊協定完全指南</h1>
+        <p class="doc-desc">深入剖析 Google Apps Script 網頁版之核心工程限制：單一 HTML 限制破解、避開 CORS OPTIONS 預檢之通訊協議、併發寫入鎖定與高效試算表存取準則。</p>
+      </div>
+
+      <!-- Section 1 -->
+      <section class="section" id="single-html">
+        <h2 class="section-title"><span class="step-num">1</span> 單一 HTML 限制與零依賴打包原理</h2>
+        <p>Google Apps Script 的 <code>HtmlService</code> 在執行 <code>createTemplateFromFile('index').evaluate()</code> 輸出網頁時，有著一項嚴格的硬體限制：<strong>不支援外部相對路徑的 <code>&lt;link rel="stylesheet" href="..."&gt;</code> 或 <code>&lt;script src="..."&gt;</code></strong>。</p>
+        <p>如果把 CSS 與 JS 全寫在同一個 <code>index.html</code> 中，程式碼將超過數千行，極度難以維護。本專案採用<strong>「開發時模組化，發布時內嵌化」</strong>的架構：</p>
+
+        <div class="flow-diagram">
+          <div class="flow-node">
+            <strong>開發階段</strong>
+            webapp/ 下 11 個 JS 模組與 styles.css
+          </div>
+          <div class="flow-node">
+            <strong>建置腳本</strong>
+            scripts/build-webapp.js
+          </div>
+          <div class="flow-node">
+            <strong>產出目標</strong>
+            根目錄單一 index.html
+          </div>
+          <div class="flow-node">
+            <strong>雲端執行</strong>
+            HtmlService 快速渲染
+          </div>
+        </div>
+
+        <div class="alert tip">
+          <span>💡 <strong>為什麼不用 Webpack / Vite？</strong><br />
+          Webpack 或 Vite 需要龐大的 <code>node_modules</code>（動輒數百 MB）與複雜的轉譯配置。本專案的 <code>scripts/build-webapp.js</code> 是純原生 Node.js 腳本，透過簡單正規表達式將檔案內容逐一插入 <code>&lt;style&gt;</code> 與 <code>&lt;script&gt;</code> 區塊，建置耗時不到 50 毫秒，零相依、零配置負擔！</span>
+        </div>
+      </section>
+
+      <!-- Section 2 -->
+      <section class="section" id="cors-bypass">
+        <h2 class="section-title"><span class="step-num">2</span> 繞過 CORS OPTIONS 預檢請求的關鍵技術</h2>
+        <p>當現代瀏覽器以 JavaScript <code>fetch()</code> 發送 <code>POST</code> 請求時，若標頭指定為 <code>Content-Type: application/json</code>，瀏覽器會強制發送一次 HTTP <strong>OPTIONS 預檢請求 (Preflight Request)</strong>。</p>
+
+        <div class="alert warn">
+          <span>⚠️ <strong>GAS 的致命陷阱</strong>：Google Apps Script 的 Web App <strong>完全不支援 HTTP OPTIONS 方法</strong>！若瀏覽器發出 OPTIONS 預檢，Google 伺服器會直接回應 HTTP 405 Method Not Allowed，導致前端 API 呼叫永遠失敗。</span>
+        </div>
+
+        <p><strong>本範本的解決方案（通訊協議黃金標準）：</strong></p>
+        <p>前端發送請求時，強制將 <code>Content-Type</code> 設為 <code>text/plain;charset=utf-8</code>，內容傳送 JSON 字串：</p>
+        <div class="code-box">
+          <div class="code-header"><span>webapp/js/api.js (前端發送)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <pre><code>// 將 Content-Type 設為 text/plain，瀏覽器將其視為「簡單請求 (Simple Request)」
+// 依 W3C CORS 規範，簡單請求完全不會觸發 OPTIONS 預檢！
+fetch(apiUrl, {
+  method: "POST",
+  headers: {
+    "Content-Type": "text/plain;charset=utf-8"
+  },
+  body: JSON.stringify(body)
+})</code></pre>
+        </div>
+
+        <p>後端 <code>webApi.js</code> 則透過 <code>e.postData.contents</code> 解析字串為 JSON 物件：</p>
+        <div class="code-box">
+          <div class="code-header"><span>webApi.js (後端接收)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <pre><code>function parseWebApiPayload(e) {
+  if (e && e.postData && typeof e.postData.contents === "string") {
+    try {
+      return JSON.parse(e.postData.contents);
+    } catch (err) {
+      return null;
+    }
+  }
+  return e && e.parameter ? e.parameter : {};
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 3 -->
+      <section class="section" id="envelope">
+        <h2 class="section-title"><span class="step-num">3</span> 統一信封通訊協議 (Envelope Pattern)</h2>
+        <p>為了確保所有模組與端點的通訊具有高度一致性與可預測性，系統統一套用信封結構：</p>
+
+        <h3 style="font-size:16px; margin: 16px 0 8px;">請求信封格式 (Request Payload)</h3>
+        <div class="code-box">
+          <pre><code>{
+  "action": "importCourseCodes", // 👈 必填：欲執行的 API 操作名稱
+  "token": "gas_xxx_xxxxxx",     // 👈 鑑權：由 login 取得的 6 小時 Session Token
+  "rows": [ ... ],               // 👈 業務資料載荷
+  "preNormalized": true
+}</code></pre>
+        </div>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">回應信封格式 (Response Payload)</h3>
+        <div class="code-box">
+          <pre><code>// 成功時
+{
+  "ok": true,
+  "rows": 1250,
+  "stats": { ... }
+}
+
+// 失敗時
+{
+  "ok": false,
+  "error": "forbidden",           // 機器可讀之標準錯誤代碼
+  "message": "目前角色無權限執行此操作" // 人類可讀之繁體中文提示訊息
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 4 -->
+      <section class="section" id="lock-service">
+        <h2 class="section-title"><span class="step-num">4</span> 併發寫入防護：LockService 排隊機制</h2>
+        <p>Google 試算表本質上不具備關聯式資料庫的行級鎖（Row Lock）。當多個使用者同時按下「儲存設定」或「匯入課程」時，若同時執行 <code>setValues()</code> 會發生<strong>後者覆蓋前者（Race Condition）</strong>甚至資料錯亂。</p>
+
+        <p><strong>本範本的解法：</strong>在 <code>webApi.js</code> 的 <code>doPost</code> 中，所有標記為寫入型的 Action（如 <code>importCourseCodes</code>、<code>saveSystemSettings</code>）會自動請求 <code>ScriptLock</code>：</p>
+
+        <div class="code-box">
+          <div class="code-header"><span>webApi.js (doPost 鎖定邏輯)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <pre><code>let lock = null;
+let hasLock = false;
+
+try {
+  // 檢查是否為需要鎖定保護的 Action
+  if (needsLock && typeof LockService !== "undefined") {
+    lock = LockService.getScriptLock();
+    // 最多等待 15 秒排隊，避免並發卡死
+    hasLock = lock.tryLock(15000);
+    if (!hasLock) {
+      return jsonResponse(webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試"));
+    }
+  }
+
+  // 安全執行業務邏輯寫入
+  const result = routeWebApiAction(action, payload, e);
+  return jsonResponse(result);
+} finally {
+  // 保證必定釋放鎖定
+  if (hasLock && lock) {
+    lock.releaseLock();
+  }
+}</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 5 -->
+      <section class="section" id="cache-service">
+        <h2 class="section-title"><span class="step-num">5</span> 效能快取：CacheService Session 管理</h2>
+        <p>試算表讀寫非常耗時（每次 <code>getValues()</code> 需耗費 200~800 毫秒）。如果使用者的每個操作都要去試算表驗證身分與權限，系統會極度遲鈍。</p>
+        <p><strong>解決方案</strong>：利用 Google 的記憶體級分散式快取 <code>CacheService.getScriptCache()</code> 儲存 Session：</p>
+        <ul>
+          <li>使用者登入成功後，簽發 <code>gas_隨機碼</code> Token。</li>
+          <li>將使用者的 Email、姓名、角色與權限清單存入快取，有效期限設為 <strong>6 小時 (21,600 秒)</strong>。</li>
+          <li>後續請求讀取快取僅需 <strong>小於 5 毫秒</strong>，兼顧安全性與極致反應速度。</li>
+        </ul>
+      </section>
+
+      <!-- Section 6 -->
+      <section class="section" id="sheet-db">
+        <h2 class="section-title"><span class="step-num">6</span> 試算表作為資料庫 (Spreadsheet as DB) 效能最佳實踐</h2>
+        <p>當使用 Google 試算表作為 Web App 的後端持久層時，請遵循以下由 <code>Exam-Sections-Arranger</code> 淬煉出的架構原則：</p>
+
+        <table class="doc-table">
+          <thead><tr><th style="width:25%;">最佳實踐原則</th><th style="width:35%;">為什麼重要？</th><th style="width:40%;">如何落實？</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><strong>純資料工作表<br />(No Formula)</strong></td>
+              <td>若工作表內包含 <code>VLOOKUP</code>、<code>SUMIF</code> 或陣列公式，大批量寫入時會觸發全表公式重算，造成 GAS 執行逾時（超過 6 分鐘限制）。</td>
+              <td>後端工作表（如「正規化課程索引」）一律存放純純文字與數值，所有業務運算與轉譯由後端 JS 完成後再以純文字寫入。</td>
+            </tr>
+            <tr>
+              <td><strong>批次分塊寫入<br />(Chunking)</strong></td>
+              <td>一次 <code>setValues()</code> 寫入超過 10,000 筆紀錄時，容易引發記憶體溢出或 Google 內部 RPC 失敗。</td>
+              <td>在 <code>subjectCodeTransformer.js</code> 中將大陣列以 <code>COURSE_INDEX_WRITE_CHUNK_SIZE = 5000</code> 分批迴圈寫入。</td>
+            </tr>
+            <tr>
+              <td><strong>純文字格式設定<br />(@STRING@)</strong></td>
+              <td>班級代碼（如 <code>301201</code>）或課程代碼常以數字開頭，若被試算表自動轉為數值會遺失前導零或科學記號化。</td>
+              <td>在寫入前呼叫 <code>range.setNumberFormat("@")</code>，確保所有代碼欄位完整保留。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 7 -->
+      <section class="section" id="references">
+        <h2 class="section-title"><span class="step-num">7</span> 參考資料來源與官方文獻</h2>
+        <table class="doc-table">
+          <thead>
+            <tr><th style="width:30%;">資料來源 / 文件名稱</th><th style="width:25%;">發布組織 / 規範</th><th>說明與官方連結</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>HTML Service: Best Practices</strong></td>
+              <td>Google Workspace Developers</td>
+              <td>GAS 官方 HTML 服務最佳實踐，說明單一 HTML、CSS/JS 內嵌與樣板評估機制。<br /><a href="https://developers.google.com/apps-script/guides/html/best-practices" target="_blank" rel="noopener">https://developers.google.com/apps-script/guides/html/best-practices</a></td>
+            </tr>
+            <tr>
+              <td><strong>Cross-Origin Resource Sharing (CORS)</strong></td>
+              <td>W3C / MDN Web Docs</td>
+              <td>詳細規範簡單請求（Simple Request）與 OPTIONS 預檢觸發條件之國際標準。<br /><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS" target="_blank" rel="noopener">https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS</a></td>
+            </tr>
+            <tr>
+              <td><strong>LockService Reference</strong></td>
+              <td>Google Apps Script</td>
+              <td><code>LockService.getScriptLock()</code> 並發衝突保護與排隊限制官方文件。<br /><a href="https://developers.google.com/apps-script/reference/lock/lock-service" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/lock/lock-service</a></td>
+            </tr>
+            <tr>
+              <td><strong>CacheService Reference</strong></td>
+              <td>Google Apps Script</td>
+              <td><code>CacheService</code> 記憶體級快取使用指南與 6 小時 TTL 限制。<br /><a href="https://developers.google.com/apps-script/reference/cache/cache-service" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/cache/cache-service</a></td>
+            </tr>
+            <tr>
+              <td><strong>Exam-Sections-Arranger 開發手冊</strong></td>
+              <td>母專案技術文獻</td>
+              <td>驗證並淬煉出免預檢協議、純資料表設計與分批寫入機制的架構實踐。<br /><a href="file:///home/cookeyholder/Projects/Exam-Sections-Arranger/docs/DEVELOPMENT.md">Exam-Sections-Arranger/docs/DEVELOPMENT.md</a></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const cur = document.documentElement.dataset.theme;
+      const next = cur === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem("doc_theme", next);
+    }
+    const saved = localStorage.getItem("doc_theme");
+    if (saved) document.documentElement.dataset.theme = saved;
+
+    function copyCode(btn) {
+      const code = btn.closest(".code-box").querySelector("pre code").innerText;
+      navigator.clipboard.writeText(code).then(function() {
+        btn.innerText = "已複製！";
+        setTimeout(function() { btn.innerText = "複製代碼"; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>

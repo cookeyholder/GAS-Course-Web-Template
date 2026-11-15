@@ -45,7 +45,9 @@ GAS-Course-Web-Template/
 │   ├── index.html              # 文件總覽首頁
 │   ├── clasp-guide.html        # Google clasp 安裝、同步與版本化部署完全指南
 │   ├── gis-login-guide.html    # Google 帳號登入 (GIS) 詳細設定教學 (GCP + 本地端)
-│   └── rbac-guide.html         # 依帳號角色管理權限 (RBAC) 實作詳細教學
+│   ├── rbac-guide.html         # 依帳號角色管理權限 (RBAC) 實作詳細教學
+│   ├── architecture-guide.html # GAS Web App 全端架構與通訊協定指南 (CORS 繞過與 LockService)
+│   └── course-normalization-guide.html # 108 課綱課程代碼 1NF 正規化工程解析 (39 欄展開)
 │
 └── tests/
     ├── courseCodeNormalization.test.js  # 108 課綱代碼 1NF 正規化與排除條件單元測試
