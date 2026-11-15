@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google clasp 安裝、同步與版本化部署完全指南 - GAS 應用程式範本</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --paper: #ffffff;
+      --ink: #0f172a;
+      --ink-muted: #475569;
+      --ink-subtle: #94a3b8;
+      --line: #e2e8f0;
+      --line-subtle: #f1f5f9;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-bg: #eff6ff;
+      --ok: #16a34a;
+      --ok-bg: #f0fdf4;
+      --warn: #ea580c;
+      --warn-bg: #fff7ed;
+      --err: #dc2626;
+      --err-bg: #fef2f2;
+      --code-bg: #0f172a;
+      --code-ink: #f8fafc;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --radius: 8px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, Menlo, monospace;
+    }
+
+    html[data-theme="dark"] {
+      --bg: #0b1120;
+      --paper: #1e293b;
+      --ink: #f8fafc;
+      --ink-muted: #cbd5e1;
+      --ink-subtle: #64748b;
+      --line: #334155;
+      --line-subtle: #1e293b;
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-bg: #1e3a8a33;
+      --ok: #22c55e;
+      --ok-bg: #052e1633;
+      --warn: #f97316;
+      --warn-bg: #43140733;
+      --err: #ef4444;
+      --err-bg: #450a0a33;
+      --code-bg: #030712;
+      --code-ink: #f9fafb;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      font-size: 15px;
+      padding-bottom: 60px;
+    }
+
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Top Bar */
+    .top-bar {
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    .top-bar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--primary-bg);
+      color: var(--primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .tools {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-toggle {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-toggle:hover { background: var(--line); }
+
+    /* Layout */
+    .container {
+      max-width: 1200px;
+      margin: 32px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 36px;
+      align-items: start;
+    }
+
+    @media (max-width: 880px) {
+      .container { grid-template-columns: 1fr; }
+      .toc-sidebar { display: none; }
+    }
+
+    /* TOC Sidebar */
+    .toc-sidebar {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      position: sticky;
+      top: 80px;
+      box-shadow: var(--shadow);
+    }
+    .toc-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-subtle);
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+    .toc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13.5px;
+    }
+    .toc-list a {
+      color: var(--ink-muted);
+      display: block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .toc-list a:hover {
+      background: var(--primary-bg);
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* Content */
+    .content { min-width: 0; }
+    .doc-hero {
+      margin-bottom: 32px;
+      background: var(--paper);
+      padding: 32px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      background: var(--primary-bg);
+      color: var(--primary);
+    }
+    .doc-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      line-height: 1.25;
+    }
+    .doc-desc {
+      color: var(--ink-muted);
+      font-size: 16px;
+    }
+
+    .section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--line-subtle);
+      padding-bottom: 10px;
+    }
+    .step-num {
+      width: 26px;
+      height: 26px;
+      background: var(--primary);
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    p { margin-bottom: 14px; color: var(--ink-muted); }
+    strong { color: var(--ink); font-weight: 600; }
+
+    /* Flow Chart */
+    .flow-diagram {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .flow-node {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      padding: 14px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .flow-node strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+      color: var(--primary);
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 14px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin: 16px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .alert.tip { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+    .alert.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .alert.info { background: var(--primary-bg); color: var(--primary); border: 1px solid var(--primary); }
+
+    /* Code Blocks */
+    .code-box {
+      margin: 16px 0 20px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .code-header {
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #cbd5e1;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-ink);
+      padding: 16px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    code { font-family: var(--font-mono); }
+    p code, li code {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      color: var(--primary);
+    }
+
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    .doc-table th, .doc-table td {
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .doc-table th {
+      background: var(--line-subtle);
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .doc-table tr:nth-child(even) td { background: rgba(0, 0, 0, 0.015); }
+
+    ul, ol { margin-left: 20px; margin-bottom: 14px; color: var(--ink-muted); }
+    li { margin-bottom: 8px; }
+
+    .step-box {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: var(--line-subtle);
+    }
+    .step-box h4 {
+      font-size: 15px;
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <div class="brand">
+        <div class="brand-icon">🚀</div>
+        <span>GAS 應用程式範本技術手冊</span>
+      </div>
+      <div class="tools">
+        <a href="index.html" style="font-size:13.5px; font-weight:500;">文件總覽</a>
+        <a href="gis-login-guide.html" style="font-size:13.5px; font-weight:500;">GIS 教學</a>
+        <a href="rbac-guide.html" style="font-size:13.5px; font-weight:500;">RBAC 教學</a>
+        <button class="btn-toggle" onclick="toggleTheme()" id="themeBtn">◐ 切換主題</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Sidebar Table of Contents -->
+    <aside class="toc-sidebar">
+      <div class="toc-title">教學目錄</div>
+      <ul class="toc-list">
+        <li><a href="#overview">1. 認識 clasp 與核心優勢</a></li>
+        <li><a href="#prerequisites">2. 事前準備：啟用 API</a></li>
+        <li><a href="#install-login">3. 安裝與帳號登入授權</a></li>
+        <li><a href="#clone-create">4. 建立與複製專案 (clone)</a></li>
+        <li><a href="#config-files">5. 設定檔 (.clasp / .claspignore)</a></li>
+        <li><a href="#push-pull">6. 雙向同步 (push 與 pull)</a></li>
+        <li><a href="#deploy-version">7. 版本化部署 (Version & Deploy)</a></li>
+        <li><a href="#troubleshooting">8. 常見問題與除錯指令</a></li>
+      </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content">
+      <div class="doc-hero">
+        <span class="badge">命令列工具 · Google clasp 工作流</span>
+        <h1 class="doc-title">Google clasp 安裝、同步與版本化部署完全指南</h1>
+        <p class="doc-desc">擺脫瀏覽器線上編輯器的限制！使用 Google 官方命令列工具 <code>clasp</code>，在本機享受 VS Code、Git 版本控制、自動打包與專業發布工作流。</p>
+      </div>
+
+      <!-- Section 1 -->
+      <section class="section" id="overview">
+        <h2 class="section-title"><span class="step-num">1</span> 認識 clasp 與核心優勢</h2>
+        <p><strong><code>clasp</code>（Command Line Apps Script Projects）</strong> 是 Google 官方專為 Google Apps Script 開發者設計的 CLI 工具。</p>
+        <p>傳統在瀏覽器線上 Apps Script 編輯器中寫程式常面臨以下痛點：</p>
+        <ul>
+          <li>無法使用 Git 進行分支管理與 Commit 歷程追蹤。</li>
+          <li>無法拆分模組化 CSS/JS 檔案（線上無法使用現代前端打包腳本）。</li>
+          <li>沒有本機 IDE（如 VS Code）的智慧補全、快捷鍵與自動格式化。</li>
+        </ul>
+        <p>透過 <code>clasp</code>，您可以將雲端的 Apps Script 專案視為本地檔案庫進行雙向同步：</p>
+
+        <div class="flow-diagram">
+          <div class="flow-node">
+            <strong>本地端開發</strong>
+            VS Code + Git + npm
+          </div>
+          <div class="flow-node">
+            <strong>自動建置打包</strong>
+            build-webapp.js 合併資源
+          </div>
+          <div class="flow-node">
+            <strong>clasp push</strong>
+            上傳至 Google 雲端專案
+          </div>
+          <div class="flow-node">
+            <strong>clasp deploy</strong>
+            建立不可變版本與網址發布
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2 -->
+      <section class="section" id="prerequisites">
+        <h2 class="section-title"><span class="step-num">2</span> 事前必要設定：啟用 Google Apps Script API</h2>
+        <div class="alert warn">
+          <span>⚠️ <strong>關鍵步驟</strong>：首次使用 clasp 之前，<strong>必須</strong>手動在 Google 帳號中開啟「Google Apps Script API」，否則執行任何指令皆會回傳 <code>User has not enabled the Apps Script API</code> 錯誤！</span>
+        </div>
+
+        <p><strong>啟用步驟如下：</strong></p>
+        <ol>
+          <li>使用您的瀏覽器開啟：<a href="https://script.google.com/home/usersettings" target="_blank">Google Apps Script 使用者設定頁面</a>。</li>
+          <li>在「<strong>Google Apps Script API</strong>」選項處，將開關切換為「<strong>開啟 (ON)</strong>」。</li>
+        </ol>
+      </section>
+
+      <!-- Section 3 -->
+      <section class="section" id="install-login">
+        <h2 class="section-title"><span class="step-num">3</span> 安裝與帳號登入授權</h2>
+
+        <h3 style="font-size:16px; margin: 16px 0 8px;">3.1 安裝方式</h3>
+        <p>本專案 <code>package.json</code> 已將 <code>@google/clasp</code> 列為開發相依套件，您可以選擇全域安裝或透過專案執行：</p>
+
+        <div class="code-box">
+          <div class="code-header"><span>終端機安裝指令</span><button class="copy-btn" onclick="copyCode(this)">複製指令</button></div>
+          <pre><code># 方式 A：全域安裝（推薦，任何目錄皆可直接呼叫 clasp）
+npm install -g @google/clasp
+
+# 方式 B：僅使用專案內建版（前綴加上 npx）
+npx clasp --version</code></pre>
+        </div>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">3.2 登入 Google 帳號</h3>
+        <p>執行登入指令，系統會自動開啟預設瀏覽器要求您授予 OAuth 存取權限：</p>
+
+        <div class="code-box">
+          <div class="code-header"><span>登入指令</span><button class="copy-btn" onclick="copyCode(this)">複製指令</button></div>
+          <pre><code>clasp login</code></pre>
+        </div>
+
+        <ol>
+          <li>在開啟的 Google 登入網頁中，選擇您擁有該 Apps Script / 試算表權限的帳號。</li>
+          <li>點擊「<strong>允許</strong>」授權 clasp 管理您的 Apps Script 專案。</li>
+          <li>授權成功後，瀏覽器會顯示 <code>Logged in! You may close this page.</code>。</li>
+          <li>clasp 會將認證憑證儲存於本機家目錄的 <code>~/.clasprc.json</code>。</li>
+        </ol>
+
+        <p>隨時可透過以下指令確認目前的登入身分：</p>
+        <div class="code-box">
+          <pre><code>clasp login --status</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 4 -->
+      <section class="section" id="clone-create">
+        <h2 class="section-title"><span class="step-num">4</span> 建立與複製專案 (clone / create)</h2>
+
+        <h3 style="font-size:16px; margin: 16px 0 8px;">情境 A：複製現有試算表的 Apps Script 專案 (clone)</h3>
+        <p>如果您已經有一張現成的 Google 試算表，且裡面已有 Apps Script：</p>
+        <ol>
+          <li>開啟該試算表，點選「<strong>擴充功能</strong>」→「<strong>Apps Script</strong>」。</li>
+          <li>點選左側選單的「<strong>專案設定</strong>（齒輪圖示）」。</li>
+          <li>找到「<strong>指令碼 ID (Script ID)</strong>」（格式類似：<code>1fM5R5gHxR3zm8hGa9GtgVPMuk2U...</code>）並複製。</li>
+          <li>在終端機執行 <code>clasp clone</code>：
+            <div class="code-box">
+              <div class="code-header"><span>終端機指令</span><button class="copy-btn" onclick="copyCode(this)">複製指令</button></div>
+              <pre><code># 複製至新資料夾
+clasp clone &lt;您的 Script ID&gt; --rootDir .</code></pre>
+            </div>
+          </li>
+        </ol>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">情境 B：綁定至本範本專案 (.clasp.json)</h3>
+        <p>在 <code>GAS-Course-Web-Template</code> 目錄中，已經為您備妥設定檔範本：</p>
+        <ol>
+          <li>複製範本設定檔：
+            <div class="code-box">
+              <pre><code>cp .clasp.json.example .clasp.json</code></pre>
+            </div>
+          </li>
+          <li>打開 <code>.clasp.json</code>，將 <code>scriptId</code> 替換為實際的專案 ID：
+            <div class="code-box">
+              <pre><code>{
+  "scriptId": "貼上您的指令碼 ID",
+  "rootDir": "."
+}</code></pre>
+            </div>
+          </li>
+        </ol>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">情境 C：由本機全新建立專案 (create)</h3>
+        <div class="code-box">
+          <pre><code># 建立綁定至指定試算表容器的專案
+clasp create --title "課程管理 Web App" --type sheets --parentId "&lt;試算表檔案 ID&gt;"</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 5 -->
+      <section class="section" id="config-files">
+        <h2 class="section-title"><span class="step-num">5</span> 核心設定檔解析 (.clasp.json 與 .claspignore)</h2>
+
+        <h3 style="font-size:16px; margin: 16px 0 8px;">5.1 <code>.clasp.json</code> (專案設定)</h3>
+        <table class="doc-table">
+          <thead><tr><th>設定屬性</th><th>預設值</th><th>用途說明</th></tr></thead>
+          <tbody>
+            <tr><td><code>scriptId</code></td><td>（必填）</td><td>雲端 Google Apps Script 專案唯一代碼。</td></tr>
+            <tr><td><code>rootDir</code></td><td><code>"."</code></td><td>程式碼根目錄，指定 clasp 該監聽與推送哪個路徑。</td></tr>
+            <tr><td><code>skipSubdirectories</code></td><td><code>false</code></td><td>是否跳過子目錄。</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">5.2 <code>.claspignore</code> (推送過濾清單，極其重要！)</h3>
+        <p>Google Apps Script 不支援直接上傳任意目錄（如 <code>node_modules/</code>、<code>webapp/</code>），否則會報錯或檔案混亂。<br />
+        本專案的 <code>.claspignore</code> 採用<strong>負向白名單（Negative Whitelist）</strong>機制：</p>
+
+        <div class="code-box">
+          <div class="code-header"><span>.claspignore</span><button class="copy-btn" onclick="copyCode(this)">複製內容</button></div>
+          <pre><code># 1. 預設忽略所有檔案與子目錄
+**
+
+# 2. 僅允許推送後端根目錄腳本、Manifest 與打包後的單一 index.html
+!appsscript.json
+!*.js
+!index.html</code></pre>
+        </div>
+
+        <div class="alert info">
+          <span>✨ <strong>原理</strong>：您在 <code>webapp/</code> 中的多個 CSS/JS 原始碼檔案會經由打包腳本內嵌至根目錄的 <code>index.html</code>。因此 clasp 只需要推送根目錄的 <code>*.js</code> 與 <code>index.html</code> 即可！</span>
+        </div>
+      </section>
+
+      <!-- Section 6 -->
+      <section class="section" id="push-pull">
+        <h2 class="section-title"><span class="step-num">6</span> 雙向同步工作流：push 與 pull</h2>
+
+        <div class="step-box">
+          <h4>6.1 本機推送至雲端 (push)</h4>
+          <p>每次修改完前端或後端程式碼，<strong>務必先打包再推送</strong>。專案的 <code>npm run push</code> 已自動幫您串接好：</p>
+          <div class="code-box">
+            <div class="code-header"><span>終端機指令</span><button class="copy-btn" onclick="copyCode(this)">複製指令</button></div>
+            <pre><code># 一鍵打包並推送（推薦日常使用）
+npm run push
+
+# 等同於依序執行：
+# 1. npm run build:webapp
+# 2. clasp push</code></pre>
+          </div>
+        </div>
+
+        <div class="step-box">
+          <h4>6.2 即時變更監聽與自動推送 (watch)</h4>
+          <p>在頻繁修改程式碼時，可以開啟監聽模式：</p>
+          <div class="code-box">
+            <pre><code>npm run watch
+# 或：clasp push --watch</code></pre>
+          </div>
+          <p>只要檔案一存檔，clasp 就會自動將異動同步至雲端，免去手動輸入指令的繁瑣。</p>
+        </div>
+
+        <div class="step-box">
+          <h4>6.3 雲端抓取至本機 (pull)</h4>
+          <p>如果有人在網頁端編輯器修改了程式碼，可使用 pull 拉回本機：</p>
+          <div class="code-box">
+            <pre><code>npm run pull
+# 或：clasp pull</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 7 -->
+      <section class="section" id="deploy-version">
+        <h2 class="section-title"><span class="step-num">7</span> 版本化部署 (Version & Deploy)</h2>
+        <p>在 Google Apps Script 中，<strong>Web App 是基於「部署（Deployment）」發布的</strong>。若您只執行了 <code>clasp push</code>，使用者瀏覽到的 Web App 仍然是上一次發布的舊版本，必須進行「部署更新」。</p>
+
+        <h3 style="font-size:16px; margin: 16px 0 8px;">7.1 查看現有部署與版本</h3>
+        <div class="code-box">
+          <div class="code-header"><span>終端機指令</span><button class="copy-btn" onclick="copyCode(this)">複製指令</button></div>
+          <pre><code># 查看目前所有的部署（含 Deployment ID 與 Web App 網址）
+clasp deployments
+
+# 查看程式碼發布歷程版本
+clasp version</code></pre>
+        </div>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">7.2 建立不可變版本快照 (Version)</h3>
+        <p>為目前的程式碼記錄一個不可變的發布版本：</p>
+        <div class="code-box">
+          <pre><code>clasp version "v1.0.0 正式版上線"</code></pre>
+        </div>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">7.3 建立新部署 (全新網址)</h3>
+        <div class="code-box">
+          <pre><code>clasp deploy --description "正式生產環境部署 v1.0.0"</code></pre>
+        </div>
+        <p>執行後會顯示該次部署的 <code>Deployment ID</code> 以及對應的 Web App 執行網址。</p>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">7.4 更新既有部署（保持固定 Web App 網址，最佳實務！）</h3>
+        <div class="alert tip">
+          <span>🌟 <strong>最佳實務</strong>：為了避免每次發布都產生新的網址导致使用者書籤失效，請使用 <code>-i &lt;deploymentId&gt;</code> 覆蓋既有部署，網址將永遠保持固定！</span>
+        </div>
+
+        <div class="code-box">
+          <div class="code-header"><span>更新既有部署指令</span><button class="copy-btn" onclick="copyCode(this)">複製指令</button></div>
+          <pre><code># 1. 先用 clasp deployments 找到目前的 Deployment ID（以 AKfycb... 開頭）
+clasp deployments
+
+# 2. 指定該 Deployment ID 進行更新
+clasp deploy -i &lt;您的 Deployment ID&gt; -d "更新：修正課程搜尋分頁問題"</code></pre>
+        </div>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">7.5 一鍵部署快捷指令</h3>
+        <p>在專案中，您也可以直接執行：</p>
+        <div class="code-box">
+          <pre><code>npm run deploy</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 8 -->
+      <section class="section" id="troubleshooting">
+        <h2 class="section-title"><span class="step-num">8</span> 常見問題與除錯指令</h2>
+
+        <h3 style="font-size:16px; margin: 16px 0 8px;">8.1 快速開啟專案工具</h3>
+        <div class="code-box">
+          <pre><code># 直接以瀏覽器開啟雲端 Apps Script 編輯器
+clasp open
+
+# 直接開啟目前發布的 Web App 網頁
+clasp open --webapp</code></pre>
+        </div>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">8.2 檢視後端執行記錄 (StackDriver Logs)</h3>
+        <div class="code-box">
+          <pre><code># 查看最新執行的 console.log 與錯誤記錄
+clasp logs
+
+# 即時持續監聽記錄輸出
+clasp logs --watch</code></pre>
+        </div>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">8.3 常見錯誤速查表</h3>
+        <table class="doc-table">
+          <thead><tr><th style="width:30%;">錯誤訊息</th><th style="width:35%;">成因</th><th style="width:35%;">解決方法</th></tr></thead>
+          <tbody>
+            <tr>
+              <td><code>User has not enabled the Apps Script API</code></td>
+              <td>Google 帳號中未開啟 Apps Script API 開關。</td>
+              <td>至 <a href="https://script.google.com/home/usersettings" target="_blank">使用者設定頁</a> 將開關切換為 ON。</td>
+            </tr>
+            <tr>
+              <td><code>Could not find .clasp.json</code></td>
+              <td>尚未建立專案設定檔或路徑錯誤。</td>
+              <td>執行 <code>cp .clasp.json.example .clasp.json</code> 並填入 Script ID。</td>
+            </tr>
+            <tr>
+              <td><code>Invalid JSON in .clasp.json</code></td>
+              <td>設定檔格式有逗號錯誤或引號缺失。</td>
+              <td>檢查 <code>.clasp.json</code> 語法，確保符合標準 JSON 格式。</td>
+            </tr>
+            <tr>
+              <td>推送後網頁程式碼沒有改變</td>
+              <td>只執行了 push，未更新部署（Deployment）。</td>
+              <td>執行 <code>clasp deploy -i &lt;deploymentId&gt;</code> 重新發布新版。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const cur = document.documentElement.dataset.theme;
+      const next = cur === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem("doc_theme", next);
+    }
+    const saved = localStorage.getItem("doc_theme");
+    if (saved) document.documentElement.dataset.theme = saved;
+
+    function copyCode(btn) {
+      const code = btn.closest(".code-box").querySelector("pre code").innerText;
+      navigator.clipboard.writeText(code).then(function() {
+        btn.innerText = "已複製！";
+        setTimeout(function() { btn.innerText = "複製代碼"; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
