@@ -89,7 +89,8 @@ cp .clasp.json.example .clasp.json
 3. 進入 **API 和服務** → **OAuth 同意畫面**，使用者類型選取「內部」（Intranet）或「外部」。
 4. 進入 **API 和服務** → **憑證**，點擊 **建立憑證** → **OAuth 用戶端 ID**：
    - 應用程式類型選取：**網頁應用程式** (Web application)。
-   - **已授權的 JavaScript 來源**：加入 `https://script.google.com` 以及 `https://script.googleusercontent.com`。
+   - **已授權的 JavaScript 來源**：填入 `https://script.google.com`（⚠️ **請勿填寫 `googleusercontent.com`**，Google 後台會判定為禁止網域並報錯「來源無效：使用的網域遭到禁止」；本地測試請填入 `http://localhost:8080`）。
+   - **已授權的重新導向 URI**：填入 Web App 正式部署網址 `https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec`（若使用學校 Workspace 專屬網域，需一併新增 `https://script.google.com/a/{DOMAIN}/macros/s/{DEPLOYMENT_ID}/exec`）。
 5. 建立後取得 **用戶端 ID (Client ID)**（格式例如：`123456789-xxxxxxxx.apps.googleusercontent.com`）。
 6. 可在 Google 試算表的「系統設定與授權」工作表 B5 儲存格填入此 Client ID，或於網頁版管理介面中設定。
 

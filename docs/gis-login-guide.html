@@ -468,20 +468,33 @@
             <li>名稱可自訂（例如：<code>GAS Web Client</code>）。</li>
             <li>
               <strong>已授權的 JavaScript 來源 (Authorized JavaScript origins)</strong>：<br />
-              這是 <strong>最重要的一步</strong>，Google GIS 會嚴格核對瀏覽器當前的 Origin。請務必完整加入以下項目：
+              供 GIS 前端登入彈窗或 One Tap 使用，請填入：
               <div class="code-box">
-                <div class="code-header"><span>請將以下來源逐筆填入「已授權的 JavaScript 來源」</span><button class="copy-btn" onclick="copyCode(this)">複製來源清單</button></div>
+                <div class="code-header"><span>已授權的 JavaScript 來源（請逐筆新增）</span><button class="copy-btn" onclick="copyCode(this)">複製來源清單</button></div>
                 <pre><code>https://script.google.com
-https://script.googleusercontent.com
 http://localhost
-http://localhost:3000
 http://localhost:8080
 http://127.0.0.1:8080</code></pre>
               </div>
+              <div class="alert warn" style="margin: 8px 0 16px;">
+                <span>⚠️ <strong>重要警示：絕對不要填寫 <code>googleusercontent.com</code>！</strong><br />
+                Google Cloud Console 會將 <code>googleusercontent.com</code> 判定為禁止網域，若嘗試加入會直接噴出紅字錯誤：<strong>「來源無效：使用的網域遭到禁止 (Invalid Origin: URIs cannot contain googleusercontent.com)」</strong>。<br />
+                線上 Web App 環境<strong>只需要填入 <code>https://script.google.com</code></strong> 即可！</span>
+              </div>
             </li>
             <li>
-              <strong>已授權的重新導向 URI (Authorized redirect URIs)</strong>（選填）：<br />
-              填入您的 Web App 正式網址（例如：<code>https://script.google.com/macros/s/AKfycb.../exec</code>）以及 <code>https://script.google.com</code>。
+              <strong>已授權的重新導向 URI (Authorized redirect URIs)</strong>（供跳轉或備援登入使用）：<br />
+              請填入您的 Web App 正式部署網址：
+              <div class="code-box">
+                <div class="code-header"><span>已授權的重新導向 URI 範例</span><button class="copy-btn" onclick="copyCode(this)">複製 URI 範例</button></div>
+                <pre><code>https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec
+https://script.google.com</code></pre>
+              </div>
+              <div class="alert info" style="margin: 8px 0 16px;">
+                <span>💡 <strong>Google Workspace 學校或企業網域特別提醒</strong>：<br />
+                若您的 Google 帳號屬於專屬網域（例如 <code>@ksvs.kh.edu.tw</code>），Web App 的實際執行網址會包含網域名稱（例如 <code>https://script.google.com/a/ksvs.kh.edu.tw/macros/s/{DEPLOYMENT_ID}/exec</code>）。<br />
+                請務必將此網域專屬網址也加入「已授權的重新導向 URI」，否則跳轉登入時會出現 <code>錯誤 400：redirect_uri_mismatch</code>。</span>
+              </div>
             </li>
             <li>點擊「<strong>建立</strong>」。</li>
             <li>在彈出的視窗中，複製並保存「<strong>您的用戶端 ID</strong>」（格式為：<code>xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com</code>）。</li>
@@ -616,6 +629,11 @@ npx serve . -p 8080</code></pre>
             <tr><th style="width:28%;">錯誤現象 / 代碼</th><th style="width:36%;">常見原因</th><th style="width:36%;">解決方案</th></tr>
           </thead>
           <tbody>
+            <tr>
+              <td><code>來源無效：使用的網域遭到禁止</code><br /><span style="font-size:11px; color:var(--ink-subtle);">(Invalid Origin)</span></td>
+              <td>在 Google Cloud Console 的「已授權 JavaScript 來源」填入了 <code>*.googleusercontent.com</code>。Google 判定該網域為使用者內容代管網域，強制禁止加入。</td>
+              <td>請將 <code>googleusercontent.com</code> 移除，線上環境<strong>只需保留 <code>https://script.google.com</code></strong> 即可。</td>
+            </tr>
             <tr>
               <td><code>origin_mismatch</code></td>
               <td>當前網頁的 Origin（例如 <code>http://localhost:8080</code> 或 <code>https://script.google.com</code>）未加入 Google Cloud Console 憑證的「已授權 JavaScript 來源」。</td>
