@@ -383,6 +383,7 @@
         <li><a href="#step4">5. 步驟四：指派使用者角色</a></li>
         <li><a href="#example">6. 完整實戰：新增主管角色</a></li>
         <li><a href="#verification">7. 單元測試與上線驗證</a></li>
+        <li><a href="#references">8. 參考資料來源</a></li>
       </ul>
     </aside>
 
@@ -642,6 +643,43 @@ if (!canImport) {
             立即生效於線上試算表與 Web App 網頁！
           </li>
         </ol>
+      <!-- Section 8 -->
+      <section class="section" id="references">
+        <h2 class="section-title"><span class="step-num">8</span> 參考資料來源與官方文獻</h2>
+        <p>本教學與 RBAC 角色權限矩陣架構參考以下資訊安全規範與 Google 官方技術文件：</p>
+        
+        <table class="doc-table">
+          <thead>
+            <tr><th style="width:30%;">資料來源 / 文件名稱</th><th style="width:25%;">發布組織 / 標準編號</th><th>說明與官方連結</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Guide to Role Based Access Control (RBAC)</strong></td>
+              <td>NIST (美國國家標準暨技術研究院)</td>
+              <td>NIST Special Publication 800-162，定義角色導向存取控制模型、權限繼承與最小權限原則。<br /><a href="https://csrc.nist.gov/publications/detail/sp/800-162/final" target="_blank" rel="noopener">https://csrc.nist.gov/publications/detail/sp/800-162/final</a></td>
+            </tr>
+            <tr>
+              <td><strong>Google Apps Script - CacheService</strong></td>
+              <td>Google Workspace Developers</td>
+              <td>說明如何利用分散式快取儲存短期身分驗證 Token，避免頻繁查詢試算表造成的效能瓶頸。<br /><a href="https://developers.google.com/apps-script/reference/cache/cache-service" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/cache/cache-service</a></td>
+            </tr>
+            <tr>
+              <td><strong>Google Apps Script - LockService</strong></td>
+              <td>Google Workspace Developers</td>
+              <td>說明寫入型 Action 如何利用 ScriptLock 進行排隊防鎖，確保多成員並行寫入資料庫時之完整性。<br /><a href="https://developers.google.com/apps-script/reference/lock/lock-service" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/lock/lock-service</a></td>
+            </tr>
+            <tr>
+              <td><strong>Google Apps Script - SpreadsheetApp</strong></td>
+              <td>Google Workspace Developers</td>
+              <td>試算表白名單讀寫、純資料存儲與資料驗證官方 API 文件。<br /><a href="https://developers.google.com/apps-script/reference/spreadsheet/spreadsheet-app" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/spreadsheet/spreadsheet-app</a></td>
+            </tr>
+            <tr>
+              <td><strong>Exam-Sections-Arranger 開發手冊</strong></td>
+              <td>專案實踐文獻</td>
+              <td>母專案四階段跨處室角色權限接力模型（註冊組、教學組、課務組、管理員）之架構實踐。<br /><a href="file:///home/cookeyholder/Projects/Exam-Sections-Arranger/docs/DEVELOPMENT.md">Exam-Sections-Arranger/docs/DEVELOPMENT.md</a></td>
+            </tr>
+          </tbody>
+        </table>
       </section>
 
     </main>

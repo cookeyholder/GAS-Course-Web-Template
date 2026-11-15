@@ -387,6 +387,7 @@
         <li><a href="#push-pull">6. 雙向同步 (push 與 pull)</a></li>
         <li><a href="#deploy-version">7. 版本化部署 (Version & Deploy)</a></li>
         <li><a href="#troubleshooting">8. 常見問題與除錯指令</a></li>
+        <li><a href="#references">9. 參考資料來源</a></li>
       </ul>
     </aside>
 
@@ -690,6 +691,48 @@ clasp logs --watch</code></pre>
               <td>推送後網頁程式碼沒有改變</td>
               <td>只執行了 push，未更新部署（Deployment）。</td>
               <td>執行 <code>clasp deploy -i &lt;deploymentId&gt;</code> 重新發布新版。</td>
+            </tr>
+          </tbody>
+        </table>
+      <!-- Section 9 -->
+      <section class="section" id="references">
+        <h2 class="section-title"><span class="step-num">9</span> 參考資料來源與官方文獻</h2>
+        <p>本指南內容與指令規範參考 Google 官方開發文件與開源社群實務標準：</p>
+        
+        <table class="doc-table">
+          <thead>
+            <tr><th style="width:30%;">資料來源 / 文件名稱</th><th style="width:25%;">發布組織 / 存放庫</th><th>說明與官方連結</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Command Line Interface using clasp</strong></td>
+              <td>Google Developers</td>
+              <td>Google 官方 Apps Script CLI 入門指南，包含 login、clone、push、deploy 命令規範。<br /><a href="https://developers.google.com/apps-script/guides/clasp" target="_blank" rel="noopener">https://developers.google.com/apps-script/guides/clasp</a></td>
+            </tr>
+            <tr>
+              <td><strong>google/clasp (GitHub Repository)</strong></td>
+              <td>Google Open Source</td>
+              <td>clasp 官方 GitHub 開源代碼庫、指令參數文件與 Issue 討論區。<br /><a href="https://github.com/google/clasp" target="_blank" rel="noopener">https://github.com/google/clasp</a></td>
+            </tr>
+            <tr>
+              <td><strong>Google Apps Script API User Settings</strong></td>
+              <td>Google Apps Script</td>
+              <td>開啟 Google 帳號中 Apps Script API 權限之官方入口。<br /><a href="https://script.google.com/home/usersettings" target="_blank" rel="noopener">https://script.google.com/home/usersettings</a></td>
+            </tr>
+            <tr>
+              <td><strong>Web Apps in Apps Script</strong></td>
+              <td>Google Developers</td>
+              <td>Apps Script 網頁應用程式部署規範、執行身分（USER_DEPLOYING / USER_ACCESSING）與存取權限說明。<br /><a href="https://developers.google.com/apps-script/guides/web" target="_blank" rel="noopener">https://developers.google.com/apps-script/guides/web</a></td>
+            </tr>
+            <tr>
+              <td><strong>Apps Script Manifests (appsscript.json)</strong></td>
+              <td>Google Developers</td>
+              <td>專案清單結構定義文件，包含時區、相依性與 Web App 宣告。<br /><a href="https://developers.google.com/apps-script/concepts/manifests" target="_blank" rel="noopener">https://developers.google.com/apps-script/concepts/manifests</a></td>
+            </tr>
+            <tr>
+              <td><strong>Exam-Sections-Arranger 開發部署指引</strong></td>
+              <td>專案實踐文獻</td>
+              <td>母專案之 clasp 實作經驗，記錄了固定 Deployment ID 發布與單一 HTML 打包工作流。<br /><a href="file:///home/cookeyholder/Projects/Exam-Sections-Arranger/docs/DEVELOPMENT.md">Exam-Sections-Arranger/docs/DEVELOPMENT.md</a></td>
             </tr>
           </tbody>
         </table>

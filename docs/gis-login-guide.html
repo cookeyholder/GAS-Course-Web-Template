@@ -384,6 +384,7 @@
         <li><a href="#local-testing">4. 本地端開發與測試方式</a></li>
         <li><a href="#backend-verify">5. 後端憑證驗證與快取</a></li>
         <li><a href="#troubleshooting">6. 常見錯誤與排解</a></li>
+        <li><a href="#references">7. 參考資料來源</a></li>
       </ul>
     </aside>
 
@@ -653,6 +654,53 @@ npx serve . -p 8080</code></pre>
               <td><code>client_id_mismatch</code></td>
               <td>前端送出的憑證 aud 與試算表中儲存的 OAuth Client ID 不一致。</td>
               <td>請確認試算表 B5 儲存格與 Google Cloud Console 中的 Client ID 字串完全一致（注意不可有前後多餘空白）。</td>
+            </tr>
+          </tbody>
+        </table>
+      <!-- Section 7 -->
+      <section class="section" id="references">
+        <h2 class="section-title"><span class="step-num">7</span> 參考資料來源與官方文獻</h2>
+        <p>本教學與身分驗證架構設計參考以下官方規範、技術文件與工程實踐：</p>
+        
+        <table class="doc-table">
+          <thead>
+            <tr><th style="width:30%;">資料來源 / 文件名稱</th><th style="width:25%;">發布組織 / 作者</th><th>說明與官方連結</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>Google Identity Services for Web</strong></td>
+              <td>Google Developers</td>
+              <td>GIS 官方指南，涵蓋 JavaScript SDK 載入、按鈕渲染與 Client ID 初始化。<br /><a href="https://developers.google.com/identity/gsi/web/guides/overview" target="_blank" rel="noopener">https://developers.google.com/identity/gsi/web/guides/overview</a></td>
+            </tr>
+            <tr>
+              <td><strong>Display the Sign In With Google Button</strong></td>
+              <td>Google Developers</td>
+              <td>Google 登入按鈕外觀、深淺色主題、形狀與 callback 參數規範。<br /><a href="https://developers.google.com/identity/gsi/web/guides/display-button" target="_blank" rel="noopener">https://developers.google.com/identity/gsi/web/guides/display-button</a></td>
+            </tr>
+            <tr>
+              <td><strong>Verify the Google ID token server-side</strong></td>
+              <td>Google Developers</td>
+              <td>說明後端如何透過 <code>tokeninfo</code> 端點檢驗 JWT 簽名、驗證受眾（aud）與發行者。<br /><a href="https://developers.google.com/identity/gsi/web/guides/verify-google-id-token" target="_blank" rel="noopener">https://developers.google.com/identity/gsi/web/guides/verify-google-id-token</a></td>
+            </tr>
+            <tr>
+              <td><strong>Setting up OAuth 2.0 (Google Cloud)</strong></td>
+              <td>Google Cloud Support</td>
+              <td>OAuth 同意畫面、已授權 JavaScript 來源與重新導向 URI 設定指引。<br /><a href="https://support.google.com/cloud/answer/6158849" target="_blank" rel="noopener">https://support.google.com/cloud/answer/6158849</a></td>
+            </tr>
+            <tr>
+              <td><strong>Google Apps Script - Session API</strong></td>
+              <td>Google Workspace</td>
+              <td><code>Session.getActiveUser().getEmail()</code> 官方 API 規範與權限宣告。<br /><a href="https://developers.google.com/apps-script/reference/base/session#getActiveUser()" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/base/session#getActiveUser()</a></td>
+            </tr>
+            <tr>
+              <td><strong>Google Apps Script - CacheService</strong></td>
+              <td>Google Workspace</td>
+              <td><code>CacheService.getScriptCache()</code> 官方文件（高頻 Token 快取最佳實踐）。<br /><a href="https://developers.google.com/apps-script/reference/cache/cache-service" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/cache/cache-service</a></td>
+            </tr>
+            <tr>
+              <td><strong>Exam-Sections-Arranger 開發手冊</strong></td>
+              <td>專案實踐文獻</td>
+              <td>母專案實測結論，完整記錄了 Google Cloud 禁止 <code>googleusercontent.com</code> 來源之實證經驗。<br /><a href="file:///home/cookeyholder/Projects/Exam-Sections-Arranger/docs/DEVELOPMENT.md">Exam-Sections-Arranger/docs/DEVELOPMENT.md</a></td>
             </tr>
           </tbody>
         </table>
