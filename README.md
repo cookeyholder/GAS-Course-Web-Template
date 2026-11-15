@@ -43,6 +43,7 @@ GAS-Course-Web-Template/
 │
 ├── docs/                       # 技術與教學文件目錄 (HTML 離線說明文件)
 │   ├── index.html              # 文件總覽首頁
+│   ├── gis-login-guide.html    # Google 帳號登入 (GIS) 詳細設定教學 (GCP + 本地端)
 │   └── rbac-guide.html         # 依帳號角色管理權限 (RBAC) 實作詳細教學
 │
 └── tests/

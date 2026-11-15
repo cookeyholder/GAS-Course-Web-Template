@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="light">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Google Identity Services (GIS) 登入整合與設定教學 - GAS 應用程式範本</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --paper: #ffffff;
+      --ink: #0f172a;
+      --ink-muted: #475569;
+      --ink-subtle: #94a3b8;
+      --line: #e2e8f0;
+      --line-subtle: #f1f5f9;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-bg: #eff6ff;
+      --ok: #16a34a;
+      --ok-bg: #f0fdf4;
+      --warn: #ea580c;
+      --warn-bg: #fff7ed;
+      --err: #dc2626;
+      --err-bg: #fef2f2;
+      --code-bg: #0f172a;
+      --code-ink: #f8fafc;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+      --radius: 8px;
+      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, Menlo, monospace;
+    }
+
+    html[data-theme="dark"] {
+      --bg: #0b1120;
+      --paper: #1e293b;
+      --ink: #f8fafc;
+      --ink-muted: #cbd5e1;
+      --ink-subtle: #64748b;
+      --line: #334155;
+      --line-subtle: #1e293b;
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-bg: #1e3a8a33;
+      --ok: #22c55e;
+      --ok-bg: #052e1633;
+      --warn: #f97316;
+      --warn-bg: #43140733;
+      --err: #ef4444;
+      --err-bg: #450a0a33;
+      --code-bg: #030712;
+      --code-ink: #f9fafb;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg);
+      color: var(--ink);
+      line-height: 1.65;
+      font-size: 15px;
+      padding-bottom: 60px;
+    }
+
+    a { color: var(--primary); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* Header */
+    .top-bar {
+      background: var(--paper);
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      box-shadow: var(--shadow);
+    }
+    .top-bar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 12px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-weight: 600;
+      font-size: 16px;
+    }
+    .brand-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--primary-bg);
+      color: var(--primary);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .tools {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-toggle {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      color: var(--ink);
+      padding: 6px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    .btn-toggle:hover { background: var(--line); }
+
+    /* Layout */
+    .container {
+      max-width: 1200px;
+      margin: 32px auto;
+      padding: 0 24px;
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 36px;
+      align-items: start;
+    }
+
+    @media (max-width: 880px) {
+      .container { grid-template-columns: 1fr; }
+      .toc-sidebar { display: none; }
+    }
+
+    /* TOC Sidebar */
+    .toc-sidebar {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 20px;
+      position: sticky;
+      top: 80px;
+      box-shadow: var(--shadow);
+    }
+    .toc-title {
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-subtle);
+      margin-bottom: 14px;
+      font-weight: 700;
+    }
+    .toc-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      font-size: 13.5px;
+    }
+    .toc-list a {
+      color: var(--ink-muted);
+      display: block;
+      padding: 4px 8px;
+      border-radius: 4px;
+      transition: all 0.15s;
+    }
+    .toc-list a:hover {
+      background: var(--primary-bg);
+      color: var(--primary);
+      text-decoration: none;
+    }
+
+    /* Content */
+    .content { min-width: 0; }
+    .doc-hero {
+      margin-bottom: 32px;
+      background: var(--paper);
+      padding: 32px;
+      border-radius: var(--radius);
+      border: 1px solid var(--line);
+      box-shadow: var(--shadow);
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 9999px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      background: var(--primary-bg);
+      color: var(--primary);
+    }
+    .doc-title {
+      font-size: 28px;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+      line-height: 1.25;
+    }
+    .doc-desc {
+      color: var(--ink-muted);
+      font-size: 16px;
+    }
+
+    .section {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 28px;
+      margin-bottom: 24px;
+      box-shadow: var(--shadow);
+    }
+    .section-title {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 1px solid var(--line-subtle);
+      padding-bottom: 10px;
+    }
+    .step-num {
+      width: 26px;
+      height: 26px;
+      background: var(--primary);
+      color: #ffffff;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    p { margin-bottom: 14px; color: var(--ink-muted); }
+    strong { color: var(--ink); font-weight: 600; }
+
+    /* Flow Chart */
+    .flow-diagram {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 12px;
+      margin: 20px 0;
+    }
+    .flow-node {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      padding: 14px;
+      border-radius: 6px;
+      text-align: center;
+      font-size: 13px;
+    }
+    .flow-node strong {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 4px;
+      color: var(--primary);
+    }
+
+    /* Alerts */
+    .alert {
+      padding: 14px 18px;
+      border-radius: 6px;
+      font-size: 14px;
+      margin: 16px 0;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .alert.tip { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
+    .alert.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
+    .alert.info { background: var(--primary-bg); color: var(--primary); border: 1px solid var(--primary); }
+
+    /* Code Blocks */
+    .code-box {
+      margin: 16px 0 20px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid var(--line);
+    }
+    .code-header {
+      background: #1e293b;
+      color: #94a3b8;
+      padding: 8px 16px;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .copy-btn {
+      background: rgba(255, 255, 255, 0.1);
+      border: none;
+      color: #cbd5e1;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+    .copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-ink);
+      padding: 16px;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+    code { font-family: var(--font-mono); }
+    p code, li code {
+      background: var(--line-subtle);
+      border: 1px solid var(--line);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 12.5px;
+      color: var(--primary);
+    }
+
+    .doc-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    .doc-table th, .doc-table td {
+      border: 1px solid var(--line);
+      padding: 10px 14px;
+      text-align: left;
+    }
+    .doc-table th {
+      background: var(--line-subtle);
+      font-weight: 600;
+      color: var(--ink);
+    }
+    .doc-table tr:nth-child(even) td { background: rgba(0, 0, 0, 0.015); }
+
+    ul, ol { margin-left: 20px; margin-bottom: 14px; color: var(--ink-muted); }
+    li { margin-bottom: 8px; }
+
+    .step-box {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 16px;
+      margin-bottom: 16px;
+      background: var(--line-subtle);
+    }
+    .step-box h4 {
+      font-size: 15px;
+      margin-bottom: 8px;
+      color: var(--ink);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation -->
+  <header class="top-bar">
+    <div class="top-bar-inner">
+      <div class="brand">
+        <div class="brand-icon">🔑</div>
+        <span>GAS 應用程式範本技術手冊</span>
+      </div>
+      <div class="tools">
+        <a href="index.html" style="font-size:13.5px; font-weight:500;">文件總覽</a>
+        <a href="rbac-guide.html" style="font-size:13.5px; font-weight:500;">RBAC 教學</a>
+        <button class="btn-toggle" onclick="toggleTheme()" id="themeBtn">◐ 切換主題</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+    <!-- Sidebar Table of Contents -->
+    <aside class="toc-sidebar">
+      <div class="toc-title">教學章節</div>
+      <ul class="toc-list">
+        <li><a href="#overview">1. GIS 登入機制原理</a></li>
+        <li><a href="#gcp-setup">2. Google Cloud 設定指南</a></li>
+        <li><a href="#template-config">3. 範本端 Client ID 配置</a></li>
+        <li><a href="#local-testing">4. 本地端開發與測試方式</a></li>
+        <li><a href="#backend-verify">5. 後端憑證驗證與快取</a></li>
+        <li><a href="#troubleshooting">6. 常見錯誤與排解</a></li>
+      </ul>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="content">
+      <div class="doc-hero">
+        <span class="badge">身分驗證 · Google Identity Services</span>
+        <h1 class="doc-title">Google 帳號登入 (GIS) 詳細設定教學</h1>
+        <p class="doc-desc">完整涵蓋 Google Cloud Console 憑證建立、已授權來源設定、範本端配置，以及本地端離線與即時測試方案。</p>
+      </div>
+
+      <!-- Section 1 -->
+      <section class="section" id="overview">
+        <h2 class="section-title"><span class="step-num">1</span> GIS 登入機制原理</h2>
+        <p><strong>Google Identity Services (GIS)</strong> 是 Google 推出的新一代身分驗證客戶端程式庫（SDK 網址為 <code>https://accounts.google.com/gsi/client</code>）。</p>
+        <p>在 <code>GAS-Course-Web-Template</code> 中，登入流程具備以下防護與容錯設計：</p>
+
+        <div class="flow-diagram">
+          <div class="flow-node">
+            <strong>1. 載入 GIS</strong>
+            前端動態載入 gsi/client 函式庫
+          </div>
+          <div class="flow-node">
+            <strong>2. Google 登入按鈕</strong>
+            用戶點擊並登入，回傳 ID Token (JWT)
+          </div>
+          <div class="flow-node">
+            <strong>3. 後端驗證</strong>
+            GAS 呼叫 tokeninfo 驗證簽章與發行者
+          </div>
+          <div class="flow-node">
+            <strong>4. 發放 Session</strong>
+            快取 6 小時 Token，前端存入 LocalStorage
+          </div>
+        </div>
+
+        <div class="alert tip">
+          <span>🌟 <strong>多重備援機制</strong>：若尚未申請 Google Cloud OAuth Client ID，系統支援「<strong>Google Workspace 網域登入</strong>」（直接以 <code>Session.getActiveUser()</code> 辨識身分，無須彈跳 OAuth 視窗）；本地測試時更支援 <code>?mock=true</code> 零設定離線模式！</span>
+        </div>
+      </section>
+
+      <!-- Section 2 -->
+      <section class="section" id="gcp-setup">
+        <h2 class="section-title"><span class="step-num">2</span> Google Cloud Console 詳細設定步驟</h2>
+        <p>要讓使用者的瀏覽器能順利顯示 Google 登入按鈕並通過身分驗證，必須於 Google Cloud Console 建立一組專屬的 <strong>OAuth 2.0 用戶端 ID</strong>。</p>
+
+        <div class="step-box">
+          <h4>步驟 2.1：建立或選取 Google Cloud 專案</h4>
+          <ol>
+            <li>前往 <a href="https://console.cloud.google.com/" target="_blank">Google Cloud Console</a> 並以您的 Google 帳號登入。</li>
+            <li>在頂部導覽列點選專案下拉選單，點擊「<strong>新增專案</strong>」（或選取現有專案）。</li>
+            <li>輸入專案名稱（例如：<code>My-GAS-Web-System</code>），點擊「<strong>建立</strong>」。</li>
+          </ol>
+        </div>
+
+        <div class="step-box">
+          <h4>步驟 2.2：設定 OAuth 同意畫面 (OAuth Consent Screen)</h4>
+          <ol>
+            <li>由左側選單進入「<strong>API 和服務</strong>」→「<strong>OAuth 同意畫面</strong>」。</li>
+            <li><strong>User Type（使用者類型）</strong>：
+              <ul>
+                <li><strong>內部 (Internal)</strong>（推薦，學校或企業 Workspace 網域）：僅限本網域信箱登入，無須 Google 審查即可直接正式上線。</li>
+                <li><strong>外部 (External)</strong>（個人 Gmail 帳號）：若選取外部，在發布前需於「測試使用者」清單加入允許登入的 Gmail。</li>
+              </ul>
+            </li>
+            <li><strong>應用程式資訊</strong>：填入應用程式名稱（如 <code>課程代碼管理系統</code>）與使用者支援電子郵件。</li>
+            <li><strong>範圍 (Scopes)</strong>：點擊「新增或移除範圍」，勾選基礎三項即可：
+              <code>.../auth/userinfo.email</code>、
+              <code>.../auth/userinfo.profile</code>、
+              <code>openid</code>。
+            </li>
+            <li>完成後點擊「儲存並繼續」。</li>
+          </ol>
+        </div>
+
+        <div class="step-box">
+          <h4>步驟 2.3：建立「OAuth 用戶端 ID」憑證</h4>
+          <ol>
+            <li>由左側選單進入「<strong>API 和服務</strong>」→「<strong>憑證</strong>」。</li>
+            <li>點擊頂部「<strong>＋ 建立憑證</strong>」→ 選取「<strong>OAuth 用戶端 ID</strong>」。</li>
+            <li>應用程式類型選取：「<strong>網頁應用程式 (Web application)</strong>」。</li>
+            <li>名稱可自訂（例如：<code>GAS Web Client</code>）。</li>
+            <li>
+              <strong>已授權的 JavaScript 來源 (Authorized JavaScript origins)</strong>：<br />
+              這是 <strong>最重要的一步</strong>，Google GIS 會嚴格核對瀏覽器當前的 Origin。請務必完整加入以下項目：
+              <div class="code-box">
+                <div class="code-header"><span>請將以下來源逐筆填入「已授權的 JavaScript 來源」</span><button class="copy-btn" onclick="copyCode(this)">複製來源清單</button></div>
+                <pre><code>https://script.google.com
+https://script.googleusercontent.com
+http://localhost
+http://localhost:3000
+http://localhost:8080
+http://127.0.0.1:8080</code></pre>
+              </div>
+            </li>
+            <li>
+              <strong>已授權的重新導向 URI (Authorized redirect URIs)</strong>（選填）：<br />
+              填入您的 Web App 正式網址（例如：<code>https://script.google.com/macros/s/AKfycb.../exec</code>）以及 <code>https://script.google.com</code>。
+            </li>
+            <li>點擊「<strong>建立</strong>」。</li>
+            <li>在彈出的視窗中，複製並保存「<strong>您的用戶端 ID</strong>」（格式為：<code>xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com</code>）。</li>
+          </ol>
+        </div>
+
+        <div class="alert warn">
+          <span>⚠️ <strong>安全性限制提醒</strong>：Google GIS 安全協定<strong>禁止</strong>直接在 <code>file://</code> 協定下使用 OAuth Client ID。在本地端測試時，請透過本機 HTTP 伺服器或使用本範本內建的 Mock 模式。</span>
+        </div>
+      </section>
+
+      <!-- Section 3 -->
+      <section class="section" id="template-config">
+        <h2 class="section-title"><span class="step-num">3</span> 範本端 Client ID 配置方式</h2>
+        <p>取得 Client ID 後，您可以透過以下任一途徑填入專案中：</p>
+
+        <h3 style="font-size:16px; margin: 16px 0 8px;">方式 A：透過 Web App 設定頁籤（最直覺）</h3>
+        <ol>
+          <li>以管理員身分登入 Web App。</li>
+          <li>進入「<strong>系統設定與授權</strong>」頁籤。</li>
+          <li>於「<strong>Google OAuth 2.0 Client ID</strong>」欄位貼上剛才取得的 ID。</li>
+          <li>點擊「<strong>儲存系統設定</strong>」即可立即生效！</li>
+        </ol>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">方式 B：直接填入 Google 試算表</h3>
+        <ol>
+          <li>開啟關聯的 Google 試算表。</li>
+          <li>切換至「<strong>系統設定與授權</strong>」工作表。</li>
+          <li>找到 <strong>B5 儲存格</strong>（設定項目「OAuth Client ID」對應的值），直接貼上該字串即可。</li>
+        </ol>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">方式 C：程式碼預設值（建置新專案時）</h3>
+        <p>若希望在初始化資料庫時就帶有預設 Client ID，可修改 <code>databaseInitializer.js</code>：</p>
+        <div class="code-box">
+          <div class="code-header"><span>databaseInitializer.js (約第 25 行)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <pre><code>const DEFAULT_SYSTEM_PARAMS = [
+  ["設定項目", "設定數值"],
+  ["學年度", "114"],
+  ["學期", "1"],
+  ["系統名稱", "Google Apps Script 應用程式範本"],
+  ["OAuth Client ID", "您的-CLIENT-ID.apps.googleusercontent.com"], // 👈 填入您的 Client ID
+  ["OAuth Client Secret", ""],
+  ["登入白名單限制啟用", "false"]
+];</code></pre>
+        </div>
+      </section>
+
+      <!-- Section 4 -->
+      <section class="section" id="local-testing">
+        <h2 class="section-title"><span class="step-num">4</span> 本地端開發與測試方式</h2>
+        <p>在本機電腦開發前端樣式與互動時，有三種測試登入的解決方案：</p>
+
+        <div class="step-box">
+          <h4>方案 1：Mock 模式（零設定、離線秒開，推薦日常開發）</h4>
+          <p>專案內建 <code>webapp/js/mock.js</code> 模擬器，完全不需要任何 Google Cloud 設定與網路連線：</p>
+          <ol>
+            <li>在終端機打包前端：<code>npm run build:webapp</code></li>
+            <li>直接以瀏覽器開啟根目錄的 <code>index.html</code>，並在網址後方加上 <code>?mock=true</code>：<br />
+              <code>file:///home/cookeyholder/Projects/GAS-Course-Web-Template/index.html?mock=true</code>
+            </li>
+            <li>在登入畫面點擊「<strong>🧪 本地測試身分登入 (Mock Mode)</strong>」，即可一鍵進入系統！</li>
+          </ol>
+        </div>
+
+        <div class="step-box">
+          <h4>方案 2：本機 HTTP 伺服器 + 真實 GIS 登入（驗證完整 OAuth）</h4>
+          <p>若希望在本地端以真實的 Google 帳號點擊登入按鈕：</p>
+          <ol>
+            <li>確認步驟 2.3 的「已授權的 JavaScript 來源」已加入 <code>http://localhost:8080</code>。</li>
+            <li>在專案根目錄啟動簡易 HTTP 伺服器：
+              <div class="code-box">
+                <div class="code-header"><span>終端機指令 (任選一種)</span><button class="copy-btn" onclick="copyCode(this)">複製指令</button></div>
+                <pre><code># 使用 Python 3 內建伺服器
+python3 -m http.server 8080
+
+# 或使用 npx serve
+npx serve . -p 8080</code></pre>
+              </div>
+            </li>
+            <li>在瀏覽器中開啟：<code>http://localhost:8080/index.html</code>。</li>
+            <li>此時 Google 登入按鈕即可正常渲染，點擊即可完成 Google 登入！</li>
+          </ol>
+        </div>
+
+        <div class="step-box">
+          <h4>方案 3：Google Workspace 網域免彈窗登入</h4>
+          <p>當專案部署至 Google Apps Script 後，若同處於教育機構或企業 Google Workspace 網域：</p>
+          <ol>
+            <li>使用者開啟 Web App 網址。</li>
+            <li>直接點擊「<strong>🏢 使用目前 Google Workspace 帳號登入</strong>」。</li>
+            <li>後端直接藉由 <code>Session.getActiveUser().getEmail()</code> 取得登入者身分，<strong>完全不需 OAuth Client ID</strong>。</li>
+          </ol>
+        </div>
+      </section>
+
+      <!-- Section 5 -->
+      <section class="section" id="backend-verify">
+        <h2 class="section-title"><span class="step-num">5</span> 後端憑證驗證與安全 Session 快取</h2>
+        <p>在 <code>webApi.js</code> 中，登入流程嚴格遵循安全性檢驗標準：</p>
+
+        <h3 style="font-size:16px; margin: 16px 0 8px;">5.1 憑證校驗 (Token Verification)</h3>
+        <p>後端透過 <code>UrlFetchApp</code> 呼叫 Google 官方端點檢驗 JWT 簽名：</p>
+        <div class="code-box">
+          <div class="code-header"><span>webApi.js (verifyGoogleIdToken)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <pre><code>function verifyGoogleIdToken(idToken, expectedClientId) {
+  const url = "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken);
+  const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  const info = JSON.parse(resp.getContentText());
+
+  // 1. 驗證是否包含 Email
+  if (!info.email) throw new Error("無效的憑證");
+
+  // 2. 驗證受眾（aud）是否與專案的 Client ID 一致（防止跨 App 偽造）
+  if (expectedClientId && info.aud !== expectedClientId) {
+    throw new Error("Client ID 不相符");
+  }
+
+  return { email: info.email.toLowerCase(), name: info.name };
+}</code></pre>
+        </div>
+
+        <h3 style="font-size:16px; margin: 20px 0 8px;">5.2 Session 快取機制 (CacheService)</h3>
+        <p>驗證通過後，後端產生一組加密隨機 Token（<code>gas_時間_隨機碼</code>），儲存至 <code>CacheService.getScriptCache()</code>，有效時間設為 <strong>6 小時（21,600 秒）</strong>。前端後續的所有 API 請求均以 <code>POST + text/plain</code> 攜帶此 Token，兼顧安全性與流暢體驗。</p>
+      </section>
+
+      <!-- Section 6 -->
+      <section class="section" id="troubleshooting">
+        <h2 class="section-title"><span class="step-num">6</span> 常見錯誤與排解指南</h2>
+
+        <table class="doc-table">
+          <thead>
+            <tr><th style="width:28%;">錯誤現象 / 代碼</th><th style="width:36%;">常見原因</th><th style="width:36%;">解決方案</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>origin_mismatch</code></td>
+              <td>當前網頁的 Origin（例如 <code>http://localhost:8080</code> 或 <code>https://script.google.com</code>）未加入 Google Cloud Console 憑證的「已授權 JavaScript 來源」。</td>
+              <td>請返回 Google Cloud Console 的憑證設定，在「已授權的 JavaScript 來源」完整填入當前網址的協定與網域名稱（不含子路徑）。</td>
+            </tr>
+            <tr>
+              <td>按鈕沒有出現，或控制台顯示 <code>file:// not supported</code></td>
+              <td>直接在檔案總管雙擊以 <code>file:///</code> 協定開啟 HTML。GIS 函式庫嚴格禁止 <code>file://</code>。</td>
+              <td>請於網址加上 <code>?mock=true</code> 開啟模擬測試，或以 <code>python3 -m http.server 8080</code> 啟動本機伺服器。</td>
+            </tr>
+            <tr>
+              <td><code>not_whitelisted</code></td>
+              <td>系統設定中勾選了「嚴格啟用白名單限制」，但該登入帳號未列於「系統設定與授權」工作表的 D 欄名單中。</td>
+              <td>請請系統管理員於「系統設定與授權」工作表將該 Email 加入授權白名單，並將啟用狀態設為「是」。</td>
+            </tr>
+            <tr>
+              <td><code>client_id_mismatch</code></td>
+              <td>前端送出的憑證 aud 與試算表中儲存的 OAuth Client ID 不一致。</td>
+              <td>請確認試算表 B5 儲存格與 Google Cloud Console 中的 Client ID 字串完全一致（注意不可有前後多餘空白）。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+    </main>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      const cur = document.documentElement.dataset.theme;
+      const next = cur === "dark" ? "light" : "dark";
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem("doc_theme", next);
+    }
+    const saved = localStorage.getItem("doc_theme");
+    if (saved) document.documentElement.dataset.theme = saved;
+
+    function copyCode(btn) {
+      const code = btn.closest(".code-box").querySelector("pre code").innerText;
+      navigator.clipboard.writeText(code).then(function() {
+        btn.innerText = "已複製！";
+        setTimeout(function() { btn.innerText = "複製代碼"; }, 2000);
+      });
+    }
+  </script>
+</body>
+</html>
