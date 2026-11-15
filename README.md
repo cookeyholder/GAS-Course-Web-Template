@@ -41,6 +41,10 @@ GAS-Course-Web-Template/
 ├── scripts/
 │   └── build-webapp.js         # 前端打包腳本：將 webapp/styles.css 與 js/ 內嵌至根目錄 index.html
 │
+├── docs/                       # 技術與教學文件目錄 (HTML 離線說明文件)
+│   ├── index.html              # 文件總覽首頁
+│   └── rbac-guide.html         # 依帳號角色管理權限 (RBAC) 實作詳細教學
+│
 └── tests/
     ├── courseCodeNormalization.test.js  # 108 課綱代碼 1NF 正規化與排除條件單元測試
     └── api.test.js                      # API 路由派發、Session 生命週期與 RBAC 權限單元測試
