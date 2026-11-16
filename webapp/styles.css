@@ -122,15 +122,25 @@ html[data-style="modern-slate"] .app-header {
 }
 
 html[data-style="modern-slate"] .panel,
+html[data-style="modern-slate"] .card,
 html[data-style="modern-slate"] .stage-nav,
+html[data-style="modern-slate"] .app-nav,
 html[data-style="modern-slate"] .login-card,
 html[data-style="modern-slate"] .metric,
+html[data-style="modern-slate"] .metric-card,
 html[data-style="modern-slate"] .filter-bar,
-html[data-style="modern-slate"] .batch-bar {
+html[data-style="modern-slate"] .batch-bar,
+html[data-style="modern-slate"] .table-responsive {
   border: 1px solid var(--line);
   border-radius: var(--radius);
   background: var(--paper);
   box-shadow: var(--shadow);
+}
+
+html[data-style="modern-slate"] .nav-tab.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-color: var(--accent);
 }
 
 html[data-style="modern-slate"] .btn {
@@ -511,12 +521,16 @@ html[data-style="nes"] body {
 
 html[data-style="nes"] .app-header,
 html[data-style="nes"] .panel,
+html[data-style="nes"] .card,
 html[data-style="nes"] .stage-nav,
+html[data-style="nes"] .app-nav,
 html[data-style="nes"] .login-card,
 html[data-style="nes"] .metric,
+html[data-style="nes"] .metric-card,
 html[data-style="nes"] .toast,
 html[data-style="nes"] .filter-bar,
-html[data-style="nes"] .batch-bar {
+html[data-style="nes"] .batch-bar,
+html[data-style="nes"] .table-responsive {
   border-style: solid;
   border-width: 4px;
   border-image-slice: 2;
@@ -528,12 +542,16 @@ html[data-style="nes"] .batch-bar {
 
 html[data-style="nes"][data-theme="dark"] .app-header,
 html[data-style="nes"][data-theme="dark"] .panel,
+html[data-style="nes"][data-theme="dark"] .card,
 html[data-style="nes"][data-theme="dark"] .stage-nav,
+html[data-style="nes"][data-theme="dark"] .app-nav,
 html[data-style="nes"][data-theme="dark"] .login-card,
 html[data-style="nes"][data-theme="dark"] .metric,
+html[data-style="nes"][data-theme="dark"] .metric-card,
 html[data-style="nes"][data-theme="dark"] .toast,
 html[data-style="nes"][data-theme="dark"] .filter-bar,
-html[data-style="nes"][data-theme="dark"] .batch-bar {
+html[data-style="nes"][data-theme="dark"] .batch-bar,
+html[data-style="nes"][data-theme="dark"] .table-responsive {
   border-image-source: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='5' height='5'%3E%3Cpath d='M2 1 h1 v1 h-1 z M1 2 h1 v1 h-1 z M3 2 h1 v1 h-1 z M2 3 h1 v1 h-1 z' fill='%23ffffff'/%3E%3C/svg%3E");
 }
 
@@ -624,8 +642,10 @@ html[data-style="nes"] .pill {
   font-weight: 700;
 }
 
-html[data-style="nes"] .stage-tab.active {
+html[data-style="nes"] .stage-tab.active,
+html[data-style="nes"] .nav-tab.active {
   background: var(--accent-bg);
+  color: var(--accent);
   box-shadow: inset 0 -4px 0 var(--accent);
 }
 
@@ -638,6 +658,7 @@ html[data-style="nes"] .avatar {
 
 html[data-style="nes"] .brand-title,
 html[data-style="nes"] .panel-title,
+html[data-style="nes"] .card-title,
 html[data-style="nes"] .login-title {
   font-family: var(--mono);
   letter-spacing: -0.01em;
@@ -700,11 +721,15 @@ html[data-style="happyhues14"][data-theme="dark"] {
 /* Happy Hues 14 專屬醒目輪廓與暖黃按鈕 */
 html[data-style="happyhues14"] .app-header,
 html[data-style="happyhues14"] .panel,
+html[data-style="happyhues14"] .card,
 html[data-style="happyhues14"] .stage-nav,
+html[data-style="happyhues14"] .app-nav,
 html[data-style="happyhues14"] .login-card,
 html[data-style="happyhues14"] .metric,
+html[data-style="happyhues14"] .metric-card,
 html[data-style="happyhues14"] .filter-bar,
-html[data-style="happyhues14"] .batch-bar {
+html[data-style="happyhues14"] .batch-bar,
+html[data-style="happyhues14"] .table-responsive {
   border: 2px solid var(--line);
 }
 
@@ -743,12 +768,14 @@ html[data-style="happyhues14"][data-theme="dark"] .pill {
   border-color: #bae8e8;
 }
 
-html[data-style="happyhues14"] .stage-tab.active {
+html[data-style="happyhues14"] .stage-tab.active,
+html[data-style="happyhues14"] .nav-tab.active {
   background-color: #bae8e8;
   color: #272343;
   box-shadow: inset 0 -3px 0 #272343;
 }
-html[data-style="happyhues14"][data-theme="dark"] .stage-tab.active {
+html[data-style="happyhues14"][data-theme="dark"] .stage-tab.active,
+html[data-style="happyhues14"][data-theme="dark"] .nav-tab.active {
   background-color: #2e3b52;
   color: #fffffe;
   box-shadow: inset 0 -3px 0 #ffd803;
@@ -764,6 +791,7 @@ html[data-style="happyhues14"] .avatar {
 
 html[data-style="happyhues14"] .brand-title,
 html[data-style="happyhues14"] .panel-title,
+html[data-style="happyhues14"] .card-title,
 html[data-style="happyhues14"] .login-title {
   color: var(--ink);
   font-weight: 800;
@@ -825,11 +853,15 @@ html[data-style="happyhues10"][data-theme="dark"] {
 
 html[data-style="happyhues10"] .app-header,
 html[data-style="happyhues10"] .panel,
+html[data-style="happyhues10"] .card,
 html[data-style="happyhues10"] .stage-nav,
+html[data-style="happyhues10"] .app-nav,
 html[data-style="happyhues10"] .login-card,
 html[data-style="happyhues10"] .metric,
+html[data-style="happyhues10"] .metric-card,
 html[data-style="happyhues10"] .filter-bar,
-html[data-style="happyhues10"] .batch-bar {
+html[data-style="happyhues10"] .batch-bar,
+html[data-style="happyhues10"] .table-responsive {
   border: 2px solid var(--line);
 }
 
@@ -863,12 +895,14 @@ html[data-style="happyhues10"][data-theme="dark"] .pill {
   border-color: #abd1c6;
 }
 
-html[data-style="happyhues10"] .stage-tab.active {
+html[data-style="happyhues10"] .stage-tab.active,
+html[data-style="happyhues10"] .nav-tab.active {
   background-color: #f9bc60;
   color: #001e1d;
   box-shadow: inset 0 -3px 0 #001e1d;
 }
-html[data-style="happyhues10"][data-theme="dark"] .stage-tab.active {
+html[data-style="happyhues10"][data-theme="dark"] .stage-tab.active,
+html[data-style="happyhues10"][data-theme="dark"] .nav-tab.active {
   background-color: #0f3b39;
   color: #fffffe;
   box-shadow: inset 0 -3px 0 #f9bc60;
@@ -884,6 +918,7 @@ html[data-style="happyhues10"] .avatar {
 
 html[data-style="happyhues10"] .brand-title,
 html[data-style="happyhues10"] .panel-title,
+html[data-style="happyhues10"] .card-title,
 html[data-style="happyhues10"] .login-title {
   color: var(--ink);
   font-weight: 800;
@@ -1061,11 +1096,15 @@ html[data-style="happyhues12"][data-theme="dark"] {
 
 html[data-style="happyhues12"] .app-header,
 html[data-style="happyhues12"] .panel,
+html[data-style="happyhues12"] .card,
 html[data-style="happyhues12"] .stage-nav,
+html[data-style="happyhues12"] .app-nav,
 html[data-style="happyhues12"] .login-card,
 html[data-style="happyhues12"] .metric,
+html[data-style="happyhues12"] .metric-card,
 html[data-style="happyhues12"] .filter-bar,
-html[data-style="happyhues12"] .batch-bar {
+html[data-style="happyhues12"] .batch-bar,
+html[data-style="happyhues12"] .table-responsive {
   border: 2px solid var(--line);
 }
 
@@ -1099,12 +1138,14 @@ html[data-style="happyhues12"][data-theme="dark"] .pill {
   border-color: #eebbc3;
 }
 
-html[data-style="happyhues12"] .stage-tab.active {
+html[data-style="happyhues12"] .stage-tab.active,
+html[data-style="happyhues12"] .nav-tab.active {
   background-color: #eebbc3;
   color: #232946;
   box-shadow: inset 0 -3px 0 #232946;
 }
-html[data-style="happyhues12"][data-theme="dark"] .stage-tab.active {
+html[data-style="happyhues12"][data-theme="dark"] .stage-tab.active,
+html[data-style="happyhues12"][data-theme="dark"] .nav-tab.active {
   background-color: #2a3152;
   color: #fffffe;
   box-shadow: inset 0 -3px 0 #eebbc3;
@@ -1120,6 +1161,7 @@ html[data-style="happyhues12"] .avatar {
 
 html[data-style="happyhues12"] .brand-title,
 html[data-style="happyhues12"] .panel-title,
+html[data-style="happyhues12"] .card-title,
 html[data-style="happyhues12"] .login-title {
   color: var(--ink);
   font-weight: 800;
@@ -1180,11 +1222,15 @@ html[data-style="happyhues3"][data-theme="dark"] {
 /* Happy Hues 3 專屬深海輪廓與天青藍按鈕 */
 html[data-style="happyhues3"] .app-header,
 html[data-style="happyhues3"] .panel,
+html[data-style="happyhues3"] .card,
 html[data-style="happyhues3"] .stage-nav,
+html[data-style="happyhues3"] .app-nav,
 html[data-style="happyhues3"] .login-card,
 html[data-style="happyhues3"] .metric,
+html[data-style="happyhues3"] .metric-card,
 html[data-style="happyhues3"] .filter-bar,
-html[data-style="happyhues3"] .batch-bar {
+html[data-style="happyhues3"] .batch-bar,
+html[data-style="happyhues3"] .table-responsive {
   border: 2px solid var(--line);
 }
 
@@ -1221,12 +1267,14 @@ html[data-style="happyhues3"][data-theme="dark"] .pill {
   border-color: #90b4ce;
 }
 
-html[data-style="happyhues3"] .stage-tab.active {
+html[data-style="happyhues3"] .stage-tab.active,
+html[data-style="happyhues3"] .nav-tab.active {
   background-color: #3da9fc;
   color: #fffffe;
   box-shadow: inset 0 -3px 0 #094067;
 }
-html[data-style="happyhues3"][data-theme="dark"] .stage-tab.active {
+html[data-style="happyhues3"][data-theme="dark"] .stage-tab.active,
+html[data-style="happyhues3"][data-theme="dark"] .nav-tab.active {
   background-color: #1e3b5f;
   color: #fffffe;
   box-shadow: inset 0 -3px 0 #3da9fc;
@@ -1242,6 +1290,7 @@ html[data-style="happyhues3"] .avatar {
 
 html[data-style="happyhues3"] .brand-title,
 html[data-style="happyhues3"] .panel-title,
+html[data-style="happyhues3"] .card-title,
 html[data-style="happyhues3"] .login-title {
   color: var(--ink);
   font-weight: 800;
@@ -1302,11 +1351,15 @@ html[data-style="happyhues5"][data-theme="dark"] {
 /* Happy Hues 5 專屬冷杉輪廓與暖橘金按鈕 */
 html[data-style="happyhues5"] .app-header,
 html[data-style="happyhues5"] .panel,
+html[data-style="happyhues5"] .card,
 html[data-style="happyhues5"] .stage-nav,
+html[data-style="happyhues5"] .app-nav,
 html[data-style="happyhues5"] .login-card,
 html[data-style="happyhues5"] .metric,
+html[data-style="happyhues5"] .metric-card,
 html[data-style="happyhues5"] .filter-bar,
-html[data-style="happyhues5"] .batch-bar {
+html[data-style="happyhues5"] .batch-bar,
+html[data-style="happyhues5"] .table-responsive {
   border: 2px solid var(--line);
 }
 
@@ -1343,12 +1396,14 @@ html[data-style="happyhues5"][data-theme="dark"] .pill {
   border-color: #ffa8ba;
 }
 
-html[data-style="happyhues5"] .stage-tab.active {
+html[data-style="happyhues5"] .stage-tab.active,
+html[data-style="happyhues5"] .nav-tab.active {
   background-color: #faae2b;
   color: #00473e;
   box-shadow: inset 0 -3px 0 #00473e;
 }
-html[data-style="happyhues5"][data-theme="dark"] .stage-tab.active {
+html[data-style="happyhues5"][data-theme="dark"] .stage-tab.active,
+html[data-style="happyhues5"][data-theme="dark"] .nav-tab.active {
   background-color: #00473e;
   color: #fffffe;
   box-shadow: inset 0 -3px 0 #faae2b;
@@ -1364,6 +1419,7 @@ html[data-style="happyhues5"] .avatar {
 
 html[data-style="happyhues5"] .brand-title,
 html[data-style="happyhues5"] .panel-title,
+html[data-style="happyhues5"] .card-title,
 html[data-style="happyhues5"] .login-title {
   color: var(--ink);
   font-weight: 800;
@@ -1424,11 +1480,15 @@ html[data-style="happyhues9"][data-theme="dark"] {
 /* Happy Hues 9 專屬黑曜輪廓與活力亮橘按鈕 */
 html[data-style="happyhues9"] .app-header,
 html[data-style="happyhues9"] .panel,
+html[data-style="happyhues9"] .card,
 html[data-style="happyhues9"] .stage-nav,
+html[data-style="happyhues9"] .app-nav,
 html[data-style="happyhues9"] .login-card,
 html[data-style="happyhues9"] .metric,
+html[data-style="happyhues9"] .metric-card,
 html[data-style="happyhues9"] .filter-bar,
-html[data-style="happyhues9"] .batch-bar {
+html[data-style="happyhues9"] .batch-bar,
+html[data-style="happyhues9"] .table-responsive {
   border: 2px solid var(--line);
 }
 
@@ -1465,12 +1525,14 @@ html[data-style="happyhues9"][data-theme="dark"] .pill {
   border-color: #ff8e3c;
 }
 
-html[data-style="happyhues9"] .stage-tab.active {
+html[data-style="happyhues9"] .stage-tab.active,
+html[data-style="happyhues9"] .nav-tab.active {
   background-color: #ff8e3c;
   color: #0d0d0d;
   box-shadow: inset 0 -3px 0 #0d0d0d;
 }
-html[data-style="happyhues9"][data-theme="dark"] .stage-tab.active {
+html[data-style="happyhues9"][data-theme="dark"] .stage-tab.active,
+html[data-style="happyhues9"][data-theme="dark"] .nav-tab.active {
   background-color: #2a2a2a;
   color: #fffffe;
   box-shadow: inset 0 -3px 0 #ff8e3c;
@@ -1486,6 +1548,7 @@ html[data-style="happyhues9"] .avatar {
 
 html[data-style="happyhues9"] .brand-title,
 html[data-style="happyhues9"] .panel-title,
+html[data-style="happyhues9"] .card-title,
 html[data-style="happyhues9"] .login-title {
   color: var(--ink);
   font-weight: 800;
@@ -1546,11 +1609,15 @@ html[data-style="happyhues2"][data-theme="dark"] {
 /* Happy Hues 2 專屬曜藍輪廓與螢光薄荷青按鈕 */
 html[data-style="happyhues2"] .app-header,
 html[data-style="happyhues2"] .panel,
+html[data-style="happyhues2"] .card,
 html[data-style="happyhues2"] .stage-nav,
+html[data-style="happyhues2"] .app-nav,
 html[data-style="happyhues2"] .login-card,
 html[data-style="happyhues2"] .metric,
+html[data-style="happyhues2"] .metric-card,
 html[data-style="happyhues2"] .filter-bar,
-html[data-style="happyhues2"] .batch-bar {
+html[data-style="happyhues2"] .batch-bar,
+html[data-style="happyhues2"] .table-responsive {
   border: 2px solid var(--line);
 }
 
@@ -1587,12 +1654,14 @@ html[data-style="happyhues2"][data-theme="dark"] .pill {
   border-color: #00ebc7;
 }
 
-html[data-style="happyhues2"] .stage-tab.active {
+html[data-style="happyhues2"] .stage-tab.active,
+html[data-style="happyhues2"] .nav-tab.active {
   background-color: #00ebc7;
   color: #00214d;
   box-shadow: inset 0 -3px 0 #00214d;
 }
-html[data-style="happyhues2"][data-theme="dark"] .stage-tab.active {
+html[data-style="happyhues2"][data-theme="dark"] .stage-tab.active,
+html[data-style="happyhues2"][data-theme="dark"] .nav-tab.active {
   background-color: #082142;
   color: #fffffe;
   box-shadow: inset 0 -3px 0 #00ebc7;
@@ -1608,6 +1677,7 @@ html[data-style="happyhues2"] .avatar {
 
 html[data-style="happyhues2"] .brand-title,
 html[data-style="happyhues2"] .panel-title,
+html[data-style="happyhues2"] .card-title,
 html[data-style="happyhues2"] .login-title {
   color: var(--ink);
   font-weight: 800;
@@ -1616,9 +1686,12 @@ html[data-style="happyhues2"] .login-title {
 /* Neo-Brutalism 專屬硬邊框與按鈕位移反饋 */
 html[data-style="neobrutalism"] .app-header,
 html[data-style="neobrutalism"] .panel,
+html[data-style="neobrutalism"] .card,
 html[data-style="neobrutalism"] .stage-nav,
+html[data-style="neobrutalism"] .app-nav,
 html[data-style="neobrutalism"] .login-card,
 html[data-style="neobrutalism"] .metric,
+html[data-style="neobrutalism"] .metric-card,
 html[data-style="neobrutalism"] .btn,
 html[data-style="neobrutalism"] .input,
 html[data-style="neobrutalism"] .select,
@@ -1626,7 +1699,8 @@ html[data-style="neobrutalism"] .pill,
 html[data-style="neobrutalism"] .toast,
 html[data-style="neobrutalism"] .icon-button,
 html[data-style="neobrutalism"] .filter-bar,
-html[data-style="neobrutalism"] .batch-bar {
+html[data-style="neobrutalism"] .batch-bar,
+html[data-style="neobrutalism"] .table-responsive {
   border-width: 2.5px;
   border-color: var(--line);
   box-shadow: 3.5px 3.5px 0px var(--line);
@@ -1650,7 +1724,8 @@ html[data-style="neobrutalism"] .icon-button:active {
   box-shadow: 1px 1px 0px var(--line);
 }
 
-html[data-style="neobrutalism"] .stage-tab.active {
+html[data-style="neobrutalism"] .stage-tab.active,
+html[data-style="neobrutalism"] .nav-tab.active {
   background: var(--accent-bg);
   box-shadow: inset 0 -3px 0 var(--accent);
 }
@@ -1675,6 +1750,7 @@ html[data-style="paper"] h3,
 html[data-style="paper"] .brand-title,
 html[data-style="paper"] .login-title,
 html[data-style="paper"] .panel-title,
+html[data-style="paper"] .card-title,
 html[data-style="paper"] .stage-title,
 html[data-style="paper"] .metric-label,
 html[data-style="paper"] .section-title {
@@ -1685,17 +1761,25 @@ html[data-style="paper"] .section-title {
 /* Claymorphism 專屬立體澎潤質感 */
 html[data-style="claymorphism"] .app-header,
 html[data-style="claymorphism"] .panel,
+html[data-style="claymorphism"] .card,
 html[data-style="claymorphism"] .stage-nav,
+html[data-style="claymorphism"] .app-nav,
 html[data-style="claymorphism"] .login-card,
-html[data-style="claymorphism"] .metric {
+html[data-style="claymorphism"] .metric,
+html[data-style="claymorphism"] .metric-card,
+html[data-style="claymorphism"] .table-responsive {
   border: 1px solid var(--line);
   box-shadow: 0 10px 24px -4px rgba(100, 116, 139, 0.18), inset 3px 3px 6px rgba(255, 255, 255, 0.9), inset -4px -4px 8px rgba(148, 163, 184, 0.18);
 }
 html[data-style="claymorphism"][data-theme="dark"] .app-header,
 html[data-style="claymorphism"][data-theme="dark"] .panel,
+html[data-style="claymorphism"][data-theme="dark"] .card,
 html[data-style="claymorphism"][data-theme="dark"] .stage-nav,
+html[data-style="claymorphism"][data-theme="dark"] .app-nav,
 html[data-style="claymorphism"][data-theme="dark"] .login-card,
-html[data-style="claymorphism"][data-theme="dark"] .metric {
+html[data-style="claymorphism"][data-theme="dark"] .metric,
+html[data-style="claymorphism"][data-theme="dark"] .metric-card,
+html[data-style="claymorphism"][data-theme="dark"] .table-responsive {
   box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.65), inset 2px 2px 5px rgba(255, 255, 255, 0.12), inset -3px -3px 7px rgba(0, 0, 0, 0.55);
 }
 
@@ -1736,9 +1820,16 @@ html[data-style="claymorphism"] .brand-mark {
   border-radius: 14px;
   box-shadow: 0 4px 10px rgba(100, 116, 139, 0.18), inset 2px 2px 4px rgba(255, 255, 255, 0.8), inset -2px -2px 4px rgba(148, 163, 184, 0.2);
 }
-html[data-style="claymorphism"] .stage-tab.active {
+html[data-style="claymorphism"] .stage-tab.active,
+html[data-style="claymorphism"] .nav-tab.active {
   border-radius: 12px;
   box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2), inset 2px 2px 4px rgba(255, 255, 255, 0.6);
+  color: var(--accent);
+}
+html[data-style="claymorphism"][data-theme="dark"] .stage-tab.active,
+html[data-style="claymorphism"][data-theme="dark"] .nav-tab.active {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.5), inset 2px 2px 4px rgba(255, 255, 255, 0.15);
+  color: var(--accent);
 }
 
 * { box-sizing: border-box; }
@@ -1937,6 +2028,111 @@ a { color: var(--accent); }
 .panel-title { font-size: 18px; font-weight: 700; }
 .panel-sub { font-family: var(--mono); font-size: 13px; color: var(--ink-2); }
 .panel-body { padding: 16px; }
+
+/* 通用卡片與指標面板 */
+.card {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 18px 20px;
+  box-shadow: var(--shadow);
+}
+.card + .card { margin-top: 14px; }
+.card-title {
+  margin: 0 0 8px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+.card-sub {
+  margin: 0 0 14px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+/* 通用頁籤導覽 (App Navigation) */
+.app-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 14px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  box-shadow: var(--shadow);
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.nav-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) * 0.75);
+  background: transparent;
+  color: var(--ink-2);
+  font-weight: 600;
+  font-size: 14.5px;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+.nav-tab:hover {
+  color: var(--ink);
+  background: var(--fill);
+}
+.nav-tab.active {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  font-weight: 700;
+}
+
+/* 通用指標網格與指標卡片 */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.metric-card {
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--fill);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.metric-card .metric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  letter-spacing: 0.04em;
+}
+.metric-card .metric-value {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ink);
+  margin-top: 4px;
+  line-height: 1.2;
+}
+.metric-card .metric-sub {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+
+/* 響應式表格容器 */
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--paper);
+}
 
 .grid-2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
@@ -2297,6 +2493,7 @@ a { color: var(--accent); }
   .print-table th { background: #eee !important; font-weight: 700; }
   .print-table thead { display: table-header-group; }
   .print-table tr { break-inside: avoid; page-break-inside: avoid; }
+  .print-signatures { break-inside: avoid; page-break-inside: avoid; }
   .student-list { font-size: 8pt; }
   .student-list.dense-table { font-size: 7pt; }
   .student-list.dense-table th, .student-list.dense-table td { padding: 0.6mm 0.8mm; line-height: 1.15; }
@@ -4547,6 +4744,68 @@ html[data-style="happyhues5"] .matrix-filter-pill.active { color: #00473e; borde
 html[data-style="happyhues9"] .matrix-filter-pill.active { color: #0d0d0d; border-color: #0d0d0d; }
 html[data-style="happyhues2"] .matrix-filter-pill.active { color: #00214d; border-color: #00214d; }
 html[data-style="neobrutalism"] .matrix-filter-pill.active { color: #000000; border: 2px solid #000000; }
+
+/* Dark mode text contrast & border reinforcement for active matrix-filter-pill across all styles */
+html[data-theme="dark"] .matrix-filter-pill.active {
+  color: var(--ink);
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+html[data-theme="dark"][data-style="neobrutalism"] .matrix-filter-pill.active,
+html[data-style="neobrutalism"][data-theme="dark"] .matrix-filter-pill.active {
+  color: var(--ink);
+  background: var(--accent-bg);
+  border: 2px solid var(--accent);
+}
+html[data-style="happyhues14"][data-theme="dark"] .matrix-filter-pill.active,
+html[data-theme="dark"][data-style="happyhues14"] .matrix-filter-pill.active {
+  color: #fffffe;
+  background: #2d3e50;
+  border-color: #ffd803;
+}
+html[data-style="happyhues12"][data-theme="dark"] .matrix-filter-pill.active,
+html[data-theme="dark"][data-style="happyhues12"] .matrix-filter-pill.active {
+  color: #fffffe;
+  background: #2a3152;
+  border-color: #eebbc3;
+}
+html[data-style="happyhues5"][data-theme="dark"] .matrix-filter-pill.active,
+html[data-theme="dark"][data-style="happyhues5"] .matrix-filter-pill.active {
+  color: #fffffe;
+  background: #00473e;
+  border-color: #faae2b;
+}
+html[data-style="happyhues9"][data-theme="dark"] .matrix-filter-pill.active,
+html[data-theme="dark"][data-style="happyhues9"] .matrix-filter-pill.active {
+  color: #fffffe;
+  background: #2a2a2a;
+  border-color: #ff8e3c;
+}
+html[data-style="happyhues2"][data-theme="dark"] .matrix-filter-pill.active,
+html[data-theme="dark"][data-style="happyhues2"] .matrix-filter-pill.active {
+  color: #fffffe;
+  background: #082142;
+  border-color: #00ebc7;
+}
+html[data-style="modern-slate"][data-theme="dark"] .matrix-filter-pill.active,
+html[data-theme="dark"][data-style="modern-slate"] .matrix-filter-pill.active {
+  color: #f8fafc;
+  background: #1e293b;
+  border-color: #3b82f6;
+}
+html[data-style="nes"][data-theme="dark"] .matrix-filter-pill.active,
+html[data-theme="dark"][data-style="nes"] .matrix-filter-pill.active {
+  color: #ffffff;
+  background: #209cee;
+  border-color: #ffffff;
+}
+html[data-style="claymorphism"][data-theme="dark"] .matrix-filter-pill.active,
+html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
+  color: #f8fafc;
+  background: #1c1d29;
+  border-color: #818cf8;
+}
 
 .matrix-session-section {
   background: var(--paper);
