@@ -225,8 +225,8 @@ window.MEA = window.MEA || {};
           + '  </span>'
           + '</td>'
           + '<td>'
-          + '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(\'' + a.email + '\')">' + (a.enabled ? "停用" : "啟用") + '</button>'
-          + '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(\'' + a.email + '\')">刪除</button>'
+          + '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' + encodeURIComponent(a.email) + '\'))">' + (a.enabled ? "停用" : "啟用") + '</button>'
+          + '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' + encodeURIComponent(a.email) + '\'))">刪除</button>'
           + '</td>'
           + '</tr>';
       }

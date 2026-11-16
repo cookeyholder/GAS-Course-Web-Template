@@ -60,4 +60,23 @@ console.log("開始執行 Web API 與權限驗證單元測試...\n");
   assert.strictEqual(unauthorizedRes.error, "missing_token");
 }
 
+// 5. 測試試算表公式注入防護 (Formula Injection)
+{
+  const utils = require("../utilities.js");
+  assert.strictEqual(utils.sanitizeFormulaValue("=SUM(A1:A10)"), "'=SUM(A1:A10)", "以 = 開頭應加上單引號跳脫");
+  assert.strictEqual(utils.sanitizeFormulaValue("+12345"), "'+12345", "以 + 開頭應加上單引號跳脫");
+  assert.strictEqual(utils.sanitizeFormulaValue("-CMD|' /C calc'!A0"), "'-CMD|' /C calc'!A0", "以 - 開頭應加上單引號跳脫");
+  assert.strictEqual(utils.sanitizeFormulaValue("@SUM(B1)"), "'@SUM(B1)", "以 @ 開頭應加上單引號跳脫");
+  assert.strictEqual(utils.sanitizeFormulaValue("普通文字科目"), "普通文字科目", "一般文字不應受影響");
+
+  const matrix = [
+    ["=1+1", "正常內容"],
+    ["114", "@admin"]
+  ];
+  const safeMatrix = utils.sanitizeRowMatrix(matrix);
+  assert.strictEqual(safeMatrix[0][0], "'=1+1");
+  assert.strictEqual(safeMatrix[0][1], "正常內容");
+  assert.strictEqual(safeMatrix[1][1], "'@admin");
+}
+
 console.log("✓ Web API 與權限驗證單元測試全數通過！");

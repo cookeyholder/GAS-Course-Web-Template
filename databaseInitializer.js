@@ -275,7 +275,8 @@ function saveSystemSettings(settings, ss) {
     }
   }
 
-  range.setValues(values);
+  const safeValues = (typeof sanitizeRowMatrix === "function") ? sanitizeRowMatrix(values) : values;
+  range.setValues(safeValues);
 
   // 若有尚未列入的鍵，於最後附加
   const toAppend = [];
@@ -284,7 +285,8 @@ function saveSystemSettings(settings, ss) {
   }
   if (toAppend.length > 0) {
     const nextRow = sheet.getLastRow() + 1;
-    sheet.getRange(nextRow, 1, toAppend.length, 2).setValues(toAppend);
+    const safeAppend = (typeof sanitizeRowMatrix === "function") ? sanitizeRowMatrix(toAppend) : toAppend;
+    sheet.getRange(nextRow, 1, safeAppend.length, 2).setValues(safeAppend);
   }
 
   return { ok: true };
@@ -379,7 +381,8 @@ function saveWhitelist(accounts, ss) {
   sheet.getRange(2, 4, currentLastRow, 4).clearContent();
 
   if (rows.length > 0) {
-    sheet.getRange(2, 4, rows.length, 4).setValues(rows);
+    const safeRows = (typeof sanitizeRowMatrix === "function") ? sanitizeRowMatrix(rows) : rows;
+    sheet.getRange(2, 4, safeRows.length, 4).setValues(safeRows);
   }
 
   return { ok: true, count: rows.length };

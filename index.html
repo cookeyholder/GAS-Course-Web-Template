@@ -6212,10 +6212,33 @@ window.MEA = window.MEA || {};
       + '</div>';
   }
 
+  /**
+   * 函數防抖 (Debounce)
+   *
+   * @param {Function} fn - 目標執行函數
+   * @param {number} [delay=250] - 延遲毫秒數
+   * @returns {Function} 防抖包裹後之函數
+   */
+  function debounce(fn, delay) {
+    let timer = null;
+    const wait = typeof delay === "number" ? delay : 250;
+    return function () {
+      const context = this;
+      const args = arguments;
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(function () {
+        fn.apply(context, args);
+      }, wait);
+    };
+  }
+
   MEA.ui = {
     escapeHtml: escapeHtml,
     number: number,
     roleName: roleName,
+    debounce: debounce,
     applyTheme: applyTheme,
     currentTheme: currentTheme,
     toggleTheme: toggleTheme,
@@ -6882,6 +6905,10 @@ window.MEA = window.MEA || {};
     fetchList(1);
   }
 
+  const onKeywordInput = (MEA.ui && typeof MEA.ui.debounce === "function")
+    ? MEA.ui.debounce(function () { handleSearch(); }, 300)
+    : function () {};
+
   function resetSearch() {
     const cur = MEA.state.courses || {};
     MEA.setState({
@@ -6954,7 +6981,7 @@ window.MEA = window.MEA || {};
       + '</div>'
       + '<div class="filter-bar">'
       + '  <form class="filter-form" onsubmit="MEA.courses.handleSearch(event)">'
-      + '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' + MEA.ui.escapeHtml(courses.keyword || "") + '" />'
+      + '    <input type="text" id="courseSearchKeyword" class="input" oninput="MEA.courses.onKeywordInput()" placeholder="搜尋課程代碼、科目名稱或群別..." value="' + MEA.ui.escapeHtml(courses.keyword || "") + '" />'
       + '    <select id="courseSearchDept" class="select">' + deptOptionsHtml + '</select>'
       + '    <input type="text" id="courseSearchYear" class="input compact" style="width:100px;" placeholder="學年 (如 114)" value="' + MEA.ui.escapeHtml(courses.academicYear || "") + '" />'
       + '    <select id="courseSearchSem" class="select compact" style="width:100px;">'
@@ -6983,6 +7010,7 @@ window.MEA = window.MEA || {};
   MEA.courses = {
     fetchList: fetchList,
     handleSearch: handleSearch,
+    onKeywordInput: onKeywordInput,
     resetSearch: resetSearch,
     renderView: renderView
   };
@@ -7217,8 +7245,8 @@ window.MEA = window.MEA || {};
           + '  </span>'
           + '</td>'
           + '<td>'
-          + '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(\'' + a.email + '\')">' + (a.enabled ? "停用" : "啟用") + '</button>'
-          + '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(\'' + a.email + '\')">刪除</button>'
+          + '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' + encodeURIComponent(a.email) + '\'))">' + (a.enabled ? "停用" : "啟用") + '</button>'
+          + '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' + encodeURIComponent(a.email) + '\'))">刪除</button>'
           + '</td>'
           + '</tr>';
       }

@@ -83,6 +83,37 @@ function safeApplySheetFontSize(range, size) {
 }
 
 /**
+ * 試算表公式注入跳脫單一值 (Formula Immunization)
+ * 若字串以 =, +, -, @, \t, \r 開頭，自動加上前置單引號跳脫
+ *
+ * @param {*} val - 儲存格值
+ * @returns {*} 安全值
+ */
+function sanitizeFormulaValue(val) {
+  if (typeof val !== "string") return val;
+  if (!val) return val;
+  const first = val.charAt(0);
+  if (first === "=" || first === "+" || first === "-" || first === "@" || first === "\t" || first === "\r") {
+    return "'" + val;
+  }
+  return val;
+}
+
+/**
+ * 試算表二維陣列列資料批次公式跳脫
+ *
+ * @param {Array<Array<*>>} matrix - 二維資料列矩陣
+ * @returns {Array<Array<*>>} 跳脫後矩陣
+ */
+function sanitizeRowMatrix(matrix) {
+  if (!Array.isArray(matrix)) return matrix;
+  return matrix.map(function (row) {
+    if (!Array.isArray(row)) return row;
+    return row.map(sanitizeFormulaValue);
+  });
+}
+
+/**
  * 安全設定儲存格格式
  *
  * @param {Range} range - 試算表範圍
@@ -130,6 +161,8 @@ if (typeof module !== "undefined" && module.exports) {
     safeUiAlert: safeUiAlert,
     safeApplySheetFontSize: safeApplySheetFontSize,
     safeSetNumberFormat: safeSetNumberFormat,
+    sanitizeFormulaValue: sanitizeFormulaValue,
+    sanitizeRowMatrix: sanitizeRowMatrix,
     safeTrim: safeTrim,
     generateUniqueId: generateUniqueId
   };

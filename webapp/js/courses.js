@@ -71,6 +71,10 @@ window.MEA = window.MEA || {};
     fetchList(1);
   }
 
+  const onKeywordInput = (MEA.ui && typeof MEA.ui.debounce === "function")
+    ? MEA.ui.debounce(function () { handleSearch(); }, 300)
+    : function () {};
+
   function resetSearch() {
     const cur = MEA.state.courses || {};
     MEA.setState({
@@ -143,7 +147,7 @@ window.MEA = window.MEA || {};
       + '</div>'
       + '<div class="filter-bar">'
       + '  <form class="filter-form" onsubmit="MEA.courses.handleSearch(event)">'
-      + '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' + MEA.ui.escapeHtml(courses.keyword || "") + '" />'
+      + '    <input type="text" id="courseSearchKeyword" class="input" oninput="MEA.courses.onKeywordInput()" placeholder="搜尋課程代碼、科目名稱或群別..." value="' + MEA.ui.escapeHtml(courses.keyword || "") + '" />'
       + '    <select id="courseSearchDept" class="select">' + deptOptionsHtml + '</select>'
       + '    <input type="text" id="courseSearchYear" class="input compact" style="width:100px;" placeholder="學年 (如 114)" value="' + MEA.ui.escapeHtml(courses.academicYear || "") + '" />'
       + '    <select id="courseSearchSem" class="select compact" style="width:100px;">'
@@ -172,6 +176,7 @@ window.MEA = window.MEA || {};
   MEA.courses = {
     fetchList: fetchList,
     handleSearch: handleSearch,
+    onKeywordInput: onKeywordInput,
     resetSearch: resetSearch,
     renderView: renderView
   };

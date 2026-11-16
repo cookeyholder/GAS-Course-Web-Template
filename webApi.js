@@ -131,6 +131,9 @@ function getCacheStore() {
 }
 
 function generateSessionToken() {
+  if (typeof Utilities !== "undefined" && Utilities.getUuid) {
+    return "gas_" + Utilities.getUuid().replace(/-/g, "");
+  }
   const rand1 = Math.random().toString(36).substring(2);
   const rand2 = Math.random().toString(36).substring(2);
   const time = Date.now().toString(36);
@@ -185,6 +188,11 @@ function verifyGoogleIdToken(idToken, expectedClientId) {
     return webApiError("missing_id_token", "缺少 Google ID Token");
   }
 
+  const cleanClientId = String(expectedClientId || "").trim();
+  if (!cleanClientId) {
+    return webApiError("server_misconfigured", "系統尚未設定 Google OAuth Client ID，請系統管理員先完成系統設定");
+  }
+
   try {
     const url = GOOGLE_TOKENINFO_URL + "?id_token=" + encodeURIComponent(idToken);
     let content = "";
@@ -205,7 +213,7 @@ function verifyGoogleIdToken(idToken, expectedClientId) {
       return webApiError("invalid_token_payload", "Google 憑證缺少 Email 欄位");
     }
 
-    if (expectedClientId && info.aud && info.aud !== expectedClientId) {
+    if (info.aud !== cleanClientId) {
       return webApiError("client_id_mismatch", "OAuth Client ID 不符");
     }
 
@@ -332,9 +340,6 @@ function routeWebApiAction(action, payload, event) {
     case "getPublicConfig":
       return getPublicConfig();
     case "login":
-      if (payload && payload.mock) {
-        return createSessionForEmail("mock-admin@example.com", "測試管理員");
-      }
       return loginWithGoogleIdToken(payload ? (payload.idToken || payload.credential) : "", {
         clientId: payload ? payload.clientId : ""
       });
@@ -408,10 +413,10 @@ function doGet(e) {
   const parameter = e && e.parameter ? e.parameter : {};
   const action = String(parameter.action || "").trim();
 
-  // 若帶有 ?action= 則以 JSON 回應（供唯讀或偵錯）
+  // 若帶有 ?action= 則以 JSON 回應（僅開放 ping 與 getPublicConfig 供唯讀檢查）
   if (action !== "") {
-    if (WEB_API_WRITE_ACTIONS.indexOf(action) !== -1 || action === "login" || action === "logout") {
-      return jsonResponse(webApiError("method_not_allowed", "此操作涉及資料寫入或身分憑證，必須使用 POST 方法發送"));
+    if (action !== "ping" && action !== "getPublicConfig") {
+      return jsonResponse(webApiError("method_not_allowed", "為保障安全性，除 ping 與 getPublicConfig 外之操作一律必須使用 POST 方法發送"));
     }
     try {
       const payload = parseWebApiPayload(e);

@@ -364,10 +364,33 @@ window.MEA = window.MEA || {};
       + '</div>';
   }
 
+  /**
+   * 函數防抖 (Debounce)
+   *
+   * @param {Function} fn - 目標執行函數
+   * @param {number} [delay=250] - 延遲毫秒數
+   * @returns {Function} 防抖包裹後之函數
+   */
+  function debounce(fn, delay) {
+    let timer = null;
+    const wait = typeof delay === "number" ? delay : 250;
+    return function () {
+      const context = this;
+      const args = arguments;
+      if (timer) {
+        clearTimeout(timer);
+      }
+      timer = setTimeout(function () {
+        fn.apply(context, args);
+      }, wait);
+    };
+  }
+
   MEA.ui = {
     escapeHtml: escapeHtml,
     number: number,
     roleName: roleName,
+    debounce: debounce,
     applyTheme: applyTheme,
     currentTheme: currentTheme,
     toggleTheme: toggleTheme,
