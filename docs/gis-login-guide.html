@@ -422,7 +422,7 @@
         </div>
 
         <div class="alert tip">
-          <span>🌟 <strong>多重備援機制</strong>：若尚未申請 Google Cloud OAuth Client ID，系統支援「<strong>Google Workspace 網域登入</strong>」（直接以 <code>Session.getActiveUser()</code> 辨識身分，無須彈跳 OAuth 視窗）；本地測試時更支援 <code>?mock=true</code> 零設定離線模式！</span>
+          <span>🌟 <strong>雙重認證與測試機制</strong>：線上環境全面採用符合 OIDC 規範的 <strong>Google Identity Services (GIS)</strong> 憑證驗證，嚴格避免多帳號身分混淆；本地開發與介面測試時則支援 <code>?mock=true</code> 零設定離線模式！</span>
         </div>
       </section>
 
@@ -577,16 +577,6 @@ npx serve . -p 8080</code></pre>
             </li>
             <li>在瀏覽器中開啟：<code>http://localhost:8080/index.html</code>。</li>
             <li>此時 Google 登入按鈕即可正常渲染，點擊即可完成 Google 登入！</li>
-          </ol>
-        </div>
-
-        <div class="step-box">
-          <h4>方案 3：Google Workspace 網域免彈窗登入</h4>
-          <p>當專案部署至 Google Apps Script 後，若同處於教育機構或企業 Google Workspace 網域：</p>
-          <ol>
-            <li>使用者開啟 Web App 網址。</li>
-            <li>直接點擊「<strong>🏢 使用目前 Google Workspace 帳號登入</strong>」。</li>
-            <li>後端直接藉由 <code>Session.getActiveUser().getEmail()</code> 取得登入者身分，<strong>完全不需 OAuth Client ID</strong>。</li>
           </ol>
         </div>
       </section>

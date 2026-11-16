@@ -49,7 +49,6 @@ window.MEA = window.MEA || {};
             break;
 
           case "login":
-          case "loginWithActiveUser":
             resolve({
               ok: true,
               token: "mock_session_token_" + Date.now(),

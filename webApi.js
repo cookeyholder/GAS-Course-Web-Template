@@ -35,7 +35,7 @@ const WEB_API_SESSION_TTL_SECONDS = 21600; // 6 小時
 const WEB_API_LOCK_TIMEOUT_MS = 15000;
 
 /** 免登入即可呼叫的公開 action */
-const WEB_API_PUBLIC_ACTIONS = ["getPublicConfig", "ping", "login", "loginWithActiveUser"];
+const WEB_API_PUBLIC_ACTIONS = ["getPublicConfig", "ping", "login"];
 
 /** 寫入型 action（需 LockService 保護） */
 const WEB_API_WRITE_ACTIONS = [
@@ -233,21 +233,6 @@ function loginWithGoogleIdToken(idToken, options) {
   return createSessionForEmail(verify.email, verify.name, { spreadsheet: ss });
 }
 
-function loginWithActiveUser(options) {
-  let email = "";
-  try {
-    if (typeof Session !== "undefined" && Session.getActiveUser) {
-      email = Session.getActiveUser().getEmail() || "";
-    }
-  } catch (e) {
-    email = "";
-  }
-  if (!email) {
-    return webApiError("no_active_user", "無法自動辨識 Google Workspace 網域身分，請使用 Google 登入按鈕進行帳號驗證");
-  }
-  return createSessionForEmail(email, email, options);
-}
-
 function getSessionInfo(token) {
   const cleanToken = String(token || "").trim();
   if (!cleanToken) {
@@ -353,8 +338,6 @@ function routeWebApiAction(action, payload, event) {
       return loginWithGoogleIdToken(payload ? (payload.idToken || payload.credential) : "", {
         clientId: payload ? payload.clientId : ""
       });
-    case "loginWithActiveUser":
-      return loginWithActiveUser();
   }
 
   // 需登入驗證

@@ -288,18 +288,15 @@ window.MEA = window.MEA || {};
       + '    <div class="gis-button-wrapper">'
       + '      <div id="googleLoginButton" class="google-btn-host"></div>'
       + '    </div>'
-      + '    <div class="login-divider"><span>或</span></div>'
-      + '    <button class="btn secondary block" onclick="MEA.auth.loginActiveUser()"' + (loginBusy ? ' disabled' : '') + '>'
-      + '      🏢 使用目前 Google Workspace 帳號登入'
-      + '    </button>'
       +      (isMock
-              ? '<button class="btn secondary block mt-2" onclick="MEA.auth.loginMock()"' + (loginBusy ? ' disabled' : '') + '>'
+              ? '<div class="login-divider"><span>或</span></div>'
+              + '<button class="btn secondary block" onclick="MEA.auth.loginMock()"' + (loginBusy ? ' disabled' : '') + '>'
               + '  🧪 本地測試身分登入 (Mock Mode)'
               + '</button>'
               : '')
       + '  </div>'
       + '  <div class="login-footer">'
-      + '    <p class="login-note">第一次登入之使用者將自動取得管理員身分</p>'
+      + '    <p class="login-note">請使用 Google 帳號登入；首次登入者將自動開通管理員身分</p>'
       + '  </div>'
       + '</div>'
       + '</div>';

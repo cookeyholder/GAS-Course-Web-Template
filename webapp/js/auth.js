@@ -131,11 +131,6 @@ window.MEA = window.MEA || {};
     });
   }
 
-  function loginActiveUser() {
-    MEA.setState({ loginBusy: true, loginError: "" });
-    MEA.api.call("loginWithActiveUser", {}).then(applyLoginSuccess);
-  }
-
   function loginMock() {
     MEA.setState({ loginBusy: true, loginError: "" });
     MEA.api.call("login", { mock: true }).then(applyLoginSuccess);
@@ -217,7 +212,6 @@ window.MEA = window.MEA || {};
     renderGoogleButton: renderGoogleButton,
     handleCredential: handleCredential,
     applyLoginSuccess: applyLoginSuccess,
-    loginActiveUser: loginActiveUser,
     loginMock: loginMock,
     logout: logout,
     restore: restore
