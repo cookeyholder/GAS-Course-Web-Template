@@ -339,7 +339,8 @@
         <li><a href="#lock-service">4. 併發防護：LockService</a></li>
         <li><a href="#cache-service">5. 效能快取：CacheService</a></li>
         <li><a href="#sheet-db">6. 試算表作為資料庫準則</a></li>
-        <li><a href="#references">7. 參考資料來源</a></li>
+        <li><a href="#security-hardening">7. 全端資訊安全防護架構</a></li>
+        <li><a href="#references">8. 參考資料來源</a></li>
       </ul>
     </aside>
 
@@ -377,7 +378,7 @@
 
         <div class="alert tip">
           <span>💡 <strong>為什麼不用 Webpack / Vite？</strong><br />
-          Webpack 或 Vite 需要龐大的 <code>node_modules</code>（動輒數百 MB）與複雜的轉譯配置。本專案的 <code>scripts/build-webapp.js</code> 是純原生 Node.js 腳本，透過簡單正規表達式將檔案內容逐一插入 <code>&lt;style&gt;</code> 與 <code>&lt;script&gt;</code> 區塊，建置耗時不到 50 毫秒，零相依、零配置負擔！</span>
+          Webpack 或 Vite 需要龐大的 <code>node_modules</code>（動輒數百 MB）與複雜的轉譯設定。本專案的 <code>scripts/build-webapp.js</code> 是純原生 Node.js 腳本，透過簡單正規表達式將檔案內容逐一插入 <code>&lt;style&gt;</code> 與 <code>&lt;script&gt;</code> 區塊，建置耗時不到 50 毫秒，零相依、零設定負擔！</span>
         </div>
       </section>
 
@@ -393,7 +394,7 @@
         <p><strong>本範本的解決方案（通訊協議黃金標準）：</strong></p>
         <p>前端發送請求時，強制將 <code>Content-Type</code> 設為 <code>text/plain;charset=utf-8</code>，內容傳送 JSON 字串：</p>
         <div class="code-box">
-          <div class="code-header"><span>webapp/js/api.js (前端發送)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>webapp/js/api.js (前端發送)</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>// 將 Content-Type 設為 text/plain，瀏覽器將其視為「簡單請求 (Simple Request)」
 // 依 W3C CORS 規範，簡單請求完全不會觸發 OPTIONS 預檢！
 fetch(apiUrl, {
@@ -407,7 +408,7 @@ fetch(apiUrl, {
 
         <p>後端 <code>webApi.js</code> 則透過 <code>e.postData.contents</code> 解析字串為 JSON 物件：</p>
         <div class="code-box">
-          <div class="code-header"><span>webApi.js (後端接收)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>webApi.js (後端接收)</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>function parseWebApiPayload(e) {
   if (e && e.postData && typeof e.postData.contents === "string") {
     try {
@@ -462,7 +463,7 @@ fetch(apiUrl, {
         <p><strong>本範本的解法：</strong>在 <code>webApi.js</code> 的 <code>doPost</code> 中，所有標記為寫入型的 Action（如 <code>importCourseCodes</code>、<code>saveSystemSettings</code>）會自動請求 <code>ScriptLock</code>：</p>
 
         <div class="code-box">
-          <div class="code-header"><span>webApi.js (doPost 鎖定邏輯)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>webApi.js (doPost 鎖定邏輯)</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>let lock = null;
 let hasLock = false;
 
@@ -529,8 +530,47 @@ try {
       </section>
 
       <!-- Section 7 -->
+      <section class="section" id="security-hardening">
+        <h2 class="section-title"><span class="step-num">7</span> 全端資訊安全防護架構 (Security Hardening)</h2>
+        <p>為防範雲端環境與試算表資料庫常見的攻擊面，本範本實作了五大深層安全防禦：</p>
+
+        <table class="doc-table">
+          <thead>
+            <tr><th style="width:25%;">防護維度</th><th style="width:35%;">潛在風險與威脅</th><th style="width:40%;">實作機制與防護邏輯</th></tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><strong>試算表公式注入防護<br />(Formula Immunization)</strong></td>
+              <td>惡意使用者於姓名、設定或課程欄位輸入 <code>=CMD(...)</code>、<code>+123</code>、<code>@SUM(...)</code> 等，當試算表開啟或匯出 CSV 時可能觸發非預期執行或資料外洩。</td>
+              <td>在 <code>utilities.js</code> 提供 <code>sanitizeFormulaValue</code> 與 <code>sanitizeRowMatrix</code>，寫入試算表前對 <code>=</code>、<code>+</code>、<code>-</code>、<code>@</code>、<code>\t</code>、<code>\r</code> 開頭字串自動附加前置單引號跳脫。</td>
+            </tr>
+            <tr>
+              <td><strong>CSPRNG 密鑰隨機度<br />(RFC 4122 v4 UUID)</strong></td>
+              <td>使用 <code>Math.random()</code> 產生的 Token 隨機度較低，在長時間運行或高併發下可能遭受預測或碰撞攻擊。</td>
+              <td>在 <code>webApi.js</code> 的 <code>generateSessionToken()</code> 中，支援呼叫 Google Apps Script 原生 <code>Utilities.getUuid()</code>，具備密碼學安全之高品質真隨機強度。</td>
+            </tr>
+            <tr>
+              <td><strong>Google ID Token 嚴格校驗</strong></td>
+              <td>若後端驗證 JWT 時略過 <code>aud</code> 欄位，攻擊者可持任意其他 GCP 專案簽署的合法 Google Token 矇混登入。</td>
+              <td>強制檢查後台必須預先設定 Client ID；後端驗證時嚴格比對 <code>info.aud === cleanClientId</code>，徹底阻斷跨應用憑證混淆漏洞。</td>
+            </tr>
+            <tr>
+              <td><strong>HTTP GET 白名單<br />(Default Deny)</strong></td>
+              <td>允許透過 GET 呼叫敏感 API 會導致 Session Token 被記錄在瀏覽器歷程紀錄、代理伺服器或存取日誌，並易遭受 CSRF 繞過。</td>
+              <td><code>doGet</code> 實施預設拒絕政策：除 <code>ping</code> 與 <code>getPublicConfig</code> 供唯讀檢查外，其餘所有 action 強制拒絕 GET 並要求使用 POST。</td>
+            </tr>
+            <tr>
+              <td><strong>前端 XSS 編碼防護</strong></td>
+              <td>動態組合 HTML 行內屬性（如 <code>onclick</code>）時，若變數含有單引號或 HTML 特殊符號可能導致腳本注入攻擊。</td>
+              <td>所有使用者輸入在前端渲染時全面通過 <code>MEA.ui.escapeHtml()</code>，行內按鈕傳參則採用 <code>decodeURIComponent(encodeURIComponent(...))</code> 隔離字串。</td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <!-- Section 8 -->
       <section class="section" id="references">
-        <h2 class="section-title"><span class="step-num">7</span> 參考資料來源與官方文獻</h2>
+        <h2 class="section-title"><span class="step-num">8</span> 參考資料來源與官方文獻</h2>
         <table class="doc-table">
           <thead>
             <tr><th style="width:30%;">資料來源 / 文件名稱</th><th style="width:25%;">發布組織 / 規範</th><th>說明與官方連結</th></tr>
@@ -582,7 +622,7 @@ try {
       const code = btn.closest(".code-box").querySelector("pre code").innerText;
       navigator.clipboard.writeText(code).then(function() {
         btn.innerText = "已複製！";
-        setTimeout(function() { btn.innerText = "複製代碼"; }, 2000);
+        setTimeout(function() { btn.innerText = "複製程式碼"; }, 2000);
       });
     }
   </script>

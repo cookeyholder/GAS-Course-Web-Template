@@ -378,7 +378,7 @@
       <ul class="toc-list">
         <li><a href="#overview">1. 權限體系核心概念</a></li>
         <li><a href="#step1">2. 步驟一：定義新角色</a></li>
-        <li><a href="#step2">3. 步驟二：配置權限矩陣</a></li>
+        <li><a href="#step2">3. 步驟二：設定權限矩陣</a></li>
         <li><a href="#step3">4. 步驟三：前端設定與守衛</a></li>
         <li><a href="#step4">5. 步驟四：指派使用者角色</a></li>
         <li><a href="#example">6. 完整實戰：新增主管角色</a></li>
@@ -440,7 +440,7 @@
         <div class="code-box">
           <div class="code-header">
             <span>databaseInitializer.js (約第 36 行)</span>
-            <button class="copy-btn" onclick="copyCode(this)">複製代碼</button>
+            <button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
           </div>
           <pre><code>/** 授權角色定義 */
 const ROLE_DEFINITIONS = {
@@ -468,13 +468,13 @@ function normalizeRole(role) {
 
       <!-- Section 3 -->
       <section class="section" id="step2">
-        <h2 class="section-title"><span class="step-num">3</span> 步驟二：配置後端權限矩陣 (ROLE_PERMISSIONS)</h2>
+        <h2 class="section-title"><span class="step-num">3</span> 步驟二：設定後端權限矩陣 (ROLE_PERMISSIONS)</h2>
         <p>開啟 <code>webApi.js</code>，在 <code>ROLE_PERMISSIONS</code> 中明確列出該角色被允許呼叫的 API Action 名稱：</p>
 
         <div class="code-box">
           <div class="code-header">
             <span>webApi.js (約第 42 行)</span>
-            <button class="copy-btn" onclick="copyCode(this)">複製代碼</button>
+            <button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
           </div>
           <pre><code>/** 角色權限矩陣（RBAC） */
 const ROLE_PERMISSIONS = {
@@ -511,7 +511,7 @@ const ROLE_PERMISSIONS = {
         <h3 style="font-size:16px; margin: 16px 0 8px;">3.1 前端角色對照字典</h3>
         <p>在 <code>webapp/js/config.js</code> 同步更新角色字典，供導覽列或使用者頭像顯示中文：</p>
         <div class="code-box">
-          <div class="code-header"><span>webapp/js/config.js</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>webapp/js/config.js</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>roleNames: {
   admin: "系統管理員",
   manager: "主管人員", // 👈 新增
@@ -523,7 +523,7 @@ const ROLE_PERMISSIONS = {
         <h3 style="font-size:16px; margin: 16px 0 8px;">3.2 按鈕與操作權限守衛</h3>
         <p>在特定功能頁面中（例如匯入按鈕），透過 <code>MEA.state.user.perms</code> 判斷是否具備權限：</p>
         <div class="code-box">
-          <div class="code-header"><span>webapp/js/imports.js 或自訂模組</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>webapp/js/imports.js 或自訂模組</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>const user = MEA.state.user || {};
 
 // 檢查是否具有特定 Action 權限或具備最高權限 *
@@ -539,7 +539,7 @@ if (!canImport) {
         <h3 style="font-size:16px; margin: 16px 0 8px;">3.3 導覽頁籤（Tab）過濾</h3>
         <p>若希望「系統設定」或特定頁籤僅供指定角色看到，可在 <code>webapp/js/ui.js</code> 的 <code>renderNavbar()</code> 過濾頁籤：</p>
         <div class="code-box">
-          <div class="code-header"><span>webapp/js/ui.js (renderNavbar 函式)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>webapp/js/ui.js (renderNavbar 函式)</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>function renderNavbar() {
   const user = MEA.state.user || {};
   const tabs = (MEA.config.tabs || []).filter(function(tab) {
@@ -699,7 +699,7 @@ if (!canImport) {
       const code = btn.closest(".code-box").querySelector("pre code").innerText;
       navigator.clipboard.writeText(code).then(function() {
         btn.innerText = "已複製！";
-        setTimeout(function() { btn.innerText = "複製代碼"; }, 2000);
+        setTimeout(function() { btn.innerText = "複製程式碼"; }, 2000);
       });
     }
   </script>

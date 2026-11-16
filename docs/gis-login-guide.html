@@ -380,7 +380,7 @@
       <ul class="toc-list">
         <li><a href="#overview">1. GIS 登入機制原理</a></li>
         <li><a href="#gcp-setup">2. Google Cloud 設定指南</a></li>
-        <li><a href="#template-config">3. 範本端 Client ID 配置</a></li>
+        <li><a href="#template-config">3. 範本端 Client ID 設定</a></li>
         <li><a href="#local-testing">4. 本地端開發與測試方式</a></li>
         <li><a href="#backend-verify">5. 後端憑證驗證與快取</a></li>
         <li><a href="#troubleshooting">6. 常見錯誤與排解</a></li>
@@ -393,7 +393,7 @@
       <div class="doc-hero">
         <span class="badge">身分驗證 · Google Identity Services</span>
         <h1 class="doc-title">Google 帳號登入 (GIS) 詳細設定教學</h1>
-        <p class="doc-desc">完整涵蓋 Google Cloud Console 憑證建立、已授權來源設定、範本端配置，以及本地端離線與即時測試方案。</p>
+        <p class="doc-desc">完整涵蓋 Google Cloud Console 憑證建立、已授權來源設定、範本端設定，以及本地端離線與即時測試方案。</p>
       </div>
 
       <!-- Section 1 -->
@@ -509,7 +509,7 @@ https://script.google.com</code></pre>
 
       <!-- Section 3 -->
       <section class="section" id="template-config">
-        <h2 class="section-title"><span class="step-num">3</span> 範本端 Client ID 配置方式</h2>
+        <h2 class="section-title"><span class="step-num">3</span> 範本端 Client ID 設定方式</h2>
         <p>取得 Client ID 後，您可以透過以下任一途徑填入專案中：</p>
 
         <h3 style="font-size:16px; margin: 16px 0 8px;">方式 A：透過 Web App 設定頁籤（最直覺）</h3>
@@ -530,7 +530,7 @@ https://script.google.com</code></pre>
         <h3 style="font-size:16px; margin: 20px 0 8px;">方式 C：程式碼預設值（建置新專案時）</h3>
         <p>若希望在初始化資料庫時就帶有預設 Client ID，可修改 <code>databaseInitializer.js</code>：</p>
         <div class="code-box">
-          <div class="code-header"><span>databaseInitializer.js (約第 25 行)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>databaseInitializer.js (約第 25 行)</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>const DEFAULT_SYSTEM_PARAMS = [
   ["設定項目", "設定數值"],
   ["學年度", "114"],
@@ -589,26 +589,31 @@ npx serve . -p 8080</code></pre>
         <h3 style="font-size:16px; margin: 16px 0 8px;">5.1 憑證校驗 (Token Verification)</h3>
         <p>後端透過 <code>UrlFetchApp</code> 呼叫 Google 官方端點檢驗 JWT 簽名：</p>
         <div class="code-box">
-          <div class="code-header"><span>webApi.js (verifyGoogleIdToken)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>webApi.js (verifyGoogleIdToken)</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>function verifyGoogleIdToken(idToken, expectedClientId) {
-  const url = "https://oauth2.googleapis.com/tokeninfo?id_token=" + encodeURIComponent(idToken);
+  const cleanClientId = String(expectedClientId || "").trim();
+  if (!cleanClientId) {
+    return webApiError("server_misconfigured", "系統尚未設定 Google OAuth Client ID");
+  }
+
+  const url = GOOGLE_TOKENINFO_URL + "?id_token=" + encodeURIComponent(idToken);
   const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
   const info = JSON.parse(resp.getContentText());
 
   // 1. 驗證是否包含 Email
-  if (!info.email) throw new Error("無效的憑證");
+  if (!info.email) return webApiError("invalid_token_payload", "Google 憑證缺少 Email 欄位");
 
-  // 2. 驗證受眾（aud）是否與專案的 Client ID 一致（防止跨 App 偽造）
-  if (expectedClientId && info.aud !== expectedClientId) {
-    throw new Error("Client ID 不相符");
+  // 2. 嚴格驗證受眾（aud）是否與專案的 Client ID 完全一致（阻斷跨應用憑證混淆）
+  if (info.aud !== cleanClientId) {
+    return webApiError("client_id_mismatch", "OAuth Client ID 不符");
   }
 
-  return { email: info.email.toLowerCase(), name: info.name };
+  return { ok: true, email: info.email.toLowerCase(), name: info.name };
 }</code></pre>
         </div>
 
         <h3 style="font-size:16px; margin: 20px 0 8px;">5.2 Session 快取機制 (CacheService)</h3>
-        <p>驗證通過後，後端產生一組加密隨機 Token（<code>gas_時間_隨機碼</code>），儲存至 <code>CacheService.getScriptCache()</code>，有效時間設為 <strong>6 小時（21,600 秒）</strong>。前端後續的所有 API 請求均以 <code>POST + text/plain</code> 攜帶此 Token，兼顧安全性與流暢體驗。</p>
+        <p>驗證通過後，後端產生一組具備 RFC 4122 v4 UUID 隨機強度的 Token（<code>gas_UUID</code>），儲存至 <code>CacheService.getScriptCache()</code>，有效時間設為 <strong>6 小時（21,600 秒）</strong>。前端後續的所有 API 請求均以 <code>POST + text/plain</code> 攜帶此 Token，兼顧安全性與流暢體驗。</p>
       </section>
 
       <!-- Section 6 -->
@@ -678,9 +683,9 @@ npx serve . -p 8080</code></pre>
               <td>OAuth 同意畫面、已授權 JavaScript 來源與重新導向 URI 設定指引。<br /><a href="https://support.google.com/cloud/answer/6158849" target="_blank" rel="noopener">https://support.google.com/cloud/answer/6158849</a></td>
             </tr>
             <tr>
-              <td><strong>Google Apps Script - Session API</strong></td>
-              <td>Google Workspace</td>
-              <td><code>Session.getActiveUser().getEmail()</code> 官方 API 規範與權限宣告。<br /><a href="https://developers.google.com/apps-script/reference/base/session#getActiveUser()" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/base/session#getActiveUser()</a></td>
+              <td><strong>Google OAuth 2.0 Tokeninfo API</strong></td>
+              <td>Google Identity</td>
+              <td>官方 ID Token 驗證端點與回傳宣告規格。<br /><a href="https://developers.google.com/identity/openid-connect/reference#tokeninfo" target="_blank" rel="noopener">https://developers.google.com/identity/openid-connect/reference#tokeninfo</a></td>
             </tr>
             <tr>
               <td><strong>Google Apps Script - CacheService</strong></td>
@@ -713,7 +718,7 @@ npx serve . -p 8080</code></pre>
       const code = btn.closest(".code-box").querySelector("pre code").innerText;
       navigator.clipboard.writeText(code).then(function() {
         btn.innerText = "已複製！";
-        setTimeout(function() { btn.innerText = "複製代碼"; }, 2000);
+        setTimeout(function() { btn.innerText = "複製程式碼"; }, 2000);
       });
     }
   </script>

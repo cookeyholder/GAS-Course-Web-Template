@@ -712,7 +712,7 @@ clasp logs --watch</code></pre>
             <tr>
               <td><strong>google/clasp (GitHub Repository)</strong></td>
               <td>Google Open Source</td>
-              <td>clasp 官方 GitHub 開源代碼庫、指令參數文件與 Issue 討論區。<br /><a href="https://github.com/google/clasp" target="_blank" rel="noopener">https://github.com/google/clasp</a></td>
+              <td>clasp 官方 GitHub 開源儲存庫、指令參數文件與 Issue 討論區。<br /><a href="https://github.com/google/clasp" target="_blank" rel="noopener">https://github.com/google/clasp</a></td>
             </tr>
             <tr>
               <td><strong>Google Apps Script API User Settings</strong></td>
@@ -755,7 +755,8 @@ clasp logs --watch</code></pre>
       const code = btn.closest(".code-box").querySelector("pre code").innerText;
       navigator.clipboard.writeText(code).then(function() {
         btn.innerText = "已複製！";
-        setTimeout(function() { btn.innerText = "複製代碼"; }, 2000);
+        const origText = btn.getAttribute("data-orig") || "複製";
+        setTimeout(function() { btn.innerText = origText; }, 2000);
       });
     }
   </script>

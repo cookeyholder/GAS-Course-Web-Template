@@ -406,7 +406,7 @@
         <p>本專案設計為通用全端範本，為確保課程資料庫之完整性與通用查詢需求，<strong>全數匯入所有課程代碼，不剔除任何科目</strong>：</p>
 
         <div class="code-box">
-          <div class="code-header"><span>subjectCodeTransformer.js</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>subjectCodeTransformer.js</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>/** 科目屬性排除名單（本專案全數匯入，不剔除任何科目） */
 const EXCLUDED_SUBJECT_ATTRIBUTES = [];
 
@@ -446,7 +446,7 @@ function isExcludedCourseRow(row) {
         <p>單一列 39 欄資料會經由迴圈 <code>s = 0 ~ 5</code> 檢驗六個學期：</p>
 
         <div class="code-box">
-          <div class="code-header"><span>subjectCodeTransformer.js (expandCourseRow)</span><button class="copy-btn" onclick="copyCode(this)">複製代碼</button></div>
+          <div class="code-header"><span>subjectCodeTransformer.js (expandCourseRow)</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
           <pre><code>for (let s = 0; s < 6; s++) {
   const credits = Number(row[19 + s] || 0);
   const hours = Number(row[25 + s] || 0);
@@ -557,7 +557,7 @@ function isExcludedCourseRow(row) {
       const code = btn.closest(".code-box").querySelector("pre code").innerText;
       navigator.clipboard.writeText(code).then(function() {
         btn.innerText = "已複製！";
-        setTimeout(function() { btn.innerText = "複製代碼"; }, 2000);
+        setTimeout(function() { btn.innerText = "複製程式碼"; }, 2000);
       });
     }
   </script>
