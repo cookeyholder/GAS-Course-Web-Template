@@ -416,6 +416,49 @@ function saveSystemSettings(settings, ss) {
 // 授權白名單讀寫
 // ============================================================================
 
+function parseWhitelistEnabledFlag_(value) {
+  return (
+    value === true ||
+    String(value || "").toLowerCase() === "true" ||
+    String(value || "").trim() === "是"
+  );
+}
+
+function normalizeWhitelistAccountRow_(row) {
+  const email = String((row && row[0]) || "")
+    .trim()
+    .toLowerCase();
+  if (!email) return null;
+  return {
+    email: email,
+    name: String((row && row[1]) || "").trim(),
+    role: normalizeRole(row && row[2]),
+    roleName: getRoleDisplayName(row && row[2]),
+    enabled: parseWhitelistEnabledFlag_(row && row[3])
+  };
+}
+
+function mapWhitelistRows_(values) {
+  const accounts = [];
+  const rows = values || [];
+  for (let i = 0; i < rows.length; i++) {
+    const account = normalizeWhitelistAccountRow_(rows[i]);
+    if (account) accounts.push(account);
+  }
+  return accounts;
+}
+
+function getWhitelistSheet_(ss) {
+  return ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+}
+
+function readWhitelistRowsFromSheet_(sheet) {
+  if (!sheet) return [];
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return sheet.getRange(2, 4, lastRow - 1, 4).getValues();
+}
+
 /**
  * 讀取授權白名單清單（區塊 B，D2:G）
  *
@@ -423,40 +466,10 @@ function saveSystemSettings(settings, ss) {
  * @returns {Array<Object>} 白名單帳號陣列
  */
 function readWhitelist(ss) {
-  const targetSs =
-    ss ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
+  const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
   if (!targetSs) return MEMORY_WHITELIST.slice();
-
-  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!sheet) return [];
-
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
-
-  const values = sheet.getRange(2, 4, lastRow - 1, 4).getValues();
-  const accounts = [];
-
-  for (let i = 0; i < values.length; i++) {
-    const email = String(values[i][0] || "")
-      .trim()
-      .toLowerCase();
-    if (!email) continue;
-    accounts.push({
-      email: email,
-      name: String(values[i][1] || "").trim(),
-      role: normalizeRole(values[i][2]),
-      roleName: getRoleDisplayName(values[i][2]),
-      enabled:
-        values[i][3] === true ||
-        String(values[i][3] || "").toLowerCase() === "true" ||
-        String(values[i][3] || "").trim() === "是"
-    });
-  }
-
-  return accounts;
+  const values = readWhitelistRowsFromSheet_(getWhitelistSheet_(targetSs));
+  return mapWhitelistRows_(values);
 }
 
 /**
