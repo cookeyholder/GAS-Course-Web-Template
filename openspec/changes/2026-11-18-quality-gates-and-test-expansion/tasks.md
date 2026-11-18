@@ -25,7 +25,7 @@
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) | Node v24.16.0, c8 --all, 247 函式, MI<20=0 |
-| G1 完成後 | 2026-11-19 | 27.37% (1529/5586)（基準未重測） | 27.37% (1529/5586)（基準未重測） | 58.82% (50/85)（基準未重測） | 37.87% (125/330)（基準未重測） | 69.134（基準未重測） | 56（基準未重測） | 1482.00（基準未重測） | G1 工具鏈/腳本/Hook/CI/文件已落地；`node scripts/run-tests.js` 9/9 通過。環境未安裝 c8 與 typhonjs-escomplex（xlsx 遠端相依安裝受限），LCOV/CRAP/MI 本輪未重測，待依賴可用後執行 `npm run test:coverage`、`npm run check:complexity` 更新。 |
+| G1 完成後 | 2026-11-19（補測） | 58.87% (4251/7220) | 58.87% (4251/7220) | 84.40% (211/250) | 72.17% (947/1312) | 82.03 | 34 | 600.00（`webapp/js/mock.js::<anon method-3>`） | 補測：因 `xlsx` 遠端相依（`https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz`）觸發 `EALLOWREMOTE`，先暫時移除 `package.json` 之 xlsx devDependency，執行 `npm install --no-save --no-package-lock --ignore-scripts c8@10.1.3 typhonjs-escomplex@0.1.0` 後再還原 `package.json`；`npm run test:coverage`、`npm run check:coverage`、`node scripts/checkComplexity.js` 已可執行。數值為補測當下（含 G2-G5 累積進度）之全域快照。 |
 
 ---
 
@@ -47,7 +47,7 @@
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G2 完成後 | 2026-11-19 | 27.37% (1529/5586)（基準未重測） | 27.37% (1529/5586)（基準未重測） | 58.82% (50/85)（基準未重測） | 37.87% (125/330)（基準未重測） | 69.134（基準未重測） | 56（基準未重測） | 1482.00（基準未重測） | `webApi.js` G2 目標函式（G2.1-G2.9）已完成 TDD 重構與測試補強，並新增 G2.10 公開設定/Session/CSRF 測試；`npm test` 與 `node scripts/run-tests.js`（19/19）通過。`npm run test:coverage`/`check:complexity` 嘗試執行但環境未安裝 c8 與 typhonjs-escomplex，LCOV/MI/CRAP 本輪未實際重測，待依賴可用後補測更新。 |
+| G2 完成後 | 2026-11-19（補測） | 58.87% (4251/7220) | 58.87% (4251/7220) | 84.40% (211/250) | 72.17% (947/1312) | 82.03 | 34 | 600.00（`webapp/js/mock.js::<anon method-3>`） | `webApi.js` G2.1-G2.10 已完成並通過測試；本列為 c8/typhonjs-escomplex 可用後補測之全域快照（含 G3-G5 累積進度），安裝方式同 G1 備註。 |
 
 ---
 
@@ -67,7 +67,7 @@
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G3 完成後 | 2026-11-19 | 27.37% (1529/5586)（基準未重測） | 27.37% (1529/5586)（基準未重測） | 58.82% (50/85)（基準未重測） | 37.87% (125/330)（基準未重測） | 69.134（基準未重測） | 56（基準未重測） | 1482.00（基準未重測） | `databaseInitializer.js`/`utilities.js`/`main.js` G3 目標函式（G3.1-G3.8）已完成 TDD 重構與測試補強（含 `saveSystemSettings`/`initializeDatabaseSheets`/`readWhitelist`/`saveWhitelist`/`readSystemSettings`、`safeUiAlert`、`openWebAppDialog`、`initializeDatabaseSheetsMenu`）；`node scripts/run-tests.js`（27/27）通過。`npm run test:coverage` 與 `check:complexity` 嘗試執行但環境未安裝 c8 與 typhonjs-escomplex（`npm install` 受 `xlsx` 遠端相依 `EALLOWREMOTE` 限制），LCOV/MI/CRAP 本輪未實際重測，待依賴可用後補測更新。 |
+| G3 完成後 | 2026-11-19（補測） | 58.87% (4251/7220) | 58.87% (4251/7220) | 84.40% (211/250) | 72.17% (947/1312) | 82.03 | 34 | 600.00（`webapp/js/mock.js::<anon method-3>`） | `databaseInitializer.js`/`utilities.js`/`main.js` G3.1-G3.8 已完成；補測全域快照（含 G4-G5 累積進度），安裝方式同 G1 備註。 |
 
 ---
 
@@ -82,7 +82,7 @@
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G4 完成後 | 2026-11-19 | 27.37% (1529/5586)（基準未重測） | 27.37% (1529/5586)（基準未重測） | 58.82% (50/85)（基準未重測） | 37.87% (125/330)（基準未重測） | 69.134（基準未重測） | 56（基準未重測） | 1482.00（基準未重測） | `subjectCodeTransformer.js`/`webapp/js/config.js` G4 目標函式（G4.1-G4.3）已完成 TDD 重構與測試補強（含 `getNormalizedCourses` 查詢/篩選/分頁拆分、`importNormalizedCourseCodes` 匯入流程拆分、`webapp/js/config.js` 可測試設定建構與 13 種視覺風格定義保留）；`node scripts/run-tests.js`（30/30）通過。`npm run test:coverage` 與 `check:complexity` 嘗試執行但環境未安裝 c8 與 typhonjs-escomplex（`npm install`/`npx` 受 `xlsx` 遠端相依 `EALLOWREMOTE` 限制），LCOV/MI/CRAP 本輪未實際重測，待依賴可用後補測更新。 |
+| G4 完成後 | 2026-11-19（補測） | 58.87% (4251/7220) | 58.87% (4251/7220) | 84.40% (211/250) | 72.17% (947/1312) | 82.03 | 34 | 600.00（`webapp/js/mock.js::<anon method-3>`） | `subjectCodeTransformer.js`/`webapp/js/config.js` G4.1-G4.3 已完成；補測全域快照（含 G5 累積進度），安裝方式同 G1 備註。 |
 
 ---
 
@@ -101,7 +101,7 @@
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G5 完成後 | 2026-11-19 | 58.87% (4251/7220) | 58.87% (4251/7220) | 84.40% (211/250) | 72.17% (947/1312) | 82.03 | 32 | 600.00 (`webapp/js/accounts.js::renderView`、`webapp/js/mock.js::<anon method-3>`) | c8/typhonjs-escomplex 已可執行；`webapp/js/api.js`、`webapp/js/app.js` 目標函式完成可測試工廠重構與補測試，`npm test`（35/35 檔）通過。剩餘違規集中於 G6-G8。 |
+| G5 完成後 | 2026-11-19 | 58.87% (4251/7220) | 58.87% (4251/7220) | 84.40% (211/250) | 72.17% (947/1312) | 82.03 | 34 | 600.00（`webapp/js/mock.js::<anon method-3>`） | `webapp/js/api.js`（G5.1/G5.2/G5.7）與 `webapp/js/app.js`（G5.3-G5.6）已完成可測試重構與補強測試；`node scripts/run-tests.js`（35/35）通過，`npm run test:coverage`、`npm run check:coverage` 通過，`node scripts/checkComplexity.js` 已產生報告。c8/typhonjs-escomplex 透過暫時移除 xlsx devDependency 後 `npm install --no-save --no-package-lock --ignore-scripts c8@10.1.3 typhonjs-escomplex@0.1.0` 安裝並還原 `package.json`。剩餘 34 項 CRAP/MI 違規待 G6-G9 收斂。 |
 
 ---
 
