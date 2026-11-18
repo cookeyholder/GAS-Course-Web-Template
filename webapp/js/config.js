@@ -30,6 +30,7 @@ window.MEA = window.MEA || {};
     title: "Google Apps Script 應用程式範本",
     version: "1.0.0",
     mock: params.has("mock"),
+    switchAccount: window.SWITCH_ACCOUNT === true || params.get("switch") === "1",
     apiUrl: defaultApiUrl,
     storageKey: "gas_tmpl.session.v1",
     themeKey: "gas_tmpl.theme.v1",
