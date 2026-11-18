@@ -40,14 +40,14 @@
 - [x] G2.7 重構/補測試目標：`webApi.js::loginWithActiveUser`（L307, 9, 0.0%, 90.00）；驗證同上。
 - [x] G2.8 重構/補測試目標：`webApi.js::loginWithGoogleIdToken`（L291, 8, 0.0%, 72.00）；驗證同上。
 - [x] G2.9 重構/補測試目標：`webApi.js::doPost`（L748, 7, 0.0%, 56.00）；驗證同上。
-- [ ] G2.10 補強後端公開設定/Session/CSRF 測試覆蓋（支援主變更 5.1）：`getPublicConfig`、session 核發/驗證、CSRF 保護與錯誤分支；驗證：`npm test` 通過且關鍵路徑可回歸。
+- [x] G2.10 補強後端公開設定/Session/CSRF 測試覆蓋（支援主變更 5.1）：`getPublicConfig`、session 核發/驗證、CSRF 保護與錯誤分支；驗證：`npm test` 通過且關鍵路徑可回歸。
 
 #### 量測快照（完成本組後更新）
 
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G2 完成後 | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | `webApi.js` 核心目標收斂 |
+| G2 完成後 | 2026-11-19 | 27.37% (1529/5586)（基準未重測） | 27.37% (1529/5586)（基準未重測） | 58.82% (50/85)（基準未重測） | 37.87% (125/330)（基準未重測） | 69.134（基準未重測） | 56（基準未重測） | 1482.00（基準未重測） | `webApi.js` G2 目標函式（G2.1-G2.9）已完成 TDD 重構與測試補強，並新增 G2.10 公開設定/Session/CSRF 測試；`npm test` 與 `node scripts/run-tests.js`（19/19）通過。`npm run test:coverage`/`check:complexity` 嘗試執行但環境未安裝 c8 與 typhonjs-escomplex，LCOV/MI/CRAP 本輪未實際重測，待依賴可用後補測更新。 |
 
 ---
 
