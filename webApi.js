@@ -733,7 +733,13 @@ function executeWebApi(payload, event) {
       }
       if (!hasLock) return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
     }
-    return routeWebApiAction(action, payload, event);
+    const routeFn =
+      typeof module !== "undefined" &&
+      module.exports &&
+      typeof module.exports.routeWebApiAction === "function"
+        ? module.exports.routeWebApiAction
+        : routeWebApiAction;
+    return routeFn(action, payload, event);
   } catch (error) {
     console.error("[webApi executeWebApi error] " + (error && error.stack ? error.stack : error));
     return webApiError("server_error", String(error && error.message ? error.message : error));
