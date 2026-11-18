@@ -80,6 +80,132 @@ function getRoleDisplayName(role) {
 // 工作表初始化主函式
 // ============================================================================
 
+function resolveDbSpreadsheet_(options) {
+  const opts = options || {};
+  return (
+    opts.spreadsheet ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null)
+  );
+}
+
+function getNormalizedCourseHeaders_() {
+  if (typeof NORMALIZED_COURSE_HEADERS !== "undefined") return NORMALIZED_COURSE_HEADERS;
+  if (typeof globalThis !== "undefined" && globalThis.NORMALIZED_COURSE_HEADERS) {
+    return globalThis.NORMALIZED_COURSE_HEADERS;
+  }
+  if (typeof require !== "undefined") {
+    try {
+      return require("./subjectCodeTransformer.js").NORMALIZED_COURSE_HEADERS;
+    } catch (e) {
+      // ignore
+    }
+  }
+  return [];
+}
+
+function createSystemConfigSheet_(ss) {
+  const configSheet = ss.insertSheet(SHEET_SYSTEM_CONFIG);
+  configSheet.getRange(1, 1, DEFAULT_SYSTEM_PARAMS.length, 2).setValues(DEFAULT_SYSTEM_PARAMS);
+  configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
+  configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
+  configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
+  configSheet.setFrozenRows(1);
+  return configSheet;
+}
+
+function repairSystemConfigBlockA_(ss, configSheet) {
+  if (configSheet.getRange(1, 1).getValue() !== DEFAULT_SYSTEM_PARAMS[0][0]) {
+    configSheet.getRange(1, 1, 1, 2).setValues([DEFAULT_SYSTEM_PARAMS[0]]);
+    configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
+  }
+  const existingParams = readSystemSettings(ss);
+  const lastRow = configSheet.getLastRow();
+  const toAppend = [];
+  for (let i = 1; i < DEFAULT_SYSTEM_PARAMS.length; i++) {
+    const key = DEFAULT_SYSTEM_PARAMS[i][0];
+    if (typeof existingParams[key] === "undefined") {
+      toAppend.push(DEFAULT_SYSTEM_PARAMS[i]);
+    }
+  }
+  if (toAppend.length > 0) {
+    configSheet.getRange(lastRow + 1, 1, toAppend.length, 2).setValues(toAppend);
+  }
+}
+
+function repairSystemConfigBlockB_(configSheet) {
+  if (configSheet.getMaxColumns() < 8) {
+    configSheet.insertColumnsAfter(configSheet.getMaxColumns(), 8 - configSheet.getMaxColumns());
+  }
+  if (configSheet.getRange(1, 4).getValue() !== WHITELIST_HEADERS[0]) {
+    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
+    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
+  }
+}
+
+function ensureSystemConfigSheet_(ss, createdSheets) {
+  let configSheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!configSheet) {
+    createSystemConfigSheet_(ss);
+    createdSheets.push(SHEET_SYSTEM_CONFIG);
+    return;
+  }
+  repairSystemConfigBlockA_(ss, configSheet);
+  repairSystemConfigBlockB_(configSheet);
+}
+
+function createCourseIndexSheet_(ss) {
+  const courseSheet = ss.insertSheet(SHEET_COURSE_INDEX);
+  const headers = getNormalizedCourseHeaders_();
+  if (courseSheet.getMaxColumns() < headers.length) {
+    courseSheet.insertColumnsAfter(courseSheet.getMaxColumns(), headers.length - courseSheet.getMaxColumns());
+  }
+  courseSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  courseSheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#e2e8f0");
+  courseSheet.setFrozenRows(1);
+  return courseSheet;
+}
+
+function ensureCourseIndexSheet_(ss, createdSheets) {
+  if (ss.getSheetByName(SHEET_COURSE_INDEX)) return;
+  createCourseIndexSheet_(ss);
+  createdSheets.push(SHEET_COURSE_INDEX);
+}
+
+function getSystemInstructionRows_() {
+  return [
+    ["=== Google Apps Script 應用程式範本使用說明 ==="],
+    [""],
+    ["一、功能架構："],
+    ["1. 系統設定與授權：包含系統運作基本參數（學年度、學期、OAuth Client ID）與使用者權限白名單。"],
+    [
+      "2. 正規化課程索引：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"
+    ],
+    ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
+    [""],
+    ["二、OAuth 2.0 Client ID 設定步驟："],
+    ["1. 前往 Google Cloud Console (https://console.cloud.google.com/) 建立或選取專案。"],
+    ["2. 進入「API 和服務」->「憑證」，建立「OAuth 用戶端 ID」，應用程式類型選擇「網頁應用程式」。"],
+    ["3. 於「已授權的 JavaScript 來源」填入 Web App 網址（例如：https://script.google.com）。"],
+    ["4. 將取得的 Client ID 填入「系統設定與授權」工作表之 B5 儲存格（或於 Web App 設定介面輸入並儲存）。"],
+    [""],
+    ["三、角色權限（RBAC）："],
+    ["- admin（系統管理員）：完整讀寫系統參數、管理使用者名單與課程代碼匯入。"],
+    ["- staff（業務人員）：可匯入課程代碼並檢視課程索引。"],
+    ["- viewer（檢視人員）：僅能檢視課程代碼與公開設定。"]
+  ];
+}
+
+function ensureInstructionsSheet_(ss, createdSheets) {
+  if (ss.getSheetByName(SHEET_SYSTEM_INSTRUCTIONS)) return;
+  const instructSheet = ss.insertSheet(SHEET_SYSTEM_INSTRUCTIONS);
+  const instructions = getSystemInstructionRows_();
+  instructSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
+  instructSheet.getRange(1, 1).setFontWeight("bold").setFontSize(14);
+  createdSheets.push(SHEET_SYSTEM_INSTRUCTIONS);
+}
+
 /**
  * 完整初始化／檢查所有後端工作表
  *
@@ -91,102 +217,15 @@ function getRoleDisplayName(role) {
  * @returns {Object} `{ ok: true, sheets: Array<string> }`
  */
 function initializeDatabaseSheets(options) {
-  options = options || {};
-  const ss =
-    options.spreadsheet ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
+  const ss = resolveDbSpreadsheet_(options);
   if (!ss) {
     throw new Error("找不到有效的試算表物件");
   }
 
   const createdSheets = [];
-
-  // 1. 初始化「系統設定與授權」工作表
-  let configSheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!configSheet) {
-    configSheet = ss.insertSheet(SHEET_SYSTEM_CONFIG);
-    configSheet.getRange(1, 1, DEFAULT_SYSTEM_PARAMS.length, 2).setValues(DEFAULT_SYSTEM_PARAMS);
-    configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
-    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
-    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
-    configSheet.setFrozenRows(1);
-    createdSheets.push(SHEET_SYSTEM_CONFIG);
-  } else {
-    // 檢查區塊 A 表頭
-    if (configSheet.getRange(1, 1).getValue() !== DEFAULT_SYSTEM_PARAMS[0][0]) {
-      configSheet.getRange(1, 1, 1, 2).setValues([DEFAULT_SYSTEM_PARAMS[0]]);
-      configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
-    }
-    // 補齊未設定之系統參數項目
-    const existingParams = readSystemSettings(ss);
-    let lastRow = configSheet.getLastRow();
-    const toAppend = [];
-    for (let i = 1; i < DEFAULT_SYSTEM_PARAMS.length; i++) {
-      const key = DEFAULT_SYSTEM_PARAMS[i][0];
-      if (typeof existingParams[key] === "undefined") {
-        toAppend.push(DEFAULT_SYSTEM_PARAMS[i]);
-      }
-    }
-    if (toAppend.length > 0) {
-      configSheet.getRange(lastRow + 1, 1, toAppend.length, 2).setValues(toAppend);
-    }
-    // 檢查區塊 B 表頭
-    if (configSheet.getMaxColumns() < 8) {
-      configSheet.insertColumnsAfter(configSheet.getMaxColumns(), 8 - configSheet.getMaxColumns());
-    }
-    if (configSheet.getRange(1, 4).getValue() !== WHITELIST_HEADERS[0]) {
-      configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
-      configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
-    }
-  }
-
-  // 2. 初始化「正規化課程索引」工作表
-  let courseSheet = ss.getSheetByName(SHEET_COURSE_INDEX);
-  if (!courseSheet) {
-    courseSheet = ss.insertSheet(SHEET_COURSE_INDEX);
-    if (courseSheet.getMaxColumns() < NORMALIZED_COURSE_HEADERS.length) {
-      courseSheet.insertColumnsAfter(
-        courseSheet.getMaxColumns(),
-        NORMALIZED_COURSE_HEADERS.length - courseSheet.getMaxColumns()
-      );
-    }
-    courseSheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setValues([NORMALIZED_COURSE_HEADERS]);
-    courseSheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
-    courseSheet.setFrozenRows(1);
-    createdSheets.push(SHEET_COURSE_INDEX);
-  }
-
-  // 3. 初始化「系統使用說明」工作表
-  let instructSheet = ss.getSheetByName(SHEET_SYSTEM_INSTRUCTIONS);
-  if (!instructSheet) {
-    instructSheet = ss.insertSheet(SHEET_SYSTEM_INSTRUCTIONS);
-    const instructions = [
-      ["=== Google Apps Script 應用程式範本使用說明 ==="],
-      [""],
-      ["一、功能架構："],
-      ["1. 系統設定與授權：包含系統運作基本參數（學年度、學期、OAuth Client ID）與使用者權限白名單。"],
-      [
-        "2. 正規化課程索引：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"
-      ],
-      ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
-      [""],
-      ["二、OAuth 2.0 Client ID 設定步驟："],
-      ["1. 前往 Google Cloud Console (https://console.cloud.google.com/) 建立或選取專案。"],
-      ["2. 進入「API 和服務」->「憑證」，建立「OAuth 用戶端 ID」，應用程式類型選擇「網頁應用程式」。"],
-      ["3. 於「已授權的 JavaScript 來源」填入 Web App 網址（例如：https://script.google.com）。"],
-      ["4. 將取得的 Client ID 填入「系統設定與授權」工作表之 B5 儲存格（或於 Web App 設定介面輸入並儲存）。"],
-      [""],
-      ["三、角色權限（RBAC）："],
-      ["- admin（系統管理員）：完整讀寫系統參數、管理使用者名單與課程代碼匯入。"],
-      ["- staff（業務人員）：可匯入課程代碼並檢視課程索引。"],
-      ["- viewer（檢視人員）：僅能檢視課程代碼與公開設定。"]
-    ];
-    instructSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
-    instructSheet.getRange(1, 1).setFontWeight("bold").setFontSize(14);
-    createdSheets.push(SHEET_SYSTEM_INSTRUCTIONS);
-  }
+  ensureSystemConfigSheet_(ss, createdSheets);
+  ensureCourseIndexSheet_(ss, createdSheets);
+  ensureInstructionsSheet_(ss, createdSheets);
 
   return {
     ok: true,
