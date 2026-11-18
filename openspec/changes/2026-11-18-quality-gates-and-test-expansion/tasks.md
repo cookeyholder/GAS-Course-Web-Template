@@ -82,7 +82,7 @@
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G4 完成後 | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | 課程轉換與設定熱點收斂 |
+| G4 完成後 | 2026-11-19 | 27.37% (1529/5586)（基準未重測） | 27.37% (1529/5586)（基準未重測） | 58.82% (50/85)（基準未重測） | 37.87% (125/330)（基準未重測） | 69.134（基準未重測） | 56（基準未重測） | 1482.00（基準未重測） | `subjectCodeTransformer.js`/`webapp/js/config.js` G4 目標函式（G4.1-G4.3）已完成 TDD 重構與測試補強（含 `getNormalizedCourses` 查詢/篩選/分頁拆分、`importNormalizedCourseCodes` 匯入流程拆分、`webapp/js/config.js` 可測試設定建構與 13 種視覺風格定義保留）；`node scripts/run-tests.js`（30/30）通過。`npm run test:coverage` 與 `check:complexity` 嘗試執行但環境未安裝 c8 與 typhonjs-escomplex（`npm install`/`npx` 受 `xlsx` 遠端相依 `EALLOWREMOTE` 限制），LCOV/MI/CRAP 本輪未實際重測，待依賴可用後補測更新。 |
 
 ---
 
