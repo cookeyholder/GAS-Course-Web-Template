@@ -11,7 +11,7 @@
 ## G1. 量測基礎建設與品質防線（完成後可持續量測）
 
 - [x] G1.1 新增品質工具 devDependencies 與 npm scripts 骨架（Husky、lint-staged、c8、複雜度分析套件，及 `test:coverage`、`check:coverage`、`check:changed-coverage`、`check:complexity`），並更新 `.gitignore`/`.prettierignore` 排除覆蓋率與品質報告產物；驗證：安裝成功且 `npm run` 可見新指令。
-- [ ] G1.2 建立品質設定與基準檔（納管範圍、排除規則、覆蓋率/CRAP/MI/變更覆蓋率門檻、基準線儲存與報告目錄），固化 2026-11-18 基準（LCOV/MI/CRAP）；驗證：設定可被腳本讀取且基準可追溯。
+- [x] G1.2 建立品質設定與基準檔（納管範圍、排除規則、覆蓋率/CRAP/MI/變更覆蓋率門檻、基準線儲存與報告目錄），固化 2026-11-18 基準（LCOV/MI/CRAP）；驗證：設定可被腳本讀取且基準可追溯。
 - [ ] G1.3 整合 c8 與 `scripts/run-tests.js` 產出 `text/lcov/json/json-summary` 報告（含 `--all` 全量納管範圍）；驗證：`npm run test:coverage` 可重現量測。
 - [ ] G1.4 實作 `check:coverage`（全域門檻與基準線不回退，初始門檻 Lines>=30%、Statements>=30%、Functions>=60%、Branches>=40% 且不得低於基準線）；驗證：未達標/回退失敗、達標成功。
 - [ ] G1.5 實作 `check:complexity` 計算模組 MI 與函式 CRAP，輸出摘要與 JSON 報告並強制 CRAP <= 30、MI >= 20；驗證：可定位違規並正確回報狀態。

@@ -1,0 +1,34 @@
+{
+  "measuredAt": "2026-11-18",
+  "environment": {
+    "node": "v24.16.0",
+    "testCommand": "node scripts/run-tests.js",
+    "coverageCommand": "c8 --all --include='*.js' --include='webapp/js/*.js' --include='scripts/*.js' --exclude='tests/**' --exclude='node_modules/**' --exclude='coverage/**' --reporter=text --reporter=lcov --reporter=json --reporter=json-summary node scripts/run-tests.js",
+    "complexityTool": "typhonjs-escomplex",
+    "crapFormula": "comp^2 * (1 - cov)^3 + comp"
+  },
+  "scope": {
+    "include": ["*.js", "webapp/js/*.js", "scripts/*.js"],
+    "exclude": ["tests/**", "node_modules/**", "coverage/**", "reports/**", ".nyc_output/**"],
+    "files": 20,
+    "methods": 247
+  },
+  "coverage": {
+    "totals": {
+      "lines": { "total": 5586, "covered": 1529, "pct": 27.37 },
+      "statements": { "total": 5586, "covered": 1529, "pct": 27.37 },
+      "functions": { "total": 85, "covered": 50, "pct": 58.82 },
+      "branches": { "total": 330, "covered": 125, "pct": 37.87 }
+    }
+  },
+  "maintainability": {
+    "miMin": 69.134,
+    "miMinFile": "webapp/js/config.js",
+    "miUnder20Count": 0
+  },
+  "crap": {
+    "crapMax": 1482.0,
+    "crapMaxFunction": "subjectCodeTransformer.js::getNormalizedCourses",
+    "crapOver30Count": 56
+  }
+}
