@@ -312,19 +312,18 @@ function verifyGoogleIdToken(idToken, expectedClientId, configuredDomain, deps) 
 }
 
 function loginWithGoogleIdToken(idToken, options) {
-  options = options || {};
-  const ss =
-    options.spreadsheet ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
-  const settings = readSystemSettings(ss);
-  const expectedClientId = options.clientId || settings.clientId || "";
+  const resolvedOptions = options || {};
+  const ss = resolveLoginSpreadsheet_(resolvedOptions);
+  const readSettingsFn = resolveRouteDependency_("readSystemSettings", readSystemSettings);
+  const settings = readSettingsFn(ss) || {};
+  const expectedClientId = resolvedOptions.clientId || settings.clientId || "";
 
-  const verify = verifyGoogleIdToken(idToken, expectedClientId, settings.allowedLoginDomain);
+  const verifyFn = getOverridableApiFn_("verifyGoogleIdToken", verifyGoogleIdToken);
+  const verify = verifyFn(idToken, expectedClientId, settings.allowedLoginDomain);
   if (!verify.ok) return verify;
 
-  return createSessionForEmail(verify.email, verify.name, { spreadsheet: ss });
+  const createSessionFn = getOverridableApiFn_("createSessionForEmail", createSessionForEmail);
+  return createSessionFn(verify.email, verify.name, { spreadsheet: ss });
 }
 
 function resolveLoginSpreadsheet_(options) {

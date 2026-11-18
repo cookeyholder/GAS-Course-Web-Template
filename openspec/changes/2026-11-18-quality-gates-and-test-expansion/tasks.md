@@ -38,7 +38,7 @@
 - [x] G2.5 重構/補測試目標：`webApi.js::resolveOAuthRedirectUri`（L348, 13, 0.0%, 182.00）；驗證同上。
 - [x] G2.6 重構/補測試目標：`webApi.js::routeWebApiAction`（L551, 35, 61.6%, 104.21）；驗證同上（含 action 分支與權限/CSRF 路徑測試補強）。
 - [x] G2.7 重構/補測試目標：`webApi.js::loginWithActiveUser`（L307, 9, 0.0%, 90.00）；驗證同上。
-- [ ] G2.8 重構/補測試目標：`webApi.js::loginWithGoogleIdToken`（L291, 8, 0.0%, 72.00）；驗證同上。
+- [x] G2.8 重構/補測試目標：`webApi.js::loginWithGoogleIdToken`（L291, 8, 0.0%, 72.00）；驗證同上。
 - [ ] G2.9 重構/補測試目標：`webApi.js::doPost`（L748, 7, 0.0%, 56.00）；驗證同上。
 - [ ] G2.10 補強後端公開設定/Session/CSRF 測試覆蓋（支援主變更 5.1）：`getPublicConfig`、session 核發/驗證、CSRF 保護與錯誤分支；驗證：`npm test` 通過且關鍵路徑可回歸。
 
