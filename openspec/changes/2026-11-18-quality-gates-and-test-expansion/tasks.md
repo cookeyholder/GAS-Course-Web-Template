@@ -75,7 +75,7 @@
 
 - [x] G4.1 重構/補測試目標：`subjectCodeTransformer.js::getNormalizedCourses`（L410, 38, 0.0%, 1482.00）；驗證：`npm test` 通過且 CRAP <= 30（優先拆分查詢/篩選/分頁邏輯）。
 - [x] G4.2 重構/補測試目標：`subjectCodeTransformer.js::importNormalizedCourseCodes`（L322, 16, 0.0%, 272.00）；驗證同上。
-- [ ] G4.3 重構/補測試目標：`webapp/js/config.js::<anon method-1>`（L7, 10, 0.0%, 110.00）；驗證同上（必要時抽離可測試純函式或調整可測結構，保持行為不變）。
+- [x] G4.3 重構/補測試目標：`webapp/js/config.js::<anon method-1>`（L7, 10, 0.0%, 110.00）；驗證同上（必要時抽離可測試純函式或調整可測結構，保持行為不變）。
 
 #### 量測快照（完成本組後更新）
 
