@@ -3,11 +3,11 @@
  * @description Google Apps Script 網頁版 API 路由總管
  *
  * 架構規範：
- * - 前端以 `POST` + `Content-Type: text/plain;charset=utf-8` 發送 JSON，
- *   避免瀏覽器對 GAS 發出不支援的 `OPTIONS` CORS 預檢請求。
- * - 所有請求統一套用 `{ action, token?, ...payload }` 信封格式。
+ * - 前端於 GAS HtmlService 容器內優先使用 `google.script.run.executeWebApi`（原生 RPC），
+ *   一般環境以 `POST` + `Content-Type: text/plain;charset=utf-8` 備援，避免 CORS 預檢。
+ * - 所有請求統一套用 `{ action, token?, csrfToken?, ...payload }` 信封格式。
  * - 所有回應統一套用 `{ ok: true, ... }` 或 `{ ok: false, error, message }`。
- * - 寫入型 action 一律以 `LockService` 排隊，避免多人同時覆寫工作表。
+ * - 寫入型 action 一律以 `LockService` 排隊並驗證 CSRF Token。
  */
 
 // ============================================================================
@@ -30,21 +30,17 @@ if (typeof require !== "undefined") {
   } catch (e) {}
 }
 
-const WEB_API_VERSION = "1.0.0";
+const WEB_API_VERSION = "1.1.0";
 const WEB_API_SESSION_TTL_SECONDS = 21600; // 6 小時
 const WEB_API_LOCK_TIMEOUT_MS = 15000;
 
 /** 免登入即可呼叫的公開 action */
-const WEB_API_PUBLIC_ACTIONS = ["getPublicConfig", "ping", "login"];
+const WEB_API_PUBLIC_ACTIONS = ["getPublicConfig", "ping", "login", "loginWithActiveUser"];
 
-/** 寫入型 action（需 LockService 保護） */
-const WEB_API_WRITE_ACTIONS = [
-  "importCourseCodes",
-  "saveSystemSettings",
-  "saveWhitelist"
-];
+/** 寫入型 action（需 LockService 保護與 CSRF 驗證） */
+const WEB_API_WRITE_ACTIONS = ["importCourseCodes", "saveSystemSettings", "saveWhitelist", "logout"];
 
-const WEB_API_LOCKED_ACTIONS = WEB_API_WRITE_ACTIONS.concat(["login"]);
+const WEB_API_LOCKED_ACTIONS = ["importCourseCodes", "saveSystemSettings", "saveWhitelist", "login", "loginWithActiveUser"];
 
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const WEB_API_SESSION_PREFIX = "gas_tmpl_session_";
@@ -52,16 +48,8 @@ const WEB_API_SESSION_PREFIX = "gas_tmpl_session_";
 /** 角色權限矩陣（RBAC） */
 const ROLE_PERMISSIONS = {
   admin: ["*"],
-  staff: [
-    "read",
-    "importCourseCodes",
-    "getCourseIndex",
-    "getSystemSettings"
-  ],
-  viewer: [
-    "read",
-    "getCourseIndex"
-  ]
+  staff: ["read", "importCourseCodes", "getCourseIndex", "getSystemSettings"],
+  viewer: ["read", "getCourseIndex"]
 };
 
 /** Node.js 沙盒測試用之記憶體 Session 儲存 */
@@ -73,8 +61,7 @@ const WEB_API_MEMORY_SESSIONS = {};
 
 function jsonResponse(data) {
   if (typeof ContentService !== "undefined" && ContentService.createTextOutput) {
-    return ContentService.createTextOutput(JSON.stringify(data))
-      .setMimeType(ContentService.MimeType.JSON);
+    return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
   }
   return data;
 }
@@ -107,7 +94,7 @@ function parseWebApiPayload(e) {
 }
 
 // ============================================================================
-// 權限與 Session 驗證
+// 權限、Session 與安全驗證
 // ============================================================================
 
 function hasPermission(role, action) {
@@ -124,9 +111,15 @@ function getCacheStore() {
     return CacheService.getScriptCache();
   }
   return {
-    get: function (k) { return WEB_API_MEMORY_SESSIONS[k] || null; },
-    put: function (k, v, ttl) { WEB_API_MEMORY_SESSIONS[k] = v; },
-    remove: function (k) { delete WEB_API_MEMORY_SESSIONS[k]; }
+    get: function (k) {
+      return WEB_API_MEMORY_SESSIONS[k] || null;
+    },
+    put: function (k, v, ttl) {
+      WEB_API_MEMORY_SESSIONS[k] = v;
+    },
+    remove: function (k) {
+      delete WEB_API_MEMORY_SESSIONS[k];
+    }
   };
 }
 
@@ -140,28 +133,70 @@ function generateSessionToken() {
   return "gas_" + time + "_" + rand1 + rand2;
 }
 
+function generateCsrfToken() {
+  if (typeof Utilities !== "undefined" && Utilities.getUuid) {
+    return "csrf_" + Utilities.getUuid().replace(/-/g, "");
+  }
+  const rand1 = Math.random().toString(36).substring(2);
+  const rand2 = Math.random().toString(36).substring(2);
+  const time = Date.now().toString(36);
+  return "csrf_" + time + "_" + rand1 + rand2;
+}
+
+function normalizeAllowedDomain(configuredDomain) {
+  return String(configuredDomain || "")
+    .trim()
+    .replace(/^@/, "")
+    .toLowerCase();
+}
+
+function isAllowedGoogleDomain(email, configuredDomain, hostedDomain) {
+  const allowedDomain = normalizeAllowedDomain(configuredDomain);
+  if (!allowedDomain) return true;
+  const emailDomain = String(email || "")
+    .trim()
+    .toLowerCase()
+    .split("@")
+    .pop();
+  const hosted = String(hostedDomain || "")
+    .trim()
+    .toLowerCase();
+  return emailDomain === allowedDomain || hosted === allowedDomain;
+}
+
 function createSessionForEmail(email, name, options) {
   options = options || {};
-  const ss = options.spreadsheet || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const ss =
+    options.spreadsheet ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null);
 
-  const bootstrapped = bootstrapAdminIfNeeded(email, name, ss);
-  const account = getAccountRole(email, ss);
+  const cleanEmail = String(email || "").trim().toLowerCase();
+  const bootstrapped = bootstrapAdminIfNeeded(cleanEmail, name, ss);
+  const account = getAccountRole(cleanEmail, ss);
   const settings = readSystemSettings(ss);
 
+  if (!isAllowedGoogleDomain(cleanEmail, settings.allowedLoginDomain)) {
+    return webApiError("domain_not_allowed", "僅允許 " + normalizeAllowedDomain(settings.allowedLoginDomain) + " 網域帳號登入");
+  }
+
   if (settings.restrictWhitelist && !account.found) {
-    return webApiError("not_whitelisted", "您的帳號（" + email + "）尚未加入系統授權名單，請洽系統管理員開通權限");
+    return webApiError("not_whitelisted", "您的帳號（" + cleanEmail + "）尚未加入系統授權名單，請洽系統管理員開通權限");
   }
 
   if (account.found && account.enabled === false) {
-    return webApiError("account_disabled", "您的帳號（" + email + "）目前處於停用狀態，請洽系統管理員");
+    return webApiError("account_disabled", "您的帳號（" + cleanEmail + "）目前處於停用狀態，請洽系統管理員");
   }
 
   const role = account.role;
   const token = generateSessionToken();
+  const csrfToken = generateCsrfToken();
   const session = {
     token: token,
-    email: email,
-    name: account.name || name || email,
+    csrfToken: csrfToken,
+    email: cleanEmail,
+    name: account.name || name || cleanEmail,
     role: role,
     perms: ROLE_PERMISSIONS[role] || [],
     createdAt: Date.now()
@@ -173,6 +208,7 @@ function createSessionForEmail(email, name, options) {
   return {
     ok: true,
     token: token,
+    csrfToken: csrfToken,
     expiresIn: WEB_API_SESSION_TTL_SECONDS,
     email: session.email,
     name: session.name,
@@ -183,7 +219,7 @@ function createSessionForEmail(email, name, options) {
   };
 }
 
-function verifyGoogleIdToken(idToken, expectedClientId) {
+function verifyGoogleIdToken(idToken, expectedClientId, configuredDomain) {
   if (!idToken || typeof idToken !== "string") {
     return webApiError("missing_id_token", "缺少 Google ID Token");
   }
@@ -213,8 +249,20 @@ function verifyGoogleIdToken(idToken, expectedClientId) {
       return webApiError("invalid_token_payload", "Google 憑證缺少 Email 欄位");
     }
 
+    if (info.iss !== "https://accounts.google.com" && info.iss !== "accounts.google.com") {
+      return webApiError("invalid_issuer", "Google 憑證發行者不符");
+    }
+
+    if (info.email_verified !== true && info.email_verified !== "true") {
+      return webApiError("email_not_verified", "Google 帳號 Email 尚未完成驗證");
+    }
+
     if (info.aud !== cleanClientId) {
       return webApiError("client_id_mismatch", "OAuth Client ID 不符");
+    }
+
+    if (!isAllowedGoogleDomain(info.email, configuredDomain, info.hd)) {
+      return webApiError("domain_not_allowed", "僅允許 " + normalizeAllowedDomain(configuredDomain) + " 網域帳號登入");
     }
 
     return {
@@ -231,14 +279,159 @@ function verifyGoogleIdToken(idToken, expectedClientId) {
 
 function loginWithGoogleIdToken(idToken, options) {
   options = options || {};
-  const ss = options.spreadsheet || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const ss =
+    options.spreadsheet ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null);
   const settings = readSystemSettings(ss);
   const expectedClientId = options.clientId || settings.clientId || "";
 
-  const verify = verifyGoogleIdToken(idToken, expectedClientId);
+  const verify = verifyGoogleIdToken(idToken, expectedClientId, settings.allowedLoginDomain);
   if (!verify.ok) return verify;
 
   return createSessionForEmail(verify.email, verify.name, { spreadsheet: ss });
+}
+
+function loginWithActiveUser(options) {
+  options = options || {};
+  const ss =
+    options.spreadsheet ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null);
+
+  let email = "";
+  try {
+    if (typeof Session !== "undefined" && Session.getActiveUser) {
+      email = String(Session.getActiveUser().getEmail() || "").trim().toLowerCase();
+    }
+  } catch (e) {
+    email = "";
+  }
+
+  if (!email) {
+    return webApiError(
+      "no_active_user",
+      "無法辨識目前的 Google 帳號，請確認已使用授權的 Google 帳號登入後重新整理頁面"
+    );
+  }
+
+  return createSessionForEmail(email, email, { spreadsheet: ss });
+}
+
+function isAllowedOAuthRedirectUri(uri) {
+  const target = String(uri || "").trim();
+  if (!target) return false;
+  if (/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:[?#].*)?$/.test(target)) {
+    return true;
+  }
+  if (/^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?\//.test(target)) {
+    return true;
+  }
+  return false;
+}
+
+function resolveOAuthRedirectUri(state, fallbackUrl) {
+  const fallback = String(fallbackUrl || "").trim();
+  const raw = String(state || "").trim();
+  if (!raw) return fallback;
+
+  try {
+    let decoded = "";
+    if (typeof Utilities !== "undefined" && Utilities.base64Decode && Utilities.newBlob) {
+      decoded = Utilities.newBlob(Utilities.base64Decode(raw)).getDataAsString();
+    } else if (typeof Buffer !== "undefined") {
+      decoded = Buffer.from(raw, "base64").toString("utf8");
+    }
+    if (!decoded || decoded.charAt(0) !== "{") return fallback;
+    const parsed = JSON.parse(decoded);
+    const candidate = String((parsed && parsed.redirectUri) || "").trim();
+    return isAllowedOAuthRedirectUri(candidate) ? candidate : fallback;
+  } catch (e) {
+    return fallback;
+  }
+}
+
+function handleOAuthCodeCallback(code, e) {
+  const authorizationCode = String(code || "").trim();
+  if (!authorizationCode) {
+    return webApiError("missing_code", "缺少 Google 授權碼，請重新發起登入");
+  }
+
+  const ss =
+    typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null;
+  const settings = readSystemSettings(ss);
+  const clientId = String(settings.clientId || "").trim();
+  const clientSecret = String(settings.clientSecret || "").trim();
+
+  if (!clientId) {
+    return webApiError("server_misconfigured", "系統尚未設定 OAuth Client ID，請系統管理員先完成系統設定");
+  }
+  if (!clientSecret) {
+    return webApiError("missing_client_secret", "系統尚未設定 OAuth Client Secret，無法完成 Google 帳號登入");
+  }
+
+  let webAppUrl = "";
+  try {
+    if (typeof ScriptApp !== "undefined" && ScriptApp.getService) {
+      webAppUrl = ScriptApp.getService().getUrl() || "";
+    }
+  } catch (urlError) {
+    webAppUrl = "";
+  }
+
+  const redirectUri = resolveOAuthRedirectUri(e && e.parameter ? e.parameter.state : "", webAppUrl);
+
+  if (typeof UrlFetchApp === "undefined" || !UrlFetchApp.fetch) {
+    return webApiError("environment_error", "目前環境不支援交換 Google 授權碼");
+  }
+
+  try {
+    const response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
+      method: "post",
+      payload: {
+        code: authorizationCode,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code"
+      },
+      muteHttpExceptions: true
+    });
+
+    const statusCode = response.getResponseCode();
+    const responseText = response.getContentText();
+    let tokenData;
+    try {
+      tokenData = JSON.parse(responseText);
+    } catch (parseError) {
+      return webApiError("token_parse_error", "解析 Google 憑證回應失敗，請重新登入");
+    }
+
+    if (statusCode !== 200 || !tokenData.id_token) {
+      const detail = String(tokenData.error_description || tokenData.error || "HTTP " + statusCode);
+      const staleCode = tokenData.error === "invalid_grant" || detail.indexOf("Bad Request") !== -1;
+      return webApiError(
+        "token_exchange_failed",
+        staleCode
+          ? "登入授權碼已失效（可能因重新整理頁面），請重新點選 Google 帳號登入"
+          : "Google 授權碼交換失敗：" + detail
+      );
+    }
+
+    const verification = verifyGoogleIdToken(tokenData.id_token, clientId, settings.allowedLoginDomain);
+    if (!verification.ok) return verification;
+
+    return createSessionForEmail(verification.email, verification.name, { spreadsheet: ss });
+  } catch (error) {
+    return webApiError(
+      "token_exchange_error",
+      "連線 Google 憑證伺服器失敗：" + String(error && error.message ? error.message : error)
+    );
+  }
 }
 
 function getSessionInfo(token) {
@@ -270,7 +463,8 @@ function getSessionState(token) {
     name: result.session.name,
     role: result.session.role,
     roleName: getRoleDisplayName(result.session.role),
-    perms: result.session.perms
+    perms: result.session.perms,
+    csrfToken: result.session.csrfToken || ""
   };
 }
 
@@ -306,7 +500,10 @@ function authorizeWebApiAction(action, payload) {
 // ============================================================================
 
 function getPublicConfig() {
-  const ss = typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null;
+  const ss =
+    typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null;
   const settings = readSystemSettings(ss);
 
   let webAppUrl = "";
@@ -318,6 +515,15 @@ function getPublicConfig() {
     webAppUrl = "";
   }
 
+  let activeEmail = "";
+  try {
+    if (typeof Session !== "undefined" && Session.getActiveUser) {
+      activeEmail = String(Session.getActiveUser().getEmail() || "").trim();
+    }
+  } catch (e) {
+    activeEmail = "";
+  }
+
   return {
     ok: true,
     version: WEB_API_VERSION,
@@ -325,6 +531,9 @@ function getPublicConfig() {
     schoolYear: settings.schoolYear || "114",
     semester: settings.semester || "1",
     clientId: settings.clientId || "",
+    hasClientSecret: Boolean(settings.clientSecret),
+    allowedDomain: normalizeAllowedDomain(settings.allowedLoginDomain),
+    activeEmail: activeEmail,
     webAppUrl: webAppUrl
   };
 }
@@ -340,9 +549,9 @@ function routeWebApiAction(action, payload, event) {
     case "getPublicConfig":
       return getPublicConfig();
     case "login":
-      return loginWithGoogleIdToken(payload ? (payload.idToken || payload.credential) : "", {
-        clientId: payload ? payload.clientId : ""
-      });
+      return loginWithGoogleIdToken(payload ? payload.idToken || payload.credential : "");
+    case "loginWithActiveUser":
+      return loginWithActiveUser();
   }
 
   // 需登入驗證
@@ -350,7 +559,18 @@ function routeWebApiAction(action, payload, event) {
   if (!authorization.ok) return authorization;
 
   const session = authorization.session;
-  const ss = typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null;
+  const ss =
+    typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null;
+
+  // 寫入型 action 驗證 CSRF Token
+  if (WEB_API_WRITE_ACTIONS.indexOf(name) !== -1) {
+    const reqCsrf = payload ? payload.csrfToken || "" : "";
+    if (!session || !session.csrfToken || reqCsrf !== session.csrfToken) {
+      return webApiError("invalid_csrf_token", "CSRF Token 驗證失敗或請求已過期，請重新整理頁面");
+    }
+  }
 
   switch (name) {
     case "getSession":
@@ -409,6 +629,56 @@ function routeWebApiAction(action, payload, event) {
 // GAS 進入點
 // ============================================================================
 
+/**
+ * 執行 Web API Action，供 doPost 與 google.script.run 共用。
+ *
+ * @param {Object|string} payload - 請求資料物件或 JSON 字串
+ * @param {Object} [event] - HTTP 原始事件物件
+ * @returns {Object} Action 結果或錯誤物件
+ */
+function executeWebApi(payload, event) {
+  if (typeof payload === "string") {
+    try {
+      payload = JSON.parse(payload);
+    } catch (error) {
+      return webApiError("invalid_json", "請求 JSON 格式錯誤");
+    }
+  }
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return webApiError("invalid_json", "請求 JSON 格式錯誤");
+  }
+
+  const action = String(payload.action || (event && event.parameter && event.parameter.action) || "").trim();
+  if (action === "") return webApiError("missing_action", "缺少 action 參數");
+
+  let lock = null;
+  let hasLock = false;
+  try {
+    const needsLock = WEB_API_LOCKED_ACTIONS.indexOf(action) !== -1;
+    if (needsLock && typeof LockService !== "undefined" && LockService.getScriptLock) {
+      lock = LockService.getScriptLock();
+      try {
+        hasLock = lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
+      } catch (lockError) {
+        hasLock = false;
+      }
+      if (!hasLock) return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
+    }
+    return routeWebApiAction(action, payload, event);
+  } catch (error) {
+    console.error("[webApi executeWebApi error] " + (error && error.stack ? error.stack : error));
+    return webApiError("server_error", String(error && error.message ? error.message : error));
+  } finally {
+    if (hasLock && lock) {
+      try {
+        lock.releaseLock();
+      } catch (releaseError) {
+        // 忽略解鎖失敗
+      }
+    }
+  }
+}
+
 function doGet(e) {
   const parameter = e && e.parameter ? e.parameter : {};
   const action = String(parameter.action || "").trim();
@@ -416,7 +686,9 @@ function doGet(e) {
   // 若帶有 ?action= 則以 JSON 回應（僅開放 ping 與 getPublicConfig 供唯讀檢查）
   if (action !== "") {
     if (action !== "ping" && action !== "getPublicConfig") {
-      return jsonResponse(webApiError("method_not_allowed", "為保障安全性，除 ping 與 getPublicConfig 外之操作一律必須使用 POST 方法發送"));
+      return jsonResponse(
+        webApiError("method_not_allowed", "為保障安全性，除 ping 與 getPublicConfig 外之操作一律必須使用 POST 方法發送")
+      );
     }
     try {
       const payload = parseWebApiPayload(e);
@@ -426,10 +698,26 @@ function doGet(e) {
     }
   }
 
+  // 處理 Google OAuth 2.0 授權碼回傳（重新導向登入）
+  let initialAuthResult = null;
+  const authorizationCode = String(parameter.code || "").trim();
+  if (authorizationCode !== "") {
+    try {
+      initialAuthResult = handleOAuthCodeCallback(authorizationCode, e);
+    } catch (error) {
+      initialAuthResult = webApiError(
+        "oauth_callback_failed",
+        "Google 登入回傳處理失敗：" + String(error && error.message ? error.message : error)
+      );
+    }
+  }
+
   // 渲染 Web App HTML
   if (typeof HtmlService !== "undefined" && HtmlService.createTemplateFromFile) {
     try {
       const template = HtmlService.createTemplateFromFile("index");
+      template.initialAuthResult = initialAuthResult ? JSON.stringify(initialAuthResult).replace(/</g, "\\u003c") : "";
+      template.switchAccount = String(parameter.switch || "") === "1";
       return template
         .evaluate()
         .setTitle("Google Apps Script 應用程式範本")
@@ -448,47 +736,22 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  let lock = null;
-  let hasLock = false;
-
+  let payload;
   try {
-    const payload = parseWebApiPayload(e);
-    if (payload === null) {
-      return jsonResponse(webApiError("invalid_json", "請求 JSON 格式錯誤"));
-    }
-
-    const action = String(payload.action || (e && e.parameter && e.parameter.action) || "").trim();
-    if (action === "") {
-      return jsonResponse(webApiError("missing_action", "缺少 action 參數"));
-    }
-
-    const needsLock = WEB_API_LOCKED_ACTIONS.indexOf(action) !== -1;
-    if (needsLock && typeof LockService !== "undefined" && LockService.getScriptLock) {
-      lock = LockService.getScriptLock();
-      try {
-        hasLock = lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
-      } catch (lockError) {
-        hasLock = false;
-      }
-      if (!hasLock) {
-        return jsonResponse(webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試"));
-      }
-    }
-
-    const result = routeWebApiAction(action, payload, e);
-    return jsonResponse(result);
+    payload = parseWebApiPayload(e);
   } catch (error) {
-    console.error("[webApi doPost error] " + (error && error.stack ? error.stack : error));
-    return jsonResponse(webApiError("server_error", String(error && error.message ? error.message : error)));
-  } finally {
-    if (hasLock && lock) {
-      try {
-        lock.releaseLock();
-      } catch (releaseError) {
-        // 忽略解鎖失敗
-      }
-    }
+    return jsonResponse(webApiError("invalid_json", "請求 JSON 格式錯誤"));
   }
+  if (payload === null) {
+    return jsonResponse(webApiError("invalid_json", "請求 JSON 格式錯誤"));
+  }
+
+  const action = String(payload.action || (e && e.parameter && e.parameter.action) || "").trim();
+  if (action === "") {
+    return jsonResponse(webApiError("missing_action", "缺少 action 參數"));
+  }
+
+  return jsonResponse(executeWebApi(payload, e));
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -496,6 +759,7 @@ if (typeof module !== "undefined" && module.exports) {
     WEB_API_VERSION: WEB_API_VERSION,
     WEB_API_PUBLIC_ACTIONS: WEB_API_PUBLIC_ACTIONS,
     WEB_API_WRITE_ACTIONS: WEB_API_WRITE_ACTIONS,
+    WEB_API_LOCKED_ACTIONS: WEB_API_LOCKED_ACTIONS,
     ROLE_PERMISSIONS: ROLE_PERMISSIONS,
     jsonResponse: jsonResponse,
     webApiSuccess: webApiSuccess,
@@ -503,13 +767,23 @@ if (typeof module !== "undefined" && module.exports) {
     parseWebApiPayload: parseWebApiPayload,
     hasPermission: hasPermission,
     generateSessionToken: generateSessionToken,
+    generateCsrfToken: generateCsrfToken,
+    normalizeAllowedDomain: normalizeAllowedDomain,
+    isAllowedGoogleDomain: isAllowedGoogleDomain,
+    isAllowedOAuthRedirectUri: isAllowedOAuthRedirectUri,
+    resolveOAuthRedirectUri: resolveOAuthRedirectUri,
     createSessionForEmail: createSessionForEmail,
+    verifyGoogleIdToken: verifyGoogleIdToken,
+    loginWithGoogleIdToken: loginWithGoogleIdToken,
+    loginWithActiveUser: loginWithActiveUser,
+    handleOAuthCodeCallback: handleOAuthCodeCallback,
     getSessionInfo: getSessionInfo,
     getSessionState: getSessionState,
     logoutSession: logoutSession,
     authorizeWebApiAction: authorizeWebApiAction,
     routeWebApiAction: routeWebApiAction,
     getPublicConfig: getPublicConfig,
+    executeWebApi: executeWebApi,
     doGet: doGet,
     doPost: doPost
   };
