@@ -230,7 +230,57 @@ function createSessionForEmail(email, name, options) {
   };
 }
 
-function verifyGoogleIdToken(idToken, expectedClientId, configuredDomain) {
+function fetchTokenInfoResponse_(idToken, deps) {
+  const context = deps && typeof deps === "object" ? deps : {};
+  const url = GOOGLE_TOKENINFO_URL + "?id_token=" + encodeURIComponent(idToken);
+  if (context.fetch === null) return { unavailable: true };
+  if (typeof context.fetch === "function") {
+    return context.fetch(url);
+  }
+  if (typeof UrlFetchApp !== "undefined" && UrlFetchApp.fetch) {
+    return UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  }
+  return { unavailable: true };
+}
+
+function isValidGoogleIssuer_(issuer) {
+  return issuer === "https://accounts.google.com" || issuer === "accounts.google.com";
+}
+
+function isVerifiedGoogleEmail_(value) {
+  return value === true || value === "true";
+}
+
+function validateTokenInfoClaims_(info, expectedClientId, configuredDomain) {
+  if (!info.email) {
+    return webApiError("invalid_token_payload", "Google 憑證缺少 Email 欄位");
+  }
+  if (!isValidGoogleIssuer_(info.iss)) {
+    return webApiError("invalid_issuer", "Google 憑證發行者不符");
+  }
+  if (!isVerifiedGoogleEmail_(info.email_verified)) {
+    return webApiError("email_not_verified", "Google 帳號 Email 尚未完成驗證");
+  }
+  if (info.aud !== expectedClientId) {
+    return webApiError("client_id_mismatch", "OAuth Client ID 不符");
+  }
+  if (!isAllowedGoogleDomain(info.email, configuredDomain, info.hd)) {
+    return webApiError("domain_not_allowed", "僅允許 " + normalizeAllowedDomain(configuredDomain) + " 網域帳號登入");
+  }
+  return null;
+}
+
+function buildVerifiedGoogleIdentity_(info) {
+  return {
+    ok: true,
+    email: String(info.email).toLowerCase(),
+    name: info.name || info.email,
+    sub: info.sub,
+    picture: info.picture
+  };
+}
+
+function verifyGoogleIdToken(idToken, expectedClientId, configuredDomain, deps) {
   if (!idToken || typeof idToken !== "string") {
     return webApiError("missing_id_token", "缺少 Google ID Token");
   }
@@ -241,48 +291,21 @@ function verifyGoogleIdToken(idToken, expectedClientId, configuredDomain) {
   }
 
   try {
-    const url = GOOGLE_TOKENINFO_URL + "?id_token=" + encodeURIComponent(idToken);
-    let content = "";
-
-    if (typeof UrlFetchApp !== "undefined" && UrlFetchApp.fetch) {
-      const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
-      content = resp.getContentText();
-      if (resp.getResponseCode() !== 200) {
-        return webApiError("invalid_id_token", "Google 憑證驗證失敗，請重新登入");
-      }
-    } else {
-      // 供 Node.js 測試或無 UrlFetchApp 環境備援
+    const rawResponse = fetchTokenInfoResponse_(idToken, deps);
+    if (rawResponse && rawResponse.unavailable) {
       return webApiError("environment_error", "未支援的 UrlFetchApp 環境");
     }
 
-    const info = JSON.parse(content);
-    if (!info.email) {
-      return webApiError("invalid_token_payload", "Google 憑證缺少 Email 欄位");
+    const response = normalizeOAuthHttpResponse_(rawResponse);
+    if (response.statusCode !== 200) {
+      return webApiError("invalid_id_token", "Google 憑證驗證失敗，請重新登入");
     }
 
-    if (info.iss !== "https://accounts.google.com" && info.iss !== "accounts.google.com") {
-      return webApiError("invalid_issuer", "Google 憑證發行者不符");
-    }
+    const info = JSON.parse(response.text);
+    const claimError = validateTokenInfoClaims_(info, cleanClientId, configuredDomain);
+    if (claimError) return claimError;
 
-    if (info.email_verified !== true && info.email_verified !== "true") {
-      return webApiError("email_not_verified", "Google 帳號 Email 尚未完成驗證");
-    }
-
-    if (info.aud !== cleanClientId) {
-      return webApiError("client_id_mismatch", "OAuth Client ID 不符");
-    }
-
-    if (!isAllowedGoogleDomain(info.email, configuredDomain, info.hd)) {
-      return webApiError("domain_not_allowed", "僅允許 " + normalizeAllowedDomain(configuredDomain) + " 網域帳號登入");
-    }
-
-    return {
-      ok: true,
-      email: String(info.email).toLowerCase(),
-      name: info.name || info.email,
-      sub: info.sub,
-      picture: info.picture
-    };
+    return buildVerifiedGoogleIdentity_(info);
   } catch (err) {
     return webApiError("token_verify_error", "驗證 Google 憑證時發生錯誤：" + (err && err.message ? err.message : err));
   }
