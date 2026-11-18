@@ -53,7 +53,7 @@
 
 ## G3. 後端資料庫初始化與工具函式（目標函式逐一收斂）
 
-- [ ] G3.1 重構/補測試目標：`databaseInitializer.js::saveSystemSettings`（L280, 20, 0.0%, 420.00）；驗證：`npm test` 通過且 CRAP <= 30。
+- [x] G3.1 重構/補測試目標：`databaseInitializer.js::saveSystemSettings`（L280, 20, 0.0%, 420.00）；驗證：`npm test` 通過且 CRAP <= 30。
 - [ ] G3.2 重構/補測試目標：`databaseInitializer.js::initializeDatabaseSheets`（L93, 16, 0.0%, 272.00）；驗證同上。
 - [ ] G3.3 重構/補測試目標：`databaseInitializer.js::readWhitelist`（L368, 15, 22.2%, 120.86）；驗證同上。
 - [ ] G3.4 重構/補測試目標：`databaseInitializer.js::saveWhitelist`（L412, 20, 46.6%, 81.07）；驗證同上。

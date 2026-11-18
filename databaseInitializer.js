@@ -277,59 +277,60 @@ function readSystemSettings(ss) {
  * @param {Spreadsheet} [ss] - 試算表物件
  * @returns {Object} `{ ok: true }`
  */
-function saveSystemSettings(settings, ss) {
-  const targetSs =
-    ss ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
+const SYSTEM_SETTING_KEY_MAP = {
+  schoolYear: "學年度",
+  semester: "學期",
+  systemName: "系統名稱",
+  clientId: "OAuth Client ID",
+  clientSecret: "OAuth Client Secret",
+  restrictWhitelist: "登入白名單限制啟用",
+  allowedLoginDomain: "Google 登入允許網域",
+  學年度: "學年度",
+  學期: "學期",
+  系統名稱: "系統名稱",
+  "OAuth Client ID": "OAuth Client ID",
+  "OAuth Client Secret": "OAuth Client Secret",
+  登入白名單限制啟用: "登入白名單限制啟用",
+  "Google 登入允許網域": "Google 登入允許網域"
+};
 
-  const keyMap = {
-    schoolYear: "學年度",
-    semester: "學期",
-    systemName: "系統名稱",
-    clientId: "OAuth Client ID",
-    clientSecret: "OAuth Client Secret",
-    restrictWhitelist: "登入白名單限制啟用",
-    allowedLoginDomain: "Google 登入允許網域",
-    學年度: "學年度",
-    學期: "學期",
-    系統名稱: "系統名稱",
-    "OAuth Client ID": "OAuth Client ID",
-    "OAuth Client Secret": "OAuth Client Secret",
-    登入白名單限制啟用: "登入白名單限制啟用",
-    "Google 登入允許網域": "Google 登入允許網域"
-  };
+function normalizeSystemSettingValue_(targetKey, value) {
+  if (targetKey === "登入白名單限制啟用") {
+    return parseConfigBoolean(value) ? "true" : "false";
+  }
+  if (targetKey === "Google 登入允許網域") {
+    return String(value || "")
+      .trim()
+      .replace(/^@/, "")
+      .toLowerCase();
+  }
+  return String(value === null || value === undefined ? "" : value);
+}
 
+function buildSystemSettingUpdates_(settings) {
   const updates = {};
-  for (const k in settings || {}) {
-    const targetKey = keyMap[k] || k;
-    let value = settings[k];
-    if (targetKey === "登入白名單限制啟用") {
-      value = parseConfigBoolean(value) ? "true" : "false";
-    }
-    if (targetKey === "Google 登入允許網域") {
-      value = String(value || "")
-        .trim()
-        .replace(/^@/, "")
-        .toLowerCase();
-    }
-    updates[targetKey] = String(value === null || value === undefined ? "" : value);
+  const source = settings || {};
+  for (const k in source) {
+    const targetKey = SYSTEM_SETTING_KEY_MAP[k] || k;
+    updates[targetKey] = normalizeSystemSettingValue_(targetKey, source[k]);
   }
+  return updates;
+}
 
-  if (!targetSs) {
-    for (const remainingKey in updates) {
-      MEMORY_SYSTEM_CONFIG[remainingKey] = updates[remainingKey];
-    }
-    return { ok: true };
+function saveSystemSettingsToMemory_(updates) {
+  for (const key in updates) {
+    MEMORY_SYSTEM_CONFIG[key] = updates[key];
   }
+  return { ok: true };
+}
 
-  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
+function getSystemConfigSheet_(ss) {
+  const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
   if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
+  return sheet;
+}
 
-  const range = sheet.getRange("A2:B30");
-  const values = range.getValues();
-
+function applySystemSettingUpdatesToRows_(values, updates) {
   for (let i = 0; i < values.length; i++) {
     const key = String(values[i][0] || "").trim();
     if (key && typeof updates[key] !== "undefined") {
@@ -337,22 +338,39 @@ function saveSystemSettings(settings, ss) {
       delete updates[key];
     }
   }
+  return values;
+}
 
+function appendRemainingSystemSettings_(sheet, updates) {
+  const toAppend = [];
+  for (const key in updates) {
+    toAppend.push([key, updates[key]]);
+  }
+  if (toAppend.length === 0) return;
+  const nextRow = sheet.getLastRow() + 1;
+  const safeAppend = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(toAppend) : toAppend;
+  sheet.getRange(nextRow, 1, safeAppend.length, 2).setValues(safeAppend);
+}
+
+function saveSystemSettingsToSheet_(ss, updates) {
+  const sheet = getSystemConfigSheet_(ss);
+  const range = sheet.getRange("A2:B30");
+  const values = applySystemSettingUpdatesToRows_(range.getValues(), updates);
   const safeValues = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(values) : values;
   range.setValues(safeValues);
-
-  // 若有尚未列入的鍵，於最後附加
-  const toAppend = [];
-  for (const remainingKey in updates) {
-    toAppend.push([remainingKey, updates[remainingKey]]);
-  }
-  if (toAppend.length > 0) {
-    const nextRow = sheet.getLastRow() + 1;
-    const safeAppend = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(toAppend) : toAppend;
-    sheet.getRange(nextRow, 1, safeAppend.length, 2).setValues(safeAppend);
-  }
-
+  appendRemainingSystemSettings_(sheet, updates);
   return { ok: true };
+}
+
+function saveSystemSettings(settings, ss) {
+  const targetSs =
+    ss ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null);
+  const updates = buildSystemSettingUpdates_(settings);
+  if (!targetSs) return saveSystemSettingsToMemory_(updates);
+  return saveSystemSettingsToSheet_(targetSs, updates);
 }
 
 // ============================================================================
