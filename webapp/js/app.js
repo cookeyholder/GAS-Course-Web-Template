@@ -20,7 +20,66 @@ window.MEA = window.MEA || {};
     }
   }
 
+  function syncDocumentTitle() {
+    const systemName = (MEA.state.publicConfig || {}).systemName;
+    if (systemName && document.title !== systemName) {
+      document.title = systemName;
+    }
+  }
+
+  function cleanUrlQuery() {
+    try {
+      const topWin = window.top || window;
+      if (topWin && topWin.history && topWin.history.replaceState && topWin.location) {
+        const cleanUrl = topWin.location.href.split("?")[0].split("#")[0];
+        topWin.history.replaceState({}, document.title, cleanUrl);
+      }
+    } catch (e) {}
+  }
+
+  function applyInitialAuth() {
+    const initial = window.INITIAL_AUTH;
+    if (!initial || typeof initial !== "object") return false;
+
+    cleanUrlQuery();
+    try {
+      delete window.INITIAL_AUTH;
+    } catch (e) {
+      window.INITIAL_AUTH = null;
+    }
+
+    if (initial.ok === true) {
+      MEA.auth.applyLoginSuccess(initial);
+      return true;
+    }
+
+    if (MEA.api.getToken()) {
+      MEA.auth.restore();
+      if (initial.message) {
+        MEA.setState({ loginError: initial.message });
+      }
+      return true;
+    }
+
+    MEA.setState({
+      view: "login",
+      loginBusy: false,
+      loginError: initial.message || "Google 登入失敗，請重新嘗試"
+    });
+    return true;
+  }
+
+  function applyAccountSwitch() {
+    if (!MEA.config.switchAccount) return false;
+    cleanUrlQuery();
+    MEA.api.setToken("");
+    MEA.api.setCsrfToken("");
+    MEA.auth.loginActiveUser();
+    return true;
+  }
+
   function render() {
+    syncDocumentTitle();
     const mount = document.getElementById("app");
     if (!mount) return;
 
@@ -28,12 +87,13 @@ window.MEA = window.MEA || {};
     const view = state.view;
 
     if (view === "loading") {
-      mount.innerHTML = '<div class="login-container">'
-        + '<div class="login-card text-center py-12">'
-        + '  <div class="spinner mb-4"></div>'
-        + '  <div class="text-muted">正在初始化系統連線與設定...</div>'
-        + '</div>'
-        + '</div>';
+      mount.innerHTML =
+        '<div class="login-container">' +
+        '<div class="login-card text-center py-12">' +
+        '  <div class="spinner mb-4"></div>' +
+        '  <div class="text-muted">正在初始化系統連線與設定...</div>' +
+        "</div>" +
+        "</div>";
       return;
     }
 
@@ -45,7 +105,6 @@ window.MEA = window.MEA || {};
       return;
     }
 
-    // App 主要畫面
     const tab = state.tab || "overview";
     let bodyHtml = "";
 
@@ -65,27 +124,35 @@ window.MEA = window.MEA || {};
         break;
     }
 
-    mount.innerHTML = '<div class="app-layout">'
-      + MEA.ui.renderHeader()
-      + MEA.ui.renderNavbar()
-      + '<main class="app-content">' + bodyHtml + '</main>'
-      + '</div>';
+    mount.innerHTML =
+      '<div class="app-layout">' +
+      MEA.ui.renderHeader() +
+      MEA.ui.renderNavbar() +
+      '<main class="app-content">' +
+      bodyHtml +
+      "</main>" +
+      "</div>";
   }
 
   function init() {
     MEA.ui.initThemeAndStyle();
     MEA.subscribe(render);
 
-    // 取得公開設定並嘗試還原 Session
-    MEA.api.call("getPublicConfig", {})
+    MEA.api
+      .call("getPublicConfig", {})
       .then(function (configRes) {
         if (configRes && configRes.ok) {
           MEA.setState({ publicConfig: configRes });
+          syncDocumentTitle();
         }
-        MEA.auth.restore();
+        if (!applyInitialAuth() && !applyAccountSwitch()) {
+          MEA.auth.restore();
+        }
       })
       .catch(function () {
-        MEA.auth.restore();
+        if (!applyInitialAuth() && !applyAccountSwitch()) {
+          MEA.auth.restore();
+        }
       });
   }
 

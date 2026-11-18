@@ -8,7 +8,7 @@
 
 ## 2. 前端 API 客戶端與啟動/登入流程移植
 
-- [ ] 2.1 重構 `webapp/js/api.js`：實作 RPC 優先 + fetch 備援、回應解析、可重試錯誤指數退避、CSRF token 儲存與自動夾帶、統一錯誤結果格式。
+- [x] 2.1 重構 `webapp/js/api.js`：實作 RPC 優先 + fetch 備援、回應解析、可重試錯誤指數退避、CSRF token 儲存與自動夾帶、統一錯誤結果格式。
 - [ ] 2.2 重構 `webapp/js/auth.js` 與 `webapp/js/app.js`：實作多情境啟動流程（`INITIAL_AUTH`、帳號切換/`switch=1`、session 還原）、GAS AccountChooser/ActiveUser 與一般 GIS 流程分流、登入狀態與錯誤處理一致化。
 - [ ] 2.3 更新 `webapp/index.html`、`webapp/js/config.js`、`webapp/js/state.js`：支援 `GAS_WEBAPP_URL`/`INITIAL_AUTH`/切換參數、csrf 與新公開設定欄位，並維持 mock 模式行為。
 - [ ] 2.4 更新 `webapp/js/mock.js`、`webapp/js/ui.js`、`webapp/js/accounts.js`、`webapp/styles.css`（必要時）：補齊 mock 新 action/欄位、登入 UI 提示與按鈕、系統設定欄位（允許登入網域等）與顯示調整。
