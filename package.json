@@ -10,7 +10,11 @@
     "open": "clasp open",
     "logs": "clasp logs",
     "watch": "clasp push --watch",
-    "test": "node tests/courseCodeNormalization.test.js && node tests/api.test.js",
+    "test": "node scripts/run-tests.js",
+    "test:legacy": "node tests/courseCodeNormalization.test.js && node tests/api.test.js",
+    "check:lang": "node scripts/languageCheck.js",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
     "open-webapp": "clasp open --webapp",
     "status": "clasp version && clasp deployments"
   },
@@ -27,6 +31,7 @@
   "license": "MIT",
   "devDependencies": {
     "@google/clasp": "^3.4.1",
+    "prettier": "^3.3.3",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "engines": {

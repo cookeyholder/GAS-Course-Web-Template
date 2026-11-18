@@ -21,7 +21,7 @@
 ## 4. 開發工具鏈與品質閘門導入
 
 - [x] 4.1 導入 Prettier 與忽略規則（`.prettierrc*`、`.prettierignore`），並調整腳本/流程避免建置產物干擾。
-- [ ] 4.2 導入 `scripts/languageCheck.js` 與必要的測試/品質腳本基礎（含 `scripts/run-tests.js` 自動探索測試），更新 `package.json` scripts 與 devDependencies。
+- [x] 4.2 導入 `scripts/languageCheck.js` 與必要的測試/品質腳本基礎（含 `scripts/run-tests.js` 自動探索測試），更新 `package.json` scripts 與 devDependencies。
 - [ ] 4.3 新增 `.github/workflows/quality-gates.yml`（至少包含格式檢查、語言檢查、測試），並依本專案基線設定可通過的品質門檻策略。
 - [ ] 4.4 導入部署輔助改進（如 `scripts/deploy.js` 與相關設定/ignore 調整），維持與現有 clasp 流程相容並文件化使用方式。
 - [ ] 4.5（可選/分階段）導入 Husky + lint-staged 與覆蓋率/複雜度/變更覆蓋率檢查腳本；若啟用需同步補充文件與確保本地/CI 可通過。
