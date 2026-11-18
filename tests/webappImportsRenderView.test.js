@@ -1,0 +1,122 @@
+"use strict";
+
+/**
+ * webapp/js/imports.js::renderView 單元測試（G7.10）。
+ * 驗證上傳區、預覽卡片、權限禁用狀態、數字格式化與 HTML 跳脫行為。
+ */
+
+const assert = require("assert");
+const importsModule = require("../webapp/js/imports.js");
+const helpers = require("./helpers/importsUiDeps.js");
+const createDeps = helpers.createImportsDeps;
+const escapeHtml = helpers.escapeHtml;
+
+console.log("開始執行 webapp/js/imports.js renderView 測試...\n");
+
+function makeEntry(overrides) {
+  return Object.assign(
+    {
+      fileName: "課程表.xlsx",
+      fileSize: 4096,
+      sheetName: "課綱寬表",
+      imported: false,
+      payload: [["A"]],
+      stats: { sourceRows: 1234, keptCourseRows: 20, expandedRows: 5678 },
+      sample: [
+        [
+          "114",
+          "1",
+          "1",
+          "C001",
+          "<數學>",
+          "數學科",
+          "必修",
+          "2",
+          "2",
+          "",
+          "一般",
+          "3",
+          "0"
+        ],
+        ["114", "1", "2"]
+      ]
+    },
+    overrides || {}
+  );
+}
+
+function run() {
+  assert.strictEqual(typeof importsModule.createImportsModule, "function", "應匯出模組工廠");
+  assert.strictEqual(typeof importsModule.renderPanelHtml, "function", "應匯出面板渲染函式");
+  console.log("1. 可測試工廠與拆分函式匯出 ✓\n");
+
+  const empty = createDeps();
+  const emptyHtml = empty.imports.renderView();
+  assert(emptyHtml.indexOf('id="uploadDropzone"') !== -1);
+  assert(emptyHtml.indexOf('MEA.imports.handleDragOver(event)') !== -1);
+  assert(emptyHtml.indexOf('MEA.imports.handleDragLeave(event)') !== -1);
+  assert(emptyHtml.indexOf('MEA.imports.handleDrop(event)') !== -1);
+  assert(emptyHtml.indexOf('MEA.imports.pickFile()') !== -1);
+  assert(emptyHtml.indexOf('id="fileInput"') !== -1);
+  assert(emptyHtml.indexOf("metrics-grid") === -1);
+  assert(emptyHtml.indexOf("108 課綱課程代碼匯入與 1NF 正規化") !== -1);
+  console.log("2. 無匯入項目時應顯示拖曳上傳區 ✓\n");
+
+  const ctx = createDeps();
+  ctx.state.imports = { courseCodes: makeEntry() };
+  const html = ctx.imports.renderView();
+  assert(html.indexOf("檔案解析預覽：課程表.xlsx") !== -1);
+  assert(html.indexOf("來源工作表：課綱寬表 · 檔案大小：4 KB") !== -1);
+  assert(html.indexOf("1,234") !== -1);
+  assert(html.indexOf("5,678") !== -1);
+  assert(html.indexOf("20") !== -1);
+  assert(html.indexOf("&lt;數學&gt;") !== -1);
+  assert(html.indexOf("<strong>數學科</strong>") !== -1);
+  assert(html.indexOf("<td>114</td><td>1</td><td>2</td>") !== -1);
+  assert(html.indexOf("確認匯入至試算表") !== -1);
+  assert(html.indexOf(" disabled") === -1);
+  console.log("3. 預覽卡片統計、跳脫與可匯入按鈕 ✓\n");
+
+  ctx.state.importBusy = true;
+  const busyHtml = ctx.imports.renderView();
+  assert(busyHtml.indexOf(" disabled") !== -1);
+  assert(busyHtml.indexOf("匯入中...") !== -1);
+
+  ctx.state.importBusy = false;
+  ctx.state.imports.courseCodes.imported = true;
+  const doneHtml = ctx.imports.renderView();
+  assert(doneHtml.indexOf("✓ 已匯入完成") !== -1);
+  assert(doneHtml.indexOf(" disabled") !== -1);
+  console.log("4. 處理中與已匯入狀態禁用行為 ✓\n");
+
+  const noPerm = createDeps();
+  noPerm.state.user = { perms: ["getCourseIndex"] };
+  noPerm.state.imports = { courseCodes: makeEntry() };
+  assert(noPerm.imports.renderView().indexOf(" disabled") !== -1);
+
+  const specificPerm = createDeps();
+  specificPerm.state.user = { perms: ["importCourseCodes"] };
+  specificPerm.state.imports = { courseCodes: makeEntry() };
+  assert(specificPerm.imports.renderView().indexOf(" disabled") === -1);
+  assert.strictEqual(specificPerm.imports.canImportCourseCodes(specificPerm.state.user), true);
+  assert.strictEqual(specificPerm.imports.canImportCourseCodes({}), false);
+  console.log("5. 萬用與特定匯入權限判定 ✓\n");
+
+  const moduleSample = importsModule.renderSampleRowsHtml(
+    [["114", "1", "1", "C", "A&B", "科", "必", "2", "2", "", "一", "3", "0"]],
+    escapeHtml
+  );
+  assert(moduleSample.indexOf("A&amp;B") !== -1);
+  assert(moduleSample.indexOf("<strong>科</strong>") !== -1);
+  assert.strictEqual(moduleSample.split("<td>").length - 1, 9);
+  console.log("6. 模組層級預覽列渲染 ✓\n");
+
+  console.log("✓ webapp/js/imports.js renderView 測試全數通過！\n");
+}
+
+try {
+  run();
+} catch (error) {
+  console.error(error);
+  process.exit(1);
+}
