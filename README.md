@@ -41,7 +41,13 @@ GAS-Course-Web-Template/
 │       └── app.js              # 前端進入點與應用程式生命週期管理（啟動流程、INITIAL_AUTH/switch 處理）
 │
 ├── scripts/
-│   └── build-webapp.js         # 前端打包腳本：將 webapp/styles.css 與 js/ 內嵌至根目錄 index.html
+│   ├── build-webapp.js         # 前端打包腳本：將 webapp/styles.css 與 js/ 內嵌至根目錄 index.html
+│   ├── run-tests.js            # 自動探索 tests/**/*.test.js 並以獨立子行程執行
+│   ├── qualityConfig.js        # 納管範圍、門檻與基準線設定
+│   ├── checkCoverage.js        # 全域覆蓋率量測（c8）與不回退檢查
+│   ├── checkChangedCoverage.js # 變更覆蓋率檢查（diff + lcov）
+│   ├── checkComplexity.js      # 函式 CRAP 與模組 MI 檢查
+│   └── languageCheck.js        # 臺灣繁體中文與禁用詞檢查
 │
 ├── docs/                       # 技術與教學文件目錄 (HTML 離線說明文件)
 │   ├── index.html              # 文件總覽首頁
@@ -52,9 +58,12 @@ GAS-Course-Web-Template/
 │   ├── course-normalization-guide.html # 108 課綱課程代碼 1NF 正規化工程解析 (39 欄展開與 23 碼解碼)
 │   └── 參考資料/              # 官方規範文件庫 (含國教署 1111118 發文版介接規範 PDF)
 │
-└── tests/
-    ├── courseCodeNormalization.test.js  # 108 課綱代碼 1NF 正規化與排除條件單元測試
-    └── api.test.js                      # API 路由、Session 生命週期、RBAC 權限與公式注入防護單元測試
+├── tests/
+│   ├── courseCodeNormalization.test.js  # 108 課綱代碼 1NF 正規化與排除條件單元測試
+│   ├── api.test.js                      # API 路由、Session 生命週期、RBAC 權限與公式注入防護單元測試
+│   └── *.test.js                        # 依功能/函式切分之單元測試（由 run-tests.js 自動探索）
+│
+└── openspec/changes/                    # OpenSpec 提案、規格、設計與任務追蹤
 ```
 
 ---
@@ -63,7 +72,7 @@ GAS-Course-Web-Template/
 
 ### 1. 安裝環境與相依套件
 
-確保本機已安裝 Node.js (v16+) 與 npm：
+確保本機已安裝 Node.js **24**（本機與 CI 一致，`engines.node >= 24.0.0`）與 npm：
 
 ```bash
 git clone https://github.com/cookeyholder/GAS-Course-Web-Template.git
@@ -189,6 +198,22 @@ npm run build:webapp
 - **CRAP**（`check:complexity`）：每個納管函式 **CRAP MUST NOT > 30**。
 - **Maintainability Index（MI）**（`check:complexity`）：每個納管模組 **MI MUST >= 20**。
 - **基準線**：2026-11-18 量測基準與門檻、納管範圍記錄於 `scripts/quality-baseline.json`、`scripts/qualityConfig.js` 與 `openspec/changes/2026-11-18-quality-gates-and-test-expansion/proposal.md`；後續調整須可追溯且不得任意放寬（不回退）。
+
+### CI 品質閘門行為
+
+`.github/workflows/quality-gates.yml`（Quality Gates）在每次推送與 Pull Request 時，以 Node 24 依序執行：checkout（取得完整 Git 歷史供變更覆蓋率比對）、安裝相依（CI 環境略過 Husky 初始化）、`format:check`、`check:lang`、`npm test`、`check:coverage`、`check:complexity`、`check:changed-coverage`。任一步驟失敗即阻擋合併；所有步驟都可在本機以同名 npm 指令重現。
+
+相依套件由 `package-lock.json` 鎖定，CI 使用 `npm ci --ignore-scripts || npm install --ignore-scripts` 安裝並搭配 npm cache；SheetJS 於前端由 CDN 動態載入，故不列為 npm 相依。
+
+### 疑難排解
+
+- **`format:check` 失敗**：執行 `npm run format` 自動格式化後重新檢查；pre-commit 只會格式化暫存檔，CI 則檢查全部檔案。
+- **`check:lang` 失敗**：依訊息將簡體字或中國用語改為臺灣繁體中文用詞（如「程式碼」「預設」「資料庫」）。
+- **`check:coverage` 失敗**：先執行 `npm run test:coverage` 產生 `coverage/coverage-summary.json`，確認是否未達初始門檻或低於基準線；補測試後重新量測。
+- **`check:complexity` 失敗**：查看 `reports/quality/complexity.json` 定位 CRAP > 30 或 MI < 20 的項目，以拆分函式與補測試收斂，不可直接放寬門檻或排除核心模組。
+- **`check:changed-coverage` 失敗**：確認比較基準（`--base` 或 `CHANGED_COVERAGE_BASE`）是否正確，並為新增/修改的可執行行與分支補測試（Lines >= 80%、Branches >= 70%）。
+- **pre-commit 阻擋提交**：查看 `npx lint-staged` 與語言檢查訊息；修正後重新暫存提交。緊急情況可暫時以 `git commit --no-verify` 略過，但 CI 仍會強制檢查，應儘速補正。
+- **Node 版本不一致**：確認 `node --version` 為 24.x；版本不符可能導致 c8 或靜態分析結果與 CI 不同。
 
 ---
 

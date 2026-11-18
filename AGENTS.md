@@ -168,6 +168,12 @@ npm run check:complexity
 - **複雜度**：每個納管函式 **CRAP MUST NOT > 30**；每個納管模組 **MI MUST >= 20**。
 - **基準線與設定**：`scripts/quality-baseline.json`、`scripts/qualityConfig.js`（2026-11-18 基準）；CI 品質閘門見 `.github/workflows/quality-gates.yml`。
 
+### CI 品質閘門與相依套件
+
+- `.github/workflows/quality-gates.yml` 在每次推送與 Pull Request 時，以 Node 24 依序執行 `format:check`、`check:lang`、`npm test`、`check:coverage`、`check:complexity`、`check:changed-coverage`；任一步驟失敗即阻擋合併。
+- 相依套件由 `package-lock.json` 鎖定，CI 以 `npm ci --ignore-scripts`（失敗時回退 `npm install --ignore-scripts`）安裝；SheetJS 於前端由 CDN 動態載入，不列為 npm 相依。
+- 詳細指令、門檻說明與疑難排解見 `README.md`「開發與品質檢查」章節；量測快照與收斂紀錄見 `openspec/changes/2026-11-18-quality-gates-and-test-expansion/tasks.md`。
+
 ---
 
 ## 提交與 PR 規範 (Commit & PR Conventions)
