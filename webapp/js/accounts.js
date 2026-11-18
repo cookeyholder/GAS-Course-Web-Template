@@ -477,7 +477,7 @@
         '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" value="' +
         MEA.ui.escapeHtml(data.allowedLoginDomain || data["Google 登入允許網域"] || "") +
         '" />' +
-        '      <span class="hint">填寫網域後僅允許該網域帳號登入（例如 <code>ksvs.kh.edu.tw</code>）。</span>' +
+        '      <span class="hint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
         '      <label class="checkbox-label">' +

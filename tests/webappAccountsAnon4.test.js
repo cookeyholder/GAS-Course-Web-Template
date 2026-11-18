@@ -22,7 +22,7 @@ function setup(result, publicConfig) {
     cfgSemester: { value: "2" },
     cfgClientId: { value: " client.apps " },
     cfgClientSecret: { value: " sec " },
-    cfgAllowedDomain: { value: " @KSVS.KH.EDU.TW " },
+    cfgAllowedDomain: { value: " @EXAMPLE.EDU.TW " },
     cfgRestrictWhitelist: { checked: true }
   });
   ctx.setResponder(function () {
@@ -43,7 +43,7 @@ async function run() {
   assert.strictEqual(ctx.state.publicConfig.schoolYear, "115");
   assert.strictEqual(ctx.state.publicConfig.semester, "2");
   assert.strictEqual(ctx.state.publicConfig.clientId, "client.apps");
-  assert.strictEqual(ctx.state.publicConfig.allowedDomain, "ksvs.kh.edu.tw");
+  assert.strictEqual(ctx.state.publicConfig.allowedDomain, "example.edu.tw");
   assert.strictEqual(ctx.state.publicConfig.hasClientSecret, true);
   assert.strictEqual(ctx.state.publicConfig.extra, "保留欄位", "應保留原有公眾設定欄位");
   console.log("1. 成功儲存並更新公眾設定 ✓\n");

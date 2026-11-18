@@ -28,7 +28,7 @@ async function run() {
     cfgSemester: { value: " 1 " },
     cfgClientId: { value: " client-id " },
     cfgClientSecret: { value: " secret " },
-    cfgAllowedDomain: { value: "@KSVS.KH.edu.tw " },
+    cfgAllowedDomain: { value: "@EXAMPLE.EDU.TW " },
     cfgRestrictWhitelist: { checked: true }
   });
   let prevented = 0;
@@ -48,7 +48,7 @@ async function run() {
       semester: "1",
       clientId: "client-id",
       clientSecret: "secret",
-      allowedLoginDomain: "ksvs.kh.edu.tw",
+      allowedLoginDomain: "example.edu.tw",
       restrictWhitelist: "true"
     }
   });

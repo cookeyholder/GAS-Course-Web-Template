@@ -46,7 +46,7 @@ function run() {
       semester: "2",
       clientId: "id-123",
       clientSecret: "secret",
-      allowedLoginDomain: "ksvs.kh.edu.tw",
+      allowedLoginDomain: "example.edu.tw",
       restrictWhitelist: true
     },
     accounts: [
@@ -58,7 +58,7 @@ function run() {
   html = accounts.renderView();
   assert(html.indexOf('value="系統 <A>"') !== -1);
   assert(html.indexOf('id="cfgAllowedDomain"') !== -1);
-  assert(html.indexOf('value="ksvs.kh.edu.tw"') !== -1);
+  assert(html.indexOf('value="example.edu.tw"') !== -1);
   assert(html.indexOf('id="cfgRestrictWhitelist" checked') !== -1);
   assert(html.indexOf('class="btn primary" disabled') !== -1);
   assert(html.indexOf("儲存中...") !== -1);
