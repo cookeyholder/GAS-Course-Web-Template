@@ -36,15 +36,20 @@ console.log("開始執行 Web API 與權限驗證單元測試...\n");
   const sessionResult = api.createSessionForEmail("test-admin@example.com", "測試管理員");
   assert.strictEqual(sessionResult.ok, true, "建立 Session 應成功");
   assert(sessionResult.token.startsWith("gas_"), "Token 應帶有 gas_ 前綴");
+  assert(sessionResult.csrfToken && sessionResult.csrfToken.indexOf("csrf_") === 0, "應回傳 CSRF Token");
   assert.strictEqual(sessionResult.email, "test-admin@example.com");
 
   // 使用 Session Token 呼叫 getSession
   const getSessionRes = api.routeWebApiAction("getSession", { token: sessionResult.token });
   assert.strictEqual(getSessionRes.ok, true, "驗證 Token 成功");
   assert.strictEqual(getSessionRes.email, "test-admin@example.com");
+  assert(getSessionRes.csrfToken && getSessionRes.csrfToken.indexOf("csrf_") === 0, "getSession 應回傳 CSRF Token");
 
-  // 登出 Session
-  const logoutRes = api.routeWebApiAction("logout", { token: sessionResult.token });
+  // 登出 Session（寫入型 action 需附帶 CSRF Token）
+  const logoutRes = api.routeWebApiAction("logout", {
+    token: sessionResult.token,
+    csrfToken: sessionResult.csrfToken
+  });
   assert.strictEqual(logoutRes.ok, true, "登出應成功");
 
   // 再次呼叫應回傳 session_expired
@@ -65,7 +70,11 @@ console.log("開始執行 Web API 與權限驗證單元測試...\n");
   const utils = require("../utilities.js");
   assert.strictEqual(utils.sanitizeFormulaValue("=SUM(A1:A10)"), "'=SUM(A1:A10)", "以 = 開頭應加上單引號跳脫");
   assert.strictEqual(utils.sanitizeFormulaValue("+12345"), "'+12345", "以 + 開頭應加上單引號跳脫");
-  assert.strictEqual(utils.sanitizeFormulaValue("-CMD|' /C calc'!A0"), "'-CMD|' /C calc'!A0", "以 - 開頭應加上單引號跳脫");
+  assert.strictEqual(
+    utils.sanitizeFormulaValue("-CMD|' /C calc'!A0"),
+    "'-CMD|' /C calc'!A0",
+    "以 - 開頭應加上單引號跳脫"
+  );
   assert.strictEqual(utils.sanitizeFormulaValue("@SUM(B1)"), "'@SUM(B1)", "以 @ 開頭應加上單引號跳脫");
   assert.strictEqual(utils.sanitizeFormulaValue("普通文字科目"), "普通文字科目", "一般文字不應受影響");
 

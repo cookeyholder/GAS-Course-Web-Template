@@ -25,7 +25,7 @@ const SHEET_SYSTEM_INSTRUCTIONS = "系統使用說明";
 // 預設參數與欄位定義
 // ============================================================================
 
-/** 預設系統參數（區塊 A，A1:B7） */
+/** 預設系統參數（區塊 A，A1:B8） */
 const DEFAULT_SYSTEM_PARAMS = [
   ["設定項目", "設定數值"],
   ["學年度", "114"],
@@ -33,7 +33,8 @@ const DEFAULT_SYSTEM_PARAMS = [
   ["系統名稱", "Google Apps Script 應用程式範本"],
   ["OAuth Client ID", ""],
   ["OAuth Client Secret", ""],
-  ["登入白名單限制啟用", "false"]
+  ["登入白名單限制啟用", "false"],
+  ["Google 登入允許網域", ""]
 ];
 
 /** 授權白名單表頭（區塊 B，D1:G1） */
@@ -48,18 +49,21 @@ const ROLE_DEFINITIONS = {
 
 /** Node.js 單元測試用記憶體備援資料庫 */
 const MEMORY_SYSTEM_CONFIG = {
-  "學年度": "114",
-  "學期": "1",
-  "系統名稱": "Google Apps Script 應用程式範本",
+  學年度: "114",
+  學期: "1",
+  系統名稱: "Google Apps Script 應用程式範本",
   "OAuth Client ID": "",
   "OAuth Client Secret": "",
-  "登入白名單限制啟用": "false"
+  登入白名單限制啟用: "false",
+  "Google 登入允許網域": ""
 };
 const MEMORY_WHITELIST = [];
 
 /** 角色名稱轉代碼對照 */
 function normalizeRole(role) {
-  const r = String(role || "").trim().toLowerCase();
+  const r = String(role || "")
+    .trim()
+    .toLowerCase();
   if (r === "系統管理員" || r === "admin") return "admin";
   if (r === "業務人員" || r === "staff") return "staff";
   if (r === "檢視人員" || r === "viewer") return "viewer";
@@ -76,6 +80,132 @@ function getRoleDisplayName(role) {
 // 工作表初始化主函式
 // ============================================================================
 
+function resolveDbSpreadsheet_(options) {
+  const opts = options || {};
+  return (
+    opts.spreadsheet ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null)
+  );
+}
+
+function getNormalizedCourseHeaders_() {
+  if (typeof NORMALIZED_COURSE_HEADERS !== "undefined") return NORMALIZED_COURSE_HEADERS;
+  if (typeof globalThis !== "undefined" && globalThis.NORMALIZED_COURSE_HEADERS) {
+    return globalThis.NORMALIZED_COURSE_HEADERS;
+  }
+  if (typeof require !== "undefined") {
+    try {
+      return require("./subjectCodeTransformer.js").NORMALIZED_COURSE_HEADERS;
+    } catch (e) {
+      // ignore
+    }
+  }
+  return [];
+}
+
+function createSystemConfigSheet_(ss) {
+  const configSheet = ss.insertSheet(SHEET_SYSTEM_CONFIG);
+  configSheet.getRange(1, 1, DEFAULT_SYSTEM_PARAMS.length, 2).setValues(DEFAULT_SYSTEM_PARAMS);
+  configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
+  configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
+  configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
+  configSheet.setFrozenRows(1);
+  return configSheet;
+}
+
+function repairSystemConfigBlockA_(ss, configSheet) {
+  if (configSheet.getRange(1, 1).getValue() !== DEFAULT_SYSTEM_PARAMS[0][0]) {
+    configSheet.getRange(1, 1, 1, 2).setValues([DEFAULT_SYSTEM_PARAMS[0]]);
+    configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
+  }
+  const existingParams = readSystemSettings(ss);
+  const lastRow = configSheet.getLastRow();
+  const toAppend = [];
+  for (let i = 1; i < DEFAULT_SYSTEM_PARAMS.length; i++) {
+    const key = DEFAULT_SYSTEM_PARAMS[i][0];
+    if (typeof existingParams[key] === "undefined") {
+      toAppend.push(DEFAULT_SYSTEM_PARAMS[i]);
+    }
+  }
+  if (toAppend.length > 0) {
+    configSheet.getRange(lastRow + 1, 1, toAppend.length, 2).setValues(toAppend);
+  }
+}
+
+function repairSystemConfigBlockB_(configSheet) {
+  if (configSheet.getMaxColumns() < 8) {
+    configSheet.insertColumnsAfter(configSheet.getMaxColumns(), 8 - configSheet.getMaxColumns());
+  }
+  if (configSheet.getRange(1, 4).getValue() !== WHITELIST_HEADERS[0]) {
+    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
+    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
+  }
+}
+
+function ensureSystemConfigSheet_(ss, createdSheets) {
+  let configSheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!configSheet) {
+    createSystemConfigSheet_(ss);
+    createdSheets.push(SHEET_SYSTEM_CONFIG);
+    return;
+  }
+  repairSystemConfigBlockA_(ss, configSheet);
+  repairSystemConfigBlockB_(configSheet);
+}
+
+function createCourseIndexSheet_(ss) {
+  const courseSheet = ss.insertSheet(SHEET_COURSE_INDEX);
+  const headers = getNormalizedCourseHeaders_();
+  if (courseSheet.getMaxColumns() < headers.length) {
+    courseSheet.insertColumnsAfter(courseSheet.getMaxColumns(), headers.length - courseSheet.getMaxColumns());
+  }
+  courseSheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  courseSheet.getRange(1, 1, 1, headers.length).setFontWeight("bold").setBackground("#e2e8f0");
+  courseSheet.setFrozenRows(1);
+  return courseSheet;
+}
+
+function ensureCourseIndexSheet_(ss, createdSheets) {
+  if (ss.getSheetByName(SHEET_COURSE_INDEX)) return;
+  createCourseIndexSheet_(ss);
+  createdSheets.push(SHEET_COURSE_INDEX);
+}
+
+function getSystemInstructionRows_() {
+  return [
+    ["=== Google Apps Script 應用程式範本使用說明 ==="],
+    [""],
+    ["一、功能架構："],
+    ["1. 系統設定與授權：包含系統運作基本參數（學年度、學期、OAuth Client ID）與使用者權限白名單。"],
+    [
+      "2. 正規化課程索引：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"
+    ],
+    ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
+    [""],
+    ["二、OAuth 2.0 Client ID 設定步驟："],
+    ["1. 前往 Google Cloud Console (https://console.cloud.google.com/) 建立或選取專案。"],
+    ["2. 進入「API 和服務」->「憑證」，建立「OAuth 用戶端 ID」，應用程式類型選擇「網頁應用程式」。"],
+    ["3. 於「已授權的 JavaScript 來源」填入 Web App 網址（例如：https://script.google.com）。"],
+    ["4. 將取得的 Client ID 填入「系統設定與授權」工作表之 B5 儲存格（或於 Web App 設定介面輸入並儲存）。"],
+    [""],
+    ["三、角色權限（RBAC）："],
+    ["- admin（系統管理員）：完整讀寫系統參數、管理使用者名單與課程代碼匯入。"],
+    ["- staff（業務人員）：可匯入課程代碼並檢視課程索引。"],
+    ["- viewer（檢視人員）：僅能檢視課程代碼與公開設定。"]
+  ];
+}
+
+function ensureInstructionsSheet_(ss, createdSheets) {
+  if (ss.getSheetByName(SHEET_SYSTEM_INSTRUCTIONS)) return;
+  const instructSheet = ss.insertSheet(SHEET_SYSTEM_INSTRUCTIONS);
+  const instructions = getSystemInstructionRows_();
+  instructSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
+  instructSheet.getRange(1, 1).setFontWeight("bold").setFontSize(14);
+  createdSheets.push(SHEET_SYSTEM_INSTRUCTIONS);
+}
+
 /**
  * 完整初始化／檢查所有後端工作表
  *
@@ -87,93 +217,15 @@ function getRoleDisplayName(role) {
  * @returns {Object} `{ ok: true, sheets: Array<string> }`
  */
 function initializeDatabaseSheets(options) {
-  options = options || {};
-  const ss = options.spreadsheet || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const ss = resolveDbSpreadsheet_(options);
   if (!ss) {
     throw new Error("找不到有效的試算表物件");
   }
 
   const createdSheets = [];
-
-  // 1. 初始化「系統設定與授權」工作表
-  let configSheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!configSheet) {
-    configSheet = ss.insertSheet(SHEET_SYSTEM_CONFIG);
-    configSheet.getRange(1, 1, DEFAULT_SYSTEM_PARAMS.length, 2).setValues(DEFAULT_SYSTEM_PARAMS);
-    configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
-    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
-    configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
-    configSheet.setFrozenRows(1);
-    createdSheets.push(SHEET_SYSTEM_CONFIG);
-  } else {
-    // 檢查區塊 A 表頭
-    if (configSheet.getRange(1, 1).getValue() !== DEFAULT_SYSTEM_PARAMS[0][0]) {
-      configSheet.getRange(1, 1, 1, 2).setValues([DEFAULT_SYSTEM_PARAMS[0]]);
-      configSheet.getRange(1, 1, 1, 2).setFontWeight("bold").setBackground("#e2e8f0");
-    }
-    // 補齊未設定之系統參數項目
-    const existingParams = readSystemSettings(ss);
-    let lastRow = configSheet.getLastRow();
-    const toAppend = [];
-    for (let i = 1; i < DEFAULT_SYSTEM_PARAMS.length; i++) {
-      const key = DEFAULT_SYSTEM_PARAMS[i][0];
-      if (typeof existingParams[key] === "undefined") {
-        toAppend.push(DEFAULT_SYSTEM_PARAMS[i]);
-      }
-    }
-    if (toAppend.length > 0) {
-      configSheet.getRange(lastRow + 1, 1, toAppend.length, 2).setValues(toAppend);
-    }
-    // 檢查區塊 B 表頭
-    if (configSheet.getMaxColumns() < 8) {
-      configSheet.insertColumnsAfter(configSheet.getMaxColumns(), 8 - configSheet.getMaxColumns());
-    }
-    if (configSheet.getRange(1, 4).getValue() !== WHITELIST_HEADERS[0]) {
-      configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setValues([WHITELIST_HEADERS]);
-      configSheet.getRange(1, 4, 1, WHITELIST_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
-    }
-  }
-
-  // 2. 初始化「正規化課程索引」工作表
-  let courseSheet = ss.getSheetByName(SHEET_COURSE_INDEX);
-  if (!courseSheet) {
-    courseSheet = ss.insertSheet(SHEET_COURSE_INDEX);
-    if (courseSheet.getMaxColumns() < NORMALIZED_COURSE_HEADERS.length) {
-      courseSheet.insertColumnsAfter(courseSheet.getMaxColumns(), NORMALIZED_COURSE_HEADERS.length - courseSheet.getMaxColumns());
-    }
-    courseSheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setValues([NORMALIZED_COURSE_HEADERS]);
-    courseSheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
-    courseSheet.setFrozenRows(1);
-    createdSheets.push(SHEET_COURSE_INDEX);
-  }
-
-  // 3. 初始化「系統使用說明」工作表
-  let instructSheet = ss.getSheetByName(SHEET_SYSTEM_INSTRUCTIONS);
-  if (!instructSheet) {
-    instructSheet = ss.insertSheet(SHEET_SYSTEM_INSTRUCTIONS);
-    const instructions = [
-      ["=== Google Apps Script 應用程式範本使用說明 ==="],
-      [""],
-      ["一、功能架構："],
-      ["1. 系統設定與授權：包含系統運作基本參數（學年度、學期、OAuth Client ID）與使用者權限白名單。"],
-      ["2. 正規化課程索引：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"],
-      ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
-      [""],
-      ["二、OAuth 2.0 Client ID 設定步驟："],
-      ["1. 前往 Google Cloud Console (https://console.cloud.google.com/) 建立或選取專案。"],
-      ["2. 進入「API 和服務」->「憑證」，建立「OAuth 用戶端 ID」，應用程式類型選擇「網頁應用程式」。"],
-      ["3. 於「已授權的 JavaScript 來源」填入 Web App 網址（例如：https://script.google.com）。"],
-      ["4. 將取得的 Client ID 填入「系統設定與授權」工作表之 B5 儲存格（或於 Web App 設定介面輸入並儲存）。"],
-      [""],
-      ["三、角色權限（RBAC）："],
-      ["- admin（系統管理員）：完整讀寫系統參數、管理使用者名單與課程代碼匯入。"],
-      ["- staff（業務人員）：可匯入課程代碼並檢視課程索引。"],
-      ["- viewer（檢視人員）：僅能檢視課程代碼與公開設定。"]
-    ];
-    instructSheet.getRange(1, 1, instructions.length, 1).setValues(instructions);
-    instructSheet.getRange(1, 1).setFontWeight("bold").setFontSize(14);
-    createdSheets.push(SHEET_SYSTEM_INSTRUCTIONS);
-  }
+  ensureSystemConfigSheet_(ss, createdSheets);
+  ensureCourseIndexSheet_(ss, createdSheets);
+  ensureInstructionsSheet_(ss, createdSheets);
 
   return {
     ok: true,
@@ -187,46 +239,77 @@ function initializeDatabaseSheets(options) {
 // ============================================================================
 
 /**
+ * 將系統設定布林旗標正規化為布林值。
+ *
+ * @param {*} value - 設定值
+ * @returns {boolean} 是否啟用
+ */
+function parseConfigBoolean(value) {
+  const normalized = String(value === null || value === undefined ? "" : value)
+    .trim()
+    .toLowerCase();
+  return (
+    normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "是" || normalized === "啟用"
+  );
+}
+
+function normalizeAllowedLoginDomain_(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^@/, "")
+    .toLowerCase();
+}
+
+function applySystemSettingConvenienceFields_(config) {
+  const target = config || {};
+  target.schoolYear = target["學年度"] || "114";
+  target.semester = target["學期"] || "1";
+  target.systemName = target["系統名稱"] || "Google Apps Script 應用程式範本";
+  target.clientId = target["OAuth Client ID"] || "";
+  target.clientSecret = target["OAuth Client Secret"] || "";
+  target.allowedLoginDomain = normalizeAllowedLoginDomain_(target["Google 登入允許網域"]);
+  target.restrictWhitelist = parseConfigBoolean(target["登入白名單限制啟用"]);
+  return target;
+}
+
+function readSystemSettingsFromMemory_() {
+  return applySystemSettingConvenienceFields_(Object.assign({}, MEMORY_SYSTEM_CONFIG));
+}
+
+function readSystemSettingsRows_(sheet) {
+  const lastRow = Math.max(sheet.getLastRow(), 2);
+  return sheet.getRange(1, 1, lastRow, 2).getValues();
+}
+
+function buildSystemSettingsConfigFromRows_(values) {
+  const config = {};
+  const rows = values || [];
+  for (let i = 1; i < rows.length; i++) {
+    const key = String((rows[i] && rows[i][0]) || "").trim();
+    if (!key) continue;
+    const raw = rows[i] ? rows[i][1] : "";
+    config[key] = raw === null || raw === undefined ? "" : String(raw).trim();
+  }
+  return config;
+}
+
+function readSystemSettingsFromSheet_(ss) {
+  const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!sheet) return {};
+  const config = buildSystemSettingsConfigFromRows_(readSystemSettingsRows_(sheet));
+  return applySystemSettingConvenienceFields_(config);
+}
+
+/**
  * 讀取「系統設定與授權」區塊 A 之設定項目
  *
  * @param {Spreadsheet} [ss] - 試算表物件
  * @returns {Object} 鍵值對設定物件
  */
 function readSystemSettings(ss) {
-  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
-  if (!targetSs) {
-    const config = Object.assign({}, MEMORY_SYSTEM_CONFIG);
-    config.schoolYear = config["學年度"] || "114";
-    config.semester = config["學期"] || "1";
-    config.systemName = config["系統名稱"] || "Google Apps Script 應用程式範本";
-    config.clientId = config["OAuth Client ID"] || "";
-    config.clientSecret = config["OAuth Client Secret"] || "";
-    config.restrictWhitelist = config["登入白名單限制啟用"] === "true";
-    return config;
-  }
-
-  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!sheet) return {};
-
-  const values = sheet.getRange("A2:B20").getValues();
-  const config = {};
-
-  for (let i = 0; i < values.length; i++) {
-    const key = String(values[i][0] || "").trim();
-    if (key) {
-      config[key] = values[i][1] === null || values[i][1] === undefined ? "" : String(values[i][1]).trim();
-    }
-  }
-
-  // 便捷鍵名映射
-  config.schoolYear = config["學年度"] || "114";
-  config.semester = config["學期"] || "1";
-  config.systemName = config["系統名稱"] || "Google Apps Script 應用程式範本";
-  config.clientId = config["OAuth Client ID"] || "";
-  config.clientSecret = config["OAuth Client Secret"] || "";
-  config.restrictWhitelist = config["登入白名單限制啟用"] === "true";
-
-  return config;
+  const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
+  if (!targetSs) return readSystemSettingsFromMemory_();
+  return readSystemSettingsFromSheet_(targetSs);
 }
 
 /**
@@ -236,37 +319,60 @@ function readSystemSettings(ss) {
  * @param {Spreadsheet} [ss] - 試算表物件
  * @returns {Object} `{ ok: true }`
  */
-function saveSystemSettings(settings, ss) {
-  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
-  if (!targetSs) {
-    Object.assign(MEMORY_SYSTEM_CONFIG, settings || {});
-    return { ok: true };
+const SYSTEM_SETTING_KEY_MAP = {
+  schoolYear: "學年度",
+  semester: "學期",
+  systemName: "系統名稱",
+  clientId: "OAuth Client ID",
+  clientSecret: "OAuth Client Secret",
+  restrictWhitelist: "登入白名單限制啟用",
+  allowedLoginDomain: "Google 登入允許網域",
+  學年度: "學年度",
+  學期: "學期",
+  系統名稱: "系統名稱",
+  "OAuth Client ID": "OAuth Client ID",
+  "OAuth Client Secret": "OAuth Client Secret",
+  登入白名單限制啟用: "登入白名單限制啟用",
+  "Google 登入允許網域": "Google 登入允許網域"
+};
+
+function normalizeSystemSettingValue_(targetKey, value) {
+  if (targetKey === "登入白名單限制啟用") {
+    return parseConfigBoolean(value) ? "true" : "false";
   }
+  if (targetKey === "Google 登入允許網域") {
+    return String(value || "")
+      .trim()
+      .replace(/^@/, "")
+      .toLowerCase();
+  }
+  return String(value === null || value === undefined ? "" : value);
+}
 
-  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
-
-  const range = sheet.getRange("A2:B20");
-  const values = range.getValues();
-
-  const keyMap = {
-    schoolYear: "學年度",
-    semester: "學期",
-    systemName: "系統名稱",
-    clientId: "OAuth Client ID",
-    clientSecret: "OAuth Client Secret",
-    restrictWhitelist: "登入白名單限制啟用"
-  };
-
+function buildSystemSettingUpdates_(settings) {
   const updates = {};
-  for (const k in settings) {
-    if (keyMap[k]) {
-      updates[keyMap[k]] = String(settings[k]);
-    } else {
-      updates[k] = String(settings[k]);
-    }
+  const source = settings || {};
+  for (const k in source) {
+    const targetKey = SYSTEM_SETTING_KEY_MAP[k] || k;
+    updates[targetKey] = normalizeSystemSettingValue_(targetKey, source[k]);
   }
+  return updates;
+}
 
+function saveSystemSettingsToMemory_(updates) {
+  for (const key in updates) {
+    MEMORY_SYSTEM_CONFIG[key] = updates[key];
+  }
+  return { ok: true };
+}
+
+function getSystemConfigSheet_(ss) {
+  const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
+  return sheet;
+}
+
+function applySystemSettingUpdatesToRows_(values, updates) {
   for (let i = 0; i < values.length; i++) {
     const key = String(values[i][0] || "").trim();
     if (key && typeof updates[key] !== "undefined") {
@@ -274,27 +380,83 @@ function saveSystemSettings(settings, ss) {
       delete updates[key];
     }
   }
+  return values;
+}
 
-  const safeValues = (typeof sanitizeRowMatrix === "function") ? sanitizeRowMatrix(values) : values;
-  range.setValues(safeValues);
-
-  // 若有尚未列入的鍵，於最後附加
+function appendRemainingSystemSettings_(sheet, updates) {
   const toAppend = [];
-  for (const remainingKey in updates) {
-    toAppend.push([remainingKey, updates[remainingKey]]);
+  for (const key in updates) {
+    toAppend.push([key, updates[key]]);
   }
-  if (toAppend.length > 0) {
-    const nextRow = sheet.getLastRow() + 1;
-    const safeAppend = (typeof sanitizeRowMatrix === "function") ? sanitizeRowMatrix(toAppend) : toAppend;
-    sheet.getRange(nextRow, 1, safeAppend.length, 2).setValues(safeAppend);
-  }
+  if (toAppend.length === 0) return;
+  const nextRow = sheet.getLastRow() + 1;
+  const safeAppend = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(toAppend) : toAppend;
+  sheet.getRange(nextRow, 1, safeAppend.length, 2).setValues(safeAppend);
+}
 
+function saveSystemSettingsToSheet_(ss, updates) {
+  const sheet = getSystemConfigSheet_(ss);
+  const range = sheet.getRange("A2:B30");
+  const values = applySystemSettingUpdatesToRows_(range.getValues(), updates);
+  const safeValues = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(values) : values;
+  range.setValues(safeValues);
+  appendRemainingSystemSettings_(sheet, updates);
   return { ok: true };
+}
+
+function saveSystemSettings(settings, ss) {
+  const targetSs =
+    ss ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null);
+  const updates = buildSystemSettingUpdates_(settings);
+  if (!targetSs) return saveSystemSettingsToMemory_(updates);
+  return saveSystemSettingsToSheet_(targetSs, updates);
 }
 
 // ============================================================================
 // 授權白名單讀寫
 // ============================================================================
+
+function parseWhitelistEnabledFlag_(value) {
+  return value === true || String(value || "").toLowerCase() === "true" || String(value || "").trim() === "是";
+}
+
+function normalizeWhitelistAccountRow_(row) {
+  const email = String((row && row[0]) || "")
+    .trim()
+    .toLowerCase();
+  if (!email) return null;
+  return {
+    email: email,
+    name: String((row && row[1]) || "").trim(),
+    role: normalizeRole(row && row[2]),
+    roleName: getRoleDisplayName(row && row[2]),
+    enabled: parseWhitelistEnabledFlag_(row && row[3])
+  };
+}
+
+function mapWhitelistRows_(values) {
+  const accounts = [];
+  const rows = values || [];
+  for (let i = 0; i < rows.length; i++) {
+    const account = normalizeWhitelistAccountRow_(rows[i]);
+    if (account) accounts.push(account);
+  }
+  return accounts;
+}
+
+function getWhitelistSheet_(ss) {
+  return ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+}
+
+function readWhitelistRowsFromSheet_(sheet) {
+  if (!sheet) return [];
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) return [];
+  return sheet.getRange(2, 4, lastRow - 1, 4).getValues();
+}
 
 /**
  * 讀取授權白名單清單（區塊 B，D2:G）
@@ -303,31 +465,82 @@ function saveSystemSettings(settings, ss) {
  * @returns {Array<Object>} 白名單帳號陣列
  */
 function readWhitelist(ss) {
-  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
   if (!targetSs) return MEMORY_WHITELIST.slice();
+  const values = readWhitelistRowsFromSheet_(getWhitelistSheet_(targetSs));
+  return mapWhitelistRows_(values);
+}
 
-  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!sheet) return [];
+function normalizeWhitelistInputEmail_(item) {
+  return String((item && item.email) || "")
+    .trim()
+    .toLowerCase();
+}
 
-  const lastRow = sheet.getLastRow();
-  if (lastRow < 2) return [];
+function normalizeWhitelistMemoryAccount_(item) {
+  const email = normalizeWhitelistInputEmail_(item);
+  if (!email) return null;
+  return {
+    email: email,
+    name: String((item && item.name) || "").trim(),
+    role: normalizeRole(item && item.role),
+    roleName: getRoleDisplayName(item && item.role),
+    enabled: (item && item.enabled) !== false
+  };
+}
 
-  const values = sheet.getRange(2, 4, lastRow - 1, 4).getValues();
-  const accounts = [];
-
-  for (let i = 0; i < values.length; i++) {
-    const email = String(values[i][0] || "").trim().toLowerCase();
-    if (!email) continue;
-    accounts.push({
-      email: email,
-      name: String(values[i][1] || "").trim(),
-      role: normalizeRole(values[i][2]),
-      roleName: getRoleDisplayName(values[i][2]),
-      enabled: values[i][3] === true || String(values[i][3] || "").toLowerCase() === "true" || String(values[i][3] || "").trim() === "是"
-    });
+function saveWhitelistToMemory_(list) {
+  MEMORY_WHITELIST.length = 0;
+  for (let i = 0; i < list.length; i++) {
+    const account = normalizeWhitelistMemoryAccount_(list[i]);
+    if (account) MEMORY_WHITELIST.push(account);
   }
+  return { ok: true, count: MEMORY_WHITELIST.length };
+}
 
-  return accounts;
+function normalizeWhitelistSheetRow_(item) {
+  const email = normalizeWhitelistInputEmail_(item);
+  if (!email) return null;
+  return [
+    email,
+    String((item && item.name) || "").trim(),
+    getRoleDisplayName(item && item.role),
+    item && item.enabled === false ? "否" : "是"
+  ];
+}
+
+function buildWhitelistSheetRows_(list) {
+  const rows = [];
+  for (let i = 0; i < list.length; i++) {
+    const row = normalizeWhitelistSheetRow_(list[i]);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function getRequiredSystemConfigSheet_(ss) {
+  const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
+  return sheet;
+}
+
+function clearWhitelistSheetRange_(sheet) {
+  const currentLastRow = Math.max(sheet.getLastRow(), 2);
+  sheet.getRange(2, 4, currentLastRow, 4).clearContent();
+}
+
+function writeWhitelistSheetRows_(sheet, rows) {
+  if (rows.length === 0) return;
+  const safeRows = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(rows) : rows;
+  sheet.getRange(2, 4, safeRows.length, 4).setValues(safeRows);
+}
+
+function saveWhitelistToSheet_(ss, list) {
+  const sheet = getRequiredSystemConfigSheet_(ss);
+  const rows = buildWhitelistSheetRows_(list);
+  clearWhitelistSheetRange_(sheet);
+  writeWhitelistSheetRows_(sheet, rows);
+  return { ok: true, count: rows.length };
 }
 
 /**
@@ -338,54 +551,10 @@ function readWhitelist(ss) {
  * @returns {Object} `{ ok: true, count }`
  */
 function saveWhitelist(accounts, ss) {
-  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
   const list = Array.isArray(accounts) ? accounts : [];
-
-  if (!targetSs) {
-    MEMORY_WHITELIST.length = 0;
-    for (let i = 0; i < list.length; i++) {
-      const item = list[i] || {};
-      const email = String(item.email || "").trim().toLowerCase();
-      if (!email) continue;
-      MEMORY_WHITELIST.push({
-        email: email,
-        name: String(item.name || "").trim(),
-        role: normalizeRole(item.role),
-        roleName: getRoleDisplayName(item.role),
-        enabled: item.enabled !== false
-      });
-    }
-    return { ok: true, count: MEMORY_WHITELIST.length };
-  }
-
-  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
-
-  const maxRows = Math.max(sheet.getMaxRows(), list.length + 2);
-  const rows = [];
-
-  for (let i = 0; i < list.length; i++) {
-    const item = list[i] || {};
-    const email = String(item.email || "").trim().toLowerCase();
-    if (!email) continue;
-    rows.push([
-      email,
-      String(item.name || "").trim(),
-      getRoleDisplayName(item.role),
-      item.enabled === false ? "否" : "是"
-    ]);
-  }
-
-  // 先清空既有白名單資料區間（D2:G）
-  const currentLastRow = Math.max(sheet.getLastRow(), 2);
-  sheet.getRange(2, 4, currentLastRow, 4).clearContent();
-
-  if (rows.length > 0) {
-    const safeRows = (typeof sanitizeRowMatrix === "function") ? sanitizeRowMatrix(rows) : rows;
-    sheet.getRange(2, 4, safeRows.length, 4).setValues(safeRows);
-  }
-
-  return { ok: true, count: rows.length };
+  if (!targetSs) return saveWhitelistToMemory_(list);
+  return saveWhitelistToSheet_(targetSs, list);
 }
 
 /**
@@ -396,7 +565,9 @@ function saveWhitelist(accounts, ss) {
  * @returns {Object} `{ role, name, enabled, found }`
  */
 function getAccountRole(email, ss) {
-  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanEmail = String(email || "")
+    .trim()
+    .toLowerCase();
   const accounts = readWhitelist(ss);
 
   for (let i = 0; i < accounts.length; i++) {
@@ -429,19 +600,24 @@ function getAccountRole(email, ss) {
  * @returns {boolean} 是否觸發管理員開通
  */
 function bootstrapAdminIfNeeded(email, name, ss) {
-  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanEmail = String(email || "")
+    .trim()
+    .toLowerCase();
   if (!cleanEmail) return false;
 
   const accounts = readWhitelist(ss);
   if (accounts.length === 0) {
-    saveWhitelist([
-      {
-        email: cleanEmail,
-        name: name || cleanEmail,
-        role: "admin",
-        enabled: true
-      }
-    ], ss);
+    saveWhitelist(
+      [
+        {
+          email: cleanEmail,
+          name: name || cleanEmail,
+          role: "admin",
+          enabled: true
+        }
+      ],
+      ss
+    );
     return true;
   }
   return false;
@@ -455,6 +631,7 @@ if (typeof module !== "undefined" && module.exports) {
     DEFAULT_SYSTEM_PARAMS: DEFAULT_SYSTEM_PARAMS,
     WHITELIST_HEADERS: WHITELIST_HEADERS,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
+    parseConfigBoolean: parseConfigBoolean,
     normalizeRole: normalizeRole,
     getRoleDisplayName: getRoleDisplayName,
     initializeDatabaseSheets: initializeDatabaseSheets,

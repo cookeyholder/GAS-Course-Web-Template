@@ -1,0 +1,13 @@
+node_modules/
+coverage/
+reports/
+.nyc_output/
+dist/
+.clasp/
+.codegraph/
+index.html
+package-lock.json
+*.xls
+*.xlsx
+*.pdf
+openspec/

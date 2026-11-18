@@ -5,7 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="light dark" />
   <title>Google Apps Script 應用程式範本</title>
-  <?!= typeof ScriptApp !== 'undefined' && ScriptApp.getService ? '<script>window.GAS_WEBAPP_URL = "' + ScriptApp.getService().getUrl() + '";</script>' : '' ?>
+  <script>
+    <?!= typeof ScriptApp !== 'undefined' && ScriptApp.getService ? 'window.GAS_WEBAPP_URL = ' + JSON.stringify(ScriptApp.getService().getUrl() || '') + ';' : '' ?>
+    <?!= typeof initialAuthResult !== 'undefined' && initialAuthResult ? 'window.INITIAL_AUTH = ' + initialAuthResult + ';' : '' ?>
+    <?!= typeof switchAccount !== 'undefined' && switchAccount ? 'window.SWITCH_ACCOUNT = true;' : '' ?>
+  </script>
   <!-- BUILD:CSS -->
   <link rel="stylesheet" href="styles.css" />
   <!-- /BUILD:CSS -->

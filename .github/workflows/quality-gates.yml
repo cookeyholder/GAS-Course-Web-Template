@@ -1,0 +1,44 @@
+name: Quality Gates
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts || npm install --ignore-scripts
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Language check
+        run: npm run check:lang
+
+      - name: Tests
+        run: npm test
+
+      - name: Coverage check
+        run: npm run check:coverage
+
+      - name: Complexity check
+        run: npm run check:complexity
+
+      - name: Changed coverage check
+        env:
+          CHANGED_COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
+        run: npm run check:changed-coverage

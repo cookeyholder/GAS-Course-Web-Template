@@ -1,5 +1,12 @@
 node_modules/
 .clasp.json
+.codegraph/
 *.xlsx
 *.xls
 .DS_Store
+
+
+# 測試覆蓋率與品質報告產物
+coverage/
+reports/
+.nyc_output/

@@ -9,7 +9,7 @@
  */
 
 // ============================================================================
-// 課程代碼對照表常數（提升至頂層以達零物件配置 O(1) 查找）
+// 課程代碼對照表常數（提升至頂層以達零物件建立開銷 O(1) 查找）
 // ============================================================================
 
 const NORMALIZED_COURSE_SHEET_NAME = "正規化課程索引";
@@ -41,92 +41,92 @@ const COURSE_INDEX_WRITE_CHUNK_SIZE = 5000;
 const EXCLUDED_SUBJECT_ATTRIBUTES = [];
 
 const GROUP_CODE_NAMES = {
-  "11": "學術群",
-  "21": "機械群",
-  "22": "動力機械群",
-  "23": "電機與電子群",
-  "24": "化工群",
-  "25": "土木與建築群",
-  "26": "商業與管理群／商業群(綜高、實用技能學程)",
-  "27": "外語群",
-  "28": "設計群",
-  "29": "農業群",
-  "30": "食品群",
-  "31": "家政群",
-  "32": "餐旅群",
-  "33": "水產群",
-  "34": "海事群",
-  "35": "藝術群",
-  "36": "美容造型群(實用技能學程)",
-  "40": "服務群(特殊教育類型)",
-  "41": "其他(綜高)"
+  11: "學術群",
+  21: "機械群",
+  22: "動力機械群",
+  23: "電機與電子群",
+  24: "化工群",
+  25: "土木與建築群",
+  26: "商業與管理群／商業群(綜高、實用技能學程)",
+  27: "外語群",
+  28: "設計群",
+  29: "農業群",
+  30: "食品群",
+  31: "家政群",
+  32: "餐旅群",
+  33: "水產群",
+  34: "海事群",
+  35: "藝術群",
+  36: "美容造型群(實用技能學程)",
+  40: "服務群(特殊教育類型)",
+  41: "其他(綜高)"
 };
 
 const DEPARTMENT_CODE_NAMES = {
-  "301": "機械科",
-  "303": "汽車科",
-  "305": "資訊科",
-  "306": "電子科",
-  "308": "電機科",
-  "309": "冷凍空調科",
-  "311": "建築科",
-  "315": "化工科",
-  "321": "電機空調科",
-  "373": "圖文傳播科",
-  "374": "電腦機械製圖科"
+  301: "機械科",
+  303: "汽車科",
+  305: "資訊科",
+  306: "電子科",
+  308: "電機科",
+  309: "冷凍空調科",
+  311: "建築科",
+  315: "化工科",
+  321: "電機空調科",
+  373: "圖文傳播科",
+  374: "電腦機械製圖科"
 };
 
 const SUBJECT_TYPE_NAMES = {
-  "1": "部定必修",
-  "2": "校訂必修",
-  "3": "選修-加深加廣選修",
-  "4": "選修-補強性選修",
-  "5": "選修-多元選修",
-  "6": "選修-其他",
-  "7": "校訂選修",
-  "8": "團體活動時間",
-  "9": "彈性學習時間",
-  "A": "大學預修課程",
-  "B": "基礎訓練",
-  "C": "職前訓練",
-  "D": "寒暑假課程",
-  "E": "返校課程",
-  "F": "職業技能訓練"
+  1: "部定必修",
+  2: "校訂必修",
+  3: "選修-加深加廣選修",
+  4: "選修-補強性選修",
+  5: "選修-多元選修",
+  6: "選修-其他",
+  7: "校訂選修",
+  8: "團體活動時間",
+  9: "彈性學習時間",
+  A: "大學預修課程",
+  B: "基礎訓練",
+  C: "職前訓練",
+  D: "寒暑假課程",
+  E: "返校課程",
+  F: "職業技能訓練"
 };
 
 const OPEN_WAY_NAMES = {
-  "0": "原班級",
-  "1": "跨班選修(班群開課)",
-  "2": "綜高跨年級選修",
-  "A": "同科單班選修",
-  "B": "同科跨班選修",
-  "C": "同群跨科選修、跨學程選修",
-  "D": "同校跨群選修",
-  "E": "跨校選修"
+  0: "原班級",
+  1: "跨班選修(班群開課)",
+  2: "綜高跨年級選修",
+  A: "同科單班選修",
+  B: "同科跨班選修",
+  C: "同群跨科選修、跨學程選修",
+  D: "同校跨群選修",
+  E: "跨校選修"
 };
 
 const SUBJECT_ATTRIBUTION_NAMES = {
-  "0": "不分屬性",
-  "1": "一般科目",
-  "2": "專業科目",
-  "3": "實習科目",
-  "4": "專精科目",
-  "5": "專精科目(核心科目)",
-  "6": "特殊需求領域",
-  "A": "自主學習",
-  "B": "選手培訓",
-  "C": "充實(增廣)、補強性教學[全學期、不授予學分]",
-  "D": "充實(增廣)、補強性教學[全學期、授予學分]",
-  "E": "學校特色活動",
-  "F": "專精(專業)科目",
-  "G": "專精(實習)科目",
-  "H": "專精(專業)科目(核心)",
-  "I": "專精(實習)科目(核心)"
+  0: "不分屬性",
+  1: "一般科目",
+  2: "專業科目",
+  3: "實習科目",
+  4: "專精科目",
+  5: "專精科目(核心科目)",
+  6: "特殊需求領域",
+  A: "自主學習",
+  B: "選手培訓",
+  C: "充實(增廣)、補強性教學[全學期、不授予學分]",
+  D: "充實(增廣)、補強性教學[全學期、授予學分]",
+  E: "學校特色活動",
+  F: "專精(專業)科目",
+  G: "專精(實習)科目",
+  H: "專精(專業)科目(核心)",
+  I: "專精(實習)科目(核心)"
 };
 
 const REQUIRED_ELECTIVE_NAMES = {
-  "1": "必修",
-  "2": "選修"
+  1: "必修",
+  2: "選修"
 };
 
 // ============================================================================
@@ -217,14 +217,12 @@ function expandCourseRow(row) {
     if (!(credits > 0 || hours > 0)) continue;
 
     const gradeIndex = Math.floor(s / 2);
-    const academicYear = row[16 + gradeIndex] === null || row[16 + gradeIndex] === undefined
-      ? ""
-      : String(row[16 + gradeIndex]).trim();
+    const academicYear =
+      row[16 + gradeIndex] === null || row[16 + gradeIndex] === undefined ? "" : String(row[16 + gradeIndex]).trim();
     const semester = String((s % 2) + 1);
 
-    const semesterOpenWay = (row[31 + s] === null || row[31 + s] === undefined || row[31 + s] === "")
-      ? fallbackOpenWay
-      : row[31 + s];
+    const semesterOpenWay =
+      row[31 + s] === null || row[31 + s] === undefined || row[31 + s] === "" ? fallbackOpenWay : row[31 + s];
 
     expanded.push([
       academicYear,
@@ -260,12 +258,9 @@ function expandCourseRow(row) {
 function normalizeCourseCodes(rawData, options) {
   options = options || {};
   const rows = Array.isArray(rawData) ? rawData : [];
-  const academicYear = (options.academicYear === null || options.academicYear === undefined)
-    ? ""
-    : String(options.academicYear).trim();
-  const semester = (options.semester === null || options.semester === undefined)
-    ? ""
-    : String(options.semester).trim();
+  const academicYear =
+    options.academicYear === null || options.academicYear === undefined ? "" : String(options.academicYear).trim();
+  const semester = options.semester === null || options.semester === undefined ? "" : String(options.semester).trim();
 
   let sourceRows = 0;
   let excludedRows = 0;
@@ -314,6 +309,97 @@ function normalizeCourseCodes(rawData, options) {
   return normalized;
 }
 
+function resolveImportCourseSpreadsheet_(options) {
+  const opts = options || {};
+  return (
+    opts.spreadsheet ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null)
+  );
+}
+
+function resolveNormalizeCourseCodesFn_() {
+  if (typeof globalThis !== "undefined" && typeof globalThis.normalizeCourseCodes === "function") {
+    return globalThis.normalizeCourseCodes;
+  }
+  return normalizeCourseCodes;
+}
+
+function resolveSafeApplySheetFontSizeFn_() {
+  if (typeof safeApplySheetFontSize === "function") return safeApplySheetFontSize;
+  if (typeof globalThis !== "undefined" && typeof globalThis.safeApplySheetFontSize === "function") {
+    return globalThis.safeApplySheetFontSize;
+  }
+  return function () {};
+}
+
+function buildPreNormalizedImportResult_(rawData) {
+  const rows = Array.isArray(rawData) ? rawData.slice() : [];
+  if (rows.length > 0 && Array.isArray(rows[0]) && String(rows[0][0]).trim() === NORMALIZED_COURSE_HEADERS[0]) {
+    rows.shift();
+  }
+  return {
+    rows: rows,
+    stats: {
+      sourceRows: rows.length,
+      excludedRows: 0,
+      keptCourseRows: rows.length,
+      expandedRows: rows.length,
+      returnedRows: rows.length
+    }
+  };
+}
+
+function prepareCourseImportResult_(rawData, options) {
+  if (options.preNormalized === true) {
+    return buildPreNormalizedImportResult_(rawData);
+  }
+  return resolveNormalizeCourseCodesFn_()(rawData, { withStats: true });
+}
+
+function getOrCreateCourseIndexSheet_(ss) {
+  let sheet = ss.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(NORMALIZED_COURSE_SHEET_NAME);
+  }
+  return sheet;
+}
+
+function prepareCourseIndexSheet_(sheet, options) {
+  if (options.reset !== false) {
+    sheet.clearContents();
+  }
+  if (sheet.getMaxColumns() < NORMALIZED_COURSE_HEADERS.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), NORMALIZED_COURSE_HEADERS.length - sheet.getMaxColumns());
+  }
+}
+
+function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
+  const colCount = NORMALIZED_COURSE_HEADERS.length;
+  const rowCount = Math.max(sheet.getMaxRows(), totalDataRows + 1);
+  sheet.getRange(1, 1, 1, colCount).setValues([NORMALIZED_COURSE_HEADERS]);
+  sheet.getRange(1, 1, 1, colCount).setFontWeight("bold");
+  sheet.getRange(1, 1, rowCount, colCount).setNumberFormat("@");
+}
+
+function writeCourseIndexRowsInChunks_(sheet, rows) {
+  const colCount = NORMALIZED_COURSE_HEADERS.length;
+  for (let start = 0; start < rows.length; start += COURSE_INDEX_WRITE_CHUNK_SIZE) {
+    const chunk = rows.slice(start, start + COURSE_INDEX_WRITE_CHUNK_SIZE);
+    sheet.getRange(start + 2, 1, chunk.length, colCount).setValues(chunk);
+  }
+}
+
+function finalizeCourseIndexSheet_(sheet, totalDataRows) {
+  const colCount = NORMALIZED_COURSE_HEADERS.length;
+  const rowCount = Math.max(sheet.getMaxRows(), totalDataRows + 1);
+  resolveSafeApplySheetFontSizeFn_()(sheet.getRange(1, 1, rowCount, colCount), 11);
+  if (sheet.getFrozenRows() < 1) {
+    sheet.setFrozenRows(1);
+  }
+}
+
 /**
  * 匯入正規化課程代碼至工作表
  *
@@ -326,67 +412,132 @@ function normalizeCourseCodes(rawData, options) {
  */
 function importNormalizedCourseCodes(rawData, options) {
   options = options || {};
-  const ss = options.spreadsheet || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const ss = resolveImportCourseSpreadsheet_(options);
   if (!ss) {
     throw new Error("找不到有效的試算表物件");
   }
 
-  const inputRows = Array.isArray(rawData) ? rawData : [];
-  let result;
-
-  if (options.preNormalized === true) {
-    const rows = inputRows.slice();
-    if (rows.length > 0 && Array.isArray(rows[0]) && String(rows[0][0]).trim() === NORMALIZED_COURSE_HEADERS[0]) {
-      rows.shift();
-    }
-    result = {
-      rows: rows,
-      stats: {
-        sourceRows: rows.length,
-        excludedRows: 0,
-        keptCourseRows: rows.length,
-        expandedRows: rows.length,
-        returnedRows: rows.length
-      }
-    };
-  } else {
-    result = normalizeCourseCodes(rawData, { withStats: true });
-  }
+  const result = prepareCourseImportResult_(rawData, options);
   const rows = result.rows;
+  const sheet = getOrCreateCourseIndexSheet_(ss);
 
-  let sheet = ss.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(NORMALIZED_COURSE_SHEET_NAME);
-  }
-
-  if (options.reset !== false) {
-    sheet.clearContents();
-  }
-
-  if (sheet.getMaxColumns() < NORMALIZED_COURSE_HEADERS.length) {
-    sheet.insertColumnsAfter(sheet.getMaxColumns(), NORMALIZED_COURSE_HEADERS.length - sheet.getMaxColumns());
-  }
-
-  sheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setValues([NORMALIZED_COURSE_HEADERS]);
-  sheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setFontWeight("bold");
-  sheet.getRange(1, 1, Math.max(sheet.getMaxRows(), rows.length + 1), NORMALIZED_COURSE_HEADERS.length).setNumberFormat("@");
-
-  // 分批寫入，避免單次 setValues 資料量過大逾時
-  for (let start = 0; start < rows.length; start += COURSE_INDEX_WRITE_CHUNK_SIZE) {
-    const chunk = rows.slice(start, start + COURSE_INDEX_WRITE_CHUNK_SIZE);
-    sheet.getRange(start + 2, 1, chunk.length, NORMALIZED_COURSE_HEADERS.length).setValues(chunk);
-  }
-
-  safeApplySheetFontSize(sheet.getRange(1, 1, Math.max(sheet.getMaxRows(), rows.length + 1), NORMALIZED_COURSE_HEADERS.length), 11);
-
-  if (sheet.getFrozenRows() < 1) {
-    sheet.setFrozenRows(1);
-  }
+  prepareCourseIndexSheet_(sheet, options);
+  writeCourseIndexHeaderAndFormat_(sheet, rows.length);
+  writeCourseIndexRowsInChunks_(sheet, rows);
+  finalizeCourseIndexSheet_(sheet, rows.length);
 
   return {
     ok: true,
     rows: rows.length,
     stats: result.stats
+  };
+}
+
+function resolveCourseIndexSpreadsheet_(ss) {
+  return (
+    ss ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null)
+  );
+}
+
+function createEmptyCourseQueryResult_(page, pageSize, totalPages) {
+  return {
+    ok: true,
+    list: [],
+    total: 0,
+    page: typeof page === "number" ? page : 1,
+    pageSize: typeof pageSize === "number" ? pageSize : 50,
+    totalPages: typeof totalPages === "number" ? totalPages : 0
+  };
+}
+
+function getCourseIndexDataRows_(targetSs) {
+  if (!targetSs) return null;
+  const sheet = targetSs.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
+  if (!sheet) return null;
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return null;
+  return values.slice(1);
+}
+
+function normalizeCourseQueryCriteria_(filter) {
+  const source = filter || {};
+  return {
+    keyword: (source.keyword || "").trim().toLowerCase(),
+    year: (source.academicYear || "").trim(),
+    semester: (source.semester || "").trim(),
+    department: (source.department || "").trim()
+  };
+}
+
+function mapCourseIndexRow_(row) {
+  const r = row || [];
+  return {
+    academicYear: String(r[0] || ""),
+    semester: String(r[1] || ""),
+    grade: String(r[2] || ""),
+    entryYear: String(r[3] || ""),
+    courseCode: String(r[4] || ""),
+    subjectName: String(r[5] || ""),
+    group: String(r[6] || ""),
+    department: String(r[7] || ""),
+    subjectType: String(r[8] || ""),
+    openWay: String(r[9] || ""),
+    attribute: String(r[10] || ""),
+    required: String(r[11] || ""),
+    credits: String(r[12] || ""),
+    hours: String(r[13] || "")
+  };
+}
+
+function isCourseRowMatchedByFields_(item, criteria) {
+  if (criteria.year !== "" && item.academicYear !== criteria.year) return false;
+  if (criteria.semester !== "" && item.semester !== criteria.semester) return false;
+  if (criteria.department !== "" && item.department !== criteria.department) return false;
+  return true;
+}
+
+function isCourseRowMatchedByKeyword_(item, keyword) {
+  if (keyword === "") return true;
+  const line = (item.courseCode + " " + item.subjectName + " " + item.department + " " + item.group).toLowerCase();
+  return line.indexOf(keyword) !== -1;
+}
+
+function isCourseIndexRowMatched_(item, criteria) {
+  return isCourseRowMatchedByFields_(item, criteria) && isCourseRowMatchedByKeyword_(item, criteria.keyword);
+}
+
+function collectMatchedCourseRows_(dataRows, criteria) {
+  const matched = [];
+  for (let i = 0; i < dataRows.length; i++) {
+    const item = mapCourseIndexRow_(dataRows[i]);
+    if (!isCourseIndexRowMatched_(item, criteria)) continue;
+    matched.push(item);
+  }
+  return matched;
+}
+
+function normalizeCoursePageParams_(filter) {
+  const source = filter || {};
+  const page = Math.max(1, parseInt(source.page, 10) || 1);
+  const pageSize = Math.max(1, Math.min(200, parseInt(source.pageSize, 10) || 50));
+  return { page: page, pageSize: pageSize };
+}
+
+function buildPagedCourseResult_(matched, page, pageSize) {
+  const total = matched.length;
+  const totalPages = Math.ceil(total / pageSize) || 1;
+  const start = (page - 1) * pageSize;
+  const pageItems = matched.slice(start, start + pageSize);
+  return {
+    ok: true,
+    list: pageItems,
+    total: total,
+    page: page,
+    pageSize: pageSize,
+    totalPages: totalPages
   };
 }
 
@@ -404,83 +555,14 @@ function importNormalizedCourseCodes(rawData, options) {
  * @returns {Object} 查詢結果 `{ ok: true, list, total, page, pageSize, totalPages }`
  */
 function getNormalizedCourses(filter, ss) {
-  filter = filter || {};
-  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
-  if (!targetSs) return { ok: true, list: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
+  const targetSs = resolveCourseIndexSpreadsheet_(ss);
+  const dataRows = getCourseIndexDataRows_(targetSs);
+  if (!dataRows) return createEmptyCourseQueryResult_();
 
-  const sheet = targetSs.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
-  if (!sheet) return { ok: true, list: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
-
-  const values = sheet.getDataRange().getValues();
-  if (values.length <= 1) return { ok: true, list: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
-
-  const keyword = (filter.keyword || "").trim().toLowerCase();
-  const year = (filter.academicYear || "").trim();
-  const semester = (filter.semester || "").trim();
-  const department = (filter.department || "").trim();
-
-  const dataRows = values.slice(1);
-  const matched = [];
-
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
-    const rYear = String(row[0] || "");
-    const rSem = String(row[1] || "");
-    const rGrade = String(row[2] || "");
-    const rEntryYear = String(row[3] || "");
-    const rCode = String(row[4] || "");
-    const rName = String(row[5] || "");
-    const rGroup = String(row[6] || "");
-    const rDept = String(row[7] || "");
-    const rType = String(row[8] || "");
-    const rOpenWay = String(row[9] || "");
-    const rAttr = String(row[10] || "");
-    const rReq = String(row[11] || "");
-    const rCredits = String(row[12] || "");
-    const rHours = String(row[13] || "");
-
-    if (year !== "" && rYear !== year) continue;
-    if (semester !== "" && rSem !== semester) continue;
-    if (department !== "" && rDept !== department) continue;
-
-    if (keyword !== "") {
-      const line = (rCode + " " + rName + " " + rDept + " " + rGroup).toLowerCase();
-      if (line.indexOf(keyword) === -1) continue;
-    }
-
-    matched.push({
-      academicYear: rYear,
-      semester: rSem,
-      grade: rGrade,
-      entryYear: rEntryYear,
-      courseCode: rCode,
-      subjectName: rName,
-      group: rGroup,
-      department: rDept,
-      subjectType: rType,
-      openWay: rOpenWay,
-      attribute: rAttr,
-      required: rReq,
-      credits: rCredits,
-      hours: rHours
-    });
-  }
-
-  const page = Math.max(1, parseInt(filter.page, 10) || 1);
-  const pageSize = Math.max(1, Math.min(200, parseInt(filter.pageSize, 10) || 50));
-  const total = matched.length;
-  const totalPages = Math.ceil(total / pageSize) || 1;
-  const start = (page - 1) * pageSize;
-  const pageItems = matched.slice(start, start + pageSize);
-
-  return {
-    ok: true,
-    list: pageItems,
-    total: total,
-    page: page,
-    pageSize: pageSize,
-    totalPages: totalPages
-  };
+  const criteria = normalizeCourseQueryCriteria_(filter);
+  const matched = collectMatchedCourseRows_(dataRows, criteria);
+  const paging = normalizeCoursePageParams_(filter);
+  return buildPagedCourseResult_(matched, paging.page, paging.pageSize);
 }
 
 if (typeof module !== "undefined" && module.exports) {
