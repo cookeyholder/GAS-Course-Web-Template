@@ -93,7 +93,7 @@
 - [x] G5.3 重構/補測試目標：`webapp/js/app.js::render`（L81, 9, 0.0%, 90.00）；驗證同上。
 - [x] G5.4 重構/補測試目標：`webapp/js/app.js::setTab`（L10, 7, 0.0%, 56.00）；驗證同上。
 - [x] G5.5 重構/補測試目標：`webapp/js/app.js::applyInitialAuth`（L40, 7, 0.0%, 56.00）；驗證同上（含 INITIAL_AUTH/switch/mock 分流可測分支）。
-- [ ] G5.6 重構/補測試目標：`webapp/js/app.js::cleanUrlQuery`（L30, 6, 0.0%, 42.00）；驗證同上。
+- [x] G5.6 重構/補測試目標：`webapp/js/app.js::cleanUrlQuery`（L30, 6, 0.0%, 42.00）；驗證同上。
 - [x] G5.7 補強前端 API 客戶端測試（支援主變更 5.1）：RPC 優先與 fetch 備援、錯誤正規化、重試策略、token/CSRF 儲存與夾帶；驗證：`npm test` 通過。
 
 #### 量測快照（完成本組後更新）
@@ -101,7 +101,7 @@
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G5 完成後 | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | `webapp/js/api.js`、`webapp/js/app.js` 目標收斂 |
+| G5 完成後 | 2026-11-19 | 58.87% (4251/7220) | 58.87% (4251/7220) | 84.40% (211/250) | 72.17% (947/1312) | 82.03 | 32 | 600.00 (`webapp/js/accounts.js::renderView`、`webapp/js/mock.js::<anon method-3>`) | c8/typhonjs-escomplex 已可執行；`webapp/js/api.js`、`webapp/js/app.js` 目標函式完成可測試工廠重構與補測試，`npm test`（35/35 檔）通過。剩餘違規集中於 G6-G8。 |
 
 ---
 
