@@ -7,53 +7,35 @@
  * 3. 自動攜帶 Session Token 與 CSRF Token
  * 4. 可重試錯誤（network_error、lock_timeout、rate_limited）採指數退避重試
  */
-window.MEA = window.MEA || {};
-
-(function (MEA) {
+(function (root, factory) {
   "use strict";
 
-  const csrfStorageKey = "gas_tmpl.csrf.v1";
+  const api = factory();
 
-  let currentToken = "";
-  let currentCsrfToken = "";
-
-  try {
-    currentToken = window.localStorage.getItem(MEA.config.storageKey) || "";
-    currentCsrfToken = window.localStorage.getItem(csrfStorageKey) || "";
-  } catch (e) {
-    currentToken = "";
-    currentCsrfToken = "";
+  if (typeof window !== "undefined") {
+    const MEA = (root.MEA = root.MEA || {});
+    const storage = window.localStorage || {
+      getItem: function () { return null; },
+      setItem: function () {},
+      removeItem: function () {}
+    };
+    MEA.api = api.createApiClient({
+      config: MEA.config || {},
+      storage: storage,
+      fetchFn: typeof window.fetch === "function" ? window.fetch.bind(window) : null,
+      google: window.google || null,
+      getMock: function () { return MEA.mock || null; },
+      setTimeoutFn: function (fn, ms) { return window.setTimeout(fn, ms); }
+    });
   }
 
-  function getToken() {
-    return currentToken;
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
   }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
 
-  function setToken(token) {
-    currentToken = token || "";
-    try {
-      if (currentToken) {
-        window.localStorage.setItem(MEA.config.storageKey, currentToken);
-      } else {
-        window.localStorage.removeItem(MEA.config.storageKey);
-      }
-    } catch (e) {}
-  }
-
-  function getCsrfToken() {
-    return currentCsrfToken;
-  }
-
-  function setCsrfToken(csrfToken) {
-    currentCsrfToken = csrfToken || "";
-    try {
-      if (currentCsrfToken) {
-        window.localStorage.setItem(csrfStorageKey, currentCsrfToken);
-      } else {
-        window.localStorage.removeItem(csrfStorageKey);
-      }
-    } catch (e) {}
-  }
+  const CSRF_STORAGE_KEY = "gas_tmpl.csrf.v1";
 
   function parseApiResponse(text) {
     const invalid = {
@@ -69,49 +51,141 @@ window.MEA = window.MEA || {};
     }
   }
 
-  function requestOnce(action, payload) {
-    if (MEA.config.mock && MEA.mock && typeof MEA.mock.handle === "function") {
-      const mockBody = Object.assign({}, payload || {}, {
-        action: action,
-        token: (payload && payload.token) || currentToken,
-        csrfToken: (payload && payload.csrfToken) || currentCsrfToken
-      });
-      return MEA.mock.handle(action, mockBody);
+  function createApiClient(deps) {
+    const options = deps || {};
+    const config = options.config || {};
+    const storage = options.storage || {
+      getItem: function () { return null; },
+      setItem: function () {},
+      removeItem: function () {}
+    };
+    const fetchFn = typeof options.fetchFn === "function" ? options.fetchFn : (typeof options.fetch === "function" ? options.fetch : null);
+    const getGoogle = typeof options.getGoogle === "function"
+      ? options.getGoogle
+      : function () { return options.google || null; };
+    const getMock = typeof options.getMock === "function"
+      ? options.getMock
+      : function () { return options.mock || null; };
+    const setTimeoutFn = typeof options.setTimeoutFn === "function"
+      ? options.setTimeoutFn
+      : function (fn, ms) { return setTimeout(fn, ms); };
+
+    let currentToken = "";
+    let currentCsrfToken = "";
+
+    function safeStorageGet(key) {
+      try {
+        return storage.getItem(key);
+      } catch (e) {
+        return null;
+      }
     }
 
-    const body = Object.assign({}, payload || {}, {
-      action: action,
-      token: (payload && payload.token) || currentToken,
-      csrfToken: (payload && payload.csrfToken) || currentCsrfToken
-    });
+    function safeStorageSet(key, value) {
+      try {
+        storage.setItem(key, value);
+      } catch (e) {}
+    }
 
-    // GAS HtmlService 容器內優先使用原生 RPC，避免跨來源 fetch 問題
-    if (typeof window.google !== "undefined" && window.google.script && typeof window.google.script.run === "object") {
+    function safeStorageRemove(key) {
+      try {
+        storage.removeItem(key);
+      } catch (e) {}
+    }
+
+    try {
+      currentToken = safeStorageGet(config.storageKey) || "";
+      currentCsrfToken = safeStorageGet(CSRF_STORAGE_KEY) || "";
+    } catch (e) {
+      currentToken = "";
+      currentCsrfToken = "";
+    }
+
+    function getToken() {
+      return currentToken;
+    }
+
+    function setToken(token) {
+      currentToken = token || "";
+      if (currentToken) {
+        safeStorageSet(config.storageKey, currentToken);
+      } else {
+        safeStorageRemove(config.storageKey);
+      }
+    }
+
+    function getCsrfToken() {
+      return currentCsrfToken;
+    }
+
+    function setCsrfToken(csrfToken) {
+      currentCsrfToken = csrfToken || "";
+      if (currentCsrfToken) {
+        safeStorageSet(CSRF_STORAGE_KEY, currentCsrfToken);
+      } else {
+        safeStorageRemove(CSRF_STORAGE_KEY);
+      }
+    }
+
+    function buildRequestBody(action, payload) {
+      const source = payload || {};
+      return Object.assign({}, source, {
+        action: action,
+        token: source.token || currentToken,
+        csrfToken: source.csrfToken || currentCsrfToken
+      });
+    }
+
+    function canUseMock() {
+      const mock = getMock();
+      return !!(config.mock && mock && typeof mock.handle === "function");
+    }
+
+    function requestViaMock(action, body) {
+      const mock = getMock();
+      return mock.handle(action, body);
+    }
+
+    function getRpcRunner() {
+      const google = getGoogle();
+      if (google && google.script && typeof google.script.run === "object") {
+        return google.script.run;
+      }
+      return null;
+    }
+
+    function normalizeRpcResult(result) {
+      if (typeof result === "string") {
+        return parseApiResponse(result);
+      }
+      if (result && typeof result === "object") {
+        return result;
+      }
+      return {
+        ok: false,
+        error: "invalid_response",
+        message: "後端回傳空回應"
+      };
+    }
+
+    function createRpcError(error) {
+      return {
+        ok: false,
+        error: "server_error",
+        message: "後端執行失敗：" + String(error && error.message ? error.message : error)
+      };
+    }
+
+    function requestViaRpc(runner, body) {
       return new Promise(function (resolve) {
         function resolveRpcError(error) {
-          resolve({
-            ok: false,
-            error: "server_error",
-            message: "後端執行失敗：" + String(error && error.message ? error.message : error)
-          });
+          resolve(createRpcError(error));
         }
 
         try {
-          window.google.script.run
+          runner
             .withSuccessHandler(function (result) {
-              if (typeof result === "string") {
-                resolve(parseApiResponse(result));
-                return;
-              }
-              if (result && typeof result === "object") {
-                resolve(result);
-                return;
-              }
-              resolve({
-                ok: false,
-                error: "invalid_response",
-                message: "後端回傳空回應"
-              });
+              resolve(normalizeRpcResult(result));
             })
             .withFailureHandler(resolveRpcError)
             .executeWebApi(body);
@@ -121,8 +195,7 @@ window.MEA = window.MEA || {};
       });
     }
 
-    const apiUrl = MEA.config.apiUrl;
-    if (!apiUrl) {
+    function createMissingApiUrlError() {
       return Promise.resolve({
         ok: false,
         error: "missing_api_url",
@@ -130,74 +203,112 @@ window.MEA = window.MEA || {};
       });
     }
 
-    return fetch(apiUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "text/plain;charset=utf-8"
-      },
-      body: JSON.stringify(body),
-      redirect: "follow"
-    })
-      .then(function (response) {
-        if (response.ok === false) {
-          throw new Error("HTTP " + response.status);
-        }
-        if (typeof response.text === "function") {
-          return response.text().then(parseApiResponse);
-        }
-        return response.json();
-      })
-      .catch(function (error) {
-        return {
-          ok: false,
-          error: "network_error",
-          message:
-            "無法連線至 Google Apps Script 伺服器（" +
-            String(error && error.message ? error.message : error) +
-            "），請確認網路連線或稍後再試"
-        };
-      });
-  }
-
-  function callWithRetry(action, payload, options) {
-    options = options || {};
-    const delays = Array.isArray(options.delays) ? options.delays : [1000, 2000, 4000];
-    let attempt = 0;
-
-    function execute() {
-      return requestOnce(action, payload).then(function (result) {
-        const isRetryableError =
-          result &&
-          (result.error === "rate_limited" || result.error === "lock_timeout" || result.error === "network_error");
-
-        if (result && result.ok !== true && isRetryableError && attempt < delays.length) {
-          const delay = delays[attempt];
-          attempt++;
-          return new Promise(function (resolve) {
-            setTimeout(resolve, delay);
-          }).then(execute);
-        }
-
-        if (result && result.csrfToken) {
-          setCsrfToken(result.csrfToken);
-        }
-        return result;
-      });
+    function handleFetchResponse(response) {
+      if (response.ok === false) {
+        throw new Error("HTTP " + response.status);
+      }
+      if (typeof response.text === "function") {
+        return response.text().then(parseApiResponse);
+      }
+      return response.json();
     }
 
-    return execute();
+    function createNetworkError(error) {
+      return {
+        ok: false,
+        error: "network_error",
+        message:
+          "無法連線至 Google Apps Script 伺服器（" +
+          String(error && error.message ? error.message : error) +
+          "），請確認網路連線或稍後再試"
+      };
+    }
+
+    function requestViaFetch(body) {
+      const apiUrl = config.apiUrl;
+      if (!apiUrl) {
+        return createMissingApiUrlError();
+      }
+      if (typeof fetchFn !== "function") {
+        return Promise.resolve(createNetworkError(new Error("fetch_unavailable")));
+      }
+      return fetchFn(apiUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "text/plain;charset=utf-8"
+        },
+        body: JSON.stringify(body),
+        redirect: "follow"
+      })
+        .then(handleFetchResponse)
+        .catch(createNetworkError);
+    }
+
+    function requestOnce(action, payload) {
+      const body = buildRequestBody(action, payload);
+      if (canUseMock()) {
+        return requestViaMock(action, body);
+      }
+
+      const runner = getRpcRunner();
+      if (runner) {
+        return requestViaRpc(runner, body);
+      }
+
+      return requestViaFetch(body);
+    }
+
+    function isRetryableResult(result) {
+      return !!(
+        result &&
+        (result.error === "rate_limited" || result.error === "lock_timeout" || result.error === "network_error")
+      );
+    }
+
+    function callWithRetry(action, payload, callOptions) {
+      const opts = callOptions || {};
+      const delays = Array.isArray(opts.delays) ? opts.delays : [1000, 2000, 4000];
+      let attempt = 0;
+
+      function execute() {
+        return requestOnce(action, payload).then(function (result) {
+          if (result && result.ok !== true && isRetryableResult(result) && attempt < delays.length) {
+            const delay = delays[attempt];
+            attempt++;
+            return new Promise(function (resolve) {
+              setTimeoutFn(resolve, delay);
+            }).then(execute);
+          }
+
+          if (result && result.csrfToken) {
+            setCsrfToken(result.csrfToken);
+          }
+          return result;
+        });
+      }
+
+      return execute();
+    }
+
+    function call(action, payload) {
+      return callWithRetry(action, payload);
+    }
+
+    return {
+      getToken: getToken,
+      setToken: setToken,
+      getCsrfToken: getCsrfToken,
+      setCsrfToken: setCsrfToken,
+      call: call,
+      callWithRetry: callWithRetry,
+      requestOnce: requestOnce,
+      parseApiResponse: parseApiResponse
+    };
   }
 
-  function call(action, payload) {
-    return callWithRetry(action, payload);
-  }
-
-  MEA.api = {
-    getToken: getToken,
-    setToken: setToken,
-    getCsrfToken: getCsrfToken,
-    setCsrfToken: setCsrfToken,
-    call: call,
-    callWithRetry: callWithRetry
+  return {
+    createApiClient: createApiClient,
+    parseApiResponse: parseApiResponse,
+    CSRF_STORAGE_KEY: CSRF_STORAGE_KEY
   };
-})(window.MEA);
+});
