@@ -754,60 +754,81 @@ function executeWebApi(payload, event) {
   }
 }
 
-function doGet(e) {
-  const parameter = e && e.parameter ? e.parameter : {};
-  const action = String(parameter.action || "").trim();
-
-  // 若帶有 ?action= 則以 JSON 回應（僅開放 ping 與 getPublicConfig 供唯讀檢查）
-  if (action !== "") {
-    if (action !== "ping" && action !== "getPublicConfig") {
-      return jsonResponse(
-        webApiError("method_not_allowed", "為保障安全性，除 ping 與 getPublicConfig 外之操作一律必須使用 POST 方法發送")
-      );
-    }
-    try {
-      const payload = parseWebApiPayload(e);
-      return jsonResponse(routeWebApiAction(action, payload, e));
-    } catch (error) {
-      return jsonResponse(webApiError("server_error", String(error && error.message ? error.message : error)));
-    }
+function getOverridableApiFn_(name, fallback) {
+  if (typeof module !== "undefined" && module.exports && typeof module.exports[name] === "function") {
+    return module.exports[name];
   }
+  return fallback;
+}
 
-  // 處理 Google OAuth 2.0 授權碼回傳（重新導向登入）
-  let initialAuthResult = null;
+function handleDoGetActionRequest_(action, event) {
+  if (action !== "ping" && action !== "getPublicConfig") {
+    return jsonResponse(
+      webApiError("method_not_allowed", "為保障安全性，除 ping 與 getPublicConfig 外之操作一律必須使用 POST 方法發送")
+    );
+  }
+  try {
+    const payload = parseWebApiPayload(event);
+    const routeFn = getOverridableApiFn_("routeWebApiAction", routeWebApiAction);
+    return jsonResponse(routeFn(action, payload, event));
+  } catch (error) {
+    return jsonResponse(webApiError("server_error", String(error && error.message ? error.message : error)));
+  }
+}
+
+function resolveDoGetInitialAuth_(parameter, event) {
   const authorizationCode = String(parameter.code || "").trim();
-  if (authorizationCode !== "") {
-    try {
-      initialAuthResult = handleOAuthCodeCallback(authorizationCode, e);
-    } catch (error) {
-      initialAuthResult = webApiError(
-        "oauth_callback_failed",
-        "Google 登入回傳處理失敗：" + String(error && error.message ? error.message : error)
-      );
-    }
+  if (authorizationCode === "") return null;
+  try {
+    const callbackFn = getOverridableApiFn_("handleOAuthCodeCallback", handleOAuthCodeCallback);
+    return callbackFn(authorizationCode, event);
+  } catch (error) {
+    return webApiError(
+      "oauth_callback_failed",
+      "Google 登入回傳處理失敗：" + String(error && error.message ? error.message : error)
+    );
   }
+}
 
-  // 渲染 Web App HTML
-  if (typeof HtmlService !== "undefined" && HtmlService.createTemplateFromFile) {
-    try {
-      const template = HtmlService.createTemplateFromFile("index");
-      template.initialAuthResult = initialAuthResult ? JSON.stringify(initialAuthResult).replace(/</g, "\\u003c") : "";
-      template.switchAccount = String(parameter.switch || "") === "1";
-      return template
-        .evaluate()
-        .setTitle("Google Apps Script 應用程式範本")
-        .addMetaTag("viewport", "width=device-width, initial-scale=1")
-        .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
-    } catch (error) {
-      console.error("HtmlService template evaluation error: " + (error && error.stack ? error.stack : error));
-    }
-  }
-
+function buildDoGetFallbackResponse_() {
   return jsonResponse({
     ok: true,
     service: "gas-course-web-template",
     version: WEB_API_VERSION
   });
+}
+
+function renderDoGetHtml_(initialAuthResult, parameter) {
+  if (typeof HtmlService === "undefined" || !HtmlService.createTemplateFromFile) {
+    return null;
+  }
+  try {
+    const template = HtmlService.createTemplateFromFile("index");
+    template.initialAuthResult = initialAuthResult
+      ? JSON.stringify(initialAuthResult).replace(/</g, "\\u003c")
+      : "";
+    template.switchAccount = String(parameter.switch || "") === "1";
+    return template
+      .evaluate()
+      .setTitle("Google Apps Script 應用程式範本")
+      .addMetaTag("viewport", "width=device-width, initial-scale=1")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
+  } catch (error) {
+    console.error("HtmlService template evaluation error: " + (error && error.stack ? error.stack : error));
+    return null;
+  }
+}
+
+function doGet(e) {
+  const parameter = e && e.parameter ? e.parameter : {};
+  const action = String(parameter.action || "").trim();
+  if (action !== "") {
+    return handleDoGetActionRequest_(action, e);
+  }
+
+  const initialAuthResult = resolveDoGetInitialAuth_(parameter, e);
+  const htmlOutput = renderDoGetHtml_(initialAuthResult, parameter);
+  return htmlOutput || buildDoGetFallbackResponse_();
 }
 
 function doPost(e) {

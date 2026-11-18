@@ -33,7 +33,7 @@
 
 - [x] G2.1 重構/補測試目標：`webApi.js::handleOAuthCodeCallback`（L369, Cyclomatic 25, Cov 0.0%, CRAP 650.00）；驗證：`npm test` 通過且該函式 CRAP <= 30、行為不變。
 - [x] G2.2 重構/補測試目標：`webApi.js::executeWebApi`（L649, 20, 0.0%, 420.00）；驗證同上。
-- [ ] G2.3 重構/補測試目標：`webApi.js::doGet`（L692, 19, 0.0%, 380.00）；驗證同上。
+- [x] G2.3 重構/補測試目標：`webApi.js::doGet`（L692, 19, 0.0%, 380.00）；驗證同上。
 - [ ] G2.4 重構/補測試目標：`webApi.js::verifyGoogleIdToken`（L233, 18, 0.0%, 342.00）；驗證同上。
 - [ ] G2.5 重構/補測試目標：`webApi.js::resolveOAuthRedirectUri`（L348, 13, 0.0%, 182.00）；驗證同上。
 - [ ] G2.6 重構/補測試目標：`webApi.js::routeWebApiAction`（L551, 35, 61.6%, 104.21）；驗證同上（含 action 分支與權限/CSRF 路徑測試補強）。
