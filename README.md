@@ -197,7 +197,7 @@ npm run build:webapp
 - **變更覆蓋率**（`check:changed-coverage`）：相對比較基準之 Lines >= 80%、Branches >= 70%；無可量測變更時明確成功/略過。
 - **CRAP**（`check:complexity`）：每個納管函式 **CRAP MUST NOT > 30**。
 - **Maintainability Index（MI）**（`check:complexity`）：每個納管模組 **MI MUST >= 20**。
-- **基準線**：2026-11-18 量測基準與門檻、納管範圍記錄於 `scripts/quality-baseline.json`、`scripts/qualityConfig.js` 與 `openspec/changes/2026-11-18-quality-gates-and-test-expansion/proposal.md`；後續調整須可追溯且不得任意放寬（不回退）。
+- **基準線**：2026-11-18 量測基準與門檻、納管範圍記錄於 `scripts/quality-baseline.json`、`scripts/qualityConfig.js` 與 `openspec/changes/archive/2026-11-19-2026-11-18-quality-gates-and-test-expansion/proposal.md`（已封存變更）；後續調整須可追溯且不得任意放寬（不回退）。
 
 ### CI 品質閘門行為
 
