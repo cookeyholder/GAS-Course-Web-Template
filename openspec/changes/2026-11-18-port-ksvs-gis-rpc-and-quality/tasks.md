@@ -24,10 +24,10 @@
 - [x] 4.2 導入 `scripts/languageCheck.js` 與必要的測試/品質腳本基礎（含 `scripts/run-tests.js` 自動探索測試），更新 `package.json` scripts 與 devDependencies。
 - [x] 4.3 新增 `.github/workflows/quality-gates.yml`（至少包含格式檢查、語言檢查、測試），並依本專案基線設定可通過的品質門檻策略。
 - [x] 4.4 導入部署輔助改進（如 `scripts/deploy.js` 與相關設定/ignore 調整），維持與現有 clasp 流程相容並文件化使用方式。
-- [ ] 4.5（可選/分階段）導入 Husky + lint-staged 與覆蓋率/複雜度/變更覆蓋率檢查腳本；若啟用需同步補充文件與確保本地/CI 可通過。
+- [x] 4.5（可選/分階段）導入 Husky + lint-staged 與覆蓋率/複雜度/變更覆蓋率檢查腳本；若啟用需同步補充文件與確保本地/CI 可通過。
 
 ## 5. 測試、驗證與收斂
 
-- [ ] 5.1 新增或調整測試：涵蓋後端登入/驗證/CSRF/公開設定、前端 API 客戶端 RPC/fetch 與重試行為、auth 啟動與登入情境（含 mock 相容）。
+- [x] 5.1 新增或調整測試：涵蓋後端登入/驗證/CSRF/公開設定、前端 API 客戶端 RPC/fetch 與重試行為、auth 啟動與登入情境（含 mock 相容）。
 - [ ] 5.2 執行並通過驗證：`npm test`、`npm run build:webapp`、語言/格式檢查（若已導入腳本與 CI 規則），修正回歸。
 - [ ] 5.3 進行最終檢查：確認無 KSVS 專屬業務邏輯誤植、文件與實作一致、`.claspignore`/建置產物與工具鏈設定合理，並整理變更內容。

@@ -178,11 +178,11 @@
 
 - [x] G9.1 完整更新文件（`README.md`、`AGENTS.md`、必要 `docs/*`）：品質指令、閘門、門檻與基準線、Git hook 自動格式化、CI 行為、Node 版本策略與排錯；驗證：文件與實作一致。
 - [x] G9.2 執行完整驗證：`npm test`、`npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`（具比較基準時）、`npm run check:complexity`、`npm run format:check`、`npm run check:lang`、`npm run build:webapp`；驗證：全部成功。
-- [ ] G9.3 交付一致性檢查並回寫主變更依據：確認本提案成果已涵蓋主變更 `2026-11-18-port-ksvs-gis-rpc-and-quality` 的 task 4.5 與 5.1 範圍（實作完成後回主變更勾選並依規範提交）；驗證：提案/規格/任務/實作/報告可追溯。
+- [x] G9.3 交付一致性檢查並回寫主變更依據：確認本提案成果已涵蓋主變更 `2026-11-18-port-ksvs-gis-rpc-and-quality` 的 task 4.5 與 5.1 範圍（實作完成後回主變更勾選並依規範提交）；驗證：提案/規格/任務/實作/報告可追溯。
 
 #### 量測快照（完成本組後更新）
 
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G9 完成後 | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | 最終驗證通過，可對接主變更 4.5/5.1 |
+| G9 完成後 | 2026-11-19 | 91.93% (7718/8395) | 91.93% (7718/8395) | 88.86% (399/449) | 76.97% (1668/2167) | 84.877 (`scripts/checkChangedCoverage.js`) | 0 | 30.00 (`scripts/checkChangedCoverage.js::getDiff`) | 全部 68 個測試檔通過；8 道驗證指令全綠；G9.3 已回寫主變更 4.5/5.1 |
