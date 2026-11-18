@@ -120,7 +120,10 @@ window.MEA = window.MEA || {};
               semester: mockSettings.semester,
               clientId: mockSettings.clientId,
               hasClientSecret: Boolean(mockSettings.clientSecret),
-              allowedDomain: String(mockSettings.allowedLoginDomain || "").trim().replace(/^@/, "").toLowerCase(),
+              allowedDomain: String(mockSettings.allowedLoginDomain || "")
+                .trim()
+                .replace(/^@/, "")
+                .toLowerCase(),
               activeEmail: "admin@example.com",
               webAppUrl: window.location.href
             });
@@ -190,7 +193,10 @@ window.MEA = window.MEA || {};
           case "saveSystemSettings": {
             const incoming = (payload && payload.settings) || {};
             const mapped = Object.assign({}, incoming);
-            if (typeof mapped.allowedLoginDomain === "undefined" && typeof incoming["Google 登入允許網域"] !== "undefined") {
+            if (
+              typeof mapped.allowedLoginDomain === "undefined" &&
+              typeof incoming["Google 登入允許網域"] !== "undefined"
+            ) {
               mapped.allowedLoginDomain = incoming["Google 登入允許網域"];
             }
             Object.assign(mockSettings, mapped);

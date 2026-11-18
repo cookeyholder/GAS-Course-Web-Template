@@ -154,7 +154,9 @@ window.MEA = window.MEA || {};
     if (target === "") return "";
     const continueUrl = target + (target.indexOf("?") === -1 ? "?" : "&") + "switch=1";
     let url = GOOGLE_ACCOUNT_CHOOSER_URL + "?continue=" + encodeURIComponent(continueUrl);
-    const domain = String(allowedDomain || "").trim().replace(/^@/, "");
+    const domain = String(allowedDomain || "")
+      .trim()
+      .replace(/^@/, "");
     if (domain !== "") {
       url += "&hd=" + encodeURIComponent(domain);
     }

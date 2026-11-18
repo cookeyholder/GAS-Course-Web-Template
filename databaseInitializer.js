@@ -49,19 +49,21 @@ const ROLE_DEFINITIONS = {
 
 /** Node.js 單元測試用記憶體備援資料庫 */
 const MEMORY_SYSTEM_CONFIG = {
-  "學年度": "114",
-  "學期": "1",
-  "系統名稱": "Google Apps Script 應用程式範本",
+  學年度: "114",
+  學期: "1",
+  系統名稱: "Google Apps Script 應用程式範本",
   "OAuth Client ID": "",
   "OAuth Client Secret": "",
-  "登入白名單限制啟用": "false",
+  登入白名單限制啟用: "false",
   "Google 登入允許網域": ""
 };
 const MEMORY_WHITELIST = [];
 
 /** 角色名稱轉代碼對照 */
 function normalizeRole(role) {
-  const r = String(role || "").trim().toLowerCase();
+  const r = String(role || "")
+    .trim()
+    .toLowerCase();
   if (r === "系統管理員" || r === "admin") return "admin";
   if (r === "業務人員" || r === "staff") return "staff";
   if (r === "檢視人員" || r === "viewer") return "viewer";
@@ -90,7 +92,11 @@ function getRoleDisplayName(role) {
  */
 function initializeDatabaseSheets(options) {
   options = options || {};
-  const ss = options.spreadsheet || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const ss =
+    options.spreadsheet ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null);
   if (!ss) {
     throw new Error("找不到有效的試算表物件");
   }
@@ -141,7 +147,10 @@ function initializeDatabaseSheets(options) {
   if (!courseSheet) {
     courseSheet = ss.insertSheet(SHEET_COURSE_INDEX);
     if (courseSheet.getMaxColumns() < NORMALIZED_COURSE_HEADERS.length) {
-      courseSheet.insertColumnsAfter(courseSheet.getMaxColumns(), NORMALIZED_COURSE_HEADERS.length - courseSheet.getMaxColumns());
+      courseSheet.insertColumnsAfter(
+        courseSheet.getMaxColumns(),
+        NORMALIZED_COURSE_HEADERS.length - courseSheet.getMaxColumns()
+      );
     }
     courseSheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setValues([NORMALIZED_COURSE_HEADERS]);
     courseSheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setFontWeight("bold").setBackground("#e2e8f0");
@@ -158,7 +167,9 @@ function initializeDatabaseSheets(options) {
       [""],
       ["一、功能架構："],
       ["1. 系統設定與授權：包含系統運作基本參數（學年度、學期、OAuth Client ID）與使用者權限白名單。"],
-      ["2. 正規化課程索引：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"],
+      [
+        "2. 正規化課程索引：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"
+      ],
       ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
       [""],
       ["二、OAuth 2.0 Client ID 設定步驟："],
@@ -199,11 +210,7 @@ function parseConfigBoolean(value) {
     .trim()
     .toLowerCase();
   return (
-    normalized === "true" ||
-    normalized === "1" ||
-    normalized === "yes" ||
-    normalized === "是" ||
-    normalized === "啟用"
+    normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "是" || normalized === "啟用"
   );
 }
 
@@ -285,12 +292,12 @@ function saveSystemSettings(settings, ss) {
     clientSecret: "OAuth Client Secret",
     restrictWhitelist: "登入白名單限制啟用",
     allowedLoginDomain: "Google 登入允許網域",
-    "學年度": "學年度",
-    "學期": "學期",
-    "系統名稱": "系統名稱",
+    學年度: "學年度",
+    學期: "學期",
+    系統名稱: "系統名稱",
     "OAuth Client ID": "OAuth Client ID",
     "OAuth Client Secret": "OAuth Client Secret",
-    "登入白名單限制啟用": "登入白名單限制啟用",
+    登入白名單限制啟用: "登入白名單限制啟用",
     "Google 登入允許網域": "Google 登入允許網域"
   };
 
@@ -359,7 +366,11 @@ function saveSystemSettings(settings, ss) {
  * @returns {Array<Object>} 白名單帳號陣列
  */
 function readWhitelist(ss) {
-  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const targetSs =
+    ss ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null);
   if (!targetSs) return MEMORY_WHITELIST.slice();
 
   const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
@@ -372,14 +383,19 @@ function readWhitelist(ss) {
   const accounts = [];
 
   for (let i = 0; i < values.length; i++) {
-    const email = String(values[i][0] || "").trim().toLowerCase();
+    const email = String(values[i][0] || "")
+      .trim()
+      .toLowerCase();
     if (!email) continue;
     accounts.push({
       email: email,
       name: String(values[i][1] || "").trim(),
       role: normalizeRole(values[i][2]),
       roleName: getRoleDisplayName(values[i][2]),
-      enabled: values[i][3] === true || String(values[i][3] || "").toLowerCase() === "true" || String(values[i][3] || "").trim() === "是"
+      enabled:
+        values[i][3] === true ||
+        String(values[i][3] || "").toLowerCase() === "true" ||
+        String(values[i][3] || "").trim() === "是"
     });
   }
 
@@ -394,14 +410,20 @@ function readWhitelist(ss) {
  * @returns {Object} `{ ok: true, count }`
  */
 function saveWhitelist(accounts, ss) {
-  const targetSs = ss || (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet ? SpreadsheetApp.getActiveSpreadsheet() : null);
+  const targetSs =
+    ss ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null);
   const list = Array.isArray(accounts) ? accounts : [];
 
   if (!targetSs) {
     MEMORY_WHITELIST.length = 0;
     for (let i = 0; i < list.length; i++) {
       const item = list[i] || {};
-      const email = String(item.email || "").trim().toLowerCase();
+      const email = String(item.email || "")
+        .trim()
+        .toLowerCase();
       if (!email) continue;
       MEMORY_WHITELIST.push({
         email: email,
@@ -422,7 +444,9 @@ function saveWhitelist(accounts, ss) {
 
   for (let i = 0; i < list.length; i++) {
     const item = list[i] || {};
-    const email = String(item.email || "").trim().toLowerCase();
+    const email = String(item.email || "")
+      .trim()
+      .toLowerCase();
     if (!email) continue;
     rows.push([
       email,
@@ -437,7 +461,7 @@ function saveWhitelist(accounts, ss) {
   sheet.getRange(2, 4, currentLastRow, 4).clearContent();
 
   if (rows.length > 0) {
-    const safeRows = (typeof sanitizeRowMatrix === "function") ? sanitizeRowMatrix(rows) : rows;
+    const safeRows = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(rows) : rows;
     sheet.getRange(2, 4, safeRows.length, 4).setValues(safeRows);
   }
 
@@ -452,7 +476,9 @@ function saveWhitelist(accounts, ss) {
  * @returns {Object} `{ role, name, enabled, found }`
  */
 function getAccountRole(email, ss) {
-  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanEmail = String(email || "")
+    .trim()
+    .toLowerCase();
   const accounts = readWhitelist(ss);
 
   for (let i = 0; i < accounts.length; i++) {
@@ -485,19 +511,24 @@ function getAccountRole(email, ss) {
  * @returns {boolean} 是否觸發管理員開通
  */
 function bootstrapAdminIfNeeded(email, name, ss) {
-  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanEmail = String(email || "")
+    .trim()
+    .toLowerCase();
   if (!cleanEmail) return false;
 
   const accounts = readWhitelist(ss);
   if (accounts.length === 0) {
-    saveWhitelist([
-      {
-        email: cleanEmail,
-        name: name || cleanEmail,
-        role: "admin",
-        enabled: true
-      }
-    ], ss);
+    saveWhitelist(
+      [
+        {
+          email: cleanEmail,
+          name: name || cleanEmail,
+          role: "admin",
+          enabled: true
+        }
+      ],
+      ss
+    );
     return true;
   }
   return false;

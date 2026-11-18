@@ -70,7 +70,11 @@ console.log("開始執行 Web API 與權限驗證單元測試...\n");
   const utils = require("../utilities.js");
   assert.strictEqual(utils.sanitizeFormulaValue("=SUM(A1:A10)"), "'=SUM(A1:A10)", "以 = 開頭應加上單引號跳脫");
   assert.strictEqual(utils.sanitizeFormulaValue("+12345"), "'+12345", "以 + 開頭應加上單引號跳脫");
-  assert.strictEqual(utils.sanitizeFormulaValue("-CMD|' /C calc'!A0"), "'-CMD|' /C calc'!A0", "以 - 開頭應加上單引號跳脫");
+  assert.strictEqual(
+    utils.sanitizeFormulaValue("-CMD|' /C calc'!A0"),
+    "'-CMD|' /C calc'!A0",
+    "以 - 開頭應加上單引號跳脫"
+  );
   assert.strictEqual(utils.sanitizeFormulaValue("@SUM(B1)"), "'@SUM(B1)", "以 @ 開頭應加上單引號跳脫");
   assert.strictEqual(utils.sanitizeFormulaValue("普通文字科目"), "普通文字科目", "一般文字不應受影響");
 

@@ -12,10 +12,7 @@ window.MEA = window.MEA || {};
       settings: Object.assign({}, MEA.state.settings || {}, { loading: true })
     });
 
-    Promise.all([
-      MEA.api.call("getSystemSettings", {}),
-      MEA.api.call("getAccounts", {})
-    ])
+    Promise.all([MEA.api.call("getSystemSettings", {}), MEA.api.call("getAccounts", {})])
       .then(function (results) {
         const settingsRes = results[0];
         const accountsRes = results[1];
@@ -96,22 +93,23 @@ window.MEA = window.MEA || {};
   }
 
   function addAccountPrompt() {
-    const html = '<div class="form-group">'
-      + '  <label class="label">Google Email</label>'
-      + '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" />'
-      + '</div>'
-      + '<div class="form-group mt-2">'
-      + '  <label class="label">姓名或職稱</label>'
-      + '  <input type="text" id="newAccountName" class="input" placeholder="王小明" />'
-      + '</div>'
-      + '<div class="form-group mt-2">'
-      + '  <label class="label">指派角色</label>'
-      + '  <select id="newAccountRole" class="select">'
-      + '    <option value="viewer">檢視人員 (viewer)</option>'
-      + '    <option value="staff">業務人員 (staff)</option>'
-      + '    <option value="admin">系統管理員 (admin)</option>'
-      + '  </select>'
-      + '</div>';
+    const html =
+      '<div class="form-group">' +
+      '  <label class="label">Google Email</label>' +
+      '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" />' +
+      "</div>" +
+      '<div class="form-group mt-2">' +
+      '  <label class="label">姓名或職稱</label>' +
+      '  <input type="text" id="newAccountName" class="input" placeholder="王小明" />' +
+      "</div>" +
+      '<div class="form-group mt-2">' +
+      '  <label class="label">指派角色</label>' +
+      '  <select id="newAccountRole" class="select">' +
+      '    <option value="viewer">檢視人員 (viewer)</option>' +
+      '    <option value="staff">業務人員 (staff)</option>' +
+      '    <option value="admin">系統管理員 (admin)</option>' +
+      "  </select>" +
+      "</div>";
 
     MEA.ui.modal("新增授權帳號", html, [
       { text: "取消", secondary: true, onClick: MEA.ui.closeModal },
@@ -140,13 +138,15 @@ window.MEA = window.MEA || {};
             }
           }
 
-          const updated = cur.concat([{
-            email: email,
-            name: name || email,
-            role: role,
-            roleName: MEA.config.roleNames[role] || role,
-            enabled: true
-          }]);
+          const updated = cur.concat([
+            {
+              email: email,
+              name: name || email,
+              role: role,
+              roleName: MEA.config.roleNames[role] || role,
+              enabled: true
+            }
+          ]);
 
           saveAccountsList(updated);
           MEA.ui.closeModal();
@@ -157,7 +157,9 @@ window.MEA = window.MEA || {};
 
   function removeAccount(email) {
     const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
-    const updated = cur.filter(function (a) { return a.email !== email; });
+    const updated = cur.filter(function (a) {
+      return a.email !== email;
+    });
     saveAccountsList(updated);
   }
 
@@ -180,7 +182,8 @@ window.MEA = window.MEA || {};
       })
     });
 
-    MEA.api.call("saveWhitelist", { accounts: accounts })
+    MEA.api
+      .call("saveWhitelist", { accounts: accounts })
       .then(function (result) {
         MEA.setState({
           settings: Object.assign({}, MEA.state.settings || {}, { saving: false })
@@ -209,10 +212,14 @@ window.MEA = window.MEA || {};
     const saving = settings.saving;
 
     if (!isAdmin) {
-      return '<div class="panel">'
-        + '<div class="panel-header"><h2 class="panel-title">權限不足</h2></div>'
-        + '<div class="alert err">您目前的角色（' + MEA.ui.escapeHtml(user.roleName || user.role) + '）無權限檢視或修改系統設定與授權名單。</div>'
-        + '</div>';
+      return (
+        '<div class="panel">' +
+        '<div class="panel-header"><h2 class="panel-title">權限不足</h2></div>' +
+        '<div class="alert err">您目前的角色（' +
+        MEA.ui.escapeHtml(user.roleName || user.role) +
+        "）無權限檢視或修改系統設定與授權名單。</div>" +
+        "</div>"
+      );
     }
 
     let accountsRowsHtml = "";
@@ -221,20 +228,37 @@ window.MEA = window.MEA || {};
     } else {
       for (let i = 0; i < accounts.length; i++) {
         const a = accounts[i];
-        accountsRowsHtml += '<tr>'
-          + '<td><strong>' + MEA.ui.escapeHtml(a.email) + '</strong></td>'
-          + '<td>' + MEA.ui.escapeHtml(a.name) + '</td>'
-          + '<td><span class="pill ' + (a.role === "admin" ? "accent" : "muted") + '">' + MEA.ui.escapeHtml(a.roleName || a.role) + '</span></td>'
-          + '<td>'
-          + '  <span class="badge ' + (a.enabled ? "badge-ok" : "badge-err") + '">'
-          +      (a.enabled ? "已啟用" : "已停用")
-          + '  </span>'
-          + '</td>'
-          + '<td>'
-          + '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' + encodeURIComponent(a.email) + '\'))">' + (a.enabled ? "停用" : "啟用") + '</button>'
-          + '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' + encodeURIComponent(a.email) + '\'))">刪除</button>'
-          + '</td>'
-          + '</tr>';
+        accountsRowsHtml +=
+          "<tr>" +
+          "<td><strong>" +
+          MEA.ui.escapeHtml(a.email) +
+          "</strong></td>" +
+          "<td>" +
+          MEA.ui.escapeHtml(a.name) +
+          "</td>" +
+          '<td><span class="pill ' +
+          (a.role === "admin" ? "accent" : "muted") +
+          '">' +
+          MEA.ui.escapeHtml(a.roleName || a.role) +
+          "</span></td>" +
+          "<td>" +
+          '  <span class="badge ' +
+          (a.enabled ? "badge-ok" : "badge-err") +
+          '">' +
+          (a.enabled ? "已啟用" : "已停用") +
+          "  </span>" +
+          "</td>" +
+          "<td>" +
+          '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
+          encodeURIComponent(a.email) +
+          "'))\">" +
+          (a.enabled ? "停用" : "啟用") +
+          "</button>" +
+          '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
+          encodeURIComponent(a.email) +
+          "'))\">刪除</button>" +
+          "</td>" +
+          "</tr>";
       }
     }
 

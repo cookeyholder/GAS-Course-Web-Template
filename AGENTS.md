@@ -1,9 +1,11 @@
 <!-- OPENSPEC:START -->
+
 # OpenSpec Instructions
 
 These instructions are for AI assistants working in this project.
 
 Always check `@/openspec/` or repository documentation when the request:
+
 - Mentions planning, architecture shifts, or proposals
 - Introduces new capabilities, breaking changes, or big performance/security work
 - Sounds ambiguous and you need the authoritative spec before coding
@@ -40,6 +42,7 @@ Always check `@/openspec/` or repository documentation when the request:
 ## 模組職責劃分
 
 ### 後端模組（根目錄 `*.js`）
+
 - **`main.js`**: Google 試算表工具列選單入口（`onOpen`），提供「初始化後端資料庫」與彈出視窗「開啟 Web App 網頁」功能。
 - **`databaseInitializer.js`**: 試算表資料庫純資料工作表初始化（`系統設定與授權`、`正規化課程索引`、`系統使用說明`），具安全冪等性；處理系統參數讀寫與授權白名單維護，內建首次登入管理員防鎖死機制。
 - **`subjectCodeTransformer.js`**: 108 課綱課程代碼對照字典（群別、科別、屬性、必選修）、39 欄寬表全數展開為 14 欄 1NF 紀錄演算法、5,000 筆分塊批次寫入（Chunking）與分頁檢索函式。
@@ -47,6 +50,7 @@ Always check `@/openspec/` or repository documentation when the request:
 - **`utilities.js`**: 試算表安全格式化（`safeSetNumberFormat`, `safeApplySheetFontSize`）、無 UI 環境防護（`safeUiAlert`）與通用純工具。
 
 ### 前端模組（`webapp/` 目錄）
+
 - **`webapp/index.html`**: 前端骨架樣板，定義 `BUILD:CSS` 與 `BUILD:JS` 注入標記。
 - **`webapp/styles.css`**: 多風格 CSS 設計系統（包含極簡曜藍 Modern Slate、圖紙風格 Blueprint、紙張風格 Paper、新粗獷主義 Neo-Brutalism、黏土擬物 Claymorphism、紅白機 NES、Happy Hues 色彩盤）與深淺色模式。
 - **`webapp/js/config.js`**: 前端全域參數、導覽頁籤清單（概覽、匯入、課程、設定）與樣式字典。
@@ -62,6 +66,7 @@ Always check `@/openspec/` or repository documentation when the request:
 - **`webapp/js/app.js`**: 前端進入點與應用程式生命週期管理。
 
 ### 建置與測試
+
 - **`scripts/build-webapp.js`**: 純原生 Node.js 打包腳本，將 `webapp/` 內嵌為根目錄單一 `index.html`。
 - **`tests/courseCodeNormalization.test.js`**: 課綱 39 欄全數展開（不剔除任何科目）、前後端同構邏輯單元測試。
 - **`tests/api.test.js`**: API 路由派發、Session 生命週期與 RBAC 權限矩陣單元測試。
@@ -136,6 +141,7 @@ npm run open-webapp
 ## 測試與變更檢驗標準
 
 任何程式碼或功能變更前與提交前，必須通過以下檢驗標準：
+
 1. **單元測試全數通過**：執行 `npm test`，確認代碼正規化與 API 路由權限無回退（Regression）。
 2. **打包驗證無缺漏**：執行 `npm run build:webapp`，確認產生之 `index.html` 內嵌順序正常且無語法錯誤。
 3. **離線 Mock 模式相容**：若變更前端介面，需確保開啟 `index.html?mock=true` 能正常運作與渲染。
@@ -147,7 +153,9 @@ npm run open-webapp
 所有 Git Commit 訊息與 Pull Request（PR）標題與描述，**一律使用臺灣繁體中文 (`zh-TW`)** 並遵循臺灣用詞慣例（專業術語除外）。
 
 ### Commit 訊息
+
 請符合 Conventional Commits 規範撰寫：
+
 - `feat`: 新增功能或介面模組
 - `fix`: 修復錯誤或權限問題
 - `docs`: 修改或新增技術手冊文件
@@ -160,42 +168,51 @@ npm run open-webapp
 發起 GitHub Pull Request 時，標題與內文必須嚴格遵循 **臺灣繁體中文 (`zh-TW`)**，並採用結構化的標準 PR 訊息架構：
 
 #### 1. PR 標題格式
+
 格式：`<type>: <臺灣繁體中文簡短描述>`（例如：`feat: 新增課程代碼即時檢索與篩選器`、`docs: 補充 GIS 登入設定教學手冊`）。
 
 #### 2. PR 內文標準樣板
+
 PR 內文應包含以下五大核心區塊：
 
 ```markdown
 ## 變更摘要
+
 - 本次 PR 變更以下模組：<列出主要變更模組或目錄，如 webapp/js, docs 等>
 - 涵蓋 commit：
   - <commit hash 或訊息 1>
   - <commit hash 或訊息 2>
 
 ## 主要變更項目
+
 - **<檔案路徑 1>**：<語意化變更說明，如：新增某函式、調整某邏輯>（+X/-Y 行）
 - **<檔案路徑 2>**：<語意化變更說明>
 
 ## 測試與驗證
+
 - [x] 單元測試
 - [ ] 整合測試
 - [x] 手動驗證
 - [ ] 靜態檢查（Lint/型別檢查）
 
 測試細節：
+
 - 指令：`npm test`（或相關建置/驗證指令）
 - 結果：所有測試通過，無任何回退錯誤
 
 ## 風險與回滾
+
 - 潛在風險：<說明變更對現有系統之影響等級，例如：低風險，未更動對外 API 介面>
 - 監控指標：<說明如何確認線上運作正常，例如：GAS 執行日誌 (StackDriver Logs)>
 - 回滾方式：`git revert HEAD`
 
 ## 相關議題
+
 - <關聯之 Issue，如 Closes #123；若無則填寫「無相關 Issue」>
 ```
 
 #### 3. 撰寫與驗證守則
+
 - **語言純淨度**：嚴禁使用中國用語（「拉取請求」應作「Pull Request」、「默認」應作「預設」、「配置」應作「設定」、「代碼」應作「程式碼」、「運行」應作「執行」、「優化」應作「最佳化」）。
 - **完整性**：內文禁止殘留未填寫的占位文字（如「請填入」等標籤），且禁止包含字面的 `\n` 跳脫字串（以免 GitHub 渲染異常）。
 - **實質檢驗**：測試核取清單至少需勾選並完成 2 項驗證，嚴禁在未執行測試前逕行宣稱通過。

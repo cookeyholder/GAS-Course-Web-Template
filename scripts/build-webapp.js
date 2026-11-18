@@ -64,9 +64,11 @@ function build() {
     throw new Error("BUILD:JS 區塊中沒有任何 <script src>");
   }
 
-  const inline = scripts.map(function (script) {
-    return "  <script>\n/* " + script.relative + " */\n" + escapeScript(script.source.trim()) + "\n  </script>";
-  }).join("\n");
+  const inline = scripts
+    .map(function (script) {
+      return "  <script>\n/* " + script.relative + " */\n" + escapeScript(script.source.trim()) + "\n  </script>";
+    })
+    .join("\n");
 
   html = html.replace(jsBlock, function () {
     return inline;
@@ -81,16 +83,24 @@ function build() {
   return {
     output: OUTPUT,
     bytes: Buffer.byteLength(html, "utf8"),
-    scripts: scripts.map(function (script) { return script.relative; })
+    scripts: scripts.map(function (script) {
+      return script.relative;
+    })
   };
 }
 
 if (require.main === module) {
   try {
     const result = build();
-    console.log("已產生 " + path.relative(ROOT, result.output)
-      + "（" + result.bytes.toLocaleString("en-US") + " bytes，內嵌 "
-      + result.scripts.length + " 個腳本）");
+    console.log(
+      "已產生 " +
+        path.relative(ROOT, result.output) +
+        "（" +
+        result.bytes.toLocaleString("en-US") +
+        " bytes，內嵌 " +
+        result.scripts.length +
+        " 個腳本）"
+    );
     console.log("腳本順序：" + result.scripts.join(" → "));
   } catch (error) {
     console.error("[build-webapp] " + (error && error.message ? error.message : error));

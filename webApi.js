@@ -40,7 +40,13 @@ const WEB_API_PUBLIC_ACTIONS = ["getPublicConfig", "ping", "login", "loginWithAc
 /** 寫入型 action（需 LockService 保護與 CSRF 驗證） */
 const WEB_API_WRITE_ACTIONS = ["importCourseCodes", "saveSystemSettings", "saveWhitelist", "logout"];
 
-const WEB_API_LOCKED_ACTIONS = ["importCourseCodes", "saveSystemSettings", "saveWhitelist", "login", "loginWithActiveUser"];
+const WEB_API_LOCKED_ACTIONS = [
+  "importCourseCodes",
+  "saveSystemSettings",
+  "saveWhitelist",
+  "login",
+  "loginWithActiveUser"
+];
 
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const WEB_API_SESSION_PREFIX = "gas_tmpl_session_";
@@ -172,13 +178,18 @@ function createSessionForEmail(email, name, options) {
       ? SpreadsheetApp.getActiveSpreadsheet()
       : null);
 
-  const cleanEmail = String(email || "").trim().toLowerCase();
+  const cleanEmail = String(email || "")
+    .trim()
+    .toLowerCase();
   const bootstrapped = bootstrapAdminIfNeeded(cleanEmail, name, ss);
   const account = getAccountRole(cleanEmail, ss);
   const settings = readSystemSettings(ss);
 
   if (!isAllowedGoogleDomain(cleanEmail, settings.allowedLoginDomain)) {
-    return webApiError("domain_not_allowed", "僅允許 " + normalizeAllowedDomain(settings.allowedLoginDomain) + " 網域帳號登入");
+    return webApiError(
+      "domain_not_allowed",
+      "僅允許 " + normalizeAllowedDomain(settings.allowedLoginDomain) + " 網域帳號登入"
+    );
   }
 
   if (settings.restrictWhitelist && !account.found) {
@@ -304,7 +315,9 @@ function loginWithActiveUser(options) {
   let email = "";
   try {
     if (typeof Session !== "undefined" && Session.getActiveUser) {
-      email = String(Session.getActiveUser().getEmail() || "").trim().toLowerCase();
+      email = String(Session.getActiveUser().getEmail() || "")
+        .trim()
+        .toLowerCase();
     }
   } catch (e) {
     email = "";
@@ -486,10 +499,7 @@ function authorizeWebApiAction(action, payload) {
   if (!sessionResult.ok) return sessionResult;
 
   if (!hasPermission(sessionResult.session.role, action)) {
-    return webApiError(
-      "forbidden",
-      "目前角色（" + sessionResult.session.role + "）無權限執行：" + action
-    );
+    return webApiError("forbidden", "目前角色（" + sessionResult.session.role + "）無權限執行：" + action);
   }
 
   return { ok: true, session: sessionResult.session };

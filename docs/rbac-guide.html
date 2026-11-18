@@ -1,448 +1,517 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-TW" data-theme="light">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>RBAC 帳號角色權限管理教學 - GAS 應用程式範本</title>
-  <style>
-    :root {
-      --bg: #f8fafc;
-      --paper: #ffffff;
-      --ink: #0f172a;
-      --ink-muted: #475569;
-      --ink-subtle: #94a3b8;
-      --line: #e2e8f0;
-      --line-subtle: #f1f5f9;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --primary-bg: #eff6ff;
-      --ok: #16a34a;
-      --ok-bg: #f0fdf4;
-      --warn: #ea580c;
-      --warn-bg: #fff7ed;
-      --err: #dc2626;
-      --err-bg: #fef2f2;
-      --code-bg: #0f172a;
-      --code-ink: #f8fafc;
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-      --radius: 8px;
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
-      --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, Menlo, monospace;
-    }
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RBAC 帳號角色權限管理教學 - GAS 應用程式範本</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --paper: #ffffff;
+        --ink: #0f172a;
+        --ink-muted: #475569;
+        --ink-subtle: #94a3b8;
+        --line: #e2e8f0;
+        --line-subtle: #f1f5f9;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --primary-bg: #eff6ff;
+        --ok: #16a34a;
+        --ok-bg: #f0fdf4;
+        --warn: #ea580c;
+        --warn-bg: #fff7ed;
+        --err: #dc2626;
+        --err-bg: #fef2f2;
+        --code-bg: #0f172a;
+        --code-ink: #f8fafc;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        --radius: 8px;
+        --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+        --font-mono: "IBM Plex Mono", "SFMono-Regular", Consolas, Menlo, monospace;
+      }
 
-    html[data-theme="dark"] {
-      --bg: #0b1120;
-      --paper: #1e293b;
-      --ink: #f8fafc;
-      --ink-muted: #cbd5e1;
-      --ink-subtle: #64748b;
-      --line: #334155;
-      --line-subtle: #1e293b;
-      --primary: #3b82f6;
-      --primary-hover: #60a5fa;
-      --primary-bg: #1e3a8a33;
-      --ok: #22c55e;
-      --ok-bg: #052e1633;
-      --warn: #f97316;
-      --warn-bg: #43140733;
-      --err: #ef4444;
-      --err-bg: #450a0a33;
-      --code-bg: #030712;
-      --code-ink: #f9fafb;
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    }
+      html[data-theme="dark"] {
+        --bg: #0b1120;
+        --paper: #1e293b;
+        --ink: #f8fafc;
+        --ink-muted: #cbd5e1;
+        --ink-subtle: #64748b;
+        --line: #334155;
+        --line-subtle: #1e293b;
+        --primary: #3b82f6;
+        --primary-hover: #60a5fa;
+        --primary-bg: #1e3a8a33;
+        --ok: #22c55e;
+        --ok-bg: #052e1633;
+        --warn: #f97316;
+        --warn-bg: #43140733;
+        --err: #ef4444;
+        --err-bg: #450a0a33;
+        --code-bg: #030712;
+        --code-ink: #f9fafb;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      }
 
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: var(--font-sans);
-      background-color: var(--bg);
-      color: var(--ink);
-      line-height: 1.65;
-      font-size: 15px;
-      padding-bottom: 60px;
-    }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: var(--font-sans);
+        background-color: var(--bg);
+        color: var(--ink);
+        line-height: 1.65;
+        font-size: 15px;
+        padding-bottom: 60px;
+      }
 
-    a { color: var(--primary); text-decoration: none; }
-    a:hover { text-decoration: underline; }
+      a {
+        color: var(--primary);
+        text-decoration: none;
+      }
+      a:hover {
+        text-decoration: underline;
+      }
 
-    /* Header */
-    .top-bar {
-      background: var(--paper);
-      border-bottom: 1px solid var(--line);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: var(--shadow);
-    }
-    .top-bar-inner {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 12px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-weight: 600;
-      font-size: 16px;
-    }
-    .brand-icon {
-      width: 32px;
-      height: 32px;
-      background: var(--primary-bg);
-      color: var(--primary);
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-    }
-    .tools {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .btn-toggle {
-      background: var(--line-subtle);
-      border: 1px solid var(--line);
-      color: var(--ink);
-      padding: 6px 14px;
-      border-radius: 6px;
-      font-size: 13px;
-      cursor: pointer;
-      font-weight: 500;
-      transition: all 0.2s;
-    }
-    .btn-toggle:hover {
-      background: var(--line);
-    }
+      /* Header */
+      .top-bar {
+        background: var(--paper);
+        border-bottom: 1px solid var(--line);
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        box-shadow: var(--shadow);
+      }
+      .top-bar-inner {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 12px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-weight: 600;
+        font-size: 16px;
+      }
+      .brand-icon {
+        width: 32px;
+        height: 32px;
+        background: var(--primary-bg);
+        color: var(--primary);
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      }
+      .tools {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+      .btn-toggle {
+        background: var(--line-subtle);
+        border: 1px solid var(--line);
+        color: var(--ink);
+        padding: 6px 14px;
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+      .btn-toggle:hover {
+        background: var(--line);
+      }
 
-    /* Layout */
-    .container {
-      max-width: 1200px;
-      margin: 32px auto;
-      padding: 0 24px;
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      gap: 36px;
-      align-items: start;
-    }
+      /* Layout */
+      .container {
+        max-width: 1200px;
+        margin: 32px auto;
+        padding: 0 24px;
+        display: grid;
+        grid-template-columns: 240px 1fr;
+        gap: 36px;
+        align-items: start;
+      }
 
-    @media (max-width: 860px) {
-      .container { grid-template-columns: 1fr; }
-      .toc-sidebar { display: none; }
-    }
+      @media (max-width: 860px) {
+        .container {
+          grid-template-columns: 1fr;
+        }
+        .toc-sidebar {
+          display: none;
+        }
+      }
 
-    /* TOC Sidebar */
-    .toc-sidebar {
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 20px;
-      position: sticky;
-      top: 80px;
-      box-shadow: var(--shadow);
-    }
-    .toc-title {
-      font-size: 13px;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      color: var(--ink-subtle);
-      margin-bottom: 14px;
-      font-weight: 700;
-    }
-    .toc-list {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      font-size: 13.5px;
-    }
-    .toc-list a {
-      color: var(--ink-muted);
-      display: block;
-      padding: 4px 8px;
-      border-radius: 4px;
-      transition: all 0.15s;
-    }
-    .toc-list a:hover {
-      background: var(--primary-bg);
-      color: var(--primary);
-      text-decoration: none;
-    }
+      /* TOC Sidebar */
+      .toc-sidebar {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 20px;
+        position: sticky;
+        top: 80px;
+        box-shadow: var(--shadow);
+      }
+      .toc-title {
+        font-size: 13px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: var(--ink-subtle);
+        margin-bottom: 14px;
+        font-weight: 700;
+      }
+      .toc-list {
+        list-style: none;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 13.5px;
+      }
+      .toc-list a {
+        color: var(--ink-muted);
+        display: block;
+        padding: 4px 8px;
+        border-radius: 4px;
+        transition: all 0.15s;
+      }
+      .toc-list a:hover {
+        background: var(--primary-bg);
+        color: var(--primary);
+        text-decoration: none;
+      }
 
-    /* Main Content */
-    .content {
-      min-width: 0;
-    }
-    .doc-hero {
-      margin-bottom: 32px;
-      background: var(--paper);
-      padding: 32px;
-      border-radius: var(--radius);
-      border: 1px solid var(--line);
-      box-shadow: var(--shadow);
-    }
-    .badge {
-      display: inline-block;
-      padding: 3px 10px;
-      border-radius: 9999px;
-      font-size: 12px;
-      font-weight: 600;
-      margin-bottom: 12px;
-      background: var(--primary-bg);
-      color: var(--primary);
-    }
-    .doc-title {
-      font-size: 28px;
-      font-weight: 800;
-      letter-spacing: -0.02em;
-      margin-bottom: 12px;
-      line-height: 1.25;
-    }
-    .doc-desc {
-      color: var(--ink-muted);
-      font-size: 16px;
-    }
+      /* Main Content */
+      .content {
+        min-width: 0;
+      }
+      .doc-hero {
+        margin-bottom: 32px;
+        background: var(--paper);
+        padding: 32px;
+        border-radius: var(--radius);
+        border: 1px solid var(--line);
+        box-shadow: var(--shadow);
+      }
+      .badge {
+        display: inline-block;
+        padding: 3px 10px;
+        border-radius: 9999px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 12px;
+        background: var(--primary-bg);
+        color: var(--primary);
+      }
+      .doc-title {
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 12px;
+        line-height: 1.25;
+      }
+      .doc-desc {
+        color: var(--ink-muted);
+        font-size: 16px;
+      }
 
-    .section {
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 28px;
-      margin-bottom: 24px;
-      box-shadow: var(--shadow);
-    }
-    .section-title {
-      font-size: 20px;
-      font-weight: 700;
-      margin-bottom: 16px;
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      border-bottom: 1px solid var(--line-subtle);
-      padding-bottom: 10px;
-    }
-    .step-num {
-      width: 26px;
-      height: 26px;
-      background: var(--primary);
-      color: #ffffff;
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-      font-weight: 700;
-      flex-shrink: 0;
-    }
+      .section {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 28px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow);
+      }
+      .section-title {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border-bottom: 1px solid var(--line-subtle);
+        padding-bottom: 10px;
+      }
+      .step-num {
+        width: 26px;
+        height: 26px;
+        background: var(--primary);
+        color: #ffffff;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        flex-shrink: 0;
+      }
 
-    p { margin-bottom: 14px; color: var(--ink-muted); }
-    strong { color: var(--ink); font-weight: 600; }
+      p {
+        margin-bottom: 14px;
+        color: var(--ink-muted);
+      }
+      strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
 
-    /* Flow Chart */
-    .flow-diagram {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-      gap: 12px;
-      margin: 20px 0;
-    }
-    .flow-node {
-      background: var(--line-subtle);
-      border: 1px solid var(--line);
-      padding: 14px;
-      border-radius: 6px;
-      text-align: center;
-      font-size: 13px;
-      position: relative;
-    }
-    .flow-node strong {
-      display: block;
-      font-size: 14px;
-      margin-bottom: 4px;
-      color: var(--primary);
-    }
+      /* Flow Chart */
+      .flow-diagram {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 12px;
+        margin: 20px 0;
+      }
+      .flow-node {
+        background: var(--line-subtle);
+        border: 1px solid var(--line);
+        padding: 14px;
+        border-radius: 6px;
+        text-align: center;
+        font-size: 13px;
+        position: relative;
+      }
+      .flow-node strong {
+        display: block;
+        font-size: 14px;
+        margin-bottom: 4px;
+        color: var(--primary);
+      }
 
-    /* Alerts */
-    .alert {
-      padding: 14px 18px;
-      border-radius: 6px;
-      font-size: 14px;
-      margin: 16px 0;
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-    }
-    .alert.tip { background: var(--ok-bg); color: var(--ok); border: 1px solid var(--ok); }
-    .alert.warn { background: var(--warn-bg); color: var(--warn); border: 1px solid var(--warn); }
-    .alert.info { background: var(--primary-bg); color: var(--primary); border: 1px solid var(--primary); }
+      /* Alerts */
+      .alert {
+        padding: 14px 18px;
+        border-radius: 6px;
+        font-size: 14px;
+        margin: 16px 0;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+      }
+      .alert.tip {
+        background: var(--ok-bg);
+        color: var(--ok);
+        border: 1px solid var(--ok);
+      }
+      .alert.warn {
+        background: var(--warn-bg);
+        color: var(--warn);
+        border: 1px solid var(--warn);
+      }
+      .alert.info {
+        background: var(--primary-bg);
+        color: var(--primary);
+        border: 1px solid var(--primary);
+      }
 
-    /* Code Blocks */
-    .code-box {
-      margin: 16px 0 20px;
-      border-radius: 6px;
-      overflow: hidden;
-      border: 1px solid var(--line);
-    }
-    .code-header {
-      background: #1e293b;
-      color: #94a3b8;
-      padding: 8px 16px;
-      font-size: 12px;
-      font-family: var(--font-mono);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    .copy-btn {
-      background: rgba(255, 255, 255, 0.1);
-      border: none;
-      color: #cbd5e1;
-      padding: 3px 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      cursor: pointer;
-    }
-    .copy-btn:hover { background: rgba(255, 255, 255, 0.2); }
-    pre {
-      background: var(--code-bg);
-      color: var(--code-ink);
-      padding: 16px;
-      overflow-x: auto;
-      font-family: var(--font-mono);
-      font-size: 13px;
-      line-height: 1.55;
-    }
-    code { font-family: var(--font-mono); }
-    p code, li code {
-      background: var(--line-subtle);
-      border: 1px solid var(--line);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-size: 12.5px;
-      color: var(--primary);
-    }
+      /* Code Blocks */
+      .code-box {
+        margin: 16px 0 20px;
+        border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+      }
+      .code-header {
+        background: #1e293b;
+        color: #94a3b8;
+        padding: 8px 16px;
+        font-size: 12px;
+        font-family: var(--font-mono);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .copy-btn {
+        background: rgba(255, 255, 255, 0.1);
+        border: none;
+        color: #cbd5e1;
+        padding: 3px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        cursor: pointer;
+      }
+      .copy-btn:hover {
+        background: rgba(255, 255, 255, 0.2);
+      }
+      pre {
+        background: var(--code-bg);
+        color: var(--code-ink);
+        padding: 16px;
+        overflow-x: auto;
+        font-family: var(--font-mono);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+      code {
+        font-family: var(--font-mono);
+      }
+      p code,
+      li code {
+        background: var(--line-subtle);
+        border: 1px solid var(--line);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 12.5px;
+        color: var(--primary);
+      }
 
-    /* Tables */
-    .doc-table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 16px 0;
-      font-size: 13.5px;
-    }
-    .doc-table th, .doc-table td {
-      border: 1px solid var(--line);
-      padding: 10px 14px;
-      text-align: left;
-    }
-    .doc-table th {
-      background: var(--line-subtle);
-      font-weight: 600;
-      color: var(--ink);
-    }
-    .doc-table tr:nth-child(even) td {
-      background: rgba(0, 0, 0, 0.015);
-    }
+      /* Tables */
+      .doc-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 16px 0;
+        font-size: 13.5px;
+      }
+      .doc-table th,
+      .doc-table td {
+        border: 1px solid var(--line);
+        padding: 10px 14px;
+        text-align: left;
+      }
+      .doc-table th {
+        background: var(--line-subtle);
+        font-weight: 600;
+        color: var(--ink);
+      }
+      .doc-table tr:nth-child(even) td {
+        background: rgba(0, 0, 0, 0.015);
+      }
 
-    ul, ol {
-      margin-left: 20px;
-      margin-bottom: 14px;
-      color: var(--ink-muted);
-    }
-    li { margin-bottom: 6px; }
-  </style>
-</head>
-<body>
-
-  <!-- Top Navigation -->
-  <header class="top-bar">
-    <div class="top-bar-inner">
-      <div class="brand">
-        <div class="brand-icon">📚</div>
-        <span>GAS 應用程式範本技術手冊</span>
+      ul,
+      ol {
+        margin-left: 20px;
+        margin-bottom: 14px;
+        color: var(--ink-muted);
+      }
+      li {
+        margin-bottom: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Top Navigation -->
+    <header class="top-bar">
+      <div class="top-bar-inner">
+        <div class="brand">
+          <div class="brand-icon">📚</div>
+          <span>GAS 應用程式範本技術手冊</span>
+        </div>
+        <div class="tools">
+          <a href="index.html" style="font-size: 13.5px; font-weight: 500">文件總覽</a>
+          <button class="btn-toggle" onclick="toggleTheme()" id="themeBtn">◐ 切換主題</button>
+        </div>
       </div>
-      <div class="tools">
-        <a href="index.html" style="font-size:13.5px; font-weight:500;">文件總覽</a>
-        <button class="btn-toggle" onclick="toggleTheme()" id="themeBtn">◐ 切換主題</button>
-      </div>
-    </div>
-  </header>
+    </header>
 
-  <div class="container">
-    <!-- Sidebar Table of Contents -->
-    <aside class="toc-sidebar">
-      <div class="toc-title">教學目錄</div>
-      <ul class="toc-list">
-        <li><a href="#overview">1. 權限體系核心概念</a></li>
-        <li><a href="#step1">2. 步驟一：定義新角色</a></li>
-        <li><a href="#step2">3. 步驟二：設定權限矩陣</a></li>
-        <li><a href="#step3">4. 步驟三：前端設定與守衛</a></li>
-        <li><a href="#step4">5. 步驟四：指派使用者角色</a></li>
-        <li><a href="#example">6. 完整實戰：新增主管角色</a></li>
-        <li><a href="#verification">7. 單元測試與上線驗證</a></li>
-        <li><a href="#references">8. 參考資料來源</a></li>
-      </ul>
-    </aside>
+    <div class="container">
+      <!-- Sidebar Table of Contents -->
+      <aside class="toc-sidebar">
+        <div class="toc-title">教學目錄</div>
+        <ul class="toc-list">
+          <li><a href="#overview">1. 權限體系核心概念</a></li>
+          <li><a href="#step1">2. 步驟一：定義新角色</a></li>
+          <li><a href="#step2">3. 步驟二：設定權限矩陣</a></li>
+          <li><a href="#step3">4. 步驟三：前端設定與守衛</a></li>
+          <li><a href="#step4">5. 步驟四：指派使用者角色</a></li>
+          <li><a href="#example">6. 完整實戰：新增主管角色</a></li>
+          <li><a href="#verification">7. 單元測試與上線驗證</a></li>
+          <li><a href="#references">8. 參考資料來源</a></li>
+        </ul>
+      </aside>
 
-    <!-- Main Content -->
-    <main class="content">
-      <div class="doc-hero">
-        <span class="badge">權限與安全性 · RBAC 指南</span>
-        <h1 class="doc-title">依帳號角色管理權限 (RBAC) 實作教學</h1>
-        <p class="doc-desc">本教學詳細介紹如何在 <code>GAS-Course-Web-Template</code> 專案中新增角色、定義權限矩陣，並於前後端實施完整的權限防護。</p>
-      </div>
-
-      <!-- Section 1 -->
-      <section class="section" id="overview">
-        <h2 class="section-title"><span class="step-num">1</span> 權限體系核心概念與架構</h2>
-        <p>本專案採用 <strong>RBAC（Role-Based Access Control，基於角色的存取控制）</strong> 架構，使用者與權限不直接綁定，而是透過「角色」作為中介：</p>
-
-        <div class="flow-diagram">
-          <div class="flow-node">
-            <strong>1. 身分驗證</strong>
-            Google GIS / Workspace 登入取得 Email
-          </div>
-          <div class="flow-node">
-            <strong>2. 角色查表</strong>
-            試算表「系統設定與授權」白名單
-          </div>
-          <div class="flow-node">
-            <strong>3. 快取 Session</strong>
-            CacheService 儲存 Token、角色與權限
-          </div>
-          <div class="flow-node">
-            <strong>4. 權限守衛</strong>
-            後端檢查 Action · 前端控制介面
-          </div>
+      <!-- Main Content -->
+      <main class="content">
+        <div class="doc-hero">
+          <span class="badge">權限與安全性 · RBAC 指南</span>
+          <h1 class="doc-title">依帳號角色管理權限 (RBAC) 實作教學</h1>
+          <p class="doc-desc">
+            本教學詳細介紹如何在
+            <code>GAS-Course-Web-Template</code> 專案中新增角色、定義權限矩陣，並於前後端實施完整的權限防護。
+          </p>
         </div>
 
-        <p>預設內建的三種基礎角色：</p>
-        <table class="doc-table">
-          <thead>
-            <tr><th>角色代碼</th><th>中文顯示名稱</th><th>存取層級</th><th>預設權限範圍</th></tr>
-          </thead>
-          <tbody>
-            <tr><td><code>admin</code></td><td>系統管理員</td><td>全域最高權限</td><td><code>["*"]</code>（可執行所有 API、修改系統參數與管理成員）</td></tr>
-            <tr><td><code>staff</code></td><td>業務人員</td><td>業務讀寫權限</td><td><code>["read", "importCourseCodes", "getCourseIndex"]</code></td></tr>
-            <tr><td><code>viewer</code></td><td>檢視人員</td><td>唯讀查詢權限</td><td><code>["read", "getCourseIndex"]</code>（僅能檢索公開清單）</td></tr>
-          </tbody>
-        </table>
-      </section>
+        <!-- Section 1 -->
+        <section class="section" id="overview">
+          <h2 class="section-title"><span class="step-num">1</span> 權限體系核心概念與架構</h2>
+          <p>
+            本專案採用
+            <strong>RBAC（Role-Based Access Control，基於角色的存取控制）</strong>
+            架構，使用者與權限不直接綁定，而是透過「角色」作為中介：
+          </p>
 
-      <!-- Section 2 -->
-      <section class="section" id="step1">
-        <h2 class="section-title"><span class="step-num">2</span> 步驟一：在後端定義角色與中文名稱</h2>
-        <p>所有角色定義集中於 <code>databaseInitializer.js</code>。若要新增角色（例如 <code>manager</code> 主管），請在此加入定義與標準化比對邏輯：</p>
-
-        <div class="code-box">
-          <div class="code-header">
-            <span>databaseInitializer.js (約第 36 行)</span>
-            <button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
+          <div class="flow-diagram">
+            <div class="flow-node">
+              <strong>1. 身分驗證</strong>
+              Google GIS / Workspace 登入取得 Email
+            </div>
+            <div class="flow-node">
+              <strong>2. 角色查表</strong>
+              試算表「系統設定與授權」白名單
+            </div>
+            <div class="flow-node">
+              <strong>3. 快取 Session</strong>
+              CacheService 儲存 Token、角色與權限
+            </div>
+            <div class="flow-node">
+              <strong>4. 權限守衛</strong>
+              後端檢查 Action · 前端控制介面
+            </div>
           </div>
-          <pre><code>/** 授權角色定義 */
+
+          <p>預設內建的三種基礎角色：</p>
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th>角色代碼</th>
+                <th>中文顯示名稱</th>
+                <th>存取層級</th>
+                <th>預設權限範圍</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><code>admin</code></td>
+                <td>系統管理員</td>
+                <td>全域最高權限</td>
+                <td><code>["*"]</code>（可執行所有 API、修改系統參數與管理成員）</td>
+              </tr>
+              <tr>
+                <td><code>staff</code></td>
+                <td>業務人員</td>
+                <td>業務讀寫權限</td>
+                <td><code>["read", "importCourseCodes", "getCourseIndex"]</code></td>
+              </tr>
+              <tr>
+                <td><code>viewer</code></td>
+                <td>檢視人員</td>
+                <td>唯讀查詢權限</td>
+                <td><code>["read", "getCourseIndex"]</code>（僅能檢索公開清單）</td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Section 2 -->
+        <section class="section" id="step1">
+          <h2 class="section-title"><span class="step-num">2</span> 步驟一：在後端定義角色與中文名稱</h2>
+          <p>
+            所有角色定義集中於 <code>databaseInitializer.js</code>。若要新增角色（例如
+            <code>manager</code> 主管），請在此加入定義與標準化比對邏輯：
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span>databaseInitializer.js (約第 36 行)</span>
+              <button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
+            </div>
+            <pre><code>/** 授權角色定義 */
 const ROLE_DEFINITIONS = {
   admin: "系統管理員",
   manager: "主管人員",   // 👈 1. 新增角色代碼與中文標籤
@@ -459,24 +528,29 @@ function normalizeRole(role) {
   if (r === "檢視人員" || r === "viewer") return "viewer";
   return r || "viewer";
 }</code></pre>
-        </div>
-
-        <div class="alert info">
-          <span>💡 <strong>設計亮點</strong>：<code>normalizeRole()</code> 同時支援輸入中文與代碼，讓試算表管理員即便在儲存格輸入「主管人員」或「manager」，後端都能正確辨別。</span>
-        </div>
-      </section>
-
-      <!-- Section 3 -->
-      <section class="section" id="step2">
-        <h2 class="section-title"><span class="step-num">3</span> 步驟二：設定後端權限矩陣 (ROLE_PERMISSIONS)</h2>
-        <p>開啟 <code>webApi.js</code>，在 <code>ROLE_PERMISSIONS</code> 中明確列出該角色被允許呼叫的 API Action 名稱：</p>
-
-        <div class="code-box">
-          <div class="code-header">
-            <span>webApi.js (約第 42 行)</span>
-            <button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
           </div>
-          <pre><code>/** 角色權限矩陣（RBAC） */
+
+          <div class="alert info">
+            <span
+              >💡 <strong>設計亮點</strong>：<code>normalizeRole()</code>
+              同時支援輸入中文與代碼，讓試算表管理員即便在儲存格輸入「主管人員」或「manager」，後端都能正確辨別。</span
+            >
+          </div>
+        </section>
+
+        <!-- Section 3 -->
+        <section class="section" id="step2">
+          <h2 class="section-title"><span class="step-num">3</span> 步驟二：設定後端權限矩陣 (ROLE_PERMISSIONS)</h2>
+          <p>
+            開啟 <code>webApi.js</code>，在 <code>ROLE_PERMISSIONS</code> 中明確列出該角色被允許呼叫的 API Action 名稱：
+          </p>
+
+          <div class="code-box">
+            <div class="code-header">
+              <span>webApi.js (約第 42 行)</span>
+              <button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
+            </div>
+            <pre><code>/** 角色權限矩陣（RBAC） */
 const ROLE_PERMISSIONS = {
   admin: ["*"], // 星號代表具備最高權限，可呼叫任何 Action
   manager: [    // 👈 主管專屬權限名單
@@ -496,35 +570,44 @@ const ROLE_PERMISSIONS = {
     "getCourseIndex"
   ]
 };</code></pre>
-        </div>
+          </div>
 
-        <div class="alert warn">
-          <span>🔒 <strong>後端防護機制</strong>：所有請求抵達 <code>routeWebApiAction()</code> 前，均會經由 <code>authorizeWebApiAction()</code> 進行驗證。即便有心人士繞過前端直接發送 POST，只要角色權限不符，後端一律回傳 <code>{ ok: false, error: "forbidden" }</code>。</span>
-        </div>
-      </section>
+          <div class="alert warn">
+            <span
+              >🔒 <strong>後端防護機制</strong>：所有請求抵達 <code>routeWebApiAction()</code> 前，均會經由
+              <code>authorizeWebApiAction()</code> 進行驗證。即便有心人士繞過前端直接發送
+              POST，只要角色權限不符，後端一律回傳 <code>{ ok: false, error: "forbidden" }</code>。</span
+            >
+          </div>
+        </section>
 
-      <!-- Section 4 -->
-      <section class="section" id="step3">
-        <h2 class="section-title"><span class="step-num">4</span> 步驟三：前端設定同步與權限守衛</h2>
-        <p>為了提供良好的使用者體驗，前端介面應配合權限進行相應的隱藏或禁用：</p>
+        <!-- Section 4 -->
+        <section class="section" id="step3">
+          <h2 class="section-title"><span class="step-num">4</span> 步驟三：前端設定同步與權限守衛</h2>
+          <p>為了提供良好的使用者體驗，前端介面應配合權限進行相應的隱藏或禁用：</p>
 
-        <h3 style="font-size:16px; margin: 16px 0 8px;">3.1 前端角色對照字典</h3>
-        <p>在 <code>webapp/js/config.js</code> 同步更新角色字典，供導覽列或使用者頭像顯示中文：</p>
-        <div class="code-box">
-          <div class="code-header"><span>webapp/js/config.js</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
-          <pre><code>roleNames: {
+          <h3 style="font-size: 16px; margin: 16px 0 8px">3.1 前端角色對照字典</h3>
+          <p>在 <code>webapp/js/config.js</code> 同步更新角色字典，供導覽列或使用者頭像顯示中文：</p>
+          <div class="code-box">
+            <div class="code-header">
+              <span>webapp/js/config.js</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
+            </div>
+            <pre><code>roleNames: {
   admin: "系統管理員",
   manager: "主管人員", // 👈 新增
   staff: "業務人員",
   viewer: "檢視人員"
 }</code></pre>
-        </div>
+          </div>
 
-        <h3 style="font-size:16px; margin: 16px 0 8px;">3.2 按鈕與操作權限守衛</h3>
-        <p>在特定功能頁面中（例如匯入按鈕），透過 <code>MEA.state.user.perms</code> 判斷是否具備權限：</p>
-        <div class="code-box">
-          <div class="code-header"><span>webapp/js/imports.js 或自訂模組</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
-          <pre><code>const user = MEA.state.user || {};
+          <h3 style="font-size: 16px; margin: 16px 0 8px">3.2 按鈕與操作權限守衛</h3>
+          <p>在特定功能頁面中（例如匯入按鈕），透過 <code>MEA.state.user.perms</code> 判斷是否具備權限：</p>
+          <div class="code-box">
+            <div class="code-header">
+              <span>webapp/js/imports.js 或自訂模組</span
+              ><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
+            </div>
+            <pre><code>const user = MEA.state.user || {};
 
 // 檢查是否具有特定 Action 權限或具備最高權限 *
 const canImport = user.perms && (user.perms.indexOf("*") !== -1 || user.perms.indexOf("importCourseCodes") !== -1);
@@ -534,13 +617,19 @@ if (!canImport) {
   submitBtn.disabled = true;
   submitBtn.title = "您目前的角色無權限執行匯入";
 }</code></pre>
-        </div>
+          </div>
 
-        <h3 style="font-size:16px; margin: 16px 0 8px;">3.3 導覽頁籤（Tab）過濾</h3>
-        <p>若希望「系統設定」或特定頁籤僅供指定角色看到，可在 <code>webapp/js/ui.js</code> 的 <code>renderNavbar()</code> 過濾頁籤：</p>
-        <div class="code-box">
-          <div class="code-header"><span>webapp/js/ui.js (renderNavbar 函式)</span><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button></div>
-          <pre><code>function renderNavbar() {
+          <h3 style="font-size: 16px; margin: 16px 0 8px">3.3 導覽頁籤（Tab）過濾</h3>
+          <p>
+            若希望「系統設定」或特定頁籤僅供指定角色看到，可在 <code>webapp/js/ui.js</code> 的
+            <code>renderNavbar()</code> 過濾頁籤：
+          </p>
+          <div class="code-box">
+            <div class="code-header">
+              <span>webapp/js/ui.js (renderNavbar 函式)</span
+              ><button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
+            </div>
+            <pre><code>function renderNavbar() {
   const user = MEA.state.user || {};
   const tabs = (MEA.config.tabs || []).filter(function(tab) {
     // 範例：設定頁籤僅 admin 可見
@@ -551,157 +640,209 @@ if (!canImport) {
   });
   // ... 渲染頁籤 HTML
 }</code></pre>
-        </div>
-      </section>
+          </div>
+        </section>
 
-      <!-- Section 5 -->
-      <section class="section" id="step4">
-        <h2 class="section-title"><span class="step-num">5</span> 步驟四：指派使用者角色</h2>
-        <p>您可以透過兩種途徑指派與調整使用者的角色：</p>
-        <ol>
-          <li>
-            <strong>透過 Web App 設定頁籤操作（推薦）</strong>：<br />
-            以 <code>admin</code> 登入 Web App，進入「<strong>系統設定與授權</strong>」頁籤，在白名單成員區塊點擊「<strong>＋ 新增授權成員</strong>」，輸入使用者的 Google Email 並從下拉選單指派角色。
-          </li>
-          <li>
-            <strong>直接編輯 Google 試算表</strong>：<br />
-            開啟試算表的「<strong>系統設定與授權</strong>」工作表，在右側區塊 D1:G（<code>Email</code>、<code>姓名/職稱</code>、<code>角色</code>、<code>啟用狀態</code>）直接輸入即可。
-          </li>
-        </ol>
-      </section>
+        <!-- Section 5 -->
+        <section class="section" id="step4">
+          <h2 class="section-title"><span class="step-num">5</span> 步驟四：指派使用者角色</h2>
+          <p>您可以透過兩種途徑指派與調整使用者的角色：</p>
+          <ol>
+            <li>
+              <strong>透過 Web App 設定頁籤操作（推薦）</strong>：<br />
+              以 <code>admin</code> 登入 Web
+              App，進入「<strong>系統設定與授權</strong>」頁籤，在白名單成員區塊點擊「<strong>＋ 新增授權成員</strong
+              >」，輸入使用者的 Google Email 並從下拉選單指派角色。
+            </li>
+            <li>
+              <strong>直接編輯 Google 試算表</strong>：<br />
+              開啟試算表的「<strong>系統設定與授權</strong>」工作表，在右側區塊
+              D1:G（<code>Email</code>、<code>姓名/職稱</code>、<code>角色</code>、<code>啟用狀態</code>）直接輸入即可。
+            </li>
+          </ol>
+        </section>
 
-      <!-- Section 6 -->
-      <section class="section" id="example">
-        <h2 class="section-title"><span class="step-num">6</span> 完整實戰：新增「稽核主管 (auditor)」角色</h2>
-        <p>假設需求：新增一個名為「<strong>稽核主管</strong>（<code>auditor</code>）」的角色，該角色能檢視課程清單與系統參數，但<strong>不能執行任何修改或匯入動作</strong>。</p>
+        <!-- Section 6 -->
+        <section class="section" id="example">
+          <h2 class="section-title"><span class="step-num">6</span> 完整實戰：新增「稽核主管 (auditor)」角色</h2>
+          <p>
+            假設需求：新增一個名為「<strong>稽核主管</strong>（<code>auditor</code>）」的角色，該角色能檢視課程清單與系統參數，但<strong>不能執行任何修改或匯入動作</strong>。
+          </p>
 
-        <p><strong>1. 修改 <code>databaseInitializer.js</code>：</strong></p>
-        <div class="code-box">
-          <pre><code>const ROLE_DEFINITIONS = {
+          <p>
+            <strong>1. 修改 <code>databaseInitializer.js</code>：</strong>
+          </p>
+          <div class="code-box">
+            <pre><code>const ROLE_DEFINITIONS = {
   admin: "系統管理員",
   auditor: "稽核主管",   // 👈
   staff: "業務人員",
   viewer: "檢視人員"
 };</code></pre>
-        </div>
+          </div>
 
-        <p><strong>2. 修改 <code>webApi.js</code>：</strong></p>
-        <div class="code-box">
-          <pre><code>const ROLE_PERMISSIONS = {
+          <p>
+            <strong>2. 修改 <code>webApi.js</code>：</strong>
+          </p>
+          <div class="code-box">
+            <pre><code>const ROLE_PERMISSIONS = {
   admin: ["*"],
   auditor: ["read", "getCourseIndex", "getSystemSettings"], // 👈 允許唯讀設定與課程
   staff: ["read", "importCourseCodes", "getCourseIndex", "getSystemSettings"],
   viewer: ["read", "getCourseIndex"]
 };</code></pre>
-        </div>
+          </div>
 
-        <p><strong>3. 修改 <code>webapp/js/config.js</code>：</strong></p>
-        <div class="code-box">
-          <pre><code>roleNames: {
+          <p>
+            <strong>3. 修改 <code>webapp/js/config.js</code>：</strong>
+          </p>
+          <div class="code-box">
+            <pre><code>roleNames: {
   admin: "系統管理員",
   auditor: "稽核主管",   // 👈
   staff: "業務人員",
   viewer: "檢視人員"
 }</code></pre>
-        </div>
+          </div>
 
-        <p><strong>4. 修改 <code>webapp/js/accounts.js</code>（在彈跳選單加入該選項）：</strong></p>
-        <div class="code-box">
-          <pre><code>&lt;select id="newAccountRole" class="select"&gt;
+          <p>
+            <strong>4. 修改 <code>webapp/js/accounts.js</code>（在彈跳選單加入該選項）：</strong>
+          </p>
+          <div class="code-box">
+            <pre><code>&lt;select id="newAccountRole" class="select"&gt;
   &lt;option value="viewer"&gt;檢視人員 (viewer)&lt;/option&gt;
   &lt;option value="staff"&gt;業務人員 (staff)&lt;/option&gt;
   &lt;option value="auditor"&gt;稽核主管 (auditor)&lt;/option&gt;
   &lt;option value="admin"&gt;系統管理員 (admin)&lt;/option&gt;
 &lt;/select&gt;</code></pre>
-        </div>
-      </section>
+          </div>
+        </section>
 
-      <!-- Section 7 -->
-      <section class="section" id="verification">
-        <h2 class="section-title"><span class="step-num">7</span> 單元測試與上線驗證</h2>
-        <p>修改完成後，建議依序執行以下驗證流程：</p>
-        <ol>
-          <li>
-            <strong>執行 Node.js 單元測試</strong>：
-            <div class="code-box">
-              <pre><code>npm test</code></pre>
-            </div>
-            確認既有的權限機制與代碼正規化皆全數通過。
-          </li>
-          <li>
-            <strong>重新建置前端單一 HTML</strong>：
-            <div class="code-box">
-              <pre><code>npm run build:webapp</code></pre>
-            </div>
-            打包腳本會自動將更新後的 <code>webapp/</code> 檔案重新內嵌至根目錄的 <code>index.html</code>。
-          </li>
-          <li>
-            <strong>推送部署至 Google Apps Script</strong>：
-            <div class="code-box">
-              <pre><code>npm run push</code></pre>
-            </div>
-            立即生效於線上試算表與 Web App 網頁！
-          </li>
-        </ol>
-      <!-- Section 8 -->
-      <section class="section" id="references">
-        <h2 class="section-title"><span class="step-num">8</span> 參考資料來源與官方文獻</h2>
-        <p>本教學與 RBAC 角色權限矩陣架構參考以下資訊安全規範與 Google 官方技術文件：</p>
-        
-        <table class="doc-table">
-          <thead>
-            <tr><th style="width:30%;">資料來源 / 文件名稱</th><th style="width:25%;">發布組織 / 標準編號</th><th>說明與官方連結</th></tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td><strong>Guide to Role Based Access Control (RBAC)</strong></td>
-              <td>NIST (美國國家標準暨技術研究院)</td>
-              <td>NIST Special Publication 800-162，定義角色導向存取控制模型、權限繼承與最小權限原則。<br /><a href="https://csrc.nist.gov/publications/detail/sp/800-162/final" target="_blank" rel="noopener">https://csrc.nist.gov/publications/detail/sp/800-162/final</a></td>
-            </tr>
-            <tr>
-              <td><strong>Google Apps Script - CacheService</strong></td>
-              <td>Google Workspace Developers</td>
-              <td>說明如何利用分散式快取儲存短期身分驗證 Token，避免頻繁查詢試算表造成的效能瓶頸。<br /><a href="https://developers.google.com/apps-script/reference/cache/cache-service" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/cache/cache-service</a></td>
-            </tr>
-            <tr>
-              <td><strong>Google Apps Script - LockService</strong></td>
-              <td>Google Workspace Developers</td>
-              <td>說明寫入型 Action 如何利用 ScriptLock 進行排隊防鎖，確保多成員並行寫入資料庫時之完整性。<br /><a href="https://developers.google.com/apps-script/reference/lock/lock-service" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/lock/lock-service</a></td>
-            </tr>
-            <tr>
-              <td><strong>Google Apps Script - SpreadsheetApp</strong></td>
-              <td>Google Workspace Developers</td>
-              <td>試算表白名單讀寫、純資料存儲與資料驗證官方 API 文件。<br /><a href="https://developers.google.com/apps-script/reference/spreadsheet/spreadsheet-app" target="_blank" rel="noopener">https://developers.google.com/apps-script/reference/spreadsheet/spreadsheet-app</a></td>
-            </tr>
-            <tr>
-              <td><strong>Exam-Sections-Arranger 開發手冊</strong></td>
-              <td>專案實踐文獻</td>
-              <td>母專案四階段跨處室角色權限接力模型（註冊組、教學組、課務組、管理員）之架構實踐。<br /><a href="file:///home/cookeyholder/Projects/Exam-Sections-Arranger/docs/DEVELOPMENT.md">Exam-Sections-Arranger/docs/DEVELOPMENT.md</a></td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
+        <!-- Section 7 -->
+        <section class="section" id="verification">
+          <h2 class="section-title"><span class="step-num">7</span> 單元測試與上線驗證</h2>
+          <p>修改完成後，建議依序執行以下驗證流程：</p>
+          <ol>
+            <li>
+              <strong>執行 Node.js 單元測試</strong>：
+              <div class="code-box">
+                <pre><code>npm test</code></pre>
+              </div>
+              確認既有的權限機制與代碼正規化皆全數通過。
+            </li>
+            <li>
+              <strong>重新建置前端單一 HTML</strong>：
+              <div class="code-box">
+                <pre><code>npm run build:webapp</code></pre>
+              </div>
+              打包腳本會自動將更新後的 <code>webapp/</code> 檔案重新內嵌至根目錄的 <code>index.html</code>。
+            </li>
+            <li>
+              <strong>推送部署至 Google Apps Script</strong>：
+              <div class="code-box">
+                <pre><code>npm run push</code></pre>
+              </div>
+              立即生效於線上試算表與 Web App 網頁！
+            </li>
+          </ol>
+        </section>
+        <!-- Section 8 -->
+        <section class="section" id="references">
+          <h2 class="section-title"><span class="step-num">8</span> 參考資料來源與官方文獻</h2>
+          <p>本教學與 RBAC 角色權限矩陣架構參考以下資訊安全規範與 Google 官方技術文件：</p>
 
-    </main>
-  </div>
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th style="width: 30%">資料來源 / 文件名稱</th>
+                <th style="width: 25%">發布組織 / 標準編號</th>
+                <th>說明與官方連結</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Guide to Role Based Access Control (RBAC)</strong></td>
+                <td>NIST (美國國家標準暨技術研究院)</td>
+                <td>
+                  NIST Special Publication 800-162，定義角色導向存取控制模型、權限繼承與最小權限原則。<br /><a
+                    href="https://csrc.nist.gov/publications/detail/sp/800-162/final"
+                    target="_blank"
+                    rel="noopener"
+                    >https://csrc.nist.gov/publications/detail/sp/800-162/final</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Google Apps Script - CacheService</strong></td>
+                <td>Google Workspace Developers</td>
+                <td>
+                  說明如何利用分散式快取儲存短期身分驗證 Token，避免頻繁查詢試算表造成的效能瓶頸。<br /><a
+                    href="https://developers.google.com/apps-script/reference/cache/cache-service"
+                    target="_blank"
+                    rel="noopener"
+                    >https://developers.google.com/apps-script/reference/cache/cache-service</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Google Apps Script - LockService</strong></td>
+                <td>Google Workspace Developers</td>
+                <td>
+                  說明寫入型 Action 如何利用 ScriptLock 進行排隊防鎖，確保多成員並行寫入資料庫時之完整性。<br /><a
+                    href="https://developers.google.com/apps-script/reference/lock/lock-service"
+                    target="_blank"
+                    rel="noopener"
+                    >https://developers.google.com/apps-script/reference/lock/lock-service</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Google Apps Script - SpreadsheetApp</strong></td>
+                <td>Google Workspace Developers</td>
+                <td>
+                  試算表白名單讀寫、純資料存儲與資料驗證官方 API 文件。<br /><a
+                    href="https://developers.google.com/apps-script/reference/spreadsheet/spreadsheet-app"
+                    target="_blank"
+                    rel="noopener"
+                    >https://developers.google.com/apps-script/reference/spreadsheet/spreadsheet-app</a
+                  >
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Exam-Sections-Arranger 開發手冊</strong></td>
+                <td>專案實踐文獻</td>
+                <td>
+                  母專案四階段跨處室角色權限接力模型（註冊組、教學組、課務組、管理員）之架構實踐。<br /><a
+                    href="file:///home/cookeyholder/Projects/Exam-Sections-Arranger/docs/DEVELOPMENT.md"
+                    >Exam-Sections-Arranger/docs/DEVELOPMENT.md</a
+                  >
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+      </main>
+    </div>
 
-  <script>
-    function toggleTheme() {
-      const cur = document.documentElement.dataset.theme;
-      const next = cur === "dark" ? "light" : "dark";
-      document.documentElement.dataset.theme = next;
-      localStorage.setItem("doc_theme", next);
-    }
-    const saved = localStorage.getItem("doc_theme");
-    if (saved) document.documentElement.dataset.theme = saved;
+    <script>
+      function toggleTheme() {
+        const cur = document.documentElement.dataset.theme;
+        const next = cur === "dark" ? "light" : "dark";
+        document.documentElement.dataset.theme = next;
+        localStorage.setItem("doc_theme", next);
+      }
+      const saved = localStorage.getItem("doc_theme");
+      if (saved) document.documentElement.dataset.theme = saved;
 
-    function copyCode(btn) {
-      const code = btn.closest(".code-box").querySelector("pre code").innerText;
-      navigator.clipboard.writeText(code).then(function() {
-        btn.innerText = "已複製！";
-        setTimeout(function() { btn.innerText = "複製程式碼"; }, 2000);
-      });
-    }
-  </script>
-</body>
+      function copyCode(btn) {
+        const code = btn.closest(".code-box").querySelector("pre code").innerText;
+        navigator.clipboard.writeText(code).then(function () {
+          btn.innerText = "已複製！";
+          setTimeout(function () {
+            btn.innerText = "複製程式碼";
+          }, 2000);
+        });
+      }
+    </script>
+  </body>
 </html>

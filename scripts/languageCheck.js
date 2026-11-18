@@ -57,15 +57,7 @@ const MAINLAND_TERMS = [
 ];
 
 /** 略過掃描之目錄 */
-const EXCLUDED_DIRECTORIES = new Set([
-  "node_modules",
-  "coverage",
-  ".git",
-  "dist",
-  ".clasp",
-  ".codegraph",
-  "openspec"
-]);
+const EXCLUDED_DIRECTORIES = new Set(["node_modules", "coverage", ".git", "dist", ".clasp", ".codegraph", "openspec"]);
 
 /**
  * 略過掃描之檔案。
@@ -175,19 +167,7 @@ function main() {
   results.forEach(function (item) {
     console.log("\n### " + item.file + "（" + item.violations.length + " 項）");
     item.violations.slice(0, 50).forEach(function (v) {
-      console.log(
-        "  " +
-          v.line +
-          " 行 [" +
-          v.kind +
-          "] " +
-          v.value +
-          " → " +
-          v.suggestion +
-          "：「" +
-          v.text +
-          "」"
-      );
+      console.log("  " + v.line + " 行 [" + v.kind + "] " + v.value + " → " + v.suggestion + "：「" + v.text + "」");
     });
     if (item.violations.length > 50) {
       console.log("  ... 其餘 " + (item.violations.length - 50) + " 項省略");

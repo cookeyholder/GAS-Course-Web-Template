@@ -1,6 +1,7 @@
 # Google Apps Script 網頁應用程式範本 (GAS-Course-Web-Template)
 
 本專案為 **Google Apps Script (GAS) 網頁應用程式全端範本**，具備四大核心架構：
+
 1. **雙軌身分驗證與 Session 安全機制**：支援一般網頁環境之 Google Identity Services（GIS）憑證登入，以及 GAS HtmlService 容器內的 ActiveUser / AccountChooser 帳號切換流程；並可依部署條件處理 OAuth 授權碼回呼與 `INITIAL_AUTH` 還原。後端驗證 Google ID Token（`iss`、`email_verified`、`aud`）、支援可選登入網域限制，登入後核發 Session 與 CSRF Token（寫入型 API 強制驗證），並提供 `?mock=true` 本機離線測試模式。
 2. **108 課綱課程代碼匯入與 1NF 正規化模組**：依據教育部國民及學前教育署政策與[全國高級中等學校課程計畫平臺](https://course.k12ea.gov.tw/courseinformation/course.asp)規範，自動解析自該平臺下載之 39 欄課綱寬表 Excel，完整匯入全數課程代碼（包含不分屬性 0 與特殊需求領域 6 等所有科目），展開為三年六學期實質開課之 14 欄標準第一正規化（1NF）課程索引表，並提供前端拖曳上傳、即時預覽統計與分頁檢索清單。
 3. **多風格現代前端設計系統**：內建極簡曜藍（Modern Slate）、圖紙風格（Blueprint）、典雅紙張（Paper）、新粗獷主義（Neo-Brutalism）、黏土擬物（Claymorphism）、紅白機像素（NES）、Happy Hues 等 13 款視覺風格切換與深淺色模式；全面支援通用卡片元件（`.card`）、頁籤導覽列（`.app-nav`、`.nav-tab`）、統計指標網格（`.metrics-grid`、`.metric-card`）、響應式表格（`.table-responsive`）、搜尋防抖（`debounce`）、列印防斷頁（`.print-signatures`），以及完整的 Toast 通知與 Modal 對話框。
@@ -140,11 +141,13 @@ npm run deploy
 
 ### 1. 108 課綱課程代碼與課程計畫 1NF 正規化原理
 
-108 課綱課程代碼與開課清冊為教育部推行之全國統一政策規格。依據國教署 111 年 11 月 18 日臺教國署高字第 1110159457 號函公告修訂之《**高級中等學校課程計畫資料交換規格及課程代碼介接規範**》（收錄於本專案 [docs/參考資料/](file:///home/cookeyholder/Projects/GAS-Course-Web-Template/docs/參考資料/A_高級中等學校課程計畫資料交換規格及課程代碼介接規範1111118(發文版).pdf)），官方資訊與開課查詢管道如下：
+108 課綱課程代碼與開課清冊為教育部推行之全國統一政策規格。依據國教署 111 年 11 月 18 日臺教國署高字第 1110159457 號函公告修訂之《**高級中等學校課程計畫資料交換規格及課程代碼介接規範**》（收錄於本專案 [docs/參考資料/](<file:///home/cookeyholder/Projects/GAS-Course-Web-Template/docs/參考資料/A_高級中等學校課程計畫資料交換規格及課程代碼介接規範1111118(發文版).pdf>)），官方資訊與開課查詢管道如下：
+
 - **[全國高級中等學校課程計畫平臺 - 課程計畫資料查詢](https://course.k12ea.gov.tw/courseinformation/data.asp)**：可依學年度、主管機關、學校類型與學校名稱，查詢全國各高中職經教育部備查之完整課程計畫書、總體架構與各科開課清冊。
 - **[全國高級中等學校課程計畫平臺 - 課程代碼查詢](https://course.k12ea.gov.tw/courseinformation/course.asp)**：提供 108 課綱 23 碼課程代碼結構（入學年3碼 + 校代碼6碼 + 課程類型1碼 + 群別2碼 + 科別3碼 + 班群1碼 + 課程類別1碼 + 開課方式1碼 + 科目屬性1碼 + 領域2碼 + 科目名稱代碼2碼）、部定/校訂必選修、群科別與科目屬性對照標準。該代碼一經備查通過編定後即永不變更，適合作為唯一識別碼（Primary Key）。
 
 自教育部課程計畫平臺下載之原始課綱資料皆遵循此 39 欄寬表標準結構，單一資料列橫向跨越三年六學期（一上～三下）。本模組處理邏輯如下：
+
 - **全數匯入**：完整保留所有課程代碼列，不剔除任何科目屬性（包含不分屬性 0 如團體活動時間、特殊需求領域 6 等皆全數納入展開）。
 - **1NF 展開**：逐一掃描六個學期之開課學分與時數，僅保留「學分 > 0 或時數 > 0」之學期，展開為獨立紀錄列。
 - **中文代碼轉譯**：
@@ -156,6 +159,7 @@ npm run deploy
 - **分批寫入防護**：以 5000 筆為一個 chunk 分批寫入試算表，避免單次 `setValues()` 過大導致 GAS 逾時。
 
 ### 2. 雙軌登入、Session 與通訊機制
+
 - **一般網頁環境**：前端載入 Google Identity Services（GIS）並取得 ID Token，呼叫後端 `login` 驗證後建立 Session。
 - **GAS 容器環境**：前端可透過 AccountChooser / `switch=1` 流程呼叫 `loginWithActiveUser`，避免沙箱 `origin_mismatch` 對 GIS 彈窗的限制。
 - **授權碼回呼（選用）**：`doGet` 可處理 OAuth 授權碼回呼並注入 `INITIAL_AUTH`，由前端啟動流程接手還原登入狀態（需正確設定 Client ID/Secret 與重新導向 URI）。
@@ -164,6 +168,7 @@ npm run deploy
 - 前端 API 於 GAS 容器優先使用 `google.script.run.executeWebApi`（RPC），非容器環境以 `POST text/plain;charset=utf-8` 備援並對暫時性錯誤進行重試。
 
 ### 3. 全方位資訊安全架構 (Security Hardening)
+
 - **試算表公式注入防護 (Formula Injection)**：
   在 `utilities.js` 提供 `sanitizeFormulaValue` 與 `sanitizeRowMatrix`，於寫入系統設定與白名單等試算表儲存格前，自動檢核開頭符號（`=`、`+`、`-`、`@`、`\t`、`\r`）並加上前置單引號，杜絕 CSV/試算表公式代碼注入攻擊。
 - **HTTP 方法白名單與 CSRF 防護**：
@@ -174,7 +179,9 @@ npm run deploy
   前端涉及使用者 Email 等動態參數之行內事件，一律使用 `decodeURIComponent(encodeURIComponent(...))` 處理，阻斷字串跳脫崩潰與 XSS。
 
 ### 4. 多風格視覺設計系統與現代元件
+
 可在網頁右上角下拉選單即時切換風格，並支援深色／淺色模式記憶（儲存於 LocalStorage）：
+
 - **13 款風格**：
   - `modern-slate`：極簡曜藍（預設風格 · Slate 冷灰極簡 · 曜藍高對比 · 精緻微陰影）
   - `blueprint`：圖紙風格（工程網格底紋 · 冷調科技藍）

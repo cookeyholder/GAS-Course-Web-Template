@@ -68,7 +68,7 @@ window.MEA = window.MEA || {};
         break;
       }
     }
-    const target = valid ? styleId : (MEA.config.defaultStyle || "modern-slate");
+    const target = valid ? styleId : MEA.config.defaultStyle || "modern-slate";
     document.documentElement.dataset.style = target;
     try {
       window.localStorage.setItem(MEA.config.styleKey, target);
@@ -141,7 +141,8 @@ window.MEA = window.MEA || {};
 
     const head = document.createElement("div");
     head.className = "modal-header";
-    head.innerHTML = '<h3 class="modal-title">' + escapeHtml(title) + '</h3><button class="modal-close" id="modalCloseBtn">✕</button>';
+    head.innerHTML =
+      '<h3 class="modal-title">' + escapeHtml(title) + '</h3><button class="modal-close" id="modalCloseBtn">✕</button>';
 
     const body = document.createElement("div");
     body.className = "modal-body";
@@ -197,13 +198,7 @@ window.MEA = window.MEA || {};
       const s = styles[i];
       const selected = s.id === curStyle ? " selected" : "";
       styleOptionsHtml +=
-        '<option value="' +
-        escapeHtml(s.id) +
-        '"' +
-        selected +
-        ">" +
-        escapeHtml(s.icon + " " + s.name) +
-        "</option>";
+        '<option value="' + escapeHtml(s.id) + '"' + selected + ">" + escapeHtml(s.icon + " " + s.name) + "</option>";
     }
 
     return (
@@ -253,15 +248,22 @@ window.MEA = window.MEA || {};
     for (let i = 0; i < tabs.length; i++) {
       const t = tabs[i];
       const active = t.id === currentTab ? " active" : "";
-      tabsHtml += '<button class="nav-tab' + active + '" onclick="MEA.setTab(\'' + t.id + '\')">'
-        + '<span class="nav-icon">' + t.icon + '</span>'
-        + '<span class="nav-name">' + escapeHtml(t.name) + '</span>'
-        + '</button>';
+      tabsHtml +=
+        '<button class="nav-tab' +
+        active +
+        '" onclick="MEA.setTab(\'' +
+        t.id +
+        "')\">" +
+        '<span class="nav-icon">' +
+        t.icon +
+        "</span>" +
+        '<span class="nav-name">' +
+        escapeHtml(t.name) +
+        "</span>" +
+        "</button>";
     }
 
-    return '<nav class="app-nav">'
-      + '<div class="nav-tabs-container">' + tabsHtml + '</div>'
-      + '</nav>';
+    return '<nav class="app-nav">' + '<div class="nav-tabs-container">' + tabsHtml + "</div>" + "</nav>";
   }
 
   // ============================================================================
@@ -281,13 +283,7 @@ window.MEA = window.MEA || {};
       const s = styles[i];
       const selected = s.id === curStyle ? " selected" : "";
       styleOptionsHtml +=
-        '<option value="' +
-        escapeHtml(s.id) +
-        '"' +
-        selected +
-        ">" +
-        escapeHtml(s.icon + " " + s.name) +
-        "</option>";
+        '<option value="' + escapeHtml(s.id) + '"' + selected + ">" + escapeHtml(s.icon + " " + s.name) + "</option>";
     }
 
     let errorHtml = "";
@@ -304,14 +300,13 @@ window.MEA = window.MEA || {};
     } else if (MEA.auth && typeof MEA.auth.isGasHosted === "function" && MEA.auth.isGasHosted()) {
       const activeEmail = String(config.activeEmail || "").trim();
       statusHtml = activeEmail
-        ? '<div class="login-hint">目前瀏覽器 Google 帳號：<strong>' +
-          escapeHtml(activeEmail) +
-          "</strong></div>"
+        ? '<div class="login-hint">目前瀏覽器 Google 帳號：<strong>' + escapeHtml(activeEmail) + "</strong></div>"
         : '<div class="login-hint">將透過 Google 帳戶選擇器以目前瀏覽器 Google 帳號登入。</div>';
     } else if (config.clientId) {
       statusHtml = '<div class="login-hint">使用 Google Identity Services 憑證進行登入驗證。</div>';
     } else {
-      statusHtml = '<div class="login-hint">尚未設定 OAuth Client ID；可請管理員於系統設定完成後再啟用 GIS 登入。</div>';
+      statusHtml =
+        '<div class="login-hint">尚未設定 OAuth Client ID；可請管理員於系統設定完成後再啟用 GIS 登入。</div>';
     }
 
     return (
@@ -364,7 +359,11 @@ window.MEA = window.MEA || {};
     const user = MEA.state.user || {};
     const courses = MEA.state.courses || {};
     const isGasHosted = MEA.auth && typeof MEA.auth.isGasHosted === "function" && MEA.auth.isGasHosted();
-    const loginMode = isGasHosted ? "GAS ActiveUser / AccountChooser" : config.clientId ? "Google Identity Services" : "未設定 Client ID";
+    const loginMode = isGasHosted
+      ? "GAS ActiveUser / AccountChooser"
+      : config.clientId
+        ? "Google Identity Services"
+        : "未設定 Client ID";
 
     return (
       '<div class="panel overview-panel">' +

@@ -86,11 +86,7 @@ window.MEA = window.MEA || {};
     });
 
     // GAS HtmlService 容器內優先使用原生 RPC，避免跨來源 fetch 問題
-    if (
-      typeof window.google !== "undefined" &&
-      window.google.script &&
-      typeof window.google.script.run === "object"
-    ) {
+    if (typeof window.google !== "undefined" && window.google.script && typeof window.google.script.run === "object") {
       return new Promise(function (resolve) {
         function resolveRpcError(error) {
           resolve({
@@ -172,9 +168,7 @@ window.MEA = window.MEA || {};
       return requestOnce(action, payload).then(function (result) {
         const isRetryableError =
           result &&
-          (result.error === "rate_limited" ||
-            result.error === "lock_timeout" ||
-            result.error === "network_error");
+          (result.error === "rate_limited" || result.error === "lock_timeout" || result.error === "network_error");
 
         if (result && result.ok !== true && isRetryableError && attempt < delays.length) {
           const delay = delays[attempt];
