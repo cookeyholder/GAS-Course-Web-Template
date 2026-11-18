@@ -368,18 +368,23 @@ function isAllowedOAuthRedirectUri(uri) {
   return false;
 }
 
+function decodeOAuthState_(raw) {
+  if (typeof Utilities !== "undefined" && Utilities.base64Decode && Utilities.newBlob) {
+    return Utilities.newBlob(Utilities.base64Decode(raw)).getDataAsString();
+  }
+  if (typeof Buffer !== "undefined") {
+    return Buffer.from(raw, "base64").toString("utf8");
+  }
+  return "";
+}
+
 function resolveOAuthRedirectUri(state, fallbackUrl) {
   const fallback = String(fallbackUrl || "").trim();
   const raw = String(state || "").trim();
   if (!raw) return fallback;
 
   try {
-    let decoded = "";
-    if (typeof Utilities !== "undefined" && Utilities.base64Decode && Utilities.newBlob) {
-      decoded = Utilities.newBlob(Utilities.base64Decode(raw)).getDataAsString();
-    } else if (typeof Buffer !== "undefined") {
-      decoded = Buffer.from(raw, "base64").toString("utf8");
-    }
+    const decoded = decodeOAuthState_(raw);
     if (!decoded || decoded.charAt(0) !== "{") return fallback;
     const parsed = JSON.parse(decoded);
     const candidate = String((parsed && parsed.redirectUri) || "").trim();
