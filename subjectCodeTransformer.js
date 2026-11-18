@@ -394,6 +394,114 @@ function importNormalizedCourseCodes(rawData, options) {
   };
 }
 
+function resolveCourseIndexSpreadsheet_(ss) {
+  return (
+    ss ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null)
+  );
+}
+
+function createEmptyCourseQueryResult_(page, pageSize, totalPages) {
+  return {
+    ok: true,
+    list: [],
+    total: 0,
+    page: typeof page === "number" ? page : 1,
+    pageSize: typeof pageSize === "number" ? pageSize : 50,
+    totalPages: typeof totalPages === "number" ? totalPages : 0
+  };
+}
+
+function getCourseIndexDataRows_(targetSs) {
+  if (!targetSs) return null;
+  const sheet = targetSs.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
+  if (!sheet) return null;
+  const values = sheet.getDataRange().getValues();
+  if (values.length <= 1) return null;
+  return values.slice(1);
+}
+
+function normalizeCourseQueryCriteria_(filter) {
+  const source = filter || {};
+  return {
+    keyword: (source.keyword || "").trim().toLowerCase(),
+    year: (source.academicYear || "").trim(),
+    semester: (source.semester || "").trim(),
+    department: (source.department || "").trim()
+  };
+}
+
+function mapCourseIndexRow_(row) {
+  const r = row || [];
+  return {
+    academicYear: String(r[0] || ""),
+    semester: String(r[1] || ""),
+    grade: String(r[2] || ""),
+    entryYear: String(r[3] || ""),
+    courseCode: String(r[4] || ""),
+    subjectName: String(r[5] || ""),
+    group: String(r[6] || ""),
+    department: String(r[7] || ""),
+    subjectType: String(r[8] || ""),
+    openWay: String(r[9] || ""),
+    attribute: String(r[10] || ""),
+    required: String(r[11] || ""),
+    credits: String(r[12] || ""),
+    hours: String(r[13] || "")
+  };
+}
+
+function isCourseRowMatchedByFields_(item, criteria) {
+  if (criteria.year !== "" && item.academicYear !== criteria.year) return false;
+  if (criteria.semester !== "" && item.semester !== criteria.semester) return false;
+  if (criteria.department !== "" && item.department !== criteria.department) return false;
+  return true;
+}
+
+function isCourseRowMatchedByKeyword_(item, keyword) {
+  if (keyword === "") return true;
+  const line = (item.courseCode + " " + item.subjectName + " " + item.department + " " + item.group).toLowerCase();
+  return line.indexOf(keyword) !== -1;
+}
+
+function isCourseIndexRowMatched_(item, criteria) {
+  return isCourseRowMatchedByFields_(item, criteria) && isCourseRowMatchedByKeyword_(item, criteria.keyword);
+}
+
+function collectMatchedCourseRows_(dataRows, criteria) {
+  const matched = [];
+  for (let i = 0; i < dataRows.length; i++) {
+    const item = mapCourseIndexRow_(dataRows[i]);
+    if (!isCourseIndexRowMatched_(item, criteria)) continue;
+    matched.push(item);
+  }
+  return matched;
+}
+
+function normalizeCoursePageParams_(filter) {
+  const source = filter || {};
+  const page = Math.max(1, parseInt(source.page, 10) || 1);
+  const pageSize = Math.max(1, Math.min(200, parseInt(source.pageSize, 10) || 50));
+  return { page: page, pageSize: pageSize };
+}
+
+function buildPagedCourseResult_(matched, page, pageSize) {
+  const total = matched.length;
+  const totalPages = Math.ceil(total / pageSize) || 1;
+  const start = (page - 1) * pageSize;
+  const pageItems = matched.slice(start, start + pageSize);
+  return {
+    ok: true,
+    list: pageItems,
+    total: total,
+    page: page,
+    pageSize: pageSize,
+    totalPages: totalPages
+  };
+}
+
 /**
  * 讀取並分頁查詢正規化課程索引
  *
@@ -408,87 +516,14 @@ function importNormalizedCourseCodes(rawData, options) {
  * @returns {Object} 查詢結果 `{ ok: true, list, total, page, pageSize, totalPages }`
  */
 function getNormalizedCourses(filter, ss) {
-  filter = filter || {};
-  const targetSs =
-    ss ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
-  if (!targetSs) return { ok: true, list: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
+  const targetSs = resolveCourseIndexSpreadsheet_(ss);
+  const dataRows = getCourseIndexDataRows_(targetSs);
+  if (!dataRows) return createEmptyCourseQueryResult_();
 
-  const sheet = targetSs.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
-  if (!sheet) return { ok: true, list: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
-
-  const values = sheet.getDataRange().getValues();
-  if (values.length <= 1) return { ok: true, list: [], total: 0, page: 1, pageSize: 50, totalPages: 0 };
-
-  const keyword = (filter.keyword || "").trim().toLowerCase();
-  const year = (filter.academicYear || "").trim();
-  const semester = (filter.semester || "").trim();
-  const department = (filter.department || "").trim();
-
-  const dataRows = values.slice(1);
-  const matched = [];
-
-  for (let i = 0; i < dataRows.length; i++) {
-    const row = dataRows[i];
-    const rYear = String(row[0] || "");
-    const rSem = String(row[1] || "");
-    const rGrade = String(row[2] || "");
-    const rEntryYear = String(row[3] || "");
-    const rCode = String(row[4] || "");
-    const rName = String(row[5] || "");
-    const rGroup = String(row[6] || "");
-    const rDept = String(row[7] || "");
-    const rType = String(row[8] || "");
-    const rOpenWay = String(row[9] || "");
-    const rAttr = String(row[10] || "");
-    const rReq = String(row[11] || "");
-    const rCredits = String(row[12] || "");
-    const rHours = String(row[13] || "");
-
-    if (year !== "" && rYear !== year) continue;
-    if (semester !== "" && rSem !== semester) continue;
-    if (department !== "" && rDept !== department) continue;
-
-    if (keyword !== "") {
-      const line = (rCode + " " + rName + " " + rDept + " " + rGroup).toLowerCase();
-      if (line.indexOf(keyword) === -1) continue;
-    }
-
-    matched.push({
-      academicYear: rYear,
-      semester: rSem,
-      grade: rGrade,
-      entryYear: rEntryYear,
-      courseCode: rCode,
-      subjectName: rName,
-      group: rGroup,
-      department: rDept,
-      subjectType: rType,
-      openWay: rOpenWay,
-      attribute: rAttr,
-      required: rReq,
-      credits: rCredits,
-      hours: rHours
-    });
-  }
-
-  const page = Math.max(1, parseInt(filter.page, 10) || 1);
-  const pageSize = Math.max(1, Math.min(200, parseInt(filter.pageSize, 10) || 50));
-  const total = matched.length;
-  const totalPages = Math.ceil(total / pageSize) || 1;
-  const start = (page - 1) * pageSize;
-  const pageItems = matched.slice(start, start + pageSize);
-
-  return {
-    ok: true,
-    list: pageItems,
-    total: total,
-    page: page,
-    pageSize: pageSize,
-    totalPages: totalPages
-  };
+  const criteria = normalizeCourseQueryCriteria_(filter);
+  const matched = collectMatchedCourseRows_(dataRows, criteria);
+  const paging = normalizeCoursePageParams_(filter);
+  return buildPagedCourseResult_(matched, paging.page, paging.pageSize);
 }
 
 if (typeof module !== "undefined" && module.exports) {
