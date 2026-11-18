@@ -119,24 +119,71 @@ function checkContent(content) {
  * @param {string} [directory] - 起始目錄，預設為專案根目錄
  * @returns {string[]} 相對於專案根目錄之檔案路徑
  */
-function collectFiles(directory) {
-  const root = directory || path.join(__dirname, "..");
+/**
+ * 判斷目錄項目是否為應納入檢查的檔案。
+ *
+ * @param {Object} entry - fs.Dirent 相容項目
+ * @param {Object} pathApi - 路徑處理模組
+ * @returns {boolean} 是否納入
+ */
+function shouldIncludeFile(entry, pathApi) {
+  if (!entry.isFile()) return false;
+  if (EXCLUDED_FILES.has(entry.name)) return false;
+  return TARGET_EXTENSIONS.has(pathApi.extname(entry.name));
+}
+
+/**
+ * 處理單一目錄項目：略過排除目錄、遞迴子目錄或收集符合條件的檔案。
+ *
+ * @param {Object} entry - fs.Dirent 相容項目
+ * @param {string} current - 目前目錄絕對路徑
+ * @param {string} root - 專案根目錄
+ * @param {string[]} files - 收集結果
+ * @param {Object} fsApi - 檔案系統模組
+ * @param {Object} pathApi - 路徑處理模組
+ */
+function collectEntryFile(entry, current, root, files, fsApi, pathApi) {
+  if (EXCLUDED_DIRECTORIES.has(entry.name)) return;
+  const full = pathApi.join(current, entry.name);
+  if (entry.isDirectory()) {
+    collectFromDirectory(full, root, files, fsApi, pathApi);
+    return;
+  }
+  if (shouldIncludeFile(entry, pathApi)) {
+    files.push(pathApi.relative(root, full).replace(/\\/g, "/"));
+  }
+}
+
+/**
+ * 走訪單一目錄並收集檔案路徑。
+ *
+ * @param {string} current - 目前目錄
+ * @param {string} root - 專案根目錄
+ * @param {string[]} files - 收集結果
+ * @param {Object} fsApi - 檔案系統模組
+ * @param {Object} pathApi - 路徑處理模組
+ */
+function collectFromDirectory(current, root, files, fsApi, pathApi) {
+  const entries = fsApi.readdirSync(current, { withFileTypes: true });
+  for (let index = 0; index < entries.length; index += 1) {
+    collectEntryFile(entries[index], current, root, files, fsApi, pathApi);
+  }
+}
+
+/**
+ * 遞迴收集專案中需要檢查的檔案。
+ *
+ * @param {string} [directory] - 起始目錄，預設為專案根目錄
+ * @param {Object} [options] - 可注入的 fs 與 path（供測試使用）
+ * @returns {string[]} 相對於專案根目錄之檔案路徑
+ */
+function collectFiles(directory, options) {
+  const settings = options || {};
+  const fsApi = settings.fs || fs;
+  const pathApi = settings.path || path;
+  const root = directory || pathApi.join(__dirname, "..");
   const files = [];
-  const visit = function (current) {
-    fs.readdirSync(current, { withFileTypes: true }).forEach(function (entry) {
-      if (EXCLUDED_DIRECTORIES.has(entry.name)) return;
-      const full = path.join(current, entry.name);
-      if (entry.isDirectory()) {
-        visit(full);
-        return;
-      }
-      if (!entry.isFile()) return;
-      if (EXCLUDED_FILES.has(entry.name)) return;
-      if (!TARGET_EXTENSIONS.has(path.extname(entry.name))) return;
-      files.push(path.relative(root, full).replace(/\\/g, "/"));
-    });
-  };
-  visit(root);
+  collectFromDirectory(root, root, files, fsApi, pathApi);
   return files.sort();
 }
 
@@ -144,13 +191,16 @@ function collectFiles(directory) {
  * 檢查整個專案的語言相容性。
  *
  * @param {string} [directory] - 專案根目錄
+ * @param {Object} [options] - 可注入的 fs 與 path（供測試使用）
  * @returns {Array<{file: string, violations: Array}>} 違規檔案清單
  */
-function checkProject(directory) {
+function checkProject(directory, options) {
+  const settings = options || {};
+  const fsApi = settings.fs || fs;
   const root = directory || path.join(__dirname, "..");
   const results = [];
-  collectFiles(root).forEach(function (relative) {
-    const violations = checkContent(fs.readFileSync(path.join(root, relative), "utf8"));
+  collectFiles(root, settings).forEach(function (relative) {
+    const violations = checkContent(fsApi.readFileSync(path.join(root, relative), "utf8"));
     if (violations.length > 0) results.push({ file: relative, violations: violations });
   });
   return results;
