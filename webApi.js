@@ -892,7 +892,8 @@ function doGet(e) {
 function doPost(e) {
   let payload;
   try {
-    payload = parseWebApiPayload(e);
+    const parseFn = getOverridableApiFn_("parseWebApiPayload", parseWebApiPayload);
+    payload = parseFn(e);
   } catch (error) {
     return jsonResponse(webApiError("invalid_json", "請求 JSON 格式錯誤"));
   }
@@ -905,7 +906,8 @@ function doPost(e) {
     return jsonResponse(webApiError("missing_action", "缺少 action 參數"));
   }
 
-  return jsonResponse(executeWebApi(payload, e));
+  const execFn = getOverridableApiFn_("executeWebApi", executeWebApi);
+  return jsonResponse(execFn(payload, e));
 }
 
 if (typeof module !== "undefined" && module.exports) {
