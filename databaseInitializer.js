@@ -253,6 +253,53 @@ function parseConfigBoolean(value) {
   );
 }
 
+function normalizeAllowedLoginDomain_(value) {
+  return String(value || "")
+    .trim()
+    .replace(/^@/, "")
+    .toLowerCase();
+}
+
+function applySystemSettingConvenienceFields_(config) {
+  const target = config || {};
+  target.schoolYear = target["學年度"] || "114";
+  target.semester = target["學期"] || "1";
+  target.systemName = target["系統名稱"] || "Google Apps Script 應用程式範本";
+  target.clientId = target["OAuth Client ID"] || "";
+  target.clientSecret = target["OAuth Client Secret"] || "";
+  target.allowedLoginDomain = normalizeAllowedLoginDomain_(target["Google 登入允許網域"]);
+  target.restrictWhitelist = parseConfigBoolean(target["登入白名單限制啟用"]);
+  return target;
+}
+
+function readSystemSettingsFromMemory_() {
+  return applySystemSettingConvenienceFields_(Object.assign({}, MEMORY_SYSTEM_CONFIG));
+}
+
+function readSystemSettingsRows_(sheet) {
+  const lastRow = Math.max(sheet.getLastRow(), 2);
+  return sheet.getRange(1, 1, lastRow, 2).getValues();
+}
+
+function buildSystemSettingsConfigFromRows_(values) {
+  const config = {};
+  const rows = values || [];
+  for (let i = 1; i < rows.length; i++) {
+    const key = String((rows[i] && rows[i][0]) || "").trim();
+    if (!key) continue;
+    const raw = rows[i] ? rows[i][1] : "";
+    config[key] = raw === null || raw === undefined ? "" : String(raw).trim();
+  }
+  return config;
+}
+
+function readSystemSettingsFromSheet_(ss) {
+  const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!sheet) return {};
+  const config = buildSystemSettingsConfigFromRows_(readSystemSettingsRows_(sheet));
+  return applySystemSettingConvenienceFields_(config);
+}
+
 /**
  * 讀取「系統設定與授權」區塊 A 之設定項目
  *
@@ -260,53 +307,9 @@ function parseConfigBoolean(value) {
  * @returns {Object} 鍵值對設定物件
  */
 function readSystemSettings(ss) {
-  const targetSs =
-    ss ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
-
-  if (!targetSs) {
-    const config = Object.assign({}, MEMORY_SYSTEM_CONFIG);
-    config.schoolYear = config["學年度"] || "114";
-    config.semester = config["學期"] || "1";
-    config.systemName = config["系統名稱"] || "Google Apps Script 應用程式範本";
-    config.clientId = config["OAuth Client ID"] || "";
-    config.clientSecret = config["OAuth Client Secret"] || "";
-    config.allowedLoginDomain = String(config["Google 登入允許網域"] || "")
-      .trim()
-      .replace(/^@/, "")
-      .toLowerCase();
-    config.restrictWhitelist = parseConfigBoolean(config["登入白名單限制啟用"]);
-    return config;
-  }
-
-  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!sheet) return {};
-
-  const lastRow = Math.max(sheet.getLastRow(), 2);
-  const values = sheet.getRange(1, 1, lastRow, 2).getValues();
-  const config = {};
-
-  for (let i = 1; i < values.length; i++) {
-    const key = String(values[i][0] || "").trim();
-    if (!key) continue;
-    config[key] = values[i][1] === null || values[i][1] === undefined ? "" : String(values[i][1]).trim();
-  }
-
-  // 便捷鍵名映射
-  config.schoolYear = config["學年度"] || "114";
-  config.semester = config["學期"] || "1";
-  config.systemName = config["系統名稱"] || "Google Apps Script 應用程式範本";
-  config.clientId = config["OAuth Client ID"] || "";
-  config.clientSecret = config["OAuth Client Secret"] || "";
-  config.allowedLoginDomain = String(config["Google 登入允許網域"] || "")
-    .trim()
-    .replace(/^@/, "")
-    .toLowerCase();
-  config.restrictWhitelist = parseConfigBoolean(config["登入白名單限制啟用"]);
-
-  return config;
+  const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
+  if (!targetSs) return readSystemSettingsFromMemory_();
+  return readSystemSettingsFromSheet_(targetSs);
 }
 
 /**
