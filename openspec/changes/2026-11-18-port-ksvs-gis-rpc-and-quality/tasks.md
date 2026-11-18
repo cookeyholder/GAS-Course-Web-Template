@@ -1,7 +1,7 @@
 ## 1. 後端登入、Session 與 API 入口重構
 
-- [ ] 1.1 重構 `webApi.js`：抽出共用 `executeWebApi(payload, event)`，統一 `doPost`/RPC 入口與錯誤回應格式，保留既有課程與 RBAC action 相容。
-- [ ] 1.2 強化登入與 token 驗證：補齊 `iss`、`email_verified`、`aud` 驗證與可選允許登入網域檢查，擴充 `getPublicConfig`（`activeEmail`、`allowedDomain`、`hasClientSecret`、`webAppUrl` 等公開欄位）。
+- [x] 1.1 重構 `webApi.js`：抽出共用 `executeWebApi(payload, event)`，統一 `doPost`/RPC 入口與錯誤回應格式，保留既有課程與 RBAC action 相容。
+- [x] 1.2 強化登入與 token 驗證：補齊 `iss`、`email_verified`、`aud` 驗證與可選允許登入網域檢查，擴充 `getPublicConfig`（`activeEmail`、`allowedDomain`、`hasClientSecret`、`webAppUrl` 等公開欄位）。
 - [ ] 1.3 實作 GAS 雙軌登入支援：新增/整合 `loginWithActiveUser`，支援 `doGet` OAuth 授權碼回呼與 `INITIAL_AUTH` 注入流程（含必要狀態與錯誤處理）。
 - [ ] 1.4 實作 Session CSRF 防護：登入與 session 還原核發 csrfToken，寫入型 action 驗證 CSRF，並調整登出/失效流程。
 - [ ] 1.5 更新 `databaseInitializer.js` 與相關後端輔助邏輯：新增允許登入網域等設定鍵與預設值/讀寫相容，確保不破壞既有設定與授權資料。
