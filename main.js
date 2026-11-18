@@ -80,3 +80,11 @@ function openWebAppDialog() {
     ui.alert("開啟失敗", "無法取得 Web App 連結：" + (error && error.message ? error.message : error), ui.ButtonSet.OK);
   }
 }
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = {
+    onOpen: onOpen,
+    initializeDatabaseSheetsMenu: initializeDatabaseSheetsMenu,
+    openWebAppDialog: openWebAppDialog
+  };
+}
