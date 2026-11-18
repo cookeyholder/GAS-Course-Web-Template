@@ -56,7 +56,7 @@
 - [x] G3.1 重構/補測試目標：`databaseInitializer.js::saveSystemSettings`（L280, 20, 0.0%, 420.00）；驗證：`npm test` 通過且 CRAP <= 30。
 - [x] G3.2 重構/補測試目標：`databaseInitializer.js::initializeDatabaseSheets`（L93, 16, 0.0%, 272.00）；驗證同上。
 - [x] G3.3 重構/補測試目標：`databaseInitializer.js::readWhitelist`（L368, 15, 22.2%, 120.86）；驗證同上。
-- [ ] G3.4 重構/補測試目標：`databaseInitializer.js::saveWhitelist`（L412, 20, 46.6%, 81.07）；驗證同上。
+- [x] G3.4 重構/補測試目標：`databaseInitializer.js::saveWhitelist`（L412, 20, 46.6%, 81.07）；驗證同上。
 - [ ] G3.5 重構/補測試目標：`databaseInitializer.js::readSystemSettings`（L223, 23, 69.4%, 38.18）；驗證同上。
 - [ ] G3.6 重構/補測試目標：`utilities.js::safeUiAlert`（L45, 9, 0.0%, 90.00）；驗證同上。
 - [ ] G3.7 重構/補測試目標：`main.js::openWebAppDialog`（L48, 8, 0.0%, 72.00）；驗證同上。

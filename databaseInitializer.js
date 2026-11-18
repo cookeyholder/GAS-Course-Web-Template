@@ -472,6 +472,78 @@ function readWhitelist(ss) {
   return mapWhitelistRows_(values);
 }
 
+function normalizeWhitelistInputEmail_(item) {
+  return String((item && item.email) || "")
+    .trim()
+    .toLowerCase();
+}
+
+function normalizeWhitelistMemoryAccount_(item) {
+  const email = normalizeWhitelistInputEmail_(item);
+  if (!email) return null;
+  return {
+    email: email,
+    name: String((item && item.name) || "").trim(),
+    role: normalizeRole(item && item.role),
+    roleName: getRoleDisplayName(item && item.role),
+    enabled: (item && item.enabled) !== false
+  };
+}
+
+function saveWhitelistToMemory_(list) {
+  MEMORY_WHITELIST.length = 0;
+  for (let i = 0; i < list.length; i++) {
+    const account = normalizeWhitelistMemoryAccount_(list[i]);
+    if (account) MEMORY_WHITELIST.push(account);
+  }
+  return { ok: true, count: MEMORY_WHITELIST.length };
+}
+
+function normalizeWhitelistSheetRow_(item) {
+  const email = normalizeWhitelistInputEmail_(item);
+  if (!email) return null;
+  return [
+    email,
+    String((item && item.name) || "").trim(),
+    getRoleDisplayName(item && item.role),
+    item && item.enabled === false ? "否" : "是"
+  ];
+}
+
+function buildWhitelistSheetRows_(list) {
+  const rows = [];
+  for (let i = 0; i < list.length; i++) {
+    const row = normalizeWhitelistSheetRow_(list[i]);
+    if (row) rows.push(row);
+  }
+  return rows;
+}
+
+function getRequiredSystemConfigSheet_(ss) {
+  const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
+  if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
+  return sheet;
+}
+
+function clearWhitelistSheetRange_(sheet) {
+  const currentLastRow = Math.max(sheet.getLastRow(), 2);
+  sheet.getRange(2, 4, currentLastRow, 4).clearContent();
+}
+
+function writeWhitelistSheetRows_(sheet, rows) {
+  if (rows.length === 0) return;
+  const safeRows = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(rows) : rows;
+  sheet.getRange(2, 4, safeRows.length, 4).setValues(safeRows);
+}
+
+function saveWhitelistToSheet_(ss, list) {
+  const sheet = getRequiredSystemConfigSheet_(ss);
+  const rows = buildWhitelistSheetRows_(list);
+  clearWhitelistSheetRange_(sheet);
+  writeWhitelistSheetRows_(sheet, rows);
+  return { ok: true, count: rows.length };
+}
+
 /**
  * 儲存授權白名單清單
  *
@@ -480,62 +552,10 @@ function readWhitelist(ss) {
  * @returns {Object} `{ ok: true, count }`
  */
 function saveWhitelist(accounts, ss) {
-  const targetSs =
-    ss ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
+  const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
   const list = Array.isArray(accounts) ? accounts : [];
-
-  if (!targetSs) {
-    MEMORY_WHITELIST.length = 0;
-    for (let i = 0; i < list.length; i++) {
-      const item = list[i] || {};
-      const email = String(item.email || "")
-        .trim()
-        .toLowerCase();
-      if (!email) continue;
-      MEMORY_WHITELIST.push({
-        email: email,
-        name: String(item.name || "").trim(),
-        role: normalizeRole(item.role),
-        roleName: getRoleDisplayName(item.role),
-        enabled: item.enabled !== false
-      });
-    }
-    return { ok: true, count: MEMORY_WHITELIST.length };
-  }
-
-  const sheet = targetSs.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
-
-  const maxRows = Math.max(sheet.getMaxRows(), list.length + 2);
-  const rows = [];
-
-  for (let i = 0; i < list.length; i++) {
-    const item = list[i] || {};
-    const email = String(item.email || "")
-      .trim()
-      .toLowerCase();
-    if (!email) continue;
-    rows.push([
-      email,
-      String(item.name || "").trim(),
-      getRoleDisplayName(item.role),
-      item.enabled === false ? "否" : "是"
-    ]);
-  }
-
-  // 先清空既有白名單資料區間（D2:G）
-  const currentLastRow = Math.max(sheet.getLastRow(), 2);
-  sheet.getRange(2, 4, currentLastRow, 4).clearContent();
-
-  if (rows.length > 0) {
-    const safeRows = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(rows) : rows;
-    sheet.getRange(2, 4, safeRows.length, 4).setValues(safeRows);
-  }
-
-  return { ok: true, count: rows.length };
+  if (!targetSs) return saveWhitelistToMemory_(list);
+  return saveWhitelistToSheet_(targetSs, list);
 }
 
 /**
