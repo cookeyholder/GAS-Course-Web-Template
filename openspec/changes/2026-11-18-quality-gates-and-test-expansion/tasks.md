@@ -159,7 +159,7 @@
 ## G8. Mock 與腳本品質收斂（目標函式逐一收斂）
 
 - [x] G8.1 重構/補測試目標：`webapp/js/mock.js::<anon method-3>`（L108, 24, 0.0%, 600.00）；驗證：`npm test` 通過且 CRAP <= 30（並維持 mock 相容行為）。
-- [ ] G8.2 重構/補測試目標：`scripts/deploy.js::main`（L69, 10, 0.0%, 110.00）；驗證同上。
+- [x] G8.2 重構/補測試目標：`scripts/deploy.js::main`（L69, 10, 0.0%, 110.00）；驗證同上。
 - [ ] G8.3 重構/補測試目標：`scripts/deploy.js::getArgValue`（L23, 6, 0.0%, 42.00）；驗證同上。
 - [ ] G8.4 重構/補測試目標：`scripts/build-webapp.js::build`（L29, 7, 0.0%, 56.00）；驗證同上。
 - [ ] G8.5 重構/補測試目標：`scripts/languageCheck.js::<anon method-4>`（L126, 6, 0.0%, 42.00）；驗證同上。
