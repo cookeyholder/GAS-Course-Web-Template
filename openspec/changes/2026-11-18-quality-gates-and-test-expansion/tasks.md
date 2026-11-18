@@ -127,7 +127,7 @@
 
 ## G7. 前端頁面、UI 與資料互動（目標函式逐一收斂）
 
-- [ ] G7.1 重構/補測試目標：`webapp/js/accounts.js::renderView`（L205, 24, 0.0%, 600.00）；驗證：`npm test` 通過且 CRAP <= 30。
+- [x] G7.1 重構/補測試目標：`webapp/js/accounts.js::renderView`（L205, 24, 0.0%, 600.00）；驗證：`npm test` 通過且 CRAP <= 30。
 - [ ] G7.2 重構/補測試目標：`webapp/js/accounts.js::<anon method-6>`（L119, 12, 0.0%, 156.00）；驗證同上。
 - [ ] G7.3 重構/補測試目標：`webapp/js/accounts.js::<anon method-4>`（L65, 7, 0.0%, 56.00）；驗證同上。
 - [ ] G7.4 重構/補測試目標：`webapp/js/accounts.js::<anon method-9>`（L187, 6, 0.0%, 42.00）；驗證同上。
