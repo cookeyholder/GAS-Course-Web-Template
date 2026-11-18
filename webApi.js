@@ -635,71 +635,78 @@ function getPublicConfig() {
   };
 }
 
-function routeWebApiAction(action, payload, event) {
-  const name = String(action || "").trim();
-  if (name === "") return webApiError("missing_action", "缺少 action 參數");
+function resolveRouteDependency_(name, fallback) {
+  if (typeof module !== "undefined" && module.exports && typeof module.exports[name] === "function") {
+    return module.exports[name];
+  }
+  if (typeof globalThis !== "undefined" && typeof globalThis[name] === "function") {
+    return globalThis[name];
+  }
+  return fallback;
+}
 
-  // 公開 action
+function getRouteSpreadsheet_() {
+  return typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+    ? SpreadsheetApp.getActiveSpreadsheet()
+    : null;
+}
+
+function routePublicWebApiAction_(name, payload) {
   switch (name) {
     case "ping":
       return { ok: true, pong: Date.now(), version: WEB_API_VERSION };
     case "getPublicConfig":
-      return getPublicConfig();
+      return getOverridableApiFn_("getPublicConfig", getPublicConfig)();
     case "login":
-      return loginWithGoogleIdToken(payload ? payload.idToken || payload.credential : "");
+      return getOverridableApiFn_("loginWithGoogleIdToken", loginWithGoogleIdToken)(
+        payload ? payload.idToken || payload.credential : ""
+      );
     case "loginWithActiveUser":
-      return loginWithActiveUser();
+      return getOverridableApiFn_("loginWithActiveUser", loginWithActiveUser)();
+    default:
+      return null;
   }
+}
 
-  // 需登入驗證
-  const authorization = authorizeWebApiAction(name, payload || {});
-  if (!authorization.ok) return authorization;
-
-  const session = authorization.session;
-  const ss =
-    typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null;
-
-  // 寫入型 action 驗證 CSRF Token
-  if (WEB_API_WRITE_ACTIONS.indexOf(name) !== -1) {
-    const reqCsrf = payload ? payload.csrfToken || "" : "";
-    if (!session || !session.csrfToken || reqCsrf !== session.csrfToken) {
-      return webApiError("invalid_csrf_token", "CSRF Token 驗證失敗或請求已過期，請重新整理頁面");
-    }
+function validateRouteCsrf_(name, payload, session) {
+  if (WEB_API_WRITE_ACTIONS.indexOf(name) === -1) return null;
+  const reqCsrf = payload ? payload.csrfToken || "" : "";
+  if (!session || !session.csrfToken || reqCsrf !== session.csrfToken) {
+    return webApiError("invalid_csrf_token", "CSRF Token 驗證失敗或請求已過期，請重新整理頁面");
   }
+  return null;
+}
 
+function routeProtectedWebApiAction_(name, payload, session, ss) {
   switch (name) {
     case "getSession":
-      return getSessionState(payload.token);
+      return getOverridableApiFn_("getSessionState", getSessionState)(payload.token);
     case "logout":
-      return logoutSession(payload.token);
+      return getOverridableApiFn_("logoutSession", logoutSession)(payload.token);
 
-    // 課程代碼相關 action
     case "importCourseCodes":
       if (!payload || !Array.isArray(payload.rows) || payload.rows.length === 0) {
         return webApiError("missing_rows", "缺少課程代碼資料（rows）");
       }
-      return importNormalizedCourseCodes(payload.rows, {
+      return resolveRouteDependency_("importNormalizedCourseCodes", importNormalizedCourseCodes)(payload.rows, {
         spreadsheet: ss,
         preNormalized: payload.preNormalized === true
       });
 
     case "getCourseIndex":
-      return getNormalizedCourses(payload, ss);
+      return resolveRouteDependency_("getNormalizedCourses", getNormalizedCourses)(payload, ss);
 
-    // 系統設定與授權相關 action
     case "getSystemSettings":
       return {
         ok: true,
-        settings: readSystemSettings(ss)
+        settings: resolveRouteDependency_("readSystemSettings", readSystemSettings)(ss)
       };
 
     case "saveSystemSettings":
       if (session.role !== "admin") {
         return webApiError("forbidden", "僅系統管理員可修改系統參數");
       }
-      saveSystemSettings(payload.settings || {}, ss);
+      resolveRouteDependency_("saveSystemSettings", saveSystemSettings)(payload.settings || {}, ss);
       return { ok: true };
 
     case "getAccounts":
@@ -708,18 +715,35 @@ function routeWebApiAction(action, payload, event) {
       }
       return {
         ok: true,
-        accounts: readWhitelist(ss)
+        accounts: resolveRouteDependency_("readWhitelist", readWhitelist)(ss)
       };
 
     case "saveWhitelist":
       if (session.role !== "admin") {
         return webApiError("forbidden", "僅系統管理員可修改授權白名單");
       }
-      return saveWhitelist(payload.accounts || [], ss);
+      return resolveRouteDependency_("saveWhitelist", saveWhitelist)(payload.accounts || [], ss);
 
     default:
       return webApiError("unknown_action", "未支援的 action：" + name);
   }
+}
+
+function routeWebApiAction(action, payload, event) {
+  const name = String(action || "").trim();
+  if (name === "") return webApiError("missing_action", "缺少 action 參數");
+
+  const publicResult = routePublicWebApiAction_(name, payload);
+  if (publicResult !== null) return publicResult;
+
+  const authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
+  if (!authorization.ok) return authorization;
+
+  const session = authorization.session;
+  const csrfError = validateRouteCsrf_(name, payload, session);
+  if (csrfError) return csrfError;
+
+  return routeProtectedWebApiAction_(name, payload, session, getRouteSpreadsheet_());
 }
 
 // ============================================================================

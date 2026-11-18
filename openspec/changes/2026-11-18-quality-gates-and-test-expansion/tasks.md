@@ -36,7 +36,7 @@
 - [x] G2.3 重構/補測試目標：`webApi.js::doGet`（L692, 19, 0.0%, 380.00）；驗證同上。
 - [x] G2.4 重構/補測試目標：`webApi.js::verifyGoogleIdToken`（L233, 18, 0.0%, 342.00）；驗證同上。
 - [x] G2.5 重構/補測試目標：`webApi.js::resolveOAuthRedirectUri`（L348, 13, 0.0%, 182.00）；驗證同上。
-- [ ] G2.6 重構/補測試目標：`webApi.js::routeWebApiAction`（L551, 35, 61.6%, 104.21）；驗證同上（含 action 分支與權限/CSRF 路徑測試補強）。
+- [x] G2.6 重構/補測試目標：`webApi.js::routeWebApiAction`（L551, 35, 61.6%, 104.21）；驗證同上（含 action 分支與權限/CSRF 路徑測試補強）。
 - [ ] G2.7 重構/補測試目標：`webApi.js::loginWithActiveUser`（L307, 9, 0.0%, 90.00）；驗證同上。
 - [ ] G2.8 重構/補測試目標：`webApi.js::loginWithGoogleIdToken`（L291, 8, 0.0%, 72.00）；驗證同上。
 - [ ] G2.9 重構/補測試目標：`webApi.js::doPost`（L748, 7, 0.0%, 56.00）；驗證同上。
