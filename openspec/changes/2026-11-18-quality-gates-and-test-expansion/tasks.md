@@ -141,7 +141,7 @@
 - [x] G7.12 重構/補測試目標：`webapp/js/imports.js::pickCourseSheetRows`（L78, 7, 0.0%, 56.00）；驗證同上。
 - [x] G7.13 重構/補測試目標：`webapp/js/imports.js::<anon method-10>`（L216, 7, 0.0%, 56.00）；驗證同上。
 - [x] G7.14 重構/補測試目標：`webapp/js/ui.js::renderLoginView`（L273, 18, 0.0%, 342.00）；驗證同上。
-- [ ] G7.15 重構/補測試目標：`webapp/js/ui.js::renderOverviewView`（L357, 14, 0.0%, 210.00）；驗證同上。
+- [x] G7.15 重構/補測試目標：`webapp/js/ui.js::renderOverviewView`（L357, 14, 0.0%, 210.00）；驗證同上。
 - [ ] G7.16 重構/補測試目標：`webapp/js/ui.js::toast`（L94, 10, 0.0%, 110.00）；驗證同上。
 - [ ] G7.17 重構/補測試目標：`webapp/js/ui.js::renderHeader`（L190, 10, 0.0%, 110.00）；驗證同上。
 - [ ] G7.18 重構/補測試目標：`webapp/js/ui.js::toggleTheme`（L45, 6, 0.0%, 42.00）；驗證同上。
