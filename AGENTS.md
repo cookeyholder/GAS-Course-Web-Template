@@ -92,6 +92,8 @@ Always check `@/openspec/` or repository documentation when the request:
 
 ## 開發指令與日常工作流
 
+> 執行環境：本機與 CI 以 **Node.js 24** 為目標版本（`package.json` engines 與 `.github/workflows/quality-gates.yml` 對齊）。
+
 ```bash
 # 1. 執行本地自動化單元測試
 npm test
@@ -117,6 +119,17 @@ npm run logs
 # 8. 在預設瀏覽器中開啟雲端編輯器或 Web App
 npm run open
 npm run open-webapp
+
+# 9. 格式與語言檢查 / 自動格式化
+npm run format:check
+npm run format
+npm run check:lang
+
+# 10. 品質量測與閘門（覆蓋率、變更覆蓋率、CRAP/MI）
+npm run test:coverage
+npm run check:coverage
+npm run check:changed-coverage
+npm run check:complexity
 ```
 
 ---
@@ -142,9 +155,18 @@ npm run open-webapp
 
 任何程式碼或功能變更前與提交前，必須通過以下檢驗標準：
 
-1. **單元測試全數通過**：執行 `npm test`，確認代碼正規化與 API 路由權限無回退（Regression）。
-2. **打包驗證無缺漏**：執行 `npm run build:webapp`，確認產生之 `index.html` 內嵌順序正常且無語法錯誤。
-3. **離線 Mock 模式相容**：若變更前端介面，需確保開啟 `index.html?mock=true` 能正常運作與渲染。
+1. **單元測試全數通過**：執行 `npm test`，確認課程代碼正規化與 API 路由權限無回退（Regression）。
+2. **品質閘門通過（視變更範圍）**：執行 `npm run format:check`、`npm run check:lang`，並依影響範圍執行 `npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`；確保符合門檻且**不得低於基準線（ratchet 不回退）**。
+3. **Git Hook 與自動格式化**：`pre-commit`（Husky + lint-staged）會對暫存檔執行 Prettier 自動格式化（`prettier --write`）與語言規範檢查；提交前應確保 hook 可正常執行且變更已符合格式規範。
+4. **打包驗證無缺漏**：執行 `npm run build:webapp`，確認產生之 `index.html` 內嵌順序正常且無語法錯誤。
+5. **離線 Mock 模式相容**：若變更前端介面，需確保開啟 `index.html?mock=true` 能正常運作與渲染。
+
+### 品質門檻與政策摘要
+
+- **全域覆蓋率**：初始門檻 Lines >= 30%、Statements >= 30%、Functions >= 60%、Branches >= 40%，且不得低於基準線（不回退）。
+- **變更覆蓋率**：Lines >= 80%、Branches >= 70%（無可量測變更時略過）。
+- **複雜度**：每個納管函式 **CRAP MUST NOT > 30**；每個納管模組 **MI MUST >= 20**。
+- **基準線與設定**：`scripts/quality-baseline.json`、`scripts/qualityConfig.js`（2026-11-18 基準）；CI 品質閘門見 `.github/workflows/quality-gates.yml`。
 
 ---
 

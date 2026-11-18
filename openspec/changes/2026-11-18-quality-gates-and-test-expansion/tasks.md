@@ -18,14 +18,14 @@
 - [x] G1.6 實作 `check:changed-coverage`（diff + 覆蓋率，支援 `--base`/CI），門檻 Lines>=80%、Branches>=70%，無可量測變更時明確成功/略過；驗證：案例行為正確。
 - [x] G1.7 啟用 Husky + lint-staged，`pre-commit` 對暫存檔執行 `prettier --write`（自動格式化並更新暫存）與適用語言規範檢查，確保 CI/非互動安裝安全；驗證：hook 可重現且格式化生效。
 - [x] G1.8 更新 `.github/workflows/quality-gates.yml` 納入覆蓋率/變更覆蓋率/CRAP/MI 檢查與 diff 所需 checkout 設定，並對齊 Node 版本策略（本機/CI 以 Node 24 為目標，文件化）；驗證：workflow 與指令流程一致。
-- [ ] G1.9 更新 `README.md`、`AGENTS.md`（及必要文件）說明品質指令、hook、自動格式化、門檻與基準線/不回退政策；驗證：可依文件重現。
+- [x] G1.9 更新 `README.md`、`AGENTS.md`（及必要文件）說明品質指令、hook、自動格式化、門檻與基準線/不回退政策；驗證：可依文件重現。
 
 #### 量測快照（完成本組後更新）
 
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) | Node v24.16.0, c8 --all, 247 函式, MI<20=0 |
-| G1 完成後 | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | 工具鏈/門檻/Hook/CI 基礎落地 |
+| G1 完成後 | 2026-11-19 | 27.37% (1529/5586)（基準未重測） | 27.37% (1529/5586)（基準未重測） | 58.82% (50/85)（基準未重測） | 37.87% (125/330)（基準未重測） | 69.134（基準未重測） | 56（基準未重測） | 1482.00（基準未重測） | G1 工具鏈/腳本/Hook/CI/文件已落地；`node scripts/run-tests.js` 9/9 通過。環境未安裝 c8 與 typhonjs-escomplex（xlsx 遠端相依安裝受限），LCOV/CRAP/MI 本輪未重測，待依賴可用後執行 `npm run test:coverage`、`npm run check:complexity` 更新。 |
 
 ---
 

@@ -141,6 +141,57 @@ npm run deploy
 
 ---
 
+## 開發與品質檢查
+
+### 執行環境與版本策略
+
+- **Node.js**：本機與 CI（GitHub Actions `.github/workflows/quality-gates.yml`）皆以 **Node 24** 為目標版本（`package.json` `engines.node >= 24.0.0`，CI `node-version: "24"`），以確保品質檢查與測試結果一致。
+
+### 常用指令
+
+```bash
+# 執行單元測試（自動探索 tests/**/*.test.js）
+npm test
+
+# 程式碼格式檢查 / 自動格式化（Prettier）
+npm run format:check
+npm run format
+
+# 語言規範檢查（臺灣繁體中文 zh-TW）
+npm run check:lang
+
+# 測試覆蓋率量測與檢查（c8，產出 text/lcov/json/json-summary）
+npm run test:coverage
+npm run check:coverage
+
+# 變更覆蓋率檢查（相對比較基準，可搭配 --base 或 CI 環境變數）
+npm run check:changed-coverage
+
+# CRAP 與 Maintainability Index（MI）複雜度檢查
+npm run check:complexity
+
+# 建置前端
+npm run build:webapp
+```
+
+### Git Hook 與自動格式化（Prettier）
+
+- 本專案使用 **Husky** + **lint-staged** 提供可重現的 `pre-commit` 品質防線。
+- `pre-commit` 會對暫存檔執行 **Prettier 自動格式化**（`prettier --write`，並更新暫存結果）與語言規範檢查（`scripts/languageCheck.js`），確保提交內容符合格式與 `zh-TW` 規範；無法自動修正或檢查失敗時將阻擋提交。
+- 安裝相依套件後可透過 `prepare` 腳本自動或依環境啟用 Husky；CI 與非互動環境會安全略過 hook 初始化以避免安裝失敗。
+
+### 品質門檻與基準線（不回退）
+
+品質閘門由本機指令與 CI（`.github/workflows/quality-gates.yml`，Quality Gates）共同強制執行：
+
+- **全域覆蓋率**（`check:coverage`）：初始門檻 Lines >= 30%、Statements >= 30%、Functions >= 60%、Branches >= 40%，且**不得低於基準線（ratchet 不回退）**。
+- **變更覆蓋率**（`check:changed-coverage`）：相對比較基準之 Lines >= 80%、Branches >= 70%；無可量測變更時明確成功/略過。
+- **CRAP**（`check:complexity`）：每個納管函式 **CRAP MUST NOT > 30**。
+- **Maintainability Index（MI）**（`check:complexity`）：每個納管模組 **MI MUST >= 20**。
+- **基準線**：2026-11-18 量測基準與門檻、納管範圍記錄於 `scripts/quality-baseline.json`、`scripts/qualityConfig.js` 與 `openspec/changes/2026-11-18-quality-gates-and-test-expansion/proposal.md`；後續調整須可追溯且不得任意放寬（不回退）。
+
+---
+
 ## 核心功能說明
 
 ### 1. 108 課綱課程代碼與課程計畫 1NF 正規化原理
