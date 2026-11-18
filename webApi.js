@@ -327,25 +327,31 @@ function loginWithGoogleIdToken(idToken, options) {
   return createSessionForEmail(verify.email, verify.name, { spreadsheet: ss });
 }
 
-function loginWithActiveUser(options) {
-  options = options || {};
-  const ss =
-    options.spreadsheet ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
+function resolveLoginSpreadsheet_(options) {
+  const resolvedOptions = options || {};
+  if (resolvedOptions.spreadsheet) return resolvedOptions.spreadsheet;
+  if (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet) {
+    return SpreadsheetApp.getActiveSpreadsheet();
+  }
+  return null;
+}
 
-  let email = "";
+function getActiveUserEmail_() {
   try {
     if (typeof Session !== "undefined" && Session.getActiveUser) {
-      email = String(Session.getActiveUser().getEmail() || "")
+      return String(Session.getActiveUser().getEmail() || "")
         .trim()
         .toLowerCase();
     }
   } catch (e) {
-    email = "";
+    // ignore
   }
+  return "";
+}
 
+function loginWithActiveUser(options) {
+  const ss = resolveLoginSpreadsheet_(options);
+  const email = getActiveUserEmail_();
   if (!email) {
     return webApiError(
       "no_active_user",
@@ -353,7 +359,8 @@ function loginWithActiveUser(options) {
     );
   }
 
-  return createSessionForEmail(email, email, { spreadsheet: ss });
+  const createSessionFn = getOverridableApiFn_("createSessionForEmail", createSessionForEmail);
+  return createSessionFn(email, email, { spreadsheet: ss });
 }
 
 function isAllowedOAuthRedirectUri(uri) {
