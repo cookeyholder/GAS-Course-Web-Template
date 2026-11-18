@@ -15,7 +15,7 @@
 
 ## 3. 文件重寫與部署/使用說明同步
 
-- [ ] 3.1 重寫 `docs/gis-login-guide.html` 為本範本雙軌登入教學（GIS、GAS ActiveUser/AccountChooser、OAuth 授權碼回呼條件、網域限制、常見錯誤與排除），移除 KSVS 專屬內容。
+- [x] 3.1 重寫 `docs/gis-login-guide.html` 為本範本雙軌登入教學（GIS、GAS ActiveUser/AccountChooser、OAuth 授權碼回呼條件、網域限制、常見錯誤與排除），移除 KSVS 專屬內容。
 - [ ] 3.2 視實作補充或更新相關文件/說明（如 README、部署與設定注意事項），確保與程式行為、設定鍵名與 npm scripts 一致。
 
 ## 4. 開發工具鏈與品質閘門導入

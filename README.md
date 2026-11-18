@@ -1,10 +1,10 @@
 # Google Apps Script 網頁應用程式範本 (GAS-Course-Web-Template)
 
 本專案為 **Google Apps Script (GAS) 網頁應用程式全端範本**，具備四大核心架構：
-1. **Google Identity Services (GIS) 身分驗證系統**：採用標準 OIDC 規範之 Google 官方登入按鈕與 Google ID Token (JWT) 後端憑證驗證，搭配 `CacheService` Session 機制（6 小時有效期限），杜絕多帳號身分混淆，並提供零設定本機離線開發 Mock 模式。
+1. **雙軌身分驗證與 Session 安全機制**：支援一般網頁環境之 Google Identity Services（GIS）憑證登入，以及 GAS HtmlService 容器內的 ActiveUser / AccountChooser 帳號切換流程；並可依部署條件處理 OAuth 授權碼回呼與 `INITIAL_AUTH` 還原。後端驗證 Google ID Token（`iss`、`email_verified`、`aud`）、支援可選登入網域限制，登入後核發 Session 與 CSRF Token（寫入型 API 強制驗證），並提供 `?mock=true` 本機離線測試模式。
 2. **108 課綱課程代碼匯入與 1NF 正規化模組**：依據教育部國民及學前教育署政策與[全國高級中等學校課程計畫平臺](https://course.k12ea.gov.tw/courseinformation/course.asp)規範，自動解析自該平臺下載之 39 欄課綱寬表 Excel，完整匯入全數課程代碼（包含不分屬性 0 與特殊需求領域 6 等所有科目），展開為三年六學期實質開課之 14 欄標準第一正規化（1NF）課程索引表，並提供前端拖曳上傳、即時預覽統計與分頁檢索清單。
 3. **多風格現代前端設計系統**：內建極簡曜藍（Modern Slate）、圖紙風格（Blueprint）、典雅紙張（Paper）、新粗獷主義（Neo-Brutalism）、黏土擬物（Claymorphism）、紅白機像素（NES）、Happy Hues 等 13 款視覺風格切換與深淺色模式；全面支援通用卡片元件（`.card`）、頁籤導覽列（`.app-nav`、`.nav-tab`）、統計指標網格（`.metrics-grid`、`.metric-card`）、響應式表格（`.table-responsive`）、搜尋防抖（`debounce`）、列印防斷頁（`.print-signatures`），以及完整的 Toast 通知與 Modal 對話框。
-4. **全方位資訊安全防護機制 (Security Hardening)**：內建試算表公式注入防護（Formula Injection Immunization）、RFC 4122 v4 UUID 密碼學安全隨機 Token（CSPRNG）、Google ID Token Client ID 嚴格簽名校驗（防範跨 GCP 專案憑證混淆）、HTTP GET 請求端點嚴格白名單化（預設拒絕 Default Deny），以及前端 XSS 編碼防護。
+4. **全方位資訊安全與通訊強化機制**：前端 API 客戶端採 GAS `google.script.run.executeWebApi` RPC 優先、`fetch` 備援與暫時性錯誤指數退避；後端統一 `executeWebApi` 路由入口與錯誤格式，實作 RBAC、CSRF、HTTP GET 端點白名單、試算表公式注入防護、UUID Session 與 `LockService` 寫入保護，並強化登入授權與公開設定欄位控管。
 
 ---
 
@@ -18,9 +18,9 @@ GAS-Course-Web-Template/
 ├── package.json                # npm 腳本與相依套件設定
 │
 ├── main.js                     # Google 試算表容器選單 (onOpen、初始化工作表、開啟 Web App)
-├── databaseInitializer.js     # 資料庫純資料工作表初始化 (系統設定與授權、課程索引、說明；公式注入防護)
+├── databaseInitializer.js     # 資料庫純資料工作表初始化（系統設定與授權、課程索引、說明；含登入網域等設定欄位）
 ├── subjectCodeTransformer.js   # 108 課綱代碼對照字典、1NF 正規化展開與分頁查詢函式
-├── webApi.js                   # API 路由總管、CORS 防護、Token 驗證、RBAC 角色權限、UUID、LockService
+├── webApi.js                   # API 路由總管與 executeWebApi 共用入口（RPC/doPost）、雙軌登入、OAuth 回呼、Session/CSRF、RBAC、LockService
 ├── utilities.js                # 儲存格安全格式化、公式注入防護 (sanitizeFormulaValue)、通用工具
 │
 ├── webapp/                     # 前端原始碼目錄 (模組化開發，便於維護)
@@ -29,15 +29,15 @@ GAS-Course-Web-Template/
 │   └── js/
 │       ├── config.js           # 前端全域設定、分頁導覽與樣式清單
 │       ├── courseData.js       # 前端代碼對照字典與 1NF 正規化預覽計算
-│       ├── mock.js             # 本機離線開發測試 Mock API 模擬器 (前端攔截，安全無後端後門)
-│       ├── api.js              # REST API 客戶端 (自動攜帶 Token、支援 text/plain 避免 OPTIONS)
+│       ├── mock.js             # 本機離線開發測試 Mock API 模擬器（前端攔截，含登入/CSRF/公開設定相容欄位）
+│       ├── api.js              # API 客戶端（RPC 優先 + fetch 備援、自動夾帶 Token/CSRF、暫時性錯誤重試）
 │       ├── state.js            # 響應式狀態容器 (State Store) 與訂閱發布機制
 │       ├── ui.js               # UI 元件渲染器 (Header、Nav、Login、Toast、Modal、Debounce 防抖)
-│       ├── auth.js             # GIS 登入按鈕載入、Token 回傳、工作階段還原與登出
+│       ├── auth.js             # 登入流程（GIS、ActiveUser/AccountChooser、OAuth 導向、Session 還原與登出）
 │       ├── imports.js          # SheetJS 檔案讀取、拖曳上傳與 1NF 正規化預覽
 │       ├── courses.js          # 正規化課程清單檢索、多條件即時防抖篩選與分頁控制
-│       ├── accounts.js         # 系統核心設定與白名單成員管理介面 (RBAC、XSS 防護)
-│       └── app.js              # 前端進入點與應用程式生命週期管理
+│       ├── accounts.js         # 系統核心設定與白名單成員管理介面（含 OAuth/允許網域設定、RBAC）
+│       └── app.js              # 前端進入點與應用程式生命週期管理（啟動流程、INITIAL_AUTH/switch 處理）
 │
 ├── scripts/
 │   └── build-webapp.js         # 前端打包腳本：將 webapp/styles.css 與 js/ 內嵌至根目錄 index.html
@@ -84,21 +84,19 @@ cp .clasp.json.example .clasp.json
 
 編輯 `.clasp.json`，將 `scriptId` 替換為您的 Google Apps Script 專案代碼（可於 Apps Script 編輯器網址列或「專案設定」中取得）。
 
-### 3. 設定 Google Identity Services (GIS) OAuth 2.0 用戶端 ID
+### 3. 設定 Google 帳號登入（GIS / GAS 雙軌）
 
-本專案全面採用標準 Google 登入（GIS）：
+本專案支援雙軌登入：一般網頁環境可使用 GIS 憑證按鈕，GAS 容器環境可使用 ActiveUser / AccountChooser 帳號切換流程；若需 OAuth 授權碼回呼備援，需額外設定 Client Secret 與重新導向 URI。
 
-1. 前往 [Google Cloud Console](https://console.cloud.google.com/)。
-2. 建立新專案或選取現有專案。
-3. 進入 **API 和服務** → **OAuth 同意畫面**，使用者類型選取「內部」（Intranet）或「外部」。
-4. 進入 **API 和服務** → **憑證**，點擊 **建立憑證** → **OAuth 用戶端 ID**：
-   - 應用程式類型選取：**網頁應用程式** (Web application)。
-   - **已授權的 JavaScript 來源**：填入 `https://script.google.com`（⚠️ **請勿填寫 `googleusercontent.com`**，Google 後台會判定為禁止網域並報錯「來源無效：使用的網域遭到禁止」；本地測試請填入 `http://localhost:8080` 或 `http://localhost`）。
-   - **已授權的重新導向 URI**：填入 Web App 正式部署網址 `https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec`（若使用學校 Workspace 專屬網域，需一併新增 `https://script.google.com/a/{DOMAIN}/macros/s/{DEPLOYMENT_ID}/exec`）。
-5. 建立後取得 **用戶端 ID (Client ID)**（格式例如：`123456789-xxxxxxxx.apps.googleusercontent.com`）。
-6. 可在 Google 試算表的「系統設定與授權」工作表 B5 儲存格填入此 Client ID，或於網頁版管理介面中設定。
+1. 前往 [Google Cloud Console](https://console.cloud.google.com/) 建立或選取專案，完成 **OAuth 同意畫面** 設定。
+2. 進入 **API 和服務** → **憑證**，建立 **OAuth 用戶端 ID**（網頁應用程式）：
+   - **已授權的 JavaScript 來源**：正式環境填入 `https://script.google.com`（⚠️ **請勿填寫 `googleusercontent.com`**）；本機測試依實際來源填入 `http://localhost`、`http://localhost:8080` 等。
+   - **已授權的重新導向 URI**（授權碼回呼流程需要）：填入 Web App 正式部署網址 `https://script.google.com/macros/s/{DEPLOYMENT_ID}/exec`（若使用學校 Workspace 專屬網域，需一併新增對應 `/a/{DOMAIN}/macros/s/{DEPLOYMENT_ID}/exec`）。
+3. 取得 **Client ID**，並視需求取得 **Client Secret**（僅授權碼回呼備援需要）。
+4. 於試算表「系統設定與授權」或網頁版「系統設定與授權」頁籤填入：`OAuth Client ID`、`OAuth Client Secret`（選填）、`Google 登入允許網域`（選填）與白名單限制設定。
+5. 詳細流程與排除方式請參閱 [`docs/gis-login-guide.html`](docs/gis-login-guide.html)。
 
-> **小技巧**：在本地開發或測試介面時，直接於瀏覽器網址列加上 `?mock=true` 即可進入離線 Mock 模式進行全功能測試，無需預先設定 Client ID。
+> **小技巧**：在本地開發或測試介面時，直接於網址列加上 `?mock=true` 即可啟用前端 Mock 模式進行測試，無需預先設定 Client ID。
 
 ### 4. 建置前端並推送至 Google Apps Script
 
@@ -157,21 +155,21 @@ npm run deploy
   - 必選修（如 `1` → 必修、`2` → 選修）
 - **分批寫入防護**：以 5000 筆為一個 chunk 分批寫入試算表，避免單次 `setValues()` 過大導致 GAS 逾時。
 
-### 2. Google Identity Services (GIS) 與 Session 管理
-- 前端非同步載入 `https://accounts.google.com/gsi/client`，自動初始化 Client ID 並渲染 Google 官方登入按鈕。
-- 登入成功後，前端取得 ID Token (JWT)，發送至後端 `login` action。
-- 後端透過 `https://oauth2.googleapis.com/tokeninfo` 嚴格驗證簽章與發行者，強制比對 `aud` 必須完全吻合後台設定之 Client ID，取得驗證後的使用者 Email。
-- 首次使用時，**第一位登入之使用者將自動指派為 `admin` 系統管理員**。
-- 登入後產生具備 RFC 4122 v4 UUID 隨機強度的 Session Token，快取於 `CacheService`（預設有效期限 6 小時）。
-- 前端以 `text/plain;charset=utf-8` 格式發送 POST 請求，杜絕瀏覽器觸發 GAS 不支援之 CORS OPTIONS 預檢錯誤。
+### 2. 雙軌登入、Session 與通訊機制
+- **一般網頁環境**：前端載入 Google Identity Services（GIS）並取得 ID Token，呼叫後端 `login` 驗證後建立 Session。
+- **GAS 容器環境**：前端可透過 AccountChooser / `switch=1` 流程呼叫 `loginWithActiveUser`，避免沙箱 `origin_mismatch` 對 GIS 彈窗的限制。
+- **授權碼回呼（選用）**：`doGet` 可處理 OAuth 授權碼回呼並注入 `INITIAL_AUTH`，由前端啟動流程接手還原登入狀態（需正確設定 Client ID/Secret 與重新導向 URI）。
+- 後端驗證 Google ID Token（`iss`、`email_verified`、`aud`）並支援可選登入網域限制；登入與授權仍套用白名單、停用狀態與首次管理員開通規則。
+- 登入後核發 Session Token 與 CSRF Token（`CacheService`，預設 6 小時）；寫入型 action 需驗證 CSRF。
+- 前端 API 於 GAS 容器優先使用 `google.script.run.executeWebApi`（RPC），非容器環境以 `POST text/plain;charset=utf-8` 備援並對暫時性錯誤進行重試。
 
 ### 3. 全方位資訊安全架構 (Security Hardening)
 - **試算表公式注入防護 (Formula Injection)**：
   在 `utilities.js` 提供 `sanitizeFormulaValue` 與 `sanitizeRowMatrix`，於寫入系統設定與白名單等試算表儲存格前，自動檢核開頭符號（`=`、`+`、`-`、`@`、`\t`、`\r`）並加上前置單引號，杜絕 CSV/試算表公式代碼注入攻擊。
-- **HTTP 方法白名單限制 (Default Deny)**：
-  `doGet` 入口實施嚴格白名單，除 `ping` 與 `getPublicConfig` 唯讀健康檢查外，其餘所有 action 一律拒絕 GET 請求並強制要求 POST，防止透過 URL 帶參數外洩 Token 或遭 CSRF 繞過。
+- **HTTP 方法白名單與 CSRF 防護**：
+  `doGet` 僅允許唯讀檢查等公開路徑，其餘操作需經受控 API 流程；寫入型 action 需驗證 CSRF Token，並搭配 Session 權限檢查與 `LockService` 併發保護。
 - **後端無測試後門**：
-  後端 `login` action 移除任何未認證之 mock 模式，完全杜絕外部發送 `{ mock: true }` 任意提權的可能。
+  Mock 模式僅由前端模擬器攔截（`?mock=true`），後端不提供未認證之測試登入後門。
 - **DOM / XSS 注入防護**：
   前端涉及使用者 Email 等動態參數之行內事件，一律使用 `decodeURIComponent(encodeURIComponent(...))` 處理，阻斷字串跳脫崩潰與 XSS。
 
@@ -197,9 +195,9 @@ npm run deploy
 1. **擴充資料庫工作表**：
    - 在 `databaseInitializer.js` 的 `initializeDatabaseSheets` 加入新工作表名稱與預設表頭。
 2. **新增後端 API Action**：
-   - 在 `webApi.js` 的 `routeWebApiAction` 中加入新的 `case`。
-   - 若涉及資料寫入，請於頂端 `WEB_API_WRITE_ACTIONS` 陣列註冊該 action 名稱，自動取得 `LockService` 併發寫入保護。
-   - 在 `ROLE_PERMISSIONS` 為各角色設定呼叫權限。
+   - 在 `webApi.js` 的 `routeWebApiAction`（或共用處理流程）中加入新的 `case`。
+   - 若涉及資料寫入，請於 `WEB_API_WRITE_ACTIONS` 註冊該 action 名稱，以套用 `LockService` 併發保護與 CSRF 驗證；公開免登入 action 需同步檢視 `WEB_API_PUBLIC_ACTIONS`。
+   - 在 `ROLE_PERMISSIONS` 為各角色設定呼叫權限，並維持回應格式 `{ ok, ... }` 一致。
 3. **擴充前端頁籤與功能模組**：
    - 在 `webapp/js/config.js` 的 `tabs` 陣列新增頁籤項目。
    - 於 `webapp/js/` 建立對應之業務邏輯檔案（如 `reports.js`），並於 `webapp/index.html` 的 `<!-- BUILD:JS -->` 區塊加入 `<script src="js/reports.js"></script>`。
