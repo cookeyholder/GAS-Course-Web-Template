@@ -31,7 +31,7 @@
 
 ## G2. 後端 Web API 核心與登入驗證（目標函式逐一收斂）
 
-- [ ] G2.1 重構/補測試目標：`webApi.js::handleOAuthCodeCallback`（L369, Cyclomatic 25, Cov 0.0%, CRAP 650.00）；驗證：`npm test` 通過且該函式 CRAP <= 30、行為不變。
+- [x] G2.1 重構/補測試目標：`webApi.js::handleOAuthCodeCallback`（L369, Cyclomatic 25, Cov 0.0%, CRAP 650.00）；驗證：`npm test` 通過且該函式 CRAP <= 30、行為不變。
 - [ ] G2.2 重構/補測試目標：`webApi.js::executeWebApi`（L649, 20, 0.0%, 420.00）；驗證同上。
 - [ ] G2.3 重構/補測試目標：`webApi.js::doGet`（L692, 19, 0.0%, 380.00）；驗證同上。
 - [ ] G2.4 重構/補測試目標：`webApi.js::verifyGoogleIdToken`（L233, 18, 0.0%, 342.00）；驗證同上。

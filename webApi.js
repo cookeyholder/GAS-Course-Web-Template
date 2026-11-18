@@ -366,17 +366,100 @@ function resolveOAuthRedirectUri(state, fallbackUrl) {
   }
 }
 
-function handleOAuthCodeCallback(code, e) {
+function getOAuthSpreadsheet_(deps) {
+  if (deps && deps.spreadsheet) return deps.spreadsheet;
+  return typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+    ? SpreadsheetApp.getActiveSpreadsheet()
+    : null;
+}
+
+function getOAuthSettings_(deps, ss) {
+  if (deps && deps.settings) return deps.settings;
+  const readSettings = deps && typeof deps.readSystemSettings === "function"
+    ? deps.readSystemSettings
+    : (typeof readSystemSettings === "function" ? readSystemSettings : null);
+  return readSettings ? readSettings(ss) : {};
+}
+
+function getOAuthWebAppUrl_(deps) {
+  if (deps && typeof deps.webAppUrl === "string") return deps.webAppUrl;
+  try {
+    if (typeof ScriptApp !== "undefined" && ScriptApp.getService) {
+      return ScriptApp.getService().getUrl() || "";
+    }
+  } catch (urlError) {
+    return "";
+  }
+  return "";
+}
+
+function getOAuthFetchResponse_(deps, redirectUri, payload) {
+  if (deps && deps.fetch === null) return { unavailable: true };
+  const options = {
+    method: "post",
+    payload: payload,
+    muteHttpExceptions: true
+  };
+  if (deps && typeof deps.fetch === "function") {
+    return deps.fetch("https://oauth2.googleapis.com/token", options);
+  }
+  if (typeof UrlFetchApp !== "undefined" && UrlFetchApp.fetch) {
+    return UrlFetchApp.fetch("https://oauth2.googleapis.com/token", options);
+  }
+  return { unavailable: true };
+}
+
+function normalizeOAuthHttpResponse_(response) {
+  if (!response) return { statusCode: 0, text: "" };
+  if (typeof response.getResponseCode === "function" && typeof response.getContentText === "function") {
+    return { statusCode: response.getResponseCode(), text: response.getContentText() };
+  }
+  return {
+    statusCode: typeof response.statusCode === "number" ? response.statusCode : 0,
+    text: String(response.text == null ? "" : response.text)
+  };
+}
+
+function parseOAuthTokenData_(responseText) {
+  try {
+    return { ok: true, data: JSON.parse(responseText) };
+  } catch (parseError) {
+    return webApiError("token_parse_error", "解析 Google 憑證回應失敗，請重新登入");
+  }
+}
+
+function buildTokenExchangeFailure_(statusCode, tokenData) {
+  const detail = String(tokenData.error_description || tokenData.error || "HTTP " + statusCode);
+  const staleCode = tokenData.error === "invalid_grant" || detail.indexOf("Bad Request") !== -1;
+  return webApiError(
+    "token_exchange_failed",
+    staleCode
+      ? "登入授權碼已失效（可能因重新整理頁面），請重新點選 Google 帳號登入"
+      : "Google 授權碼交換失敗：" + detail
+  );
+}
+
+function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss) {
+  const verifyFn = deps && typeof deps.verifyGoogleIdToken === "function"
+    ? deps.verifyGoogleIdToken
+    : verifyGoogleIdToken;
+  const createSessionFn = deps && typeof deps.createSessionForEmail === "function"
+    ? deps.createSessionForEmail
+    : createSessionForEmail;
+  const verification = verifyFn(tokenData.id_token, clientId, settings.allowedLoginDomain);
+  if (!verification.ok) return verification;
+  return createSessionFn(verification.email, verification.name, { spreadsheet: ss });
+}
+
+function handleOAuthCodeCallback(code, e, deps) {
   const authorizationCode = String(code || "").trim();
   if (!authorizationCode) {
     return webApiError("missing_code", "缺少 Google 授權碼，請重新發起登入");
   }
 
-  const ss =
-    typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null;
-  const settings = readSystemSettings(ss);
+  const context = deps && typeof deps === "object" ? deps : {};
+  const ss = getOAuthSpreadsheet_(context);
+  const settings = getOAuthSettings_(context, ss) || {};
   const clientId = String(settings.clientId || "").trim();
   const clientSecret = String(settings.clientSecret || "").trim();
 
@@ -387,58 +470,34 @@ function handleOAuthCodeCallback(code, e) {
     return webApiError("missing_client_secret", "系統尚未設定 OAuth Client Secret，無法完成 Google 帳號登入");
   }
 
-  let webAppUrl = "";
-  try {
-    if (typeof ScriptApp !== "undefined" && ScriptApp.getService) {
-      webAppUrl = ScriptApp.getService().getUrl() || "";
-    }
-  } catch (urlError) {
-    webAppUrl = "";
-  }
-
-  const redirectUri = resolveOAuthRedirectUri(e && e.parameter ? e.parameter.state : "", webAppUrl);
-
-  if (typeof UrlFetchApp === "undefined" || !UrlFetchApp.fetch) {
-    return webApiError("environment_error", "目前環境不支援交換 Google 授權碼");
-  }
+  const redirectUri = resolveOAuthRedirectUri(
+    e && e.parameter ? e.parameter.state : "",
+    getOAuthWebAppUrl_(context)
+  );
+  const payload = {
+    code: authorizationCode,
+    client_id: clientId,
+    client_secret: clientSecret,
+    redirect_uri: redirectUri,
+    grant_type: "authorization_code"
+  };
 
   try {
-    const response = UrlFetchApp.fetch("https://oauth2.googleapis.com/token", {
-      method: "post",
-      payload: {
-        code: authorizationCode,
-        client_id: clientId,
-        client_secret: clientSecret,
-        redirect_uri: redirectUri,
-        grant_type: "authorization_code"
-      },
-      muteHttpExceptions: true
-    });
-
-    const statusCode = response.getResponseCode();
-    const responseText = response.getContentText();
-    let tokenData;
-    try {
-      tokenData = JSON.parse(responseText);
-    } catch (parseError) {
-      return webApiError("token_parse_error", "解析 Google 憑證回應失敗，請重新登入");
+    const rawResponse = getOAuthFetchResponse_(context, redirectUri, payload);
+    if (rawResponse && rawResponse.unavailable) {
+      return webApiError("environment_error", "目前環境不支援交換 Google 授權碼");
     }
 
-    if (statusCode !== 200 || !tokenData.id_token) {
-      const detail = String(tokenData.error_description || tokenData.error || "HTTP " + statusCode);
-      const staleCode = tokenData.error === "invalid_grant" || detail.indexOf("Bad Request") !== -1;
-      return webApiError(
-        "token_exchange_failed",
-        staleCode
-          ? "登入授權碼已失效（可能因重新整理頁面），請重新點選 Google 帳號登入"
-          : "Google 授權碼交換失敗：" + detail
-      );
+    const response = normalizeOAuthHttpResponse_(rawResponse);
+    const parsed = parseOAuthTokenData_(response.text);
+    if (!parsed.ok) return parsed;
+
+    const tokenData = parsed.data || {};
+    if (response.statusCode !== 200 || !tokenData.id_token) {
+      return buildTokenExchangeFailure_(response.statusCode, tokenData);
     }
 
-    const verification = verifyGoogleIdToken(tokenData.id_token, clientId, settings.allowedLoginDomain);
-    if (!verification.ok) return verification;
-
-    return createSessionForEmail(verification.email, verification.name, { spreadsheet: ss });
+    return verifyAndCreateOAuthSession_(context, tokenData, clientId, settings, ss);
   } catch (error) {
     return webApiError(
       "token_exchange_error",
