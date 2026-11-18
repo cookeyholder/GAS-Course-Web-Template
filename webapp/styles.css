@@ -5178,3 +5178,50 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
 
 
+
+
+/* ------------------------------------------------------------------------- */
+/* Utilities & components for GIS/RPC login and settings UI                  */
+/* ------------------------------------------------------------------------- */
+.form-group { margin-top: 14px; display: flex; flex-direction: column; gap: 6px; }
+.label { font-size: 13px; font-weight: 700; color: var(--ink-2); letter-spacing: 0.02em; }
+.hint { font-size: 12.5px; color: var(--ink-3); line-height: 1.55; }
+.hint code { font-family: var(--mono); font-size: 12px; }
+.login-actions { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
+.login-header-tools { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-bottom: 10px; }
+.login-brand { text-align: center; margin-bottom: 14px; }
+.login-logo { font-size: 28px; line-height: 1; margin-bottom: 6px; }
+.login-title { margin: 0; font-size: 22px; line-height: 1.25; }
+.login-desc { margin: 6px 0 0; color: var(--ink-2); font-size: 14px; }
+.login-note { margin: 14px 0 0; font-size: 13px; color: var(--ink-3); text-align: center; }
+.login-alert { display: flex; gap: 8px; align-items: flex-start; padding: 10px 12px; border: 1px solid var(--err); background: var(--err-bg); color: var(--err); border-radius: var(--radius); font-size: 13.5px; }
+.login-hint { margin-top: 10px; padding: 10px 12px; border: 1px solid var(--line-2); background: var(--fill); color: var(--ink-2); border-radius: var(--radius); font-size: 13px; line-height: 1.55; }
+.login-divider { display: flex; align-items: center; gap: 10px; color: var(--ink-3); font-size: 12.5px; }
+.login-divider::before, .login-divider::after { content: ""; flex: 1; height: 1px; background: var(--line-2); }
+.google-btn-host { min-height: 44px; display: flex; align-items: center; justify-content: center; }
+.google-redirect-btn { width: 100%; justify-content: center; gap: 10px; min-height: 44px; font-weight: 600; }
+.btn.block { width: 100%; justify-content: center; }
+.btn.compact { padding: 6px 10px; font-size: 13px; }
+.btn.danger { border-color: var(--err); color: var(--err); background: transparent; }
+.btn.danger:hover { background: var(--err-bg); }
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; border: 1px solid var(--line-2); }
+.badge-ok { color: var(--ok); background: var(--ok-bg); border-color: var(--ok); }
+.badge-err { color: var(--err); background: var(--err-bg); border-color: var(--err); }
+.card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.card-title { margin: 0; font-size: 16px; }
+.mt-2 { margin-top: 8px; }
+.mt-3 { margin-top: 12px; }
+.mt-4 { margin-top: 16px; }
+.py-4 { padding-top: 16px; padding-bottom: 16px; }
+.py-12 { padding-top: 48px; padding-bottom: 48px; }
+.mb-4 { margin-bottom: 16px; }
+.text-center { text-align: center; }
+.text-muted { color: var(--ink-3); }
+.row { display: flex; gap: 12px; flex-wrap: wrap; }
+.col { flex: 1 1 160px; min-width: 0; }
+.spinner {
+  width: 28px; height: 28px; margin: 0 auto;
+  border: 3px solid var(--line-2); border-top-color: var(--accent);
+  border-radius: 50%; animation: mea-spin 0.9s linear infinite;
+}
+@keyframes mea-spin { to { transform: rotate(360deg); } }

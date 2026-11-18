@@ -190,39 +190,59 @@ window.MEA = window.MEA || {};
     const user = MEA.state.user || {};
     const styles = getStyleList();
     const curStyle = currentStyle();
+    const systemName = (MEA.state.publicConfig && MEA.state.publicConfig.systemName) || MEA.config.title;
 
     let styleOptionsHtml = "";
     for (let i = 0; i < styles.length; i++) {
       const s = styles[i];
       const selected = s.id === curStyle ? " selected" : "";
-      styleOptionsHtml += '<option value="' + escapeHtml(s.id) + '"' + selected + '>' + escapeHtml(s.icon + " " + s.name) + '</option>';
+      styleOptionsHtml +=
+        '<option value="' +
+        escapeHtml(s.id) +
+        '"' +
+        selected +
+        ">" +
+        escapeHtml(s.icon + " " + s.name) +
+        "</option>";
     }
 
-    return '<header class="app-header">'
-      + '<div class="header-brand">'
-      + '  <div class="brand-mark">📋</div>'
-      + '  <div class="brand-text">'
-      + '    <h1 class="brand-title">' + escapeHtml(MEA.config.title) + '</h1>'
-      + '    <span class="brand-sub">Google Apps Script Web App Template v' + escapeHtml(MEA.config.version) + '</span>'
-      + '  </div>'
-      + '</div>'
-      + '<div class="header-tools">'
-      + '  <div class="user-pill">'
-      + '    <span class="user-avatar">👤</span>'
-      + '    <span class="user-name">' + escapeHtml(user.name || user.email) + '</span>'
-      + '    <span class="pill ' + (user.role === "admin" ? "accent" : "muted") + '">' + escapeHtml(user.roleName || roleName(user.role)) + '</span>'
-      + '  </div>'
-      + '  <div class="style-selector-wrap">'
-      + '    <select id="styleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">'
-      +        styleOptionsHtml
-      + '    </select>'
-      + '  </div>'
-      + '  <button id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">'
-      +      (currentTheme() === "dark" ? "◑ 淺色模式" : "◐ 深色模式")
-      + '  </button>'
-      + '  <button class="btn secondary compact" onclick="MEA.auth.logout()">登出</button>'
-      + '</div>'
-      + '</header>';
+    return (
+      '<header class="app-header">' +
+      '<div class="header-brand">' +
+      '  <div class="brand-mark">📋</div>' +
+      '  <div class="brand-text">' +
+      '    <h1 class="brand-title">' +
+      escapeHtml(systemName) +
+      "</h1>" +
+      '    <span class="brand-sub">Google Apps Script Web App Template v' +
+      escapeHtml(MEA.config.version) +
+      "</span>" +
+      "  </div>" +
+      "</div>" +
+      '<div class="header-tools">' +
+      '  <div class="user-pill">' +
+      '    <span class="user-avatar">👤</span>' +
+      '    <span class="user-name">' +
+      escapeHtml(user.name || user.email) +
+      "</span>" +
+      '    <span class="pill ' +
+      (user.role === "admin" ? "accent" : "muted") +
+      '">' +
+      escapeHtml(user.roleName || roleName(user.role)) +
+      "</span>" +
+      "  </div>" +
+      '  <div class="style-selector-wrap">' +
+      '    <select id="styleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
+      styleOptionsHtml +
+      "    </select>" +
+      "  </div>" +
+      '  <button id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+      (currentTheme() === "dark" ? "◑ 淺色模式" : "◐ 深色模式") +
+      "  </button>" +
+      '  <button class="btn secondary compact" onclick="MEA.auth.logout()">登出</button>' +
+      "</div>" +
+      "</header>"
+    );
   }
 
   function renderNavbar() {
@@ -260,46 +280,79 @@ window.MEA = window.MEA || {};
     for (let i = 0; i < styles.length; i++) {
       const s = styles[i];
       const selected = s.id === curStyle ? " selected" : "";
-      styleOptionsHtml += '<option value="' + escapeHtml(s.id) + '"' + selected + '>' + escapeHtml(s.icon + " " + s.name) + '</option>';
+      styleOptionsHtml +=
+        '<option value="' +
+        escapeHtml(s.id) +
+        '"' +
+        selected +
+        ">" +
+        escapeHtml(s.icon + " " + s.name) +
+        "</option>";
     }
 
     let errorHtml = "";
     if (loginError) {
-      errorHtml = '<div class="login-alert err"><span class="alert-icon">⚠</span><span>' + escapeHtml(loginError) + '</span></div>';
+      errorHtml =
+        '<div class="login-alert err"><span class="alert-icon">⚠</span><span>' +
+        escapeHtml(loginError) +
+        "</span></div>";
     }
 
-    return '<div class="login-container">'
-      + '<div class="login-header-tools">'
-      + '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">'
-      +      styleOptionsHtml
-      + '  </select>'
-      + '  <button id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">'
-      +      (currentTheme() === "dark" ? "◑ 淺色" : "◐ 深色")
-      + '  </button>'
-      + '</div>'
-      + '<div class="login-card">'
-      + '  <div class="login-brand">'
-      + '    <div class="login-logo">✨</div>'
-      + '    <h2 class="login-title">' + escapeHtml(config.systemName || MEA.config.title) + '</h2>'
-      + '    <p class="login-desc">Google Identity Services (GIS) 身分驗證 · 課程代碼 1NF 正規化範本</p>'
-      + '  </div>'
-      +    errorHtml
-      + '  <div class="login-actions">'
-      + '    <div class="gis-button-wrapper">'
-      + '      <div id="googleLoginButton" class="google-btn-host"></div>'
-      + '    </div>'
-      +      (isMock
-              ? '<div class="login-divider"><span>或</span></div>'
-              + '<button class="btn secondary block" onclick="MEA.auth.loginMock()"' + (loginBusy ? ' disabled' : '') + '>'
-              + '  🧪 本地測試身分登入 (Mock Mode)'
-              + '</button>'
-              : '')
-      + '  </div>'
-      + '  <div class="login-footer">'
-      + '    <p class="login-note">請使用 Google 帳號登入；首次登入者將自動開通管理員身分</p>'
-      + '  </div>'
-      + '</div>'
-      + '</div>';
+    let statusHtml = "";
+    if (isMock) {
+      statusHtml = '<div class="login-hint">目前為本機 Mock 模式，可直接使用測試身分登入。</div>';
+    } else if (MEA.auth && typeof MEA.auth.isGasHosted === "function" && MEA.auth.isGasHosted()) {
+      const activeEmail = String(config.activeEmail || "").trim();
+      statusHtml = activeEmail
+        ? '<div class="login-hint">目前瀏覽器 Google 帳號：<strong>' +
+          escapeHtml(activeEmail) +
+          "</strong></div>"
+        : '<div class="login-hint">將透過 Google 帳戶選擇器以目前瀏覽器 Google 帳號登入。</div>';
+    } else if (config.clientId) {
+      statusHtml = '<div class="login-hint">使用 Google Identity Services 憑證進行登入驗證。</div>';
+    } else {
+      statusHtml = '<div class="login-hint">尚未設定 OAuth Client ID；可請管理員於系統設定完成後再啟用 GIS 登入。</div>';
+    }
+
+    return (
+      '<div class="login-container">' +
+      '<div class="login-header-tools">' +
+      '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
+      styleOptionsHtml +
+      "  </select>" +
+      '  <button id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+      (currentTheme() === "dark" ? "◑ 淺色" : "◐ 深色") +
+      "  </button>" +
+      "</div>" +
+      '<div class="login-card">' +
+      '  <div class="login-brand">' +
+      '    <div class="login-logo">✨</div>' +
+      '    <h2 class="login-title">' +
+      escapeHtml(config.systemName || MEA.config.title) +
+      "</h2>" +
+      '    <p class="login-desc">Google 帳號登入、Session 安全控管與 108 課綱課程代碼 1NF 正規化範本</p>' +
+      "  </div>" +
+      errorHtml +
+      statusHtml +
+      '  <div class="login-actions">' +
+      '    <div class="gis-button-wrapper">' +
+      '      <div id="googleLoginButton" class="google-btn-host"></div>' +
+      "    </div>" +
+      (isMock
+        ? '<div class="login-divider"><span>或</span></div>' +
+          '<button class="btn secondary block" onclick="MEA.auth.loginMock()"' +
+          (loginBusy ? " disabled" : "") +
+          ">" +
+          "  🧪 本地測試身分登入 (Mock Mode)" +
+          "</button>"
+        : "") +
+      "  </div>" +
+      '  <div class="login-footer">' +
+      '    <p class="login-note">首次登入且尚無白名單資料時，系統將自動建立第一位系統管理員。</p>' +
+      "  </div>" +
+      "</div>" +
+      "</div>"
+    );
   }
 
   // ============================================================================
@@ -310,58 +363,81 @@ window.MEA = window.MEA || {};
     const config = MEA.state.publicConfig || {};
     const user = MEA.state.user || {};
     const courses = MEA.state.courses || {};
+    const isGasHosted = MEA.auth && typeof MEA.auth.isGasHosted === "function" && MEA.auth.isGasHosted();
+    const loginMode = isGasHosted ? "GAS ActiveUser / AccountChooser" : config.clientId ? "Google Identity Services" : "未設定 Client ID";
 
-    return '<div class="panel overview-panel">'
-      + '<div class="panel-header">'
-      + '  <div>'
-      + '    <h2 class="panel-title">系統概覽儀表板</h2>'
-      + '    <p class="panel-sub">Google Apps Script 網頁應用程式範本核心運作狀態</p>'
-      + '  </div>'
-      + '</div>'
-      + '<div class="metrics-grid">'
-      + '  <div class="metric-card">'
-      + '    <div class="metric-label">目前學年度 / 學期</div>'
-      + '    <div class="metric-value">' + escapeHtml(config.schoolYear || "114") + ' - ' + escapeHtml(config.semester || "1") + '</div>'
-      + '    <div class="metric-sub">系統作業環境</div>'
-      + '  </div>'
-      + '  <div class="metric-card">'
-      + '    <div class="metric-label">已登入使用者</div>'
-      + '    <div class="metric-value">' + escapeHtml(user.name || user.email) + '</div>'
-      + '    <div class="metric-sub">角色權限：' + escapeHtml(user.roleName || user.role) + '</div>'
-      + '  </div>'
-      + '  <div class="metric-card">'
-      + '    <div class="metric-label">OAuth 登入機制</div>'
-      + '    <div class="metric-value">' + (config.clientId ? '已配置 Client ID' : '使用 ActiveUser') + '</div>'
-      + '    <div class="metric-sub">Google Identity Services</div>'
-      + '  </div>'
-      + '</div>'
-      + '<div class="card mt-4">'
-      + '  <h3 class="card-title">🚀 範本功能快速導覽</h3>'
-      + '  <div class="feature-grid mt-3">'
-      + '    <div class="feature-item" onclick="MEA.setTab(\'import\')">'
-      + '      <div class="feature-icon">📥</div>'
-      + '      <div class="feature-text">'
-      + '        <h4>課程代碼匯入與 1NF 正規化</h4>'
-      + '        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程索引。</p>'
-      + '      </div>'
-      + '    </div>'
-      + '    <div class="feature-item" onclick="MEA.setTab(\'courses\')">'
-      + '      <div class="feature-icon">📚</div>'
-      + '      <div class="feature-text">'
-      + '        <h4>正規化課程檢索與分頁</h4>'
-      + '        <p>提供多維度關鍵字、學年、學期、科別篩選機制，支援大批量課程資料快速檢索。</p>'
-      + '      </div>'
-      + '    </div>'
-      + '    <div class="feature-item" onclick="MEA.setTab(\'settings\')">'
-      + '      <div class="feature-icon">⚙️</div>'
-      + '      <div class="feature-text">'
-      + '        <h4>系統設定與授權管理 (RBAC)</h4>'
-      + '        <p>維護 Google OAuth 2.0 Client ID、學期參數與系統存取授權白名單。</p>'
-      + '      </div>'
-      + '    </div>'
-      + '  </div>'
-      + '</div>'
-      + '</div>';
+    return (
+      '<div class="panel overview-panel">' +
+      '<div class="panel-header">' +
+      "  <div>" +
+      '    <h2 class="panel-title">系統概覽儀表板</h2>' +
+      '    <p class="panel-sub">Google Apps Script 網頁應用程式範本核心運作狀態</p>' +
+      "  </div>" +
+      "</div>" +
+      '<div class="metrics-grid">' +
+      '  <div class="metric-card">' +
+      '    <div class="metric-label">目前學年度 / 學期</div>' +
+      '    <div class="metric-value">' +
+      escapeHtml(config.schoolYear || "114") +
+      " - " +
+      escapeHtml(config.semester || "1") +
+      "</div>" +
+      '    <div class="metric-sub">系統作業環境</div>' +
+      "  </div>" +
+      '  <div class="metric-card">' +
+      '    <div class="metric-label">已登入使用者</div>' +
+      '    <div class="metric-value">' +
+      escapeHtml(user.name || user.email) +
+      "</div>" +
+      '    <div class="metric-sub">角色權限：' +
+      escapeHtml(user.roleName || user.role) +
+      "</div>" +
+      "  </div>" +
+      '  <div class="metric-card">' +
+      '    <div class="metric-label">登入機制</div>' +
+      '    <div class="metric-value">' +
+      escapeHtml(loginMode) +
+      "</div>" +
+      '    <div class="metric-sub">' +
+      (config.allowedDomain ? "限制網域：@" + escapeHtml(config.allowedDomain) : "未限制登入網域") +
+      "</div>" +
+      "  </div>" +
+      '  <div class="metric-card">' +
+      '    <div class="metric-label">課程索引筆數</div>' +
+      '    <div class="metric-value">' +
+      number(courses.total || 0) +
+      "</div>" +
+      '    <div class="metric-sub">正規化課程紀錄總數</div>' +
+      "  </div>" +
+      "</div>" +
+      '<div class="card mt-4">' +
+      '  <h3 class="card-title">🚀 範本功能快速導覽</h3>' +
+      '  <div class="feature-grid mt-3">' +
+      '    <div class="feature-item" onclick="MEA.setTab(\'import\')">' +
+      '      <div class="feature-icon">📥</div>' +
+      '      <div class="feature-text">' +
+      "        <h4>課程代碼匯入與 1NF 正規化</h4>" +
+      "        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程索引。</p>" +
+      "      </div>" +
+      "    </div>" +
+      '    <div class="feature-item" onclick="MEA.setTab(\'courses\')">' +
+      '      <div class="feature-icon">📚</div>' +
+      '      <div class="feature-text">' +
+      "        <h4>正規化課程檢索與分頁</h4>" +
+      "        <p>提供多維度關鍵字、學年、學期、科別篩選機制，支援大批量課程資料快速檢索。</p>" +
+      "      </div>" +
+      "    </div>" +
+      '    <div class="feature-item" onclick="MEA.setTab(\'settings\')">' +
+      '      <div class="feature-icon">⚙️</div>' +
+      '      <div class="feature-text">' +
+      "        <h4>系統設定與授權管理 (RBAC)</h4>" +
+      "        <p>維護 Google OAuth 設定、登入網域限制、學期參數與系統存取授權白名單。</p>" +
+      "      </div>" +
+      "    </div>" +
+      "  </div>" +
+      "</div>" +
+      "</div>"
+    );
   }
 
   /**

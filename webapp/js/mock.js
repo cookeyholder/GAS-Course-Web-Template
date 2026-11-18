@@ -13,7 +13,8 @@ window.MEA = window.MEA || {};
     semester: "1",
     clientId: "mock-client-id.apps.googleusercontent.com",
     clientSecret: "",
-    restrictWhitelist: false
+    restrictWhitelist: false,
+    allowedLoginDomain: ""
   };
 
   const mockAccounts = [
@@ -22,43 +23,112 @@ window.MEA = window.MEA || {};
   ];
 
   let mockCoursesList = [
-    { academicYear: "114", semester: "1", grade: "1", entryYear: "114", courseCode: "305101A", subjectName: "程式設計實習Ⅰ", group: "電機與電子群", department: "資訊科", subjectType: "部定必修", openWay: "原班級", attribute: "實習科目", required: "必修", credits: "3", hours: "3" },
-    { academicYear: "114", semester: "1", grade: "1", entryYear: "114", courseCode: "308102B", subjectName: "基本電學Ⅰ", group: "電機與電子群", department: "電機科", subjectType: "部定必修", openWay: "原班級", attribute: "專業科目", required: "必修", credits: "3", hours: "3" },
-    { academicYear: "114", semester: "1", grade: "2", entryYear: "113", courseCode: "301201C", subjectName: "機械製造Ⅱ", group: "機械群", department: "機械科", subjectType: "部定必修", openWay: "原班級", attribute: "專業科目", required: "必修", credits: "2", hours: "2" },
-    { academicYear: "114", semester: "1", grade: "3", entryYear: "112", courseCode: "311301D", subjectName: "工程力學Ⅱ", group: "土木與建築群", department: "建築科", subjectType: "部定必修", openWay: "原班級", attribute: "專業科目", required: "必修", credits: "3", hours: "3" }
+    {
+      academicYear: "114",
+      semester: "1",
+      grade: "1",
+      entryYear: "114",
+      courseCode: "305101A",
+      subjectName: "程式設計實習Ⅰ",
+      group: "電機與電子群",
+      department: "資訊科",
+      subjectType: "部定必修",
+      openWay: "原班級",
+      attribute: "實習科目",
+      required: "必修",
+      credits: "3",
+      hours: "3"
+    },
+    {
+      academicYear: "114",
+      semester: "1",
+      grade: "1",
+      entryYear: "114",
+      courseCode: "308102B",
+      subjectName: "基本電學Ⅰ",
+      group: "電機與電子群",
+      department: "電機科",
+      subjectType: "部定必修",
+      openWay: "原班級",
+      attribute: "專業科目",
+      required: "必修",
+      credits: "3",
+      hours: "3"
+    },
+    {
+      academicYear: "114",
+      semester: "1",
+      grade: "2",
+      entryYear: "113",
+      courseCode: "301201C",
+      subjectName: "機械製造Ⅱ",
+      group: "機械群",
+      department: "機械科",
+      subjectType: "部定必修",
+      openWay: "原班級",
+      attribute: "專業科目",
+      required: "必修",
+      credits: "2",
+      hours: "2"
+    },
+    {
+      academicYear: "114",
+      semester: "1",
+      grade: "3",
+      entryYear: "112",
+      courseCode: "311301D",
+      subjectName: "工程力學Ⅱ",
+      group: "土木與建築群",
+      department: "建築科",
+      subjectType: "部定必修",
+      openWay: "原班級",
+      attribute: "專業科目",
+      required: "必修",
+      credits: "3",
+      hours: "3"
+    }
   ];
+
+  function buildLoginPayload() {
+    return {
+      ok: true,
+      token: "mock_session_token_" + Date.now(),
+      csrfToken: "mock_csrf_" + Date.now(),
+      expiresIn: 21600,
+      email: "admin@example.com",
+      name: "測試管理員",
+      role: "admin",
+      roleName: "系統管理員",
+      perms: ["*"]
+    };
+  }
 
   function handle(action, payload) {
     return new Promise(function (resolve) {
       setTimeout(function () {
         switch (action) {
           case "ping":
-            resolve({ ok: true, pong: Date.now(), version: "1.0.0-mock" });
+            resolve({ ok: true, pong: Date.now(), version: "1.1.0-mock" });
             break;
 
           case "getPublicConfig":
             resolve({
               ok: true,
-              version: "1.0.0-mock",
+              version: "1.1.0-mock",
               systemName: mockSettings.systemName,
               schoolYear: mockSettings.schoolYear,
               semester: mockSettings.semester,
               clientId: mockSettings.clientId,
+              hasClientSecret: Boolean(mockSettings.clientSecret),
+              allowedDomain: String(mockSettings.allowedLoginDomain || "").trim().replace(/^@/, "").toLowerCase(),
+              activeEmail: "admin@example.com",
               webAppUrl: window.location.href
             });
             break;
 
           case "login":
-            resolve({
-              ok: true,
-              token: "mock_session_token_" + Date.now(),
-              expiresIn: 21600,
-              email: "admin@example.com",
-              name: "測試管理員",
-              role: "admin",
-              roleName: "系統管理員",
-              perms: ["*"]
-            });
+          case "loginWithActiveUser":
+            resolve(buildLoginPayload());
             break;
 
           case "getSession":
@@ -68,7 +138,8 @@ window.MEA = window.MEA || {};
               name: "測試管理員",
               role: "admin",
               roleName: "系統管理員",
-              perms: ["*"]
+              perms: ["*"],
+              csrfToken: payload && payload.csrfToken ? payload.csrfToken : "mock_csrf_token"
             });
             break;
 
@@ -116,10 +187,16 @@ window.MEA = window.MEA || {};
             resolve({ ok: true, settings: Object.assign({}, mockSettings) });
             break;
 
-          case "saveSystemSettings":
-            Object.assign(mockSettings, payload.settings || {});
+          case "saveSystemSettings": {
+            const incoming = (payload && payload.settings) || {};
+            const mapped = Object.assign({}, incoming);
+            if (typeof mapped.allowedLoginDomain === "undefined" && typeof incoming["Google 登入允許網域"] !== "undefined") {
+              mapped.allowedLoginDomain = incoming["Google 登入允許網域"];
+            }
+            Object.assign(mockSettings, mapped);
             resolve({ ok: true });
             break;
+          }
 
           case "getAccounts":
             resolve({ ok: true, accounts: mockAccounts.slice() });
@@ -127,7 +204,9 @@ window.MEA = window.MEA || {};
 
           case "saveWhitelist":
             mockAccounts.length = 0;
-            (payload.accounts || []).forEach(function (a) { mockAccounts.push(a); });
+            (payload && payload.accounts ? payload.accounts : []).forEach(function (a) {
+              mockAccounts.push(a);
+            });
             resolve({ ok: true, count: mockAccounts.length });
             break;
 

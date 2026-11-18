@@ -44,36 +44,42 @@ window.MEA = window.MEA || {};
     const semester = document.getElementById("cfgSemester").value.trim();
     const clientId = document.getElementById("cfgClientId").value.trim();
     const clientSecret = document.getElementById("cfgClientSecret").value.trim();
+    const allowedLoginDomain = document.getElementById("cfgAllowedDomain")
+      ? document.getElementById("cfgAllowedDomain").value.trim().replace(/^@/, "").toLowerCase()
+      : "";
     const restrict = document.getElementById("cfgRestrictWhitelist").checked;
 
     MEA.setState({
       settings: Object.assign({}, MEA.state.settings || {}, { saving: true })
     });
 
-    MEA.api.call("saveSystemSettings", {
-      settings: {
-        systemName: systemName,
-        schoolYear: schoolYear,
-        semester: semester,
-        clientId: clientId,
-        clientSecret: clientSecret,
-        restrictWhitelist: restrict ? "true" : "false"
-      }
-    })
+    MEA.api
+      .call("saveSystemSettings", {
+        settings: {
+          systemName: systemName,
+          schoolYear: schoolYear,
+          semester: semester,
+          clientId: clientId,
+          clientSecret: clientSecret,
+          allowedLoginDomain: allowedLoginDomain,
+          restrictWhitelist: restrict ? "true" : "false"
+        }
+      })
       .then(function (result) {
         MEA.setState({
           settings: Object.assign({}, MEA.state.settings || {}, { saving: false })
         });
         if (result && result.ok) {
           MEA.ui.toast("系統參數已成功儲存！", "ok");
-          // 更新公開設定快取
           if (MEA.state.publicConfig) {
             MEA.setState({
               publicConfig: Object.assign({}, MEA.state.publicConfig, {
                 systemName: systemName,
                 schoolYear: schoolYear,
                 semester: semester,
-                clientId: clientId
+                clientId: clientId,
+                allowedDomain: allowedLoginDomain,
+                hasClientSecret: Boolean(clientSecret)
               })
             });
           }
@@ -232,68 +238,95 @@ window.MEA = window.MEA || {};
       }
     }
 
-    return '<div class="panel">'
-      + '<div class="panel-header">'
-      + '  <div>'
-      + '    <h2 class="panel-title">系統設定與授權 (RBAC)</h2>'
-      + '    <p class="panel-sub">設定 Google Cloud OAuth 2.0 Client ID 與存取成員角色清單</p>'
-      + '  </div>'
-      + '  <button class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()">🔄 重新讀取</button>'
-      + '</div>'
-      + '<div class="card mt-3">'
-      + '  <h3 class="card-title">系統核心參數</h3>'
-      + '  <form class="mt-3" onsubmit="MEA.accounts.saveSettings(event)">'
-      + '    <div class="row">'
-      + '      <div class="col" style="flex:2;">'
-      + '        <label class="label">系統名稱</label>'
-      + '        <input type="text" id="cfgSystemName" class="input" value="' + MEA.ui.escapeHtml(data.systemName || "") + '" />'
-      + '      </div>'
-      + '      <div class="col">'
-      + '        <label class="label">目前學年度</label>'
-      + '        <input type="text" id="cfgSchoolYear" class="input" value="' + MEA.ui.escapeHtml(data.schoolYear || "114") + '" />'
-      + '      </div>'
-      + '      <div class="col">'
-      + '        <label class="label">目前學期</label>'
-      + '        <input type="text" id="cfgSemester" class="input" value="' + MEA.ui.escapeHtml(data.semester || "1") + '" />'
-      + '      </div>'
-      + '    </div>'
-      + '    <div class="form-group mt-3">'
-      + '      <label class="label">Google OAuth 2.0 Client ID (GIS 登入用)</label>'
-      + '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" value="' + MEA.ui.escapeHtml(data.clientId || "") + '" />'
-      + '      <span class="hint">可於 Google Cloud Console 憑證管理中取得；留空時將停用 Google One Tap / Button，改採 Workspace 登入</span>'
-      + '    </div>'
-      + '    <div class="form-group mt-3">'
-      + '      <label class="label">Google OAuth 2.0 Client Secret (選填備援)</label>'
-      + '      <input type="password" id="cfgClientSecret" class="input mono" value="' + MEA.ui.escapeHtml(data.clientSecret || "") + '" />'
-      + '    </div>'
-      + '    <div class="form-group mt-3">'
-      + '      <label class="checkbox-label">'
-      + '        <input type="checkbox" id="cfgRestrictWhitelist"' + (data.restrictWhitelist ? " checked" : "") + ' />'
-      + '        <span>嚴格啟用白名單限制（未列於下方成員清單之帳號將拒絕登入）</span>'
-      + '      </label>'
-      + '    </div>'
-      + '    <div class="mt-4">'
-      + '      <button type="submit" class="btn primary"' + (saving ? " disabled" : "") + '>' + (saving ? "儲存中..." : "儲存系統設定") + '</button>'
-      + '    </div>'
-      + '  </form>'
-      + '</div>'
-      + '<div class="card mt-4">'
-      + '  <div class="card-header">'
-      + '    <h3 class="card-title">授權白名單成員清單</h3>'
-      + '    <button class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()">＋ 新增授權成員</button>'
-      + '  </div>'
-      + '  <div class="table-responsive mt-3">'
-      + '    <table class="table">'
-      + '      <thead>'
-      + '        <tr>'
-      + '          <th>Email</th><th>姓名/職稱</th><th>角色</th><th>狀態</th><th>操作</th>'
-      + '        </tr>'
-      + '      </thead>'
-      + '      <tbody>' + accountsRowsHtml + '</tbody>'
-      + '    </table>'
-      + '  </div>'
-      + '</div>'
-      + '</div>';
+    return (
+      '<div class="panel">' +
+      '<div class="panel-header">' +
+      "  <div>" +
+      '    <h2 class="panel-title">系統設定與授權 (RBAC)</h2>' +
+      '    <p class="panel-sub">設定 Google OAuth、登入網域限制與存取成員角色清單</p>' +
+      "  </div>" +
+      '  <button class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()">🔄 重新讀取</button>' +
+      "</div>" +
+      '<div class="card mt-3">' +
+      '  <h3 class="card-title">系統核心參數</h3>' +
+      '  <form class="mt-3" onsubmit="MEA.accounts.saveSettings(event)">' +
+      '    <div class="row">' +
+      '      <div class="col" style="flex:2;">' +
+      '        <label class="label">系統名稱</label>' +
+      '        <input type="text" id="cfgSystemName" class="input" value="' +
+      MEA.ui.escapeHtml(data.systemName || "") +
+      '" />' +
+      "      </div>" +
+      '      <div class="col">' +
+      '        <label class="label">目前學年度</label>' +
+      '        <input type="text" id="cfgSchoolYear" class="input" value="' +
+      MEA.ui.escapeHtml(data.schoolYear || "114") +
+      '" />' +
+      "      </div>" +
+      '      <div class="col">' +
+      '        <label class="label">目前學期</label>' +
+      '        <input type="text" id="cfgSemester" class="input" value="' +
+      MEA.ui.escapeHtml(data.semester || "1") +
+      '" />' +
+      "      </div>" +
+      "    </div>" +
+      '    <div class="form-group mt-3">' +
+      '      <label class="label">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
+      '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" value="' +
+      MEA.ui.escapeHtml(data.clientId || "") +
+      '" />' +
+      '      <span class="hint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
+      "    </div>" +
+      '    <div class="form-group mt-3">' +
+      '      <label class="label">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
+      '      <input type="password" id="cfgClientSecret" class="input mono" value="' +
+      MEA.ui.escapeHtml(data.clientSecret || "") +
+      '" />' +
+      "    </div>" +
+      '    <div class="form-group mt-3">' +
+      '      <label class="label">Google 登入允許網域（選填）</label>' +
+      '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" value="' +
+      MEA.ui.escapeHtml(data.allowedLoginDomain || data["Google 登入允許網域"] || "") +
+      '" />' +
+      '      <span class="hint">填寫網域後僅允許該網域帳號登入（例如 <code>ksvs.kh.edu.tw</code>）。</span>' +
+      "    </div>" +
+      '    <div class="form-group mt-3">' +
+      '      <label class="checkbox-label">' +
+      '        <input type="checkbox" id="cfgRestrictWhitelist"' +
+      (data.restrictWhitelist ? " checked" : "") +
+      " />" +
+      "        <span>嚴格啟用白名單限制（未列於下方成員清單之帳號將拒絕登入）</span>" +
+      "      </label>" +
+      "    </div>" +
+      '    <div class="mt-4">' +
+      '      <button type="submit" class="btn primary"' +
+      (saving ? " disabled" : "") +
+      ">" +
+      (saving ? "儲存中..." : "儲存系統設定") +
+      "</button>" +
+      "    </div>" +
+      "  </form>" +
+      "</div>" +
+      '<div class="card mt-4">' +
+      '  <div class="card-header">' +
+      '    <h3 class="card-title">授權白名單成員清單</h3>' +
+      '    <button class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()">＋ 新增授權成員</button>' +
+      "  </div>" +
+      '  <div class="table-responsive mt-3">' +
+      '    <table class="table">' +
+      "      <thead>" +
+      "        <tr>" +
+      "          <th>Email</th><th>姓名/職稱</th><th>角色</th><th>狀態</th><th>操作</th>" +
+      "        </tr>" +
+      "      </thead>" +
+      "      <tbody>" +
+      accountsRowsHtml +
+      "</tbody>" +
+      "    </table>" +
+      "  </div>" +
+      "</div>" +
+      "</div>"
+    );
   }
 
   MEA.accounts = {
