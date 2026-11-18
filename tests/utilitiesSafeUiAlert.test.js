@@ -46,7 +46,11 @@ console.log("1. options.warnings 為陣列時應收集訊息並回傳 false（�
   const SpreadsheetApp = {
     getUi: function () {
       uiCalled = true;
-      return { alert: function () { uiCalled = true; } };
+      return {
+        alert: function () {
+          uiCalled = true;
+        }
+      };
     }
   };
   const result = withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
@@ -80,11 +84,16 @@ console.log("3. SpreadsheetApp UI 可用時應顯示警示並回傳 true...");
     }
   };
   const warns = [];
-  const result = withConsoleWarn(function (msg) { warns.push(msg); }, function () {
-    return withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
-      return utils.safeUiAlert("完成", {});
-    });
-  });
+  const result = withConsoleWarn(
+    function (msg) {
+      warns.push(msg);
+    },
+    function () {
+      return withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
+        return utils.safeUiAlert("完成", {});
+      });
+    }
+  );
   assert.strictEqual(result, true);
   assert.strictEqual(alerted, "完成");
   assert.deepStrictEqual(warns, []);
@@ -99,11 +108,16 @@ console.log("4. SpreadsheetApp.getUi 拋出例外時應回退為 console.warn �
     }
   };
   const warns = [];
-  const result = withConsoleWarn(function (msg) { warns.push(msg); }, function () {
-    return withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
-      return utils.safeUiAlert("失敗", null);
-    });
-  });
+  const result = withConsoleWarn(
+    function (msg) {
+      warns.push(msg);
+    },
+    function () {
+      return withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
+        return utils.safeUiAlert("失敗", null);
+      });
+    }
+  );
   assert.strictEqual(result, false);
   assert.deepStrictEqual(warns, ["[safeUiAlert] 失敗"]);
   console.log("   ✓ getUi 例外回退驗證通過！\n");
@@ -121,11 +135,16 @@ console.log("5. ui.alert 拋出例外時應回退為 console.warn 並回傳 fals
     }
   };
   const warns = [];
-  const result = withConsoleWarn(function (msg) { warns.push(msg); }, function () {
-    return withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
-      return utils.safeUiAlert("警告");
-    });
-  });
+  const result = withConsoleWarn(
+    function (msg) {
+      warns.push(msg);
+    },
+    function () {
+      return withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
+        return utils.safeUiAlert("警告");
+      });
+    }
+  );
   assert.strictEqual(result, false);
   assert.deepStrictEqual(warns, ["[safeUiAlert] 警告"]);
   console.log("   ✓ alert 例外回退驗證通過！\n");
@@ -134,16 +153,26 @@ console.log("5. ui.alert 拋出例外時應回退為 console.warn 並回傳 fals
 console.log("6. SpreadsheetApp 無 getUi 或未定義時應回退為 console.warn...");
 {
   const warns = [];
-  const r1 = withConsoleWarn(function (msg) { warns.push(msg); }, function () {
-    return withGlobals({ SpreadsheetApp: {} }, function () {
-      return utils.safeUiAlert("A");
-    });
-  });
-  const r2 = withConsoleWarn(function (msg) { warns.push(msg); }, function () {
-    return withGlobals({ SpreadsheetApp: undefined }, function () {
-      return utils.safeUiAlert("B");
-    });
-  });
+  const r1 = withConsoleWarn(
+    function (msg) {
+      warns.push(msg);
+    },
+    function () {
+      return withGlobals({ SpreadsheetApp: {} }, function () {
+        return utils.safeUiAlert("A");
+      });
+    }
+  );
+  const r2 = withConsoleWarn(
+    function (msg) {
+      warns.push(msg);
+    },
+    function () {
+      return withGlobals({ SpreadsheetApp: undefined }, function () {
+        return utils.safeUiAlert("B");
+      });
+    }
+  );
   assert.strictEqual(r1, false);
   assert.strictEqual(r2, false);
   assert.deepStrictEqual(warns, ["[safeUiAlert] A", "[safeUiAlert] B"]);

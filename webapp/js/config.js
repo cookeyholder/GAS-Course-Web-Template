@@ -30,9 +30,7 @@
     const params = getSearchParams(source.search);
     const apiParam = params.get("api");
     const gasUrl =
-      typeof source.gasWebappUrl === "string" && source.gasWebappUrl.indexOf("http") === 0
-        ? source.gasWebappUrl
-        : "";
+      typeof source.gasWebappUrl === "string" && source.gasWebappUrl.indexOf("http") === 0 ? source.gasWebappUrl : "";
     const isFile = source.protocol === "file:";
     const hostname = source.hostname || "";
     const isGoogleUserContent = hostname.indexOf("googleusercontent.com") !== -1;
@@ -152,8 +150,7 @@
     const MEA = (namespace.MEA = namespace.MEA || {});
     const location = browser.location || {};
     const search = location.search || "";
-    const gasWebappUrl =
-      typeof browser.GAS_WEBAPP_URL === "string" ? browser.GAS_WEBAPP_URL : "";
+    const gasWebappUrl = typeof browser.GAS_WEBAPP_URL === "string" ? browser.GAS_WEBAPP_URL : "";
     const config = buildFrontendConfig({
       search: search,
       protocol: location.protocol || "",

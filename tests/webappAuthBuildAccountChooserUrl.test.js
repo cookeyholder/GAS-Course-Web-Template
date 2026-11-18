@@ -11,10 +11,7 @@ console.log("開始執行 webapp/js/auth.js buildAccountChooserUrl 測試...\n")
 
 function run() {
   assert.strictEqual(typeof authModule.buildAccountChooserUrl, "function", "應匯出純函式");
-  assert.strictEqual(
-    authModule.constants.GOOGLE_ACCOUNT_CHOOSER_URL,
-    "https://accounts.google.com/AccountChooser"
-  );
+  assert.strictEqual(authModule.constants.GOOGLE_ACCOUNT_CHOOSER_URL, "https://accounts.google.com/AccountChooser");
   console.log("1. 匯出與常數檢查 ✓\n");
 
   const cases = [
@@ -24,8 +21,7 @@ function run() {
     {
       webAppUrl: "https://gas.test/app",
       allowedDomain: "",
-      expected:
-        "https://accounts.google.com/AccountChooser?continue=https%3A%2F%2Fgas.test%2Fapp%3Fswitch%3D1"
+      expected: "https://accounts.google.com/AccountChooser?continue=https%3A%2F%2Fgas.test%2Fapp%3Fswitch%3D1"
     },
     {
       webAppUrl: " https://gas.test/app ",
@@ -41,10 +37,7 @@ function run() {
     }
   ];
   cases.forEach(function (item) {
-    assert.strictEqual(
-      authModule.buildAccountChooserUrl(item.webAppUrl, item.allowedDomain),
-      item.expected
-    );
+    assert.strictEqual(authModule.buildAccountChooserUrl(item.webAppUrl, item.allowedDomain), item.expected);
   });
   console.log("2. 各種網址與網域組合輸出符合預期 ✓\n");
 
@@ -53,7 +46,10 @@ function run() {
   assert.strictEqual(encoded.indexOf("&hd="), -1);
   console.log("3. 特殊字元正確跳脫且不產生空網域參數 ✓\n");
 
-  assert.strictEqual(authModule.buildChooserContinueUrl("https://gas.test/app#section"), "https://gas.test/app#section?switch=1");
+  assert.strictEqual(
+    authModule.buildChooserContinueUrl("https://gas.test/app#section"),
+    "https://gas.test/app#section?switch=1"
+  );
   assert.strictEqual(authModule.normalizeAllowedDomain(undefined), "");
   assert.strictEqual(authModule.normalizeAllowedDomain("@@school.edu"), "@school.edu");
   console.log("4. 繼續網址與網域輔助函式邊界案例 ✓\n");

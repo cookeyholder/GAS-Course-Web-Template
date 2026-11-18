@@ -420,11 +420,7 @@ function saveSystemSettings(settings, ss) {
 // ============================================================================
 
 function parseWhitelistEnabledFlag_(value) {
-  return (
-    value === true ||
-    String(value || "").toLowerCase() === "true" ||
-    String(value || "").trim() === "是"
-  );
+  return value === true || String(value || "").toLowerCase() === "true" || String(value || "").trim() === "是";
 }
 
 function normalizeWhitelistAccountRow_(row) {

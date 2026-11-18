@@ -33,7 +33,9 @@ console.log("1. 驗證可解析 unified diff 取得變更行...");
   const changed = checkChangedCoverage.parseUnifiedDiff(diff);
   assert(changed && typeof changed === "object", "應回傳變更行 map");
   assert(changed["scripts/foo.js"], "應包含 scripts/foo.js");
-  const lines = Array.from(changed["scripts/foo.js"]).sort(function (a, b) { return a - b; });
+  const lines = Array.from(changed["scripts/foo.js"]).sort(function (a, b) {
+    return a - b;
+  });
   assert.deepStrictEqual(lines, [11, 12, 13], "應擷取新增行號");
   assert.strictEqual(changed["tests/foo.test.js"], undefined, "應忽略非納管範圍檔案（tests）");
   console.log("   ✓ unified diff 解析驗證通過！\n");
@@ -47,16 +49,16 @@ console.log("2. 驗證變更覆蓋率達標時檢查成功...");
     "/proj/scripts/foo.js": {
       path: "/proj/scripts/foo.js",
       statementMap: {
-        "0": { start: { line: 11, column: 0 }, end: { line: 11, column: 10 } },
-        "1": { start: { line: 12, column: 0 }, end: { line: 12, column: 10 } }
+        0: { start: { line: 11, column: 0 }, end: { line: 11, column: 10 } },
+        1: { start: { line: 12, column: 0 }, end: { line: 12, column: 10 } }
       },
       fnMap: {},
       branchMap: {
-        "0": { loc: { start: { line: 11, column: 0 }, end: { line: 11, column: 10 } }, locations: [{}, {}] }
+        0: { loc: { start: { line: 11, column: 0 }, end: { line: 11, column: 10 } }, locations: [{}, {}] }
       },
-      s: { "0": 1, "1": 1 },
+      s: { 0: 1, 1: 1 },
       f: {},
-      b: { "0": [1, 1] }
+      b: { 0: [1, 1] }
     }
   };
   const result = checkChangedCoverage.computeChangedCoverage({
@@ -79,16 +81,16 @@ console.log("3. 驗證變更覆蓋率不足時檢查失敗並指出未達標檔�
     "/proj/webapp/js/bar.js": {
       path: "/proj/webapp/js/bar.js",
       statementMap: {
-        "0": { start: { line: 5, column: 0 }, end: { line: 5, column: 10 } },
-        "1": { start: { line: 6, column: 0 }, end: { line: 6, column: 10 } }
+        0: { start: { line: 5, column: 0 }, end: { line: 5, column: 10 } },
+        1: { start: { line: 6, column: 0 }, end: { line: 6, column: 10 } }
       },
       fnMap: {},
       branchMap: {
-        "0": { loc: { start: { line: 6, column: 0 }, end: { line: 6, column: 10 } }, locations: [{}, {}] }
+        0: { loc: { start: { line: 6, column: 0 }, end: { line: 6, column: 10 } }, locations: [{}, {}] }
       },
-      s: { "0": 1, "1": 0 },
+      s: { 0: 1, 1: 0 },
       f: {},
-      b: { "0": [1, 0] }
+      b: { 0: [1, 0] }
     }
   };
   const result = checkChangedCoverage.computeChangedCoverage({
@@ -99,7 +101,15 @@ console.log("3. 驗證變更覆蓋率不足時檢查失敗並指出未達標檔�
   });
   assert.strictEqual(result.ok, false, "未達標應失敗");
   assert(Array.isArray(result.failures) && result.failures.length > 0, "應提供失敗資訊");
-  assert(result.failures.some(function (f) { return /bar\.js/.test(String(f.file || f.message || "")); }) || result.failures.some(function (f) { return /lines|branches/.test(String(f.metric || f.message || "")); }), "應指出未達標檔案或指標");
+  assert(
+    result.failures.some(function (f) {
+      return /bar\.js/.test(String(f.file || f.message || ""));
+    }) ||
+      result.failures.some(function (f) {
+        return /lines|branches/.test(String(f.metric || f.message || ""));
+      }),
+    "應指出未達標檔案或指標"
+  );
   console.log("   ✓ 變更覆蓋率不足失敗驗證通過！\n");
 }
 
@@ -135,10 +145,10 @@ console.log("5. 驗證 runChangedCoverageCheck 支援 --base 並依結果回傳�
     readCoverage: function () {
       return {
         "/proj/scripts/x.js": {
-          statementMap: { "0": { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } } },
+          statementMap: { 0: { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } } },
           fnMap: {},
           branchMap: {},
-          s: { "0": 1 },
+          s: { 0: 1 },
           f: {},
           b: {}
         }
@@ -170,12 +180,12 @@ console.log("6. 驗證變更覆蓋率不足時 runChangedCoverageCheck 回傳失
       return {
         "/proj/scripts/y.js": {
           statementMap: {
-            "0": { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } },
-            "1": { start: { line: 2, column: 0 }, end: { line: 2, column: 1 } }
+            0: { start: { line: 1, column: 0 }, end: { line: 1, column: 1 } },
+            1: { start: { line: 2, column: 0 }, end: { line: 2, column: 1 } }
           },
           fnMap: {},
           branchMap: {},
-          s: { "0": 0, "1": 0 },
+          s: { 0: 0, 1: 0 },
           f: {},
           b: {}
         }

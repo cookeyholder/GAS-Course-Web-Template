@@ -186,7 +186,16 @@ function buildContext() {
     }
   });
 
-  return { MEA: MEA, state: state, config: config, calls: calls, doc: bundle.doc, elements: bundle.elements, win: win, app: app };
+  return {
+    MEA: MEA,
+    state: state,
+    config: config,
+    calls: calls,
+    doc: bundle.doc,
+    elements: bundle.elements,
+    win: win,
+    app: app
+  };
 }
 
 async function run() {
@@ -231,7 +240,12 @@ async function run() {
 
   ctx.win.XLSX = helpers.makeXlsx({
     其他: { rows: [["隨意"]] },
-    "108課綱": { rows: [["課程代碼", "科目名稱"], ["C001", "數學"]] }
+    "108課綱": {
+      rows: [
+        ["課程代碼", "科目名稱"],
+        ["C001", "數學"]
+      ]
+    }
   });
   const file = { name: "108課綱.xlsx", size: 2048, buffer: [1, 2, 3] };
   const entry = await ctx.MEA.imports.previewFile(file);
@@ -239,9 +253,11 @@ async function run() {
   assert.strictEqual(entry.sheetName, "108課綱");
   assert.strictEqual(entry.stats.expandedRows, 12);
   assert.strictEqual(ctx.state.importBusy, false);
-  assert(ctx.elements.toastHost.children.some(function (item) {
-    return item.children[1] && item.children[1].textContent.indexOf("解析完成") !== -1;
-  }));
+  assert(
+    ctx.elements.toastHost.children.some(function (item) {
+      return item.children[1] && item.children[1].textContent.indexOf("解析完成") !== -1;
+    })
+  );
   ctx.app.render();
   assert(ctx.elements.app.innerHTML.indexOf("檔案解析預覽：108課綱.xlsx") !== -1);
   assert(ctx.elements.app.innerHTML.indexOf("確認匯入至試算表") !== -1);
@@ -253,9 +269,11 @@ async function run() {
   assert.strictEqual(ctx.state.imports.courseCodes.imported, true);
   assert.strictEqual(ctx.state.importLast.saved, true);
   assert.deepStrictEqual(ctx.calls.fetchList, [1]);
-  assert(ctx.calls.mockActions.some(function (item) {
-    return item.action === "importCourseCodes" && item.body.preNormalized === true;
-  }));
+  assert(
+    ctx.calls.mockActions.some(function (item) {
+      return item.action === "importCourseCodes" && item.body.preNormalized === true;
+    })
+  );
   console.log("7. 匯入寫入走 Mock API 並觸發課程清單重載 ✓\n");
 
   ctx.app.render();

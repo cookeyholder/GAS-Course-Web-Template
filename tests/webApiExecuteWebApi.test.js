@@ -36,7 +36,7 @@ console.log("1. 字串 payload JSON 格式錯誤應回傳 invalid_json...");
 
 console.log("2. 非物件/陣列/null payload 應回傳 invalid_json...");
 {
-  ["null", "[]", "\"x\"", "123", "true"].forEach(function (s) {
+  ["null", "[]", '"x"', "123", "true"].forEach(function (s) {
     const r = api.executeWebApi(s, {});
     assert.strictEqual(r.ok, false, "應拒絕：" + s);
     assert.strictEqual(r.error, "invalid_json");
@@ -96,7 +96,13 @@ console.log("7. 需鎖定 action 在 LockService 可用時應取得並釋放鎖.
     }
   };
   const r = withGlobals(
-    { LockService: { getScriptLock: function () { return lock; } } },
+    {
+      LockService: {
+        getScriptLock: function () {
+          return lock;
+        }
+      }
+    },
     function () {
       return api.executeWebApi({ action: "loginWithActiveUser" }, {});
     }
@@ -112,11 +118,21 @@ console.log("8. 鎖定逾時應回傳 lock_timeout 且不執行路由副作用..
 {
   let releaseCalls = 0;
   const lock = {
-    tryLock: function () { return false; },
-    releaseLock: function () { releaseCalls += 1; }
+    tryLock: function () {
+      return false;
+    },
+    releaseLock: function () {
+      releaseCalls += 1;
+    }
   };
   const r = withGlobals(
-    { LockService: { getScriptLock: function () { return lock; } } },
+    {
+      LockService: {
+        getScriptLock: function () {
+          return lock;
+        }
+      }
+    },
     function () {
       return api.executeWebApi({ action: "loginWithActiveUser" }, {});
     }
@@ -130,11 +146,19 @@ console.log("8. 鎖定逾時應回傳 lock_timeout 且不執行路由副作用..
 console.log("9. tryLock 拋出例外應視為逾時...");
 {
   const lock = {
-    tryLock: function () { throw new Error("boom"); },
+    tryLock: function () {
+      throw new Error("boom");
+    },
     releaseLock: function () {}
   };
   const r = withGlobals(
-    { LockService: { getScriptLock: function () { return lock; } } },
+    {
+      LockService: {
+        getScriptLock: function () {
+          return lock;
+        }
+      }
+    },
     function () {
       return api.executeWebApi({ action: "loginWithActiveUser" }, {});
     }
@@ -152,7 +176,12 @@ console.log("10. 非鎖定 action 不應取得鎖...");
       LockService: {
         getScriptLock: function () {
           called += 1;
-          return { tryLock: function () { return true; }, releaseLock: function () {} };
+          return {
+            tryLock: function () {
+              return true;
+            },
+            releaseLock: function () {}
+          };
         }
       }
     },
@@ -170,15 +199,25 @@ console.log("11. 路由拋出例外應回傳 server_error...");
   const prev = api.routeWebApiAction;
   let released = 0;
   const lock = {
-    tryLock: function () { return true; },
-    releaseLock: function () { released += 1; }
+    tryLock: function () {
+      return true;
+    },
+    releaseLock: function () {
+      released += 1;
+    }
   };
   try {
     api.routeWebApiAction = function () {
       throw new Error("route boom");
     };
     const r = withGlobals(
-      { LockService: { getScriptLock: function () { return lock; } } },
+      {
+        LockService: {
+          getScriptLock: function () {
+            return lock;
+          }
+        }
+      },
       function () {
         return api.executeWebApi({ action: "loginWithActiveUser" }, {});
       }

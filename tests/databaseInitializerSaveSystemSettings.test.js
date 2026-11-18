@@ -30,12 +30,12 @@ function withGlobals(temp, fn) {
 function snapshotMemoryConfig() {
   const settings = db.readSystemSettings();
   return {
-    "學年度": settings["學年度"],
-    "學期": settings["學期"],
-    "系統名稱": settings["系統名稱"],
+    學年度: settings["學年度"],
+    學期: settings["學期"],
+    系統名稱: settings["系統名稱"],
     "OAuth Client ID": settings["OAuth Client ID"],
     "OAuth Client Secret": settings["OAuth Client Secret"],
-    "登入白名單限制啟用": settings["登入白名單限制啟用"],
+    登入白名單限制啟用: settings["登入白名單限制啟用"],
     "Google 登入允許網域": settings["Google 登入允許網域"]
   };
 }
@@ -145,7 +145,9 @@ console.log("3. 記憶體模式空值、null 與 undefined 應依欄位規則正
 }
 
 function makeSheet(initialRows) {
-  const rows = initialRows.map(function (r) { return r.slice(); });
+  const rows = initialRows.map(function (r) {
+    return r.slice();
+  });
   let lastRow = rows.length;
   return {
     getRange: function (a, b, c, d) {
@@ -198,13 +200,21 @@ console.log("4. 試算表模式應更新既有設定、正規化值並保留未�
     ["登入白名單限制啟用", "false"],
     ["Google 登入允許網域", ""]
   ]);
-  const ss = { getSheetByName: function (name) { assert.strictEqual(name, db.SHEET_SYSTEM_CONFIG); return sheet; } };
-  const result = db.saveSystemSettings({
-    schoolYear: "116",
-    restrictWhitelist: "1",
-    allowedLoginDomain: "@Mail.Example.com",
-    clientId: "newcid"
-  }, ss);
+  const ss = {
+    getSheetByName: function (name) {
+      assert.strictEqual(name, db.SHEET_SYSTEM_CONFIG);
+      return sheet;
+    }
+  };
+  const result = db.saveSystemSettings(
+    {
+      schoolYear: "116",
+      restrictWhitelist: "1",
+      allowedLoginDomain: "@Mail.Example.com",
+      clientId: "newcid"
+    },
+    ss
+  );
   assert.deepStrictEqual(result, { ok: true });
   assert.strictEqual(sheet._rows[1][1], "116");
   assert.strictEqual(sheet._rows[2][1], "1"); // unchanged
@@ -223,17 +233,28 @@ console.log("5. 試算表模式遇到未知鍵應附加於最後一列...");
     ["學年度", "114"],
     ["學期", "1"]
   ]);
-  const ss = { getSheetByName: function () { return sheet; } };
-  db.saveSystemSettings({
-    schoolYear: "117",
-    customKey: "custom-value",
-    另一設定: "值"
-  }, ss);
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  db.saveSystemSettings(
+    {
+      schoolYear: "117",
+      customKey: "custom-value",
+      另一設定: "值"
+    },
+    ss
+  );
   assert.strictEqual(sheet._rows[1][1], "117");
   // 未知鍵會附加在 sheet.getLastRow() + 1；因 A2:B30 更新會擴展 lastRow，故以內容搜尋確認附加
   const appended = sheet._rows
-    .filter(function (r) { return r && (r[0] === "customKey" || r[0] === "另一設定"); })
-    .map(function (r) { return [r[0], r[1]]; })
+    .filter(function (r) {
+      return r && (r[0] === "customKey" || r[0] === "另一設定");
+    })
+    .map(function (r) {
+      return [r[0], r[1]];
+    })
     .sort(function (a, b) {
       const ak = String(a[0]);
       const bk = String(b[0]);
@@ -250,7 +271,11 @@ console.log("5. 試算表模式遇到未知鍵應附加於最後一列...");
 
 console.log("6. 試算表模式找不到設定工作表時應拋出錯誤...");
 {
-  const ss = { getSheetByName: function () { return null; } };
+  const ss = {
+    getSheetByName: function () {
+      return null;
+    }
+  };
   assert.throws(function () {
     db.saveSystemSettings({ schoolYear: "114" }, ss);
   }, /找不到工作表/);

@@ -14,22 +14,33 @@ function makeStorage(initial) {
   const store = Object.assign({}, initial || {});
   return {
     store: store,
-    getItem: function (k) { return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null; },
-    setItem: function (k, v) { store[k] = String(v); },
-    removeItem: function (k) { delete store[k]; }
+    getItem: function (k) {
+      return Object.prototype.hasOwnProperty.call(store, k) ? store[k] : null;
+    },
+    setItem: function (k, v) {
+      store[k] = String(v);
+    },
+    removeItem: function (k) {
+      delete store[k];
+    }
   };
 }
 
 function baseDeps(overrides) {
   const storage = makeStorage({});
-  return Object.assign({
-    config: { storageKey: "gas_tmpl.session.v1", apiUrl: "https://api.test/exec", mock: false },
-    storage: storage,
-    fetch: null,
-    google: null,
-    mock: null,
-    setTimeoutFn: function (fn) { fn(); }
-  }, overrides || {});
+  return Object.assign(
+    {
+      config: { storageKey: "gas_tmpl.session.v1", apiUrl: "https://api.test/exec", mock: false },
+      storage: storage,
+      fetch: null,
+      google: null,
+      mock: null,
+      setTimeoutFn: function (fn) {
+        fn();
+      }
+    },
+    overrides || {}
+  );
 }
 
 (async function run() {
@@ -51,8 +62,15 @@ function baseDeps(overrides) {
   {
     let handled = null;
     const storage = makeStorage({ "gas_tmpl.session.v1": "t1", "gas_tmpl.csrf.v1": "c1" });
-    const mock = { handle: function (action, body) { handled = { action: action, body: body }; return Promise.resolve({ ok: true, from: "mock" }); } };
-    const api = apiModule.createApiClient(baseDeps({ config: { storageKey: "gas_tmpl.session.v1", apiUrl: "", mock: true }, storage: storage, mock: mock }));
+    const mock = {
+      handle: function (action, body) {
+        handled = { action: action, body: body };
+        return Promise.resolve({ ok: true, from: "mock" });
+      }
+    };
+    const api = apiModule.createApiClient(
+      baseDeps({ config: { storageKey: "gas_tmpl.session.v1", apiUrl: "", mock: true }, storage: storage, mock: mock })
+    );
     const res = await api.requestOnce("ping", { a: 1 });
     assert.deepStrictEqual(res, { ok: true, from: "mock" });
     assert.strictEqual(handled.action, "ping");
@@ -64,8 +82,15 @@ function baseDeps(overrides) {
   {
     let handled = null;
     const storage = makeStorage({ "gas_tmpl.session.v1": "t1", "gas_tmpl.csrf.v1": "c1" });
-    const mock = { handle: function (action, body) { handled = body; return Promise.resolve({ ok: true }); } };
-    const api = apiModule.createApiClient(baseDeps({ config: { storageKey: "gas_tmpl.session.v1", mock: true }, storage: storage, mock: mock }));
+    const mock = {
+      handle: function (action, body) {
+        handled = body;
+        return Promise.resolve({ ok: true });
+      }
+    };
+    const api = apiModule.createApiClient(
+      baseDeps({ config: { storageKey: "gas_tmpl.session.v1", mock: true }, storage: storage, mock: mock })
+    );
     await api.requestOnce("act", { token: "pt", csrfToken: "pc" });
     assert.strictEqual(handled.token, "pt");
     assert.strictEqual(handled.csrfToken, "pc");
@@ -80,9 +105,18 @@ function baseDeps(overrides) {
         script: {
           run: {
             _body: null,
-            withSuccessHandler: function (fn) { this._success = fn; return this; },
-            withFailureHandler: function (fn) { this._failure = fn; return this; },
-            executeWebApi: function (body) { this._body = body; this._success(result); }
+            withSuccessHandler: function (fn) {
+              this._success = fn;
+              return this;
+            },
+            withFailureHandler: function (fn) {
+              this._failure = fn;
+              return this;
+            },
+            executeWebApi: function (body) {
+              this._body = body;
+              this._success(result);
+            }
           }
         }
       };
@@ -112,9 +146,16 @@ function baseDeps(overrides) {
     const gFail = {
       script: {
         run: {
-          withSuccessHandler: function () { return this; },
-          withFailureHandler: function (fn) { this._failure = fn; return this; },
-          executeWebApi: function () { this._failure(new Error("boom")); }
+          withSuccessHandler: function () {
+            return this;
+          },
+          withFailureHandler: function (fn) {
+            this._failure = fn;
+            return this;
+          },
+          executeWebApi: function () {
+            this._failure(new Error("boom"));
+          }
         }
       }
     };
@@ -127,9 +168,15 @@ function baseDeps(overrides) {
     const gThrow = {
       script: {
         run: {
-          withSuccessHandler: function () { return this; },
-          withFailureHandler: function () { return this; },
-          executeWebApi: function () { throw new Error("throw"); }
+          withSuccessHandler: function () {
+            return this;
+          },
+          withFailureHandler: function () {
+            return this;
+          },
+          executeWebApi: function () {
+            throw new Error("throw");
+          }
         }
       }
     };
@@ -143,7 +190,9 @@ function baseDeps(overrides) {
 
   console.log("7. 無 RPC 且無 apiUrl 時應回傳 missing_api_url...");
   {
-    const api = apiModule.createApiClient(baseDeps({ config: { storageKey: "gas_tmpl.session.v1", apiUrl: "", mock: false }, google: null }));
+    const api = apiModule.createApiClient(
+      baseDeps({ config: { storageKey: "gas_tmpl.session.v1", apiUrl: "", mock: false }, google: null })
+    );
     const r = await api.requestOnce("x", {});
     assert.strictEqual(r.ok, false);
     assert.strictEqual(r.error, "missing_api_url");
@@ -158,10 +207,18 @@ function baseDeps(overrides) {
       calls.push({ url: url, opts: opts });
       return Promise.resolve({
         ok: true,
-        text: function () { return Promise.resolve('{"ok":true,"src":"fetch"}'); }
+        text: function () {
+          return Promise.resolve('{"ok":true,"src":"fetch"}');
+        }
       });
     };
-    const api = apiModule.createApiClient(baseDeps({ config: { storageKey: "gas_tmpl.session.v1", apiUrl: "https://api.test/exec", mock: false }, storage: storage, fetch: fetchFn }));
+    const api = apiModule.createApiClient(
+      baseDeps({
+        config: { storageKey: "gas_tmpl.session.v1", apiUrl: "https://api.test/exec", mock: false },
+        storage: storage,
+        fetch: fetchFn
+      })
+    );
     const r = await api.requestOnce("f1", { p: 1 });
     assert.deepStrictEqual(r, { ok: true, src: "fetch" });
     assert.strictEqual(calls.length, 1);
@@ -177,17 +234,46 @@ function baseDeps(overrides) {
   console.log("9. fetch HTTP 非 ok、json fallback 與網路錯誤應回傳對應錯誤...");
   {
     const storage = makeStorage({});
-    const apiHttp = apiModule.createApiClient(baseDeps({ fetch: function () { return Promise.resolve({ ok: false, status: 500, text: function () { return Promise.resolve("{}"); } }); } }));
+    const apiHttp = apiModule.createApiClient(
+      baseDeps({
+        fetch: function () {
+          return Promise.resolve({
+            ok: false,
+            status: 500,
+            text: function () {
+              return Promise.resolve("{}");
+            }
+          });
+        }
+      })
+    );
     const r1 = await apiHttp.requestOnce("x", {});
     assert.strictEqual(r1.ok, false);
     assert.strictEqual(r1.error, "network_error");
     assert(r1.message.indexOf("HTTP 500") !== -1);
 
-    const apiJson = apiModule.createApiClient(baseDeps({ fetch: function () { return Promise.resolve({ ok: true, json: function () { return Promise.resolve({ ok: true, j: 1 }); } }); } }));
+    const apiJson = apiModule.createApiClient(
+      baseDeps({
+        fetch: function () {
+          return Promise.resolve({
+            ok: true,
+            json: function () {
+              return Promise.resolve({ ok: true, j: 1 });
+            }
+          });
+        }
+      })
+    );
     const r2 = await apiJson.requestOnce("x", {});
     assert.deepStrictEqual(r2, { ok: true, j: 1 });
 
-    const apiNet = apiModule.createApiClient(baseDeps({ fetch: function () { return Promise.reject(new Error("offline")); } }));
+    const apiNet = apiModule.createApiClient(
+      baseDeps({
+        fetch: function () {
+          return Promise.reject(new Error("offline"));
+        }
+      })
+    );
     const r3 = await apiNet.requestOnce("x", {});
     assert.strictEqual(r3.ok, false);
     assert.strictEqual(r3.error, "network_error");
@@ -198,11 +284,24 @@ function baseDeps(overrides) {
   console.log("10. storage 讀寫例外不應中斷請求流程...");
   {
     const badStorage = {
-      getItem: function () { throw new Error("deny"); },
-      setItem: function () { throw new Error("deny"); },
-      removeItem: function () { throw new Error("deny"); }
+      getItem: function () {
+        throw new Error("deny");
+      },
+      setItem: function () {
+        throw new Error("deny");
+      },
+      removeItem: function () {
+        throw new Error("deny");
+      }
     };
-    const fetchFn = function () { return Promise.resolve({ ok: true, text: function () { return Promise.resolve('{"ok":true}'); } }); };
+    const fetchFn = function () {
+      return Promise.resolve({
+        ok: true,
+        text: function () {
+          return Promise.resolve('{"ok":true}');
+        }
+      });
+    };
     const api = apiModule.createApiClient(baseDeps({ storage: badStorage, fetch: fetchFn }));
     const r = await api.requestOnce("x", {});
     assert.strictEqual(r.ok, true);
@@ -215,13 +314,30 @@ function baseDeps(overrides) {
     const delaysSeen = [];
     const fetchFn = function () {
       calls++;
-      if (calls < 3) return Promise.resolve({ ok: false, status: 503, text: function () { return Promise.resolve("{}"); } });
-      return Promise.resolve({ ok: true, text: function () { return Promise.resolve('{"ok":true,"try":3}'); } });
+      if (calls < 3)
+        return Promise.resolve({
+          ok: false,
+          status: 503,
+          text: function () {
+            return Promise.resolve("{}");
+          }
+        });
+      return Promise.resolve({
+        ok: true,
+        text: function () {
+          return Promise.resolve('{"ok":true,"try":3}');
+        }
+      });
     };
-    const api = apiModule.createApiClient(baseDeps({
-      fetch: fetchFn,
-      setTimeoutFn: function (fn, ms) { delaysSeen.push(ms); fn(); }
-    }));
+    const api = apiModule.createApiClient(
+      baseDeps({
+        fetch: fetchFn,
+        setTimeoutFn: function (fn, ms) {
+          delaysSeen.push(ms);
+          fn();
+        }
+      })
+    );
     const r = await api.callWithRetry("x", {}, { delays: [10, 20, 40] });
     assert.strictEqual(r.ok, true);
     assert.strictEqual(r.try, 3);
@@ -238,7 +354,11 @@ function baseDeps(overrides) {
       { ok: false, error: "lock_timeout", message: "l" },
       { ok: false, error: "lock_timeout", message: "l2" }
     ];
-    const mock = { handle: function () { return Promise.resolve(responses[calls++]); } };
+    const mock = {
+      handle: function () {
+        return Promise.resolve(responses[calls++]);
+      }
+    };
     const api = apiModule.createApiClient(baseDeps({ config: { storageKey: "s", mock: true }, mock: mock }));
     const r = await api.callWithRetry("x", {}, { delays: [1, 2] });
     assert.strictEqual(r.ok, false);
@@ -250,7 +370,12 @@ function baseDeps(overrides) {
   console.log("13. callWithRetry 對不可重試錯誤不應重試，且 call 為其別名...");
   {
     let calls = 0;
-    const mock = { handle: function () { calls++; return Promise.resolve({ ok: false, error: "forbidden", message: "no" }); } };
+    const mock = {
+      handle: function () {
+        calls++;
+        return Promise.resolve({ ok: false, error: "forbidden", message: "no" });
+      }
+    };
     const api = apiModule.createApiClient(baseDeps({ config: { storageKey: "s", mock: true }, mock: mock }));
     const r1 = await api.callWithRetry("x", {}, { delays: [1, 2, 3] });
     assert.strictEqual(r1.error, "forbidden");
@@ -274,7 +399,9 @@ function baseDeps(overrides) {
         return Promise.resolve({ ok: true });
       }
     };
-    const api = apiModule.createApiClient(baseDeps({ config: { storageKey: "gas_tmpl.session.v1", mock: true }, storage: storage, mock: mock }));
+    const api = apiModule.createApiClient(
+      baseDeps({ config: { storageKey: "gas_tmpl.session.v1", mock: true }, storage: storage, mock: mock })
+    );
     await api.callWithRetry("a1", {});
     assert.strictEqual(storage.store["gas_tmpl.csrf.v1"], "new-csrf");
     assert.strictEqual(api.getCsrfToken(), "new-csrf");
@@ -300,6 +427,49 @@ function baseDeps(overrides) {
     assert.strictEqual(api.getCsrfToken(), "");
     assert.strictEqual(storage.store[apiModule.CSRF_STORAGE_KEY], undefined);
     console.log("   ✓ token/csrf 存取驗證通過！\n");
+  }
+
+  console.log("16. applyBrowserConfig 應組裝瀏覽器端 MEA.api...");
+  {
+    assert.strictEqual(typeof apiModule.applyBrowserConfig, "function", "應匯出 applyBrowserConfig");
+    let attempt = 0;
+    const root = {
+      MEA: {
+        config: { storageKey: "gas_tmpl.session.v1", apiUrl: "https://x.test/exec", mock: true },
+        mock: {
+          handle: function () {
+            attempt++;
+            if (attempt === 1) {
+              return Promise.resolve({ ok: false, error: "rate_limited" });
+            }
+            return Promise.resolve({ ok: true, from: "browser" });
+          }
+        }
+      }
+    };
+    let timerArg = null;
+    const win = {
+      localStorage: makeStorage({ "gas_tmpl.session.v1": "browser-token" }),
+      fetch: function () {
+        return Promise.resolve({ ok: true });
+      },
+      google: null,
+      setTimeout: function (fn, ms) {
+        timerArg = ms;
+        fn();
+      }
+    };
+    const client = apiModule.applyBrowserConfig(root, win);
+    assert.strictEqual(root.MEA.api, client);
+    assert.strictEqual(client.getToken(), "browser-token");
+    const retry = await client.callWithRetry("ping", {}, { delays: [7] });
+    assert.strictEqual(retry.ok, true);
+    assert.strictEqual(retry.from, "browser");
+    assert.strictEqual(timerArg, 7, "重試應使用瀏覽器 setTimeout");
+
+    const fallback = apiModule.applyBrowserConfig({}, {});
+    assert.strictEqual(typeof fallback.call, "function");
+    console.log("   ✓ 瀏覽器組裝驗證通過！\n");
   }
 
   console.log("✓ webapp/js/api.js 測試全數通過！\n");

@@ -77,7 +77,15 @@ console.log("3. 取得作用中使用者時拋出例外應回傳 no_active_user.
 console.log("4. 作用中使用者 email 為空或空白時應回傳 no_active_user...");
 {
   ["", "   ", null, undefined].forEach(function (email) {
-    const Session = { getActiveUser: function () { return { getEmail: function () { return email; } }; } };
+    const Session = {
+      getActiveUser: function () {
+        return {
+          getEmail: function () {
+            return email;
+          }
+        };
+      }
+    };
     const r = withGlobals({ Session: Session, SpreadsheetApp: undefined }, function () {
       return api.loginWithActiveUser();
     });
@@ -89,17 +97,30 @@ console.log("4. 作用中使用者 email 為空或空白時應回傳 no_active_u
 
 console.log("5. 有效 email 應正規化並使用 options.spreadsheet 建立 session...");
 {
-  const Session = { getActiveUser: function () { return { getEmail: function () { return "  USER@Example.com  "; } }; } };
+  const Session = {
+    getActiveUser: function () {
+      return {
+        getEmail: function () {
+          return "  USER@Example.com  ";
+        }
+      };
+    }
+  };
   const ss = { id: "ss-1" };
   let captured = null;
   const expected = { ok: true, token: "t" };
   const r = withGlobals({ Session: Session, SpreadsheetApp: undefined }, function () {
-    return withStubbed(api, "createSessionForEmail", function (email, name, options) {
-      captured = { email: email, name: name, options: options };
-      return expected;
-    }, function () {
-      return api.loginWithActiveUser({ spreadsheet: ss });
-    });
+    return withStubbed(
+      api,
+      "createSessionForEmail",
+      function (email, name, options) {
+        captured = { email: email, name: name, options: options };
+        return expected;
+      },
+      function () {
+        return api.loginWithActiveUser({ spreadsheet: ss });
+      }
+    );
   });
   assert.strictEqual(r, expected);
   assert.deepStrictEqual(captured, {
@@ -112,17 +133,34 @@ console.log("5. 有效 email 應正規化並使用 options.spreadsheet 建立 se
 
 console.log("6. 無 options.spreadsheet 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
 {
-  const Session = { getActiveUser: function () { return { getEmail: function () { return "user@example.com"; } }; } };
+  const Session = {
+    getActiveUser: function () {
+      return {
+        getEmail: function () {
+          return "user@example.com";
+        }
+      };
+    }
+  };
   const ss = { id: "active-ss" };
-  const SpreadsheetApp = { getActiveSpreadsheet: function () { return ss; } };
+  const SpreadsheetApp = {
+    getActiveSpreadsheet: function () {
+      return ss;
+    }
+  };
   let captured = null;
   withGlobals({ Session: Session, SpreadsheetApp: SpreadsheetApp }, function () {
-    withStubbed(api, "createSessionForEmail", function (email, name, options) {
-      captured = options;
-      return { ok: true };
-    }, function () {
-      api.loginWithActiveUser();
-    });
+    withStubbed(
+      api,
+      "createSessionForEmail",
+      function (email, name, options) {
+        captured = options;
+        return { ok: true };
+      },
+      function () {
+        api.loginWithActiveUser();
+      }
+    );
   });
   assert.deepStrictEqual(captured, { spreadsheet: ss });
   console.log("   ✓ SpreadsheetApp fallback 驗證通過！\n");
@@ -130,15 +168,28 @@ console.log("6. 無 options.spreadsheet 時應使用 SpreadsheetApp.getActiveSpr
 
 console.log("7. 無 SpreadsheetApp 時 spreadsheet 應為 null...");
 {
-  const Session = { getActiveUser: function () { return { getEmail: function () { return "user@example.com"; } }; } };
+  const Session = {
+    getActiveUser: function () {
+      return {
+        getEmail: function () {
+          return "user@example.com";
+        }
+      };
+    }
+  };
   let captured = null;
   withGlobals({ Session: Session, SpreadsheetApp: undefined }, function () {
-    withStubbed(api, "createSessionForEmail", function (email, name, options) {
-      captured = options;
-      return { ok: true };
-    }, function () {
-      api.loginWithActiveUser({});
-    });
+    withStubbed(
+      api,
+      "createSessionForEmail",
+      function (email, name, options) {
+        captured = options;
+        return { ok: true };
+      },
+      function () {
+        api.loginWithActiveUser({});
+      }
+    );
   });
   assert.deepStrictEqual(captured, { spreadsheet: null });
   console.log("   ✓ null spreadsheet 驗證通過！\n");

@@ -128,9 +128,7 @@ function evaluateCoverageThresholds(options) {
     const actual = total[metric] && typeof total[metric].pct === "number" ? total[metric].pct : 0;
     const minThreshold = typeof thresholds[metric] === "number" ? thresholds[metric] : 0;
     const baselinePct =
-      baselineTotals[metric] && typeof baselineTotals[metric].pct === "number"
-        ? baselineTotals[metric].pct
-        : 0;
+      baselineTotals[metric] && typeof baselineTotals[metric].pct === "number" ? baselineTotals[metric].pct : 0;
     const required = Math.max(minThreshold, baselinePct);
 
     if (actual < required) {
@@ -172,8 +170,7 @@ function defaultCheckThresholds(options) {
   const pathApi = settings.path || path;
   const root = settings.projectRoot || PROJECT_ROOT;
   const configApi = settings.qualityConfig || qualityConfig;
-  const summaryPath =
-    settings.summaryPath || pathApi.join(root, configApi.PATHS.coverageSummary);
+  const summaryPath = settings.summaryPath || pathApi.join(root, configApi.PATHS.coverageSummary);
 
   if (!fsApi.existsSync(summaryPath)) {
     log("[checkCoverage] 找不到覆蓋率摘要檔：" + summaryPath);

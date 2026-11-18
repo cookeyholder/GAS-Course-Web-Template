@@ -195,9 +195,7 @@
       }
 
       const request =
-        MEA.api && typeof MEA.api.call === "function"
-          ? MEA.api.call("getPublicConfig", {})
-          : Promise.resolve(null);
+        MEA.api && typeof MEA.api.call === "function" ? MEA.api.call("getPublicConfig", {}) : Promise.resolve(null);
 
       return Promise.resolve(request)
         .then(function (configRes) {

@@ -44,10 +44,23 @@ console.log("1. 使用者取消確認時不應執行初始化...");
 {
   const { ui, alerts } = makeUi("NO");
   let initCalled = 0;
-  const SpreadsheetApp = { getUi: function () { return ui; } };
-  withGlobals({ SpreadsheetApp: SpreadsheetApp, initializeDatabaseSheets: function () { initCalled++; return { ok: true, sheets: [] }; } }, function () {
-    main.initializeDatabaseSheetsMenu();
-  });
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
+  withGlobals(
+    {
+      SpreadsheetApp: SpreadsheetApp,
+      initializeDatabaseSheets: function () {
+        initCalled++;
+        return { ok: true, sheets: [] };
+      }
+    },
+    function () {
+      main.initializeDatabaseSheetsMenu();
+    }
+  );
   assert.strictEqual(initCalled, 0);
   assert.strictEqual(alerts.length, 1);
   assert.strictEqual(alerts[0].title, "系統初始化確認");
@@ -60,10 +73,23 @@ console.log("2. 使用者確認後初始化成功應顯示完成訊息與工作�
 {
   const { ui, alerts } = makeUi("YES");
   let initArg = null;
-  const SpreadsheetApp = { getUi: function () { return ui; } };
-  withGlobals({ SpreadsheetApp: SpreadsheetApp, initializeDatabaseSheets: function (opts) { initArg = opts; return { ok: true, sheets: ["A", "B", "C"] }; } }, function () {
-    main.initializeDatabaseSheetsMenu();
-  });
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
+  withGlobals(
+    {
+      SpreadsheetApp: SpreadsheetApp,
+      initializeDatabaseSheets: function (opts) {
+        initArg = opts;
+        return { ok: true, sheets: ["A", "B", "C"] };
+      }
+    },
+    function () {
+      main.initializeDatabaseSheetsMenu();
+    }
+  );
   assert.deepStrictEqual(initArg, { silent: true });
   assert.strictEqual(alerts.length, 2);
   assert.strictEqual(alerts[1].title, "初始化完成");
@@ -75,10 +101,22 @@ console.log("2. 使用者確認後初始化成功應顯示完成訊息與工作�
 console.log("3. 初始化結果缺少 sheets 時應安全顯示空清單...");
 {
   const { ui, alerts } = makeUi("YES");
-  const SpreadsheetApp = { getUi: function () { return ui; } };
-  withGlobals({ SpreadsheetApp: SpreadsheetApp, initializeDatabaseSheets: function () { return { ok: true }; } }, function () {
-    main.initializeDatabaseSheetsMenu();
-  });
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
+  withGlobals(
+    {
+      SpreadsheetApp: SpreadsheetApp,
+      initializeDatabaseSheets: function () {
+        return { ok: true };
+      }
+    },
+    function () {
+      main.initializeDatabaseSheetsMenu();
+    }
+  );
   assert.strictEqual(alerts[1].title, "初始化完成");
   assert(alerts[1].message.indexOf("已檢查／建立工作表：\n") !== -1);
   // 結尾不應出現 undefined
@@ -89,10 +127,22 @@ console.log("3. 初始化結果缺少 sheets 時應安全顯示空清單...");
 console.log("4. 初始化拋出 Error 時應顯示失敗訊息...");
 {
   const { ui, alerts } = makeUi("YES");
-  const SpreadsheetApp = { getUi: function () { return ui; } };
-  withGlobals({ SpreadsheetApp: SpreadsheetApp, initializeDatabaseSheets: function () { throw new Error("db fail"); } }, function () {
-    main.initializeDatabaseSheetsMenu();
-  });
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
+  withGlobals(
+    {
+      SpreadsheetApp: SpreadsheetApp,
+      initializeDatabaseSheets: function () {
+        throw new Error("db fail");
+      }
+    },
+    function () {
+      main.initializeDatabaseSheetsMenu();
+    }
+  );
   assert.strictEqual(alerts.length, 2);
   assert.strictEqual(alerts[1].title, "初始化失敗");
   assert.strictEqual(alerts[1].buttonSet, "OK");
@@ -103,10 +153,22 @@ console.log("4. 初始化拋出 Error 時應顯示失敗訊息...");
 console.log("5. 初始化拋出非 Error 值時應顯示失敗訊息...");
 {
   const { ui, alerts } = makeUi("YES");
-  const SpreadsheetApp = { getUi: function () { return ui; } };
-  withGlobals({ SpreadsheetApp: SpreadsheetApp, initializeDatabaseSheets: function () { throw "string-error"; } }, function () {
-    main.initializeDatabaseSheetsMenu();
-  });
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
+  withGlobals(
+    {
+      SpreadsheetApp: SpreadsheetApp,
+      initializeDatabaseSheets: function () {
+        throw "string-error";
+      }
+    },
+    function () {
+      main.initializeDatabaseSheetsMenu();
+    }
+  );
   assert.strictEqual(alerts[1].title, "初始化失敗");
   assert(alerts[1].message.indexOf("執行失敗：string-error") !== -1);
   console.log("   ✓ 非 Error 失敗訊息驗證通過！\n");

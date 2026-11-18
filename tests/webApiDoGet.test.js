@@ -31,13 +31,25 @@ function makeHtmlService(templateImpl) {
   const calls = { create: 0, setTitle: null, addMetaTag: [], setXFrame: null, evaluate: 0 };
   const evaluated = { ok: true, rendered: "html" };
   const output = {
-    setTitle: function (t) { calls.setTitle = t; return output; },
-    addMetaTag: function (n, v) { calls.addMetaTag.push([n, v]); return output; },
-    setXFrameOptionsMode: function (m) { calls.setXFrame = m; return output; },
+    setTitle: function (t) {
+      calls.setTitle = t;
+      return output;
+    },
+    addMetaTag: function (n, v) {
+      calls.addMetaTag.push([n, v]);
+      return output;
+    },
+    setXFrameOptionsMode: function (m) {
+      calls.setXFrame = m;
+      return output;
+    },
     _evaluated: evaluated
   };
   const template = templateImpl || {
-    evaluate: function () { calls.evaluate += 1; return output; }
+    evaluate: function () {
+      calls.evaluate += 1;
+      return output;
+    }
   };
   const HtmlService = {
     XFrameOptionsMode: { DEFAULT: "DEFAULT" },
@@ -81,7 +93,9 @@ async function run() {
   {
     const prev = api.routeWebApiAction;
     try {
-      api.routeWebApiAction = function () { throw new Error("route fail"); };
+      api.routeWebApiAction = function () {
+        throw new Error("route fail");
+      };
       const r = api.doGet({ parameter: { action: "ping" } });
       assert.strictEqual(r.ok, false);
       assert.strictEqual(r.error, "server_error");
@@ -108,10 +122,15 @@ async function run() {
     const template = {
       initialAuthResult: "unset",
       switchAccount: "unset",
-      evaluate: function () { return null; }
+      evaluate: function () {
+        return null;
+      }
     };
     const hs = makeHtmlService(template);
-    template.evaluate = function () { hs._calls.evaluate += 1; return hs._output; };
+    template.evaluate = function () {
+      hs._calls.evaluate += 1;
+      return hs._output;
+    };
     const result = withGlobals({ HtmlService: hs }, function () {
       return api.doGet({ parameter: {} });
     });
@@ -129,9 +148,15 @@ async function run() {
   console.log("7. OAuth 回呼成功時應將 initialAuthResult 注入模板並跳脫 < ...");
   {
     const prev = api.handleOAuthCodeCallback;
-    const template = { evaluate: function () { return null; } };
+    const template = {
+      evaluate: function () {
+        return null;
+      }
+    };
     const hs = makeHtmlService(template);
-    template.evaluate = function () { return hs._output; };
+    template.evaluate = function () {
+      return hs._output;
+    };
     try {
       api.handleOAuthCodeCallback = function (code, e) {
         assert.strictEqual(code, "auth-code");
@@ -155,11 +180,19 @@ async function run() {
   console.log("8. OAuth 回呼拋出例外時應注入 oauth_callback_failed...");
   {
     const prev = api.handleOAuthCodeCallback;
-    const template = { evaluate: function () { return null; } };
+    const template = {
+      evaluate: function () {
+        return null;
+      }
+    };
     const hs = makeHtmlService(template);
-    template.evaluate = function () { return hs._output; };
+    template.evaluate = function () {
+      return hs._output;
+    };
     try {
-      api.handleOAuthCodeCallback = function () { throw new Error("cb boom"); };
+      api.handleOAuthCodeCallback = function () {
+        throw new Error("cb boom");
+      };
       withGlobals({ HtmlService: hs }, function () {
         api.doGet({ parameter: { code: "x" } });
       });
@@ -177,7 +210,9 @@ async function run() {
   {
     const hs = {
       XFrameOptionsMode: { DEFAULT: "DEFAULT" },
-      createTemplateFromFile: function () { throw new Error("tpl fail"); }
+      createTemplateFromFile: function () {
+        throw new Error("tpl fail");
+      }
     };
     const r = withGlobals({ HtmlService: hs }, function () {
       return api.doGet({ parameter: {} });

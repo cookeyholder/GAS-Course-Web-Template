@@ -89,8 +89,12 @@ function makeSheet(state) {
     ops: ops,
     cleared: cleared,
     written: written,
-    getLastRow: function () { return lastRow; },
-    getMaxRows: function () { return maxRows; },
+    getLastRow: function () {
+      return lastRow;
+    },
+    getMaxRows: function () {
+      return maxRows;
+    },
     getRange: function (r, c, numRows, numCols) {
       return {
         clearContent: function () {
@@ -105,7 +109,9 @@ function makeSheet(state) {
         }
       };
     },
-    _setLastRow: function (n) { lastRow = n; }
+    _setLastRow: function (n) {
+      lastRow = n;
+    }
   };
 }
 
@@ -118,7 +124,11 @@ console.log("3. 試算表模式無 ss 時應使用 SpreadsheetApp.getActiveSprea
       return sheet;
     }
   };
-  const SpreadsheetApp = { getActiveSpreadsheet: function () { return ss; } };
+  const SpreadsheetApp = {
+    getActiveSpreadsheet: function () {
+      return ss;
+    }
+  };
   const result = withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
     return db.saveWhitelist([{ email: "A@B.com", name: "甲", role: "staff", enabled: true }]);
   });
@@ -130,7 +140,11 @@ console.log("3. 試算表模式無 ss 時應使用 SpreadsheetApp.getActiveSprea
 
 console.log("4. 試算表模式找不到設定工作表時應拋出錯誤...");
 {
-  const ss = { getSheetByName: function () { return null; } };
+  const ss = {
+    getSheetByName: function () {
+      return null;
+    }
+  };
   assert.throws(function () {
     db.saveWhitelist([{ email: "a@b.com" }], ss);
   }, /找不到工作表/);
@@ -140,13 +154,20 @@ console.log("4. 試算表模式找不到設定工作表時應拋出錯誤...");
 console.log("5. 試算表模式應清除既有資料並寫入正規化列...");
 {
   const sheet = makeSheet({ lastRow: 5, maxRows: 10 });
-  const ss = { getSheetByName: function () { return sheet; } };
-  const result = db.saveWhitelist([
-    { email: " Admin@Example.com ", name: " 管理員 ", role: "admin", enabled: true },
-    { email: "", name: "略過", role: "viewer", enabled: true },
-    { email: "u@example.com", name: "使用者", role: "viewer", enabled: false },
-    { email: "d@example.com" }
-  ], ss);
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  const result = db.saveWhitelist(
+    [
+      { email: " Admin@Example.com ", name: " 管理員 ", role: "admin", enabled: true },
+      { email: "", name: "略過", role: "viewer", enabled: true },
+      { email: "u@example.com", name: "使用者", role: "viewer", enabled: false },
+      { email: "d@example.com" }
+    ],
+    ss
+  );
   assert.deepStrictEqual(result, { ok: true, count: 3 });
   assert.strictEqual(sheet.cleared.length, 1);
   assert.deepStrictEqual(sheet.cleared[0], { r: 2, c: 4, numRows: 5, numCols: 4 });
@@ -168,7 +189,11 @@ console.log("5. 試算表模式應清除既有資料並寫入正規化列...");
 console.log("6. 試算表模式空清單應僅清除資料且不寫入...");
 {
   const sheet = makeSheet({ lastRow: 2, maxRows: 5 });
-  const ss = { getSheetByName: function () { return sheet; } };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
   const result = db.saveWhitelist([], ss);
   assert.deepStrictEqual(result, { ok: true, count: 0 });
   assert.strictEqual(sheet.cleared.length, 1);

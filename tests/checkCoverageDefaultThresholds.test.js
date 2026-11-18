@@ -61,9 +61,11 @@ function run() {
     }
   });
   assert.strictEqual(code, 1);
-  assert(logs.some(function (m) {
-    return m.indexOf("找不到覆蓋率摘要檔") !== -1;
-  }));
+  assert(
+    logs.some(function (m) {
+      return m.indexOf("找不到覆蓋率摘要檔") !== -1;
+    })
+  );
   console.log("2. 缺少摘要檔時回傳失敗 ✓\n");
 
   logs = [];
@@ -77,9 +79,11 @@ function run() {
     }
   });
   assert.strictEqual(code, 1);
-  assert(logs.some(function (m) {
-    return m.indexOf("無法讀取覆蓋率摘要") !== -1;
-  }));
+  assert(
+    logs.some(function (m) {
+      return m.indexOf("無法讀取覆蓋率摘要") !== -1;
+    })
+  );
   console.log("3. 摘要檔解析失敗時回傳失敗 ✓\n");
 
   logs = [];
@@ -94,9 +98,11 @@ function run() {
     }
   });
   assert.strictEqual(code, 1);
-  assert(logs.some(function (m) {
-    return m.indexOf("低於基準線（回退）") !== -1;
-  }));
+  assert(
+    logs.some(function (m) {
+      return m.indexOf("低於基準線（回退）") !== -1;
+    })
+  );
   console.log("4. 低於基準線時回傳失敗並說明原因 ✓\n");
 
   logs = [];
@@ -110,9 +116,11 @@ function run() {
     }
   });
   assert.strictEqual(code, 1);
-  assert(logs.some(function (m) {
-    return m.indexOf("低於門檻") !== -1;
-  }));
+  assert(
+    logs.some(function (m) {
+      return m.indexOf("低於門檻") !== -1;
+    })
+  );
   console.log("5. 低於門檻時回傳失敗並說明原因 ✓\n");
 
   logs = [];
@@ -126,9 +134,11 @@ function run() {
     }
   });
   assert.strictEqual(code, 0);
-  assert(logs.some(function (m) {
-    return m.indexOf("覆蓋率檢查通過") !== -1;
-  }));
+  assert(
+    logs.some(function (m) {
+      return m.indexOf("覆蓋率檢查通過") !== -1;
+    })
+  );
   console.log("6. 符合門檻與基準線時回傳成功 ✓\n");
 
   console.log("✓ checkCoverage.js defaultCheckThresholds 測試全數通過！\n");

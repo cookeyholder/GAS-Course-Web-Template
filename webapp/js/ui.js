@@ -267,7 +267,9 @@
       const head = doc.createElement("div");
       head.className = "modal-header";
       head.innerHTML =
-        '<h3 class="modal-title">' + escapeHtml(title) + '</h3><button class="modal-close" id="modalCloseBtn">✕</button>';
+        '<h3 class="modal-title">' +
+        escapeHtml(title) +
+        '</h3><button class="modal-close" id="modalCloseBtn">✕</button>';
 
       const body = doc.createElement("div");
       body.className = "modal-body";

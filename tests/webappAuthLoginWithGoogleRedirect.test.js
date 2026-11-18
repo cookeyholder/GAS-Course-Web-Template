@@ -23,10 +23,7 @@ function run() {
     "尚未設定 OAuth Client Secret，請系統管理員先於「系統設定」完成設定"
   );
   assert.strictEqual(
-    authModule.validateRedirectSetup(
-      { clientId: "client-1", hasClientSecret: true },
-      null
-    ).message,
+    authModule.validateRedirectSetup({ clientId: "client-1", hasClientSecret: true }, null).message,
     "無法取得 Web App 網址，請確認部署狀態後重新整理頁面"
   );
   const fallback = authModule.validateRedirectSetup(

@@ -58,10 +58,12 @@ function run() {
   assert.strictEqual(fallbackUser.csrfToken, "");
   const roleFallbackUser = authModule.buildLoginUser({ role: "guest" }, null);
   assert.strictEqual(roleFallbackUser.roleName, "guest");
-  assert.deepStrictEqual(
-    authModule.buildLoginSuccessState(fullUser),
-    { view: "app", user: fullUser, loginBusy: false, loginError: "" }
-  );
+  assert.deepStrictEqual(authModule.buildLoginSuccessState(fullUser), {
+    view: "app",
+    user: fullUser,
+    loginBusy: false,
+    loginError: ""
+  });
   assert.deepStrictEqual(authModule.getLoginToast(fullUser, false), {
     message: "歡迎回來，甲君！",
     level: "ok"

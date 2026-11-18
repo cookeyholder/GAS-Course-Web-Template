@@ -59,7 +59,9 @@ console.log("1. 無試算表時應回傳記憶體白名單副本...");
 console.log("2. 無 ss 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
 {
   const sheet = {
-    getLastRow: function () { return 1; }
+    getLastRow: function () {
+      return 1;
+    }
   };
   const ss = {
     getSheetByName: function (name) {
@@ -67,7 +69,11 @@ console.log("2. 無 ss 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
       return sheet;
     }
   };
-  const SpreadsheetApp = { getActiveSpreadsheet: function () { return ss; } };
+  const SpreadsheetApp = {
+    getActiveSpreadsheet: function () {
+      return ss;
+    }
+  };
   const r = withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
     return db.readWhitelist();
   });
@@ -77,17 +83,49 @@ console.log("2. 無 ss 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
 
 console.log("3. 找不到設定工作表時應回傳空陣列...");
 {
-  const ss = { getSheetByName: function () { return null; } };
+  const ss = {
+    getSheetByName: function () {
+      return null;
+    }
+  };
   assert.deepStrictEqual(db.readWhitelist(ss), []);
   console.log("   ✓ 缺少工作表驗證通過！\n");
 }
 
 console.log("4. lastRow < 2 時應回傳空陣列...");
 {
-  const sheet0 = { getLastRow: function () { return 0; }, getRange: function () { throw new Error("should not read"); } };
-  const sheet1 = { getLastRow: function () { return 1; }, getRange: function () { throw new Error("should not read"); } };
-  assert.deepStrictEqual(db.readWhitelist({ getSheetByName: function () { return sheet0; } }), []);
-  assert.deepStrictEqual(db.readWhitelist({ getSheetByName: function () { return sheet1; } }), []);
+  const sheet0 = {
+    getLastRow: function () {
+      return 0;
+    },
+    getRange: function () {
+      throw new Error("should not read");
+    }
+  };
+  const sheet1 = {
+    getLastRow: function () {
+      return 1;
+    },
+    getRange: function () {
+      throw new Error("should not read");
+    }
+  };
+  assert.deepStrictEqual(
+    db.readWhitelist({
+      getSheetByName: function () {
+        return sheet0;
+      }
+    }),
+    []
+  );
+  assert.deepStrictEqual(
+    db.readWhitelist({
+      getSheetByName: function () {
+        return sheet1;
+      }
+    }),
+    []
+  );
   console.log("   ✓ 無資料列驗證通過！\n");
 }
 
@@ -102,16 +140,26 @@ console.log("5. 應解析白名單資料、略過空 email 並正規化欄位...
     ["v3@example.com", "V3", "viewer", " 是 "]
   ];
   const sheet = {
-    getLastRow: function () { return values.length + 1; },
+    getLastRow: function () {
+      return values.length + 1;
+    },
     getRange: function (r, c, numRows, numCols) {
       assert.strictEqual(r, 2);
       assert.strictEqual(c, 4);
       assert.strictEqual(numRows, values.length);
       assert.strictEqual(numCols, 4);
-      return { getValues: function () { return values; } };
+      return {
+        getValues: function () {
+          return values;
+        }
+      };
     }
   };
-  const ss = { getSheetByName: function () { return sheet; } };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
   const result = db.readWhitelist(ss);
   assert.deepStrictEqual(result, [
     { email: "admin@example.com", name: "管理員", role: "admin", roleName: "系統管理員", enabled: true },
@@ -130,10 +178,22 @@ console.log("6. options/欄位缺值時應使用預設值...");
     ["u@example.com", null, null, ""]
   ];
   const sheet = {
-    getLastRow: function () { return 3; },
-    getRange: function () { return { getValues: function () { return values; } }; }
+    getLastRow: function () {
+      return 3;
+    },
+    getRange: function () {
+      return {
+        getValues: function () {
+          return values;
+        }
+      };
+    }
   };
-  const ss = { getSheetByName: function () { return sheet; } };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
   const result = db.readWhitelist(ss);
   assert.deepStrictEqual(result, [
     { email: "u@example.com", name: "", role: "viewer", roleName: "檢視人員", enabled: false }

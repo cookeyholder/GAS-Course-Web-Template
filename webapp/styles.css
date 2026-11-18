@@ -32,8 +32,8 @@ html[data-style="blueprint"] {
   --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Songti TC", "Noto Serif TC", serif;
   --radius: 2px;
   --head-font: var(--sans);
-  --bg-pattern: linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  --bg-pattern:
+    linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   --bg-size: 24px 24px;
 }
 
@@ -58,8 +58,8 @@ html[data-style="blueprint"][data-theme="dark"] {
   --warn-bg: #33240e;
   --shadow: 0 1px 0 rgba(0, 0, 0, 0.25);
   --grid: rgba(201, 214, 232, 0.045);
-  --bg-pattern: linear-gradient(var(--grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  --bg-pattern:
+    linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
   --bg-size: 24px 24px;
 }
 
@@ -378,7 +378,8 @@ html[data-style="claymorphism"] {
   --err-bg: #ffe4e6;
   --warn: #f59e0b;
   --warn-bg: #fef3c7;
-  --shadow: 0 10px 24px -4px rgba(100, 116, 139, 0.18), inset 2px 2px 5px rgba(255, 255, 255, 0.9),
+  --shadow:
+    0 10px 24px -4px rgba(100, 116, 139, 0.18), inset 2px 2px 5px rgba(255, 255, 255, 0.9),
     inset -3px -3px 6px rgba(148, 163, 184, 0.2);
   --radius: 18px;
   --head-font: var(--sans);
@@ -404,7 +405,8 @@ html[data-style="claymorphism"][data-theme="dark"] {
   --err-bg: #881337;
   --warn: #fbbf24;
   --warn-bg: #78350f;
-  --shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.65), inset 2px 2px 5px rgba(255, 255, 255, 0.12),
+  --shadow:
+    0 12px 28px -4px rgba(0, 0, 0, 0.65), inset 2px 2px 5px rgba(255, 255, 255, 0.12),
     inset -3px -3px 7px rgba(0, 0, 0, 0.55);
   --radius: 18px;
   --head-font: var(--sans);
@@ -491,7 +493,8 @@ html[data-style="nes"] {
   --shadow: none;
   --radius: 0px;
   --head-font: var(--mono);
-  --bg-pattern: linear-gradient(90deg, rgba(33, 37, 41, 0.04) 1px, transparent 1px),
+  --bg-pattern:
+    linear-gradient(90deg, rgba(33, 37, 41, 0.04) 1px, transparent 1px),
     linear-gradient(rgba(33, 37, 41, 0.04) 1px, transparent 1px);
   --bg-size: 16px 16px;
 }
@@ -517,7 +520,8 @@ html[data-style="nes"][data-theme="dark"] {
   --shadow: none;
   --radius: 0px;
   --head-font: var(--mono);
-  --bg-pattern: linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
+  --bg-pattern:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.04) 1px, transparent 1px),
     linear-gradient(rgba(255, 255, 255, 0.04) 1px, transparent 1px);
   --bg-size: 16px 16px;
 }

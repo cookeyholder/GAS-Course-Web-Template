@@ -80,9 +80,12 @@
    */
   function pickCourseSheetRows(workbook, readRows) {
     const names = (workbook && workbook.SheetNames) || [];
-    const reader = typeof readRows === "function" ? readRows : function () {
-      return [];
-    };
+    const reader =
+      typeof readRows === "function"
+        ? readRows
+        : function () {
+            return [];
+          };
     const courseSheet = findSheetWithRows(names, reader, looksLikeCourseCodes);
     if (courseSheet) return courseSheet;
     const anySheet = findSheetWithRows(names, reader, null);

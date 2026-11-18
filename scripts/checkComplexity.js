@@ -39,8 +39,7 @@ function computeFunctionCoverage(coverageEntry, method) {
     return 0;
   }
   const startLine = typeof method.lineStart === "number" ? method.lineStart : 1;
-  const endLine =
-    typeof method.lineEnd === "number" && method.lineEnd >= startLine ? method.lineEnd : startLine;
+  const endLine = typeof method.lineEnd === "number" && method.lineEnd >= startLine ? method.lineEnd : startLine;
 
   let total = 0;
   let covered = 0;
@@ -100,8 +99,7 @@ function evaluateComplexity(options) {
   const coverageByFile = settings.coverageByFile || {};
   const thresholds = settings.thresholds || {};
   const crapThreshold = typeof thresholds.crap === "number" ? thresholds.crap : 30;
-  const miThreshold =
-    typeof thresholds.maintainability === "number" ? thresholds.maintainability : 20;
+  const miThreshold = typeof thresholds.maintainability === "number" ? thresholds.maintainability : 20;
 
   const violations = [];
   let crapOverThreshold = 0;
@@ -125,8 +123,7 @@ function evaluateComplexity(options) {
         file: analysis.file || analysis.absolutePath || "",
         maintainability: mi,
         threshold: miThreshold,
-        message:
-          "MI " + mi.toFixed(2) + " < " + miThreshold + "：" + (analysis.file || analysis.absolutePath)
+        message: "MI " + mi.toFixed(2) + " < " + miThreshold + "：" + (analysis.file || analysis.absolutePath)
       });
     }
 

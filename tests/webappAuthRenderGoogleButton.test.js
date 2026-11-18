@@ -32,7 +32,11 @@ function run() {
     }
   };
   assert.strictEqual(authModule.prepareGoogleButton({ mock: true, document: doc }), null);
-  const noHost = { getElementById: function () { return null; } };
+  const noHost = {
+    getElementById: function () {
+      return null;
+    }
+  };
   assert.strictEqual(authModule.prepareGoogleButton({ document: noHost }), null);
   const gasPrepared = authModule.prepareGoogleButton({
     document: doc,

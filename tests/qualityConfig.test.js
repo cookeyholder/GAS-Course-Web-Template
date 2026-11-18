@@ -70,10 +70,7 @@ console.log("3. 驗證 2026-11-18 基準線可讀取且可追溯...");
   assert.strictEqual(baseline.maintainability.miUnder20Count, 0);
 
   assert.strictEqual(baseline.crap.crapMax, 1482.0);
-  assert.strictEqual(
-    baseline.crap.crapMaxFunction,
-    "subjectCodeTransformer.js::getNormalizedCourses"
-  );
+  assert.strictEqual(baseline.crap.crapMaxFunction, "subjectCodeTransformer.js::getNormalizedCourses");
   assert.strictEqual(baseline.crap.crapOver30Count, 56);
   console.log("   ✓ 基準線資訊驗證通過！\n");
 }

@@ -73,7 +73,7 @@ function run() {
   error.state.publicConfig = { systemName: "<測試系統>" };
   html = error.ui.renderLoginView();
   assert(html.indexOf("&lt;登入失敗&gt;") !== -1);
-  assert(html.indexOf("<h2 class=\"login-title\">&lt;測試系統&gt;</h2>") !== -1);
+  assert(html.indexOf('<h2 class="login-title">&lt;測試系統&gt;</h2>') !== -1);
   console.log("5. 登入錯誤與系統名稱應跳脫 HTML ✓\n");
 
   console.log("✓ webapp/js/ui.js renderLoginView 測試全數通過！\n");

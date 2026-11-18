@@ -50,7 +50,22 @@ function makeSs(sheet, expectedName) {
 
 const header = transformer.NORMALIZED_COURSE_HEADERS;
 function row(overrides) {
-  const base = ["114", "1", "1", "114", "305101A", "程式設計實習", "電機與電子群", "資訊科", "部定必修", "原班級", "實習科目", "必修", "3", "3"];
+  const base = [
+    "114",
+    "1",
+    "1",
+    "114",
+    "305101A",
+    "程式設計實習",
+    "電機與電子群",
+    "資訊科",
+    "部定必修",
+    "原班級",
+    "實習科目",
+    "必修",
+    "3",
+    "3"
+  ];
   const o = overrides || {};
   return [
     o.academicYear !== undefined ? o.academicYear : base[0],
@@ -72,9 +87,30 @@ function row(overrides) {
 
 const sampleRows = [
   header,
-  row({ academicYear: "114", semester: "1", courseCode: "C001", subjectName: "程式設計", department: "資訊科", group: "電機與電子群" }),
-  row({ academicYear: "114", semester: "2", courseCode: "C002", subjectName: "資料庫", department: "資訊科", group: "電機與電子群" }),
-  row({ academicYear: "113", semester: "1", courseCode: "M001", subjectName: "機械製圖", department: "機械科", group: "機械群" })
+  row({
+    academicYear: "114",
+    semester: "1",
+    courseCode: "C001",
+    subjectName: "程式設計",
+    department: "資訊科",
+    group: "電機與電子群"
+  }),
+  row({
+    academicYear: "114",
+    semester: "2",
+    courseCode: "C002",
+    subjectName: "資料庫",
+    department: "資訊科",
+    group: "電機與電子群"
+  }),
+  row({
+    academicYear: "113",
+    semester: "1",
+    courseCode: "M001",
+    subjectName: "機械製圖",
+    department: "機械科",
+    group: "機械群"
+  })
 ];
 
 console.log("1. 無試算表（無 ss 且無 SpreadsheetApp）時應回傳空結果預設值...");
@@ -89,7 +125,11 @@ console.log("1. 無試算表（無 ss 且無 SpreadsheetApp）時應回傳空結
 console.log("2. 無 ss 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
 {
   const ss = makeSs(makeSheet([header]), transformer.NORMALIZED_COURSE_SHEET_NAME);
-  const SpreadsheetApp = { getActiveSpreadsheet: function () { return ss; } };
+  const SpreadsheetApp = {
+    getActiveSpreadsheet: function () {
+      return ss;
+    }
+  };
   const result = withGlobals({ SpreadsheetApp: SpreadsheetApp }, function () {
     return transformer.getNormalizedCourses();
   });
@@ -100,7 +140,11 @@ console.log("2. 無 ss 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
 
 console.log("3. 找不到課程索引工作表時應回傳空結果...");
 {
-  const ss = { getSheetByName: function () { return null; } };
+  const ss = {
+    getSheetByName: function () {
+      return null;
+    }
+  };
   const result = transformer.getNormalizedCourses({}, ss);
   assert.deepStrictEqual(result, { ok: true, list: [], total: 0, page: 1, pageSize: 50, totalPages: 0 });
   console.log("   ✓ 缺少工作表驗證通過！\n");
@@ -110,8 +154,22 @@ console.log("4. 僅有表頭或無資料列時應回傳空結果...");
 {
   const ssHeaderOnly = makeSs(makeSheet([header]));
   const ssEmpty = makeSs(makeSheet([]));
-  assert.deepStrictEqual(transformer.getNormalizedCourses({}, ssHeaderOnly), { ok: true, list: [], total: 0, page: 1, pageSize: 50, totalPages: 0 });
-  assert.deepStrictEqual(transformer.getNormalizedCourses({}, ssEmpty), { ok: true, list: [], total: 0, page: 1, pageSize: 50, totalPages: 0 });
+  assert.deepStrictEqual(transformer.getNormalizedCourses({}, ssHeaderOnly), {
+    ok: true,
+    list: [],
+    total: 0,
+    page: 1,
+    pageSize: 50,
+    totalPages: 0
+  });
+  assert.deepStrictEqual(transformer.getNormalizedCourses({}, ssEmpty), {
+    ok: true,
+    list: [],
+    total: 0,
+    page: 1,
+    pageSize: 50,
+    totalPages: 0
+  });
   console.log("   ✓ 無資料列驗證通過！\n");
 }
 
@@ -149,7 +207,12 @@ console.log("6. 應支援 academicYear、semester、department 篩選...");
   const ss = makeSs(makeSheet(sampleRows));
   const byYear = transformer.getNormalizedCourses({ academicYear: "114" }, ss);
   assert.strictEqual(byYear.total, 2);
-  assert.deepStrictEqual(byYear.list.map(function (x) { return x.courseCode; }), ["C001", "C002"]);
+  assert.deepStrictEqual(
+    byYear.list.map(function (x) {
+      return x.courseCode;
+    }),
+    ["C001", "C002"]
+  );
 
   const bySem = transformer.getNormalizedCourses({ semester: "2" }, ss);
   assert.strictEqual(bySem.total, 1);
@@ -221,7 +284,10 @@ console.log("9. filter 未提供或欄位為空/空白時應視為不篩選，�
   ];
   const ss = makeSs(makeSheet(values));
   const r1 = transformer.getNormalizedCourses(null, ss);
-  const r2 = transformer.getNormalizedCourses({ keyword: "   ", academicYear: "  ", semester: "", department: "   " }, ss);
+  const r2 = transformer.getNormalizedCourses(
+    { keyword: "   ", academicYear: "  ", semester: "", department: "   " },
+    ss
+  );
   assert.strictEqual(r1.total, 1);
   assert.strictEqual(r2.total, 1);
   assert.deepStrictEqual(r1.list[0], {

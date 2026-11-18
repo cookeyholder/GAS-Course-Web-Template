@@ -23,21 +23,7 @@ function makeEntry(overrides) {
       payload: [["A"]],
       stats: { sourceRows: 1234, keptCourseRows: 20, expandedRows: 5678 },
       sample: [
-        [
-          "114",
-          "1",
-          "1",
-          "C001",
-          "<數學>",
-          "數學科",
-          "必修",
-          "2",
-          "2",
-          "",
-          "一般",
-          "3",
-          "0"
-        ],
+        ["114", "1", "1", "C001", "<數學>", "數學科", "必修", "2", "2", "", "一般", "3", "0"],
         ["114", "1", "2"]
       ]
     },
@@ -53,10 +39,10 @@ function run() {
   const empty = createDeps();
   const emptyHtml = empty.imports.renderView();
   assert(emptyHtml.indexOf('id="uploadDropzone"') !== -1);
-  assert(emptyHtml.indexOf('MEA.imports.handleDragOver(event)') !== -1);
-  assert(emptyHtml.indexOf('MEA.imports.handleDragLeave(event)') !== -1);
-  assert(emptyHtml.indexOf('MEA.imports.handleDrop(event)') !== -1);
-  assert(emptyHtml.indexOf('MEA.imports.pickFile()') !== -1);
+  assert(emptyHtml.indexOf("MEA.imports.handleDragOver(event)") !== -1);
+  assert(emptyHtml.indexOf("MEA.imports.handleDragLeave(event)") !== -1);
+  assert(emptyHtml.indexOf("MEA.imports.handleDrop(event)") !== -1);
+  assert(emptyHtml.indexOf("MEA.imports.pickFile()") !== -1);
   assert(emptyHtml.indexOf('id="fileInput"') !== -1);
   assert(emptyHtml.indexOf("metrics-grid") === -1);
   assert(emptyHtml.indexOf("108 課綱課程代碼匯入與 1NF 正規化") !== -1);

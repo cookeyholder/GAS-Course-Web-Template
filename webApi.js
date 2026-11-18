@@ -409,9 +409,12 @@ function getOAuthSpreadsheet_(deps) {
 
 function getOAuthSettings_(deps, ss) {
   if (deps && deps.settings) return deps.settings;
-  const readSettings = deps && typeof deps.readSystemSettings === "function"
-    ? deps.readSystemSettings
-    : (typeof readSystemSettings === "function" ? readSystemSettings : null);
+  const readSettings =
+    deps && typeof deps.readSystemSettings === "function"
+      ? deps.readSystemSettings
+      : typeof readSystemSettings === "function"
+        ? readSystemSettings
+        : null;
   return readSettings ? readSettings(ss) : {};
 }
 
@@ -474,12 +477,10 @@ function buildTokenExchangeFailure_(statusCode, tokenData) {
 }
 
 function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss) {
-  const verifyFn = deps && typeof deps.verifyGoogleIdToken === "function"
-    ? deps.verifyGoogleIdToken
-    : verifyGoogleIdToken;
-  const createSessionFn = deps && typeof deps.createSessionForEmail === "function"
-    ? deps.createSessionForEmail
-    : createSessionForEmail;
+  const verifyFn =
+    deps && typeof deps.verifyGoogleIdToken === "function" ? deps.verifyGoogleIdToken : verifyGoogleIdToken;
+  const createSessionFn =
+    deps && typeof deps.createSessionForEmail === "function" ? deps.createSessionForEmail : createSessionForEmail;
   const verification = verifyFn(tokenData.id_token, clientId, settings.allowedLoginDomain);
   if (!verification.ok) return verification;
   return createSessionFn(verification.email, verification.name, { spreadsheet: ss });
@@ -504,10 +505,7 @@ function handleOAuthCodeCallback(code, e, deps) {
     return webApiError("missing_client_secret", "系統尚未設定 OAuth Client Secret，無法完成 Google 帳號登入");
   }
 
-  const redirectUri = resolveOAuthRedirectUri(
-    e && e.parameter ? e.parameter.state : "",
-    getOAuthWebAppUrl_(context)
-  );
+  const redirectUri = resolveOAuthRedirectUri(e && e.parameter ? e.parameter.state : "", getOAuthWebAppUrl_(context));
   const payload = {
     code: authorizationCode,
     client_id: clientId,
@@ -664,9 +662,10 @@ function routePublicWebApiAction_(name, payload) {
     case "getPublicConfig":
       return getOverridableApiFn_("getPublicConfig", getPublicConfig)();
     case "login":
-      return getOverridableApiFn_("loginWithGoogleIdToken", loginWithGoogleIdToken)(
-        payload ? payload.idToken || payload.credential : ""
-      );
+      return getOverridableApiFn_(
+        "loginWithGoogleIdToken",
+        loginWithGoogleIdToken
+      )(payload ? payload.idToken || payload.credential : "");
     case "loginWithActiveUser":
       return getOverridableApiFn_("loginWithActiveUser", loginWithActiveUser)();
     default:
@@ -792,9 +791,7 @@ function executeWebApi(payload, event) {
       if (!hasLock) return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
     }
     const routeFn =
-      typeof module !== "undefined" &&
-      module.exports &&
-      typeof module.exports.routeWebApiAction === "function"
+      typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"
         ? module.exports.routeWebApiAction
         : routeWebApiAction;
     return routeFn(action, payload, event);
@@ -862,9 +859,7 @@ function renderDoGetHtml_(initialAuthResult, parameter) {
   }
   try {
     const template = HtmlService.createTemplateFromFile("index");
-    template.initialAuthResult = initialAuthResult
-      ? JSON.stringify(initialAuthResult).replace(/</g, "\\u003c")
-      : "";
+    template.initialAuthResult = initialAuthResult ? JSON.stringify(initialAuthResult).replace(/</g, "\\u003c") : "";
     template.switchAccount = String(parameter.switch || "") === "1";
     return template
       .evaluate()

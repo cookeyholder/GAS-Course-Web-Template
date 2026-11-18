@@ -38,13 +38,10 @@
     '<path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/>' +
     '<path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/>' +
     "</svg>";
-  const CLIENT_ID_HINT_HTML =
-    '<div class="login-hint">尚未設定 OAuth Client ID；本機測試請於網址加上 ?mock=true</div>';
+  const CLIENT_ID_HINT_HTML = '<div class="login-hint">尚未設定 OAuth Client ID；本機測試請於網址加上 ?mock=true</div>';
   const DEFAULT_LOGIN_ERROR = "登入失敗，請稍後再試";
-  const MISSING_CLIENT_ID_ERROR =
-    "尚未設定 OAuth Client ID，請系統管理員先於「系統設定」完成設定";
-  const MISSING_CLIENT_SECRET_ERROR =
-    "尚未設定 OAuth Client Secret，請系統管理員先於「系統設定」完成設定";
+  const MISSING_CLIENT_ID_ERROR = "尚未設定 OAuth Client ID，請系統管理員先於「系統設定」完成設定";
+  const MISSING_CLIENT_SECRET_ERROR = "尚未設定 OAuth Client Secret，請系統管理員先於「系統設定」完成設定";
   const MISSING_WEBAPP_URL_ERROR = "無法取得 Web App 網址，請確認部署狀態後重新整理頁面";
   const MISSING_CHOOSER_URL_ERROR = "無法建立 Google 帳戶切換網址，請稍後再試";
   const BOOTSTRAP_TOAST_MESSAGE = "初次登入已自動開通系統管理員權限！";
@@ -212,12 +209,7 @@
 
   function detectGasHosting(config, google) {
     const source = config || {};
-    return !(
-      source.mock ||
-      !google ||
-      !google.script ||
-      typeof google.script.run !== "object"
-    );
+    return !(source.mock || !google || !google.script || typeof google.script.run !== "object");
   }
 
   function buildGasHostedLoginButtonHtml(loginBusy) {
@@ -236,10 +228,7 @@
     const settings = options || {};
     if (settings.mock) return null;
     const doc = settings.document;
-    const host =
-      doc && typeof doc.getElementById === "function"
-        ? doc.getElementById("googleLoginButton")
-        : null;
+    const host = doc && typeof doc.getElementById === "function" ? doc.getElementById("googleLoginButton") : null;
     if (!host) return null;
     const publicConfig = settings.publicConfig || {};
     const clientId = String(publicConfig.clientId || "").trim();
@@ -348,9 +337,7 @@
           return;
         }
         const existing =
-          doc && typeof doc.querySelector === "function"
-            ? doc.querySelector('script[data-gas-gis="1"]')
-            : null;
+          doc && typeof doc.querySelector === "function" ? doc.querySelector('script[data-gas-gis="1"]') : null;
         if (existing) {
           existing.addEventListener("load", function () {
             resolve(host.google.accounts.id);
@@ -471,9 +458,7 @@
         prepared.host.innerHTML = prepared.html;
         return;
       }
-      loadGis()
-        .then(createGisReadyHandler(prepared.host, prepared.clientId))
-        .catch(handleGisFailure);
+      loadGis().then(createGisReadyHandler(prepared.host, prepared.clientId)).catch(handleGisFailure);
     }
 
     function loginMock() {

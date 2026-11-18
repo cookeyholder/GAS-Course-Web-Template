@@ -13,20 +13,7 @@
   const api = factory();
 
   if (typeof window !== "undefined") {
-    const MEA = (root.MEA = root.MEA || {});
-    const storage = window.localStorage || {
-      getItem: function () { return null; },
-      setItem: function () {},
-      removeItem: function () {}
-    };
-    MEA.api = api.createApiClient({
-      config: MEA.config || {},
-      storage: storage,
-      fetchFn: typeof window.fetch === "function" ? window.fetch.bind(window) : null,
-      google: window.google || null,
-      getMock: function () { return MEA.mock || null; },
-      setTimeoutFn: function (fn, ms) { return window.setTimeout(fn, ms); }
-    });
+    api.applyBrowserConfig(root, window);
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -55,20 +42,36 @@
     const options = deps || {};
     const config = options.config || {};
     const storage = options.storage || {
-      getItem: function () { return null; },
+      getItem: function () {
+        return null;
+      },
       setItem: function () {},
       removeItem: function () {}
     };
-    const fetchFn = typeof options.fetchFn === "function" ? options.fetchFn : (typeof options.fetch === "function" ? options.fetch : null);
-    const getGoogle = typeof options.getGoogle === "function"
-      ? options.getGoogle
-      : function () { return options.google || null; };
-    const getMock = typeof options.getMock === "function"
-      ? options.getMock
-      : function () { return options.mock || null; };
-    const setTimeoutFn = typeof options.setTimeoutFn === "function"
-      ? options.setTimeoutFn
-      : function (fn, ms) { return setTimeout(fn, ms); };
+    const fetchFn =
+      typeof options.fetchFn === "function"
+        ? options.fetchFn
+        : typeof options.fetch === "function"
+          ? options.fetch
+          : null;
+    const getGoogle =
+      typeof options.getGoogle === "function"
+        ? options.getGoogle
+        : function () {
+            return options.google || null;
+          };
+    const getMock =
+      typeof options.getMock === "function"
+        ? options.getMock
+        : function () {
+            return options.mock || null;
+          };
+    const setTimeoutFn =
+      typeof options.setTimeoutFn === "function"
+        ? options.setTimeoutFn
+        : function (fn, ms) {
+            return setTimeout(fn, ms);
+          };
 
     let currentToken = "";
     let currentCsrfToken = "";
@@ -306,9 +309,44 @@
     };
   }
 
+  /**
+   * 將瀏覽器環境依賴組裝為 MEA.api（從 UMD 外層抽出以便測試）。
+   *
+   * @param {Object} root - 全域命名空間物件（通常為 globalThis）
+   * @param {Object} win - 瀏覽器 window 物件
+   * @returns {Object} 建立的 API 客戶端
+   */
+  function applyBrowserConfig(root, win) {
+    const namespace = root || {};
+    const browser = win || {};
+    const MEA = (namespace.MEA = namespace.MEA || {});
+    const storage = browser.localStorage || {
+      getItem: function () {
+        return null;
+      },
+      setItem: function () {},
+      removeItem: function () {}
+    };
+    const client = createApiClient({
+      config: MEA.config || {},
+      storage: storage,
+      fetchFn: typeof browser.fetch === "function" ? browser.fetch.bind(browser) : null,
+      google: browser.google || null,
+      getMock: function () {
+        return MEA.mock || null;
+      },
+      setTimeoutFn: function (fn, ms) {
+        return browser.setTimeout(fn, ms);
+      }
+    });
+    MEA.api = client;
+    return client;
+  }
+
   return {
     createApiClient: createApiClient,
     parseApiResponse: parseApiResponse,
+    applyBrowserConfig: applyBrowserConfig,
     CSRF_STORAGE_KEY: CSRF_STORAGE_KEY
   };
 });

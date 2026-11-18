@@ -36,7 +36,10 @@ console.log("2. 驗證 README/AGENTS 記載 Git hook 與自動格式化...");
     assert(/Husky/i.test(doc), name + " 應提及 Husky");
     assert(/lint-staged/i.test(doc), name + " 應提及 lint-staged");
     assert(/pre-commit/i.test(doc), name + " 應提及 pre-commit");
-    assert(/prettier\s*--write|Prettier.*自動格式化|自動格式化.*Prettier/i.test(doc), name + " 應說明 Prettier 自動格式化");
+    assert(
+      /prettier\s*--write|Prettier.*自動格式化|自動格式化.*Prettier/i.test(doc),
+      name + " 應說明 Prettier 自動格式化"
+    );
   });
   console.log("   ✓ Git hook 與自動格式化文件驗證通過！\n");
 }
@@ -47,14 +50,24 @@ console.log("3. 驗證文件記載品質門檻與基準線/不回退政策...");
   thresholdTokens.forEach(function (token) {
     assert(readme.includes(token) || agents.includes(token), "README 或 AGENTS 應提及門檻/政策關鍵字：" + token);
   });
-  assert(/不回退|ratchet|不得低於/i.test(readme) || /不回退|ratchet|不得低於/i.test(agents), "應說明基準線不回退（ratchet）政策");
+  assert(
+    /不回退|ratchet|不得低於/i.test(readme) || /不回退|ratchet|不得低於/i.test(agents),
+    "應說明基準線不回退（ratchet）政策"
+  );
   console.log("   ✓ 門檻與基準線政策驗證通過！\n");
 }
 
 console.log("4. 驗證文件記載 Node 24 版本策略與 CI 品質閘門...");
 {
-  assert(/Node\.?js?\s*24|Node\s*24|node-version\s*[:：]?\s*["']?24/i.test(readme) || /Node\.?js?\s*24|Node\s*24/i.test(agents), "應記載 Node 24 版本策略");
-  assert(/quality-gates\.yml|品質閘門|Quality Gates/i.test(readme) || /quality-gates\.yml|品質閘門/i.test(agents), "應記載 CI 品質閘門流程");
+  assert(
+    /Node\.?js?\s*24|Node\s*24|node-version\s*[:：]?\s*["']?24/i.test(readme) ||
+      /Node\.?js?\s*24|Node\s*24/i.test(agents),
+    "應記載 Node 24 版本策略"
+  );
+  assert(
+    /quality-gates\.yml|品質閘門|Quality Gates/i.test(readme) || /quality-gates\.yml|品質閘門/i.test(agents),
+    "應記載 CI 品質閘門流程"
+  );
   console.log("   ✓ Node 24 與 CI 文件驗證通過！\n");
 }
 

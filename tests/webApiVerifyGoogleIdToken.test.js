@@ -68,7 +68,11 @@ console.log("4. tokeninfo 非 200 應回傳 invalid_id_token...");
     "token",
     "client-id",
     "",
-    makeDeps({ fetch: function () { return { statusCode: 401, text: "{}" }; } })
+    makeDeps({
+      fetch: function () {
+        return { statusCode: 401, text: "{}" };
+      }
+    })
   );
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.error, "invalid_id_token");
@@ -81,7 +85,11 @@ console.log("5. tokeninfo JSON 解析失敗應回傳 token_verify_error...");
     "token",
     "client-id",
     "",
-    makeDeps({ fetch: function () { return { statusCode: 200, text: "not-json" }; } })
+    makeDeps({
+      fetch: function () {
+        return { statusCode: 200, text: "not-json" };
+      }
+    })
   );
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.error, "token_verify_error");
@@ -211,7 +219,10 @@ console.log("11. 驗證成功應回傳正規化使用者資訊...");
   assert.strictEqual(r.name, "測試者");
   assert.strictEqual(r.sub, "sub-9");
   assert.strictEqual(r.picture, "https://pic");
-  assert(capturedUrl.indexOf("id_token=my-token") !== -1 || capturedUrl.indexOf("id_token=") !== -1, "應查詢 tokeninfo");
+  assert(
+    capturedUrl.indexOf("id_token=my-token") !== -1 || capturedUrl.indexOf("id_token=") !== -1,
+    "應查詢 tokeninfo"
+  );
   console.log("   ✓ 成功流程驗證通過！\n");
 }
 

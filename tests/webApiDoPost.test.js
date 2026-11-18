@@ -24,11 +24,18 @@ function withStubbed(obj, key, stub, fn) {
 
 console.log("1. 解析 payload 拋出例外時應回傳 invalid_json...");
 {
-  withStubbed(api, "parseWebApiPayload", function () { throw new Error("boom"); }, function () {
-    const r = api.doPost({ postData: { contents: "{}" } });
-    assert.strictEqual(r.ok, false);
-    assert.strictEqual(r.error, "invalid_json");
-  });
+  withStubbed(
+    api,
+    "parseWebApiPayload",
+    function () {
+      throw new Error("boom");
+    },
+    function () {
+      const r = api.doPost({ postData: { contents: "{}" } });
+      assert.strictEqual(r.ok, false);
+      assert.strictEqual(r.error, "invalid_json");
+    }
+  );
   console.log("   ✓ 解析例外驗證通過！\n");
 }
 
@@ -59,13 +66,18 @@ console.log("4. action 可由 payload.action 取得並委派 executeWebApi...");
   const payload = { action: "ping" };
   const event = { postData: { contents: JSON.stringify(payload) } };
   const expected = { ok: true, pong: 1 };
-  withStubbed(api, "executeWebApi", function (p, e) {
-    captured = { p: p, e: e };
-    return expected;
-  }, function () {
-    const r = api.doPost(event);
-    assert.deepStrictEqual(r, expected);
-  });
+  withStubbed(
+    api,
+    "executeWebApi",
+    function (p, e) {
+      captured = { p: p, e: e };
+      return expected;
+    },
+    function () {
+      const r = api.doPost(event);
+      assert.deepStrictEqual(r, expected);
+    }
+  );
   assert.deepStrictEqual(captured.p, payload);
   assert.strictEqual(captured.e, event);
   console.log("   ✓ payload action 委派驗證通過！\n");
@@ -77,13 +89,18 @@ console.log("5. action 可由 event.parameter.action 補齊並委派 executeWebA
   const payload = { token: "t" };
   const event = { postData: { contents: JSON.stringify(payload) }, parameter: { action: "getSession" } };
   const expected = { ok: true, source: "param" };
-  withStubbed(api, "executeWebApi", function (p, e) {
-    captured = { p: p, e: e };
-    return expected;
-  }, function () {
-    const r = api.doPost(event);
-    assert.deepStrictEqual(r, expected);
-  });
+  withStubbed(
+    api,
+    "executeWebApi",
+    function (p, e) {
+      captured = { p: p, e: e };
+      return expected;
+    },
+    function () {
+      const r = api.doPost(event);
+      assert.deepStrictEqual(r, expected);
+    }
+  );
   assert.deepStrictEqual(captured.p, payload);
   assert.strictEqual(captured.e, event);
   console.log("   ✓ parameter action fallback 驗證通過！\n");
@@ -94,13 +111,18 @@ console.log("6. 直接以 parameter 傳入 action 時（無 postData）應可執
   let captured = null;
   const event = { parameter: { action: "ping", foo: "bar" } };
   const expected = { ok: true, from: "param-only" };
-  withStubbed(api, "executeWebApi", function (p, e) {
-    captured = { p: p, e: e };
-    return expected;
-  }, function () {
-    const r = api.doPost(event);
-    assert.deepStrictEqual(r, expected);
-  });
+  withStubbed(
+    api,
+    "executeWebApi",
+    function (p, e) {
+      captured = { p: p, e: e };
+      return expected;
+    },
+    function () {
+      const r = api.doPost(event);
+      assert.deepStrictEqual(r, expected);
+    }
+  );
   assert.deepStrictEqual(captured.p, event.parameter);
   assert.strictEqual(captured.e, event);
   console.log("   ✓ parameter-only 請求驗證通過！\n");
@@ -109,10 +131,17 @@ console.log("6. 直接以 parameter 傳入 action 時（無 postData）應可執
 console.log("7. executeWebApi 回傳錯誤物件時應原樣包裝回應...");
 {
   const expected = { ok: false, error: "server_error", message: "x" };
-  withStubbed(api, "executeWebApi", function () { return expected; }, function () {
-    const r = api.doPost({ postData: { contents: JSON.stringify({ action: "ping" }) } });
-    assert.deepStrictEqual(r, expected);
-  });
+  withStubbed(
+    api,
+    "executeWebApi",
+    function () {
+      return expected;
+    },
+    function () {
+      const r = api.doPost({ postData: { contents: JSON.stringify({ action: "ping" }) } });
+      assert.deepStrictEqual(r, expected);
+    }
+  );
   console.log("   ✓ 錯誤回應透傳驗證通過！\n");
 }
 

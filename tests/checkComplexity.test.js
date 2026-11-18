@@ -45,16 +45,16 @@ console.log("2. 驗證可由分析結果與覆蓋率評估 CRAP/MI 門檻...");
     coverageByFile: {
       "a.js": {
         statementMap: {
-          "0": { start: { line: 1 }, end: { line: 10 } },
-          "1": { start: { line: 20 }, end: { line: 40 } }
+          0: { start: { line: 1 }, end: { line: 10 } },
+          1: { start: { line: 20 }, end: { line: 40 } }
         },
-        s: { "0": 1, "1": 0 },
+        s: { 0: 1, 1: 0 },
         fnMap: {},
         f: {}
       },
       "b.js": {
-        statementMap: { "0": { start: { line: 1 }, end: { line: 2 } } },
-        s: { "0": 1 },
+        statementMap: { 0: { start: { line: 1 }, end: { line: 2 } } },
+        s: { 0: 1 },
         fnMap: {},
         f: {}
       }
@@ -67,8 +67,18 @@ console.log("2. 驗證可由分析結果與覆蓋率評估 CRAP/MI 門檻...");
   assert.strictEqual(report.summary.miUnderThreshold, 1, "應統計 MI 違規數");
   assert(report.summary.crapOverThreshold >= 1, "應統計 CRAP 違規數");
   assert(Array.isArray(report.violations) && report.violations.length >= 2, "應列出違規項目");
-  assert(report.violations.some(function (v) { return v.type === "mi" && v.file === "b.js"; }), "應可定位 MI 違規模組");
-  assert(report.violations.some(function (v) { return v.type === "crap" && v.file === "a.js" && v.functionName === "badFn"; }), "應可定位 CRAP 違規函式");
+  assert(
+    report.violations.some(function (v) {
+      return v.type === "mi" && v.file === "b.js";
+    }),
+    "應可定位 MI 違規模組"
+  );
+  assert(
+    report.violations.some(function (v) {
+      return v.type === "crap" && v.file === "a.js" && v.functionName === "badFn";
+    }),
+    "應可定位 CRAP 違規函式"
+  );
   console.log("   ✓ 複雜度門檻評估驗證通過！\n");
 }
 
@@ -84,8 +94,8 @@ console.log("3. 驗證全部符合門檻時檢查成功...");
     ],
     coverageByFile: {
       "ok.js": {
-        statementMap: { "0": { start: { line: 1 }, end: { line: 5 } } },
-        s: { "0": 3 },
+        statementMap: { 0: { start: { line: 1 }, end: { line: 5 } } },
+        s: { 0: 3 },
         fnMap: {},
         f: {}
       }
@@ -108,8 +118,8 @@ console.log("4. 驗證 runComplexityCheck 會輸出 JSON 報告並依結果回�
     readCoverage: function () {
       return {
         "/abs/a.js": {
-          statementMap: { "0": { start: { line: 1 }, end: { line: 2 } } },
-          s: { "0": 0 },
+          statementMap: { 0: { start: { line: 1 }, end: { line: 2 } } },
+          s: { 0: 0 },
           fnMap: {},
           f: {}
         }
@@ -134,7 +144,11 @@ console.log("4. 驗證 runComplexityCheck 會輸出 JSON 報告並依結果回�
   });
   assert.strictEqual(code, 1, "有違規時應回傳非零");
   assert.strictEqual(writes.length, 1, "應寫出 JSON 報告");
-  assert(writes[0].reportPath.endsWith(qualityConfig.PATHS.complexityReport.replace(/^reports\//, "")) || writes[0].reportPath.indexOf("complexity") !== -1, "報告路徑應對齊品質設定");
+  assert(
+    writes[0].reportPath.endsWith(qualityConfig.PATHS.complexityReport.replace(/^reports\//, "")) ||
+      writes[0].reportPath.indexOf("complexity") !== -1,
+    "報告路徑應對齊品質設定"
+  );
   const parsed = JSON.parse(writes[0].content);
   assert(parsed.summary && parsed.violations, "報告應包含 summary 與 violations");
   assert(logs.join("\n").indexOf("CRAP") !== -1 || logs.join("\n").indexOf("違規") !== -1, "摘要應可定位違規");
@@ -148,8 +162,8 @@ console.log("5. 驗證無違規時成功並寫出報告...");
     readCoverage: function () {
       return {
         "/abs/a.js": {
-          statementMap: { "0": { start: { line: 1 }, end: { line: 2 } } },
-          s: { "0": 1 },
+          statementMap: { 0: { start: { line: 1 }, end: { line: 2 } } },
+          s: { 0: 1 },
           fnMap: {},
           f: {}
         }

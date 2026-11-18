@@ -34,7 +34,10 @@ function withGlobals(temp, fn) {
 console.log("1. 缺少或空白 state 應回傳 fallback...");
 {
   assert.strictEqual(api.resolveOAuthRedirectUri("", "https://fallback.example/exec"), "https://fallback.example/exec");
-  assert.strictEqual(api.resolveOAuthRedirectUri("   ", "  https://fallback.example/exec  "), "https://fallback.example/exec");
+  assert.strictEqual(
+    api.resolveOAuthRedirectUri("   ", "  https://fallback.example/exec  "),
+    "https://fallback.example/exec"
+  );
   assert.strictEqual(api.resolveOAuthRedirectUri(null, "fallback"), "fallback");
   console.log("   ✓ 空 state fallback 驗證通過！\n");
 }
@@ -116,7 +119,11 @@ console.log("8. 解碼流程拋出例外時應回傳 fallback...");
       throw new Error("decode fail");
     },
     newBlob: function () {
-      return { getDataAsString: function () { return "{}"; } };
+      return {
+        getDataAsString: function () {
+          return "{}";
+        }
+      };
     }
   };
   const result = withGlobals({ Utilities: Utilities }, function () {

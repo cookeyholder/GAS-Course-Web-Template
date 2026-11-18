@@ -31,12 +31,12 @@ function snapshotMemoryConfig() {
   return withGlobals({ SpreadsheetApp: undefined }, function () {
     const settings = db.readSystemSettings();
     return {
-      "學年度": settings["學年度"],
-      "學期": settings["學期"],
-      "系統名稱": settings["系統名稱"],
+      學年度: settings["學年度"],
+      學期: settings["學期"],
+      系統名稱: settings["系統名稱"],
       "OAuth Client ID": settings["OAuth Client ID"],
       "OAuth Client Secret": settings["OAuth Client Secret"],
-      "登入白名單限制啟用": settings["登入白名單限制啟用"],
+      登入白名單限制啟用: settings["登入白名單限制啟用"],
       "Google 登入允許網域": settings["Google 登入允許網域"]
     };
   });
@@ -116,8 +116,16 @@ console.log("2. 記憶體模式應正規化網域與布林並映射便利鍵..."
 console.log("3. 無 ss 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
 {
   const sheet = {
-    getLastRow: function () { return 1; },
-    getRange: function () { return { getValues: function () { return [["設定項目", "設定數值"]]; } }; }
+    getLastRow: function () {
+      return 1;
+    },
+    getRange: function () {
+      return {
+        getValues: function () {
+          return [["設定項目", "設定數值"]];
+        }
+      };
+    }
   };
   const ss = {
     getSheetByName: function (name) {
@@ -125,9 +133,18 @@ console.log("3. 無 ss 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
       return sheet;
     }
   };
-  const r = withGlobals({ SpreadsheetApp: { getActiveSpreadsheet: function () { return ss; } } }, function () {
-    return db.readSystemSettings();
-  });
+  const r = withGlobals(
+    {
+      SpreadsheetApp: {
+        getActiveSpreadsheet: function () {
+          return ss;
+        }
+      }
+    },
+    function () {
+      return db.readSystemSettings();
+    }
+  );
   assert.strictEqual(r.schoolYear, "114");
   assert.strictEqual(r.restrictWhitelist, false);
   console.log("   ✓ SpreadsheetApp fallback 驗證通過！\n");
@@ -135,7 +152,11 @@ console.log("3. 無 ss 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
 
 console.log("4. 試算表存在但找不到設定工作表時應回傳空物件...");
 {
-  const ss = { getSheetByName: function () { return null; } };
+  const ss = {
+    getSheetByName: function () {
+      return null;
+    }
+  };
   assert.deepStrictEqual(db.readSystemSettings(ss), {});
   console.log("   ✓ 缺少設定工作表驗證通過！\n");
 }
@@ -155,16 +176,26 @@ console.log("5. 試算表模式應讀取鍵值、略過空鍵、修剪值並套�
     ["自訂鍵", "  自訂值  "]
   ];
   const sheet = {
-    getLastRow: function () { return values.length; },
+    getLastRow: function () {
+      return values.length;
+    },
     getRange: function (r, c, numRows, numCols) {
       assert.strictEqual(r, 1);
       assert.strictEqual(c, 1);
       assert.strictEqual(numRows, values.length);
       assert.strictEqual(numCols, 2);
-      return { getValues: function () { return values; } };
+      return {
+        getValues: function () {
+          return values;
+        }
+      };
     }
   };
-  const ss = { getSheetByName: function () { return sheet; } };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
   const r = db.readSystemSettings(ss);
   assert.strictEqual(r["學年度"], "115");
   assert.strictEqual(r.schoolYear, "115");
@@ -192,10 +223,22 @@ console.log("6. 試算表模式缺少欄位時應回填預設便利值...");
     ["學年度", "116"]
   ];
   const sheet = {
-    getLastRow: function () { return values.length; },
-    getRange: function () { return { getValues: function () { return values; } }; }
+    getLastRow: function () {
+      return values.length;
+    },
+    getRange: function () {
+      return {
+        getValues: function () {
+          return values;
+        }
+      };
+    }
   };
-  const ss = { getSheetByName: function () { return sheet; } };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
   const r = db.readSystemSettings(ss);
   assert.strictEqual(r.schoolYear, "116");
   assert.strictEqual(r.semester, "1");
@@ -209,15 +252,28 @@ console.log("6. 試算表模式缺少欄位時應回填預設便利值...");
 
 console.log("7. 試算表 lastRow 小於 2 時應安全處理...");
 {
-  const values = [["設定項目", "設定數值"], ["", ""]];
+  const values = [
+    ["設定項目", "設定數值"],
+    ["", ""]
+  ];
   const sheet = {
-    getLastRow: function () { return 1; },
+    getLastRow: function () {
+      return 1;
+    },
     getRange: function (r, c, numRows) {
       assert.strictEqual(numRows, 2);
-      return { getValues: function () { return values; } };
+      return {
+        getValues: function () {
+          return values;
+        }
+      };
     }
   };
-  const ss = { getSheetByName: function () { return sheet; } };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
   const r = db.readSystemSettings(ss);
   assert.strictEqual(r.schoolYear, "114");
   assert.strictEqual(r.restrictWhitelist, false);

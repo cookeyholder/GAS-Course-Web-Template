@@ -18,14 +18,17 @@ console.log("1. 應匯出可測試的設定建構/解析函式...");
 }
 
 function baseEnv(overrides) {
-  return Object.assign({
-    search: "",
-    protocol: "https:",
-    hostname: "example.com",
-    href: "https://example.com/app/index.html?x=1#hash",
-    gasWebappUrl: "",
-    switchAccount: false
-  }, overrides || {});
+  return Object.assign(
+    {
+      search: "",
+      protocol: "https:",
+      hostname: "example.com",
+      href: "https://example.com/app/index.html?x=1#hash",
+      gasWebappUrl: "",
+      switchAccount: false
+    },
+    overrides || {}
+  );
 }
 
 console.log("2. resolveDefaultApiUrl：api 參數優先...");
@@ -38,7 +41,9 @@ console.log("2. resolveDefaultApiUrl：api 參數優先...");
 console.log("3. resolveDefaultApiUrl：gasWebappUrl 次之（需為 http 開頭）...");
 {
   assert.strictEqual(
-    configModule.resolveDefaultApiUrl(baseEnv({ search: "", gasWebappUrl: "https://script.google.com/macros/s/abc/exec" })),
+    configModule.resolveDefaultApiUrl(
+      baseEnv({ search: "", gasWebappUrl: "https://script.google.com/macros/s/abc/exec" })
+    ),
     "https://script.google.com/macros/s/abc/exec"
   );
   assert.strictEqual(
@@ -69,12 +74,14 @@ console.log("4. resolveDefaultApiUrl：file 與 googleusercontent 環境預設�
 
 console.log("5. resolveDefaultApiUrl：一般網頁環境使用去除 query/hash 的 href...");
 {
-  const url = configModule.resolveDefaultApiUrl(baseEnv({
-    search: "",
-    protocol: "https:",
-    hostname: "example.com",
-    href: "https://example.com/path/page.html?a=1&b=2#section"
-  }));
+  const url = configModule.resolveDefaultApiUrl(
+    baseEnv({
+      search: "",
+      protocol: "https:",
+      hostname: "example.com",
+      href: "https://example.com/path/page.html?a=1&b=2#section"
+    })
+  );
   assert.strictEqual(url, "https://example.com/path/page.html");
   console.log("   ✓ 一般網頁 href 驗證通過！\n");
 }
@@ -117,7 +124,9 @@ console.log("7. buildFrontendConfig 應包含固定中繼資料、儲存鍵與�
 console.log("8. styles 應包含各風格識別與名稱（確保所有視覺風格定義存在）...");
 {
   const c = configModule.buildFrontendConfig(baseEnv());
-  const ids = c.styles.map(function (s) { return s.id; });
+  const ids = c.styles.map(function (s) {
+    return s.id;
+  });
   assert.deepStrictEqual(ids, [
     "modern-slate",
     "blueprint",
@@ -144,12 +153,19 @@ console.log("8. styles 應包含各風格識別與名稱（確保所有視覺風
 
 console.log("9. tabs 與 apiUrl 應依環境正確產生...");
 {
-  const c = configModule.buildFrontendConfig(baseEnv({
-    search: "?api=https://x.test/run",
-    href: "https://example.com/app?y=1#z"
-  }));
+  const c = configModule.buildFrontendConfig(
+    baseEnv({
+      search: "?api=https://x.test/run",
+      href: "https://example.com/app?y=1#z"
+    })
+  );
   assert.strictEqual(c.apiUrl, "https://x.test/run");
-  assert.deepStrictEqual(c.tabs.map(function (t) { return t.id; }), ["overview", "import", "courses", "settings"]);
+  assert.deepStrictEqual(
+    c.tabs.map(function (t) {
+      return t.id;
+    }),
+    ["overview", "import", "courses", "settings"]
+  );
   c.tabs.forEach(function (t) {
     assert(t.name && t.icon && t.desc);
   });

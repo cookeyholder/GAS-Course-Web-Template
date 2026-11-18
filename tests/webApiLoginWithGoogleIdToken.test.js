@@ -44,15 +44,28 @@ console.log("1. 驗證失敗時應直接回傳 verify 結果...");
   const ss = { id: "ss1" };
   let captured = null;
   const verifyResult = { ok: false, error: "invalid_id_token" };
-  withGlobals({ readSystemSettings: function (spreadsheet) { return { clientId: "cfg-client", allowedLoginDomain: "example.com", _ss: spreadsheet }; }, SpreadsheetApp: undefined }, function () {
-    withStubbed(api, "verifyGoogleIdToken", function (token, clientId, domain) {
-      captured = { token: token, clientId: clientId, domain: domain };
-      return verifyResult;
-    }, function () {
-      const r = api.loginWithGoogleIdToken("id-token", { spreadsheet: ss });
-      assert.strictEqual(r, verifyResult);
-    });
-  });
+  withGlobals(
+    {
+      readSystemSettings: function (spreadsheet) {
+        return { clientId: "cfg-client", allowedLoginDomain: "example.com", _ss: spreadsheet };
+      },
+      SpreadsheetApp: undefined
+    },
+    function () {
+      withStubbed(
+        api,
+        "verifyGoogleIdToken",
+        function (token, clientId, domain) {
+          captured = { token: token, clientId: clientId, domain: domain };
+          return verifyResult;
+        },
+        function () {
+          const r = api.loginWithGoogleIdToken("id-token", { spreadsheet: ss });
+          assert.strictEqual(r, verifyResult);
+        }
+      );
+    }
+  );
   assert.deepStrictEqual(captured, {
     token: "id-token",
     clientId: "cfg-client",
@@ -68,20 +81,38 @@ console.log("2. 驗證成功時應建立 session 並回傳結果...");
   const sessionResult = { ok: true, token: "session-token" };
   let verifyArgs = null;
   let sessionArgs = null;
-  withGlobals({ readSystemSettings: function () { return { clientId: "cfg-client", allowedLoginDomain: "" }; }, SpreadsheetApp: undefined }, function () {
-    withStubbed(api, "verifyGoogleIdToken", function (token, clientId, domain) {
-      verifyArgs = [token, clientId, domain];
-      return verifyResult;
-    }, function () {
-      withStubbed(api, "createSessionForEmail", function (email, name, options) {
-        sessionArgs = { email: email, name: name, options: options };
-        return sessionResult;
-      }, function () {
-        const r = api.loginWithGoogleIdToken("tok", { spreadsheet: ss });
-        assert.strictEqual(r, sessionResult);
-      });
-    });
-  });
+  withGlobals(
+    {
+      readSystemSettings: function () {
+        return { clientId: "cfg-client", allowedLoginDomain: "" };
+      },
+      SpreadsheetApp: undefined
+    },
+    function () {
+      withStubbed(
+        api,
+        "verifyGoogleIdToken",
+        function (token, clientId, domain) {
+          verifyArgs = [token, clientId, domain];
+          return verifyResult;
+        },
+        function () {
+          withStubbed(
+            api,
+            "createSessionForEmail",
+            function (email, name, options) {
+              sessionArgs = { email: email, name: name, options: options };
+              return sessionResult;
+            },
+            function () {
+              const r = api.loginWithGoogleIdToken("tok", { spreadsheet: ss });
+              assert.strictEqual(r, sessionResult);
+            }
+          );
+        }
+      );
+    }
+  );
   assert.deepStrictEqual(verifyArgs, ["tok", "cfg-client", ""]);
   assert.deepStrictEqual(sessionArgs, {
     email: "user@example.com",
@@ -95,14 +126,27 @@ console.log("3. options.clientId 應優先於系統設定 clientId...");
 {
   const ss = { id: "ss3" };
   let verifyClientId = null;
-  withGlobals({ readSystemSettings: function () { return { clientId: "cfg-client", allowedLoginDomain: "x.com" }; }, SpreadsheetApp: undefined }, function () {
-    withStubbed(api, "verifyGoogleIdToken", function (token, clientId) {
-      verifyClientId = clientId;
-      return { ok: false, error: "x" };
-    }, function () {
-      api.loginWithGoogleIdToken("tok", { spreadsheet: ss, clientId: "override-client" });
-    });
-  });
+  withGlobals(
+    {
+      readSystemSettings: function () {
+        return { clientId: "cfg-client", allowedLoginDomain: "x.com" };
+      },
+      SpreadsheetApp: undefined
+    },
+    function () {
+      withStubbed(
+        api,
+        "verifyGoogleIdToken",
+        function (token, clientId) {
+          verifyClientId = clientId;
+          return { ok: false, error: "x" };
+        },
+        function () {
+          api.loginWithGoogleIdToken("tok", { spreadsheet: ss, clientId: "override-client" });
+        }
+      );
+    }
+  );
   assert.strictEqual(verifyClientId, "override-client");
   console.log("   ✓ clientId 覆寫驗證通過！\n");
 }
@@ -110,19 +154,44 @@ console.log("3. options.clientId 應優先於系統設定 clientId...");
 console.log("4. 無 options.spreadsheet 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
 {
   const ss = { id: "active" };
-  const SpreadsheetApp = { getActiveSpreadsheet: function () { return ss; } };
+  const SpreadsheetApp = {
+    getActiveSpreadsheet: function () {
+      return ss;
+    }
+  };
   let readSs = null;
   let sessionSs = null;
-  withGlobals({
-    SpreadsheetApp: SpreadsheetApp,
-    readSystemSettings: function (spreadsheet) { readSs = spreadsheet; return { clientId: "c", allowedLoginDomain: "" }; }
-  }, function () {
-    withStubbed(api, "verifyGoogleIdToken", function () { return { ok: true, email: "a@b", name: "A" }; }, function () {
-      withStubbed(api, "createSessionForEmail", function (e, n, options) { sessionSs = options.spreadsheet; return { ok: true }; }, function () {
-        api.loginWithGoogleIdToken("tok", {});
-      });
-    });
-  });
+  withGlobals(
+    {
+      SpreadsheetApp: SpreadsheetApp,
+      readSystemSettings: function (spreadsheet) {
+        readSs = spreadsheet;
+        return { clientId: "c", allowedLoginDomain: "" };
+      }
+    },
+    function () {
+      withStubbed(
+        api,
+        "verifyGoogleIdToken",
+        function () {
+          return { ok: true, email: "a@b", name: "A" };
+        },
+        function () {
+          withStubbed(
+            api,
+            "createSessionForEmail",
+            function (e, n, options) {
+              sessionSs = options.spreadsheet;
+              return { ok: true };
+            },
+            function () {
+              api.loginWithGoogleIdToken("tok", {});
+            }
+          );
+        }
+      );
+    }
+  );
   assert.strictEqual(readSs, ss);
   assert.strictEqual(sessionSs, ss);
   console.log("   ✓ SpreadsheetApp fallback 驗證通過！\n");
@@ -132,19 +201,38 @@ console.log("5. 無 SpreadsheetApp 且無 options.spreadsheet 時應使用 null.
 {
   let readSs = "unset";
   let sessionSs = "unset";
-  withGlobals({
-    SpreadsheetApp: undefined,
-    readSystemSettings: function (spreadsheet) { readSs = spreadsheet; return { clientId: "", allowedLoginDomain: "" }; }
-  }, function () {
-    withStubbed(api, "verifyGoogleIdToken", function (t, clientId) {
-      assert.strictEqual(clientId, "");
-      return { ok: true, email: "a@b", name: "A" };
-    }, function () {
-      withStubbed(api, "createSessionForEmail", function (e, n, options) { sessionSs = options.spreadsheet; return { ok: true }; }, function () {
-        api.loginWithGoogleIdToken("tok");
-      });
-    });
-  });
+  withGlobals(
+    {
+      SpreadsheetApp: undefined,
+      readSystemSettings: function (spreadsheet) {
+        readSs = spreadsheet;
+        return { clientId: "", allowedLoginDomain: "" };
+      }
+    },
+    function () {
+      withStubbed(
+        api,
+        "verifyGoogleIdToken",
+        function (t, clientId) {
+          assert.strictEqual(clientId, "");
+          return { ok: true, email: "a@b", name: "A" };
+        },
+        function () {
+          withStubbed(
+            api,
+            "createSessionForEmail",
+            function (e, n, options) {
+              sessionSs = options.spreadsheet;
+              return { ok: true };
+            },
+            function () {
+              api.loginWithGoogleIdToken("tok");
+            }
+          );
+        }
+      );
+    }
+  );
   assert.strictEqual(readSs, null);
   assert.strictEqual(sessionSs, null);
   console.log("   ✓ null spreadsheet 驗證通過！\n");

@@ -177,7 +177,7 @@
 ## G9. 文件、CI 最終整合與驗證（含主變更對接）
 
 - [x] G9.1 完整更新文件（`README.md`、`AGENTS.md`、必要 `docs/*`）：品質指令、閘門、門檻與基準線、Git hook 自動格式化、CI 行為、Node 版本策略與排錯；驗證：文件與實作一致。
-- [ ] G9.2 執行完整驗證：`npm test`、`npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`（具比較基準時）、`npm run check:complexity`、`npm run format:check`、`npm run check:lang`、`npm run build:webapp`；驗證：全部成功。
+- [x] G9.2 執行完整驗證：`npm test`、`npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`（具比較基準時）、`npm run check:complexity`、`npm run format:check`、`npm run check:lang`、`npm run build:webapp`；驗證：全部成功。
 - [ ] G9.3 交付一致性檢查並回寫主變更依據：確認本提案成果已涵蓋主變更 `2026-11-18-port-ksvs-gis-rpc-and-quality` 的 task 4.5 與 5.1 範圍（實作完成後回主變更勾選並依規範提交）；驗證：提案/規格/任務/實作/報告可追溯。
 
 #### 量測快照（完成本組後更新）

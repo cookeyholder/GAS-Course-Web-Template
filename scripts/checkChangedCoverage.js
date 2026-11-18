@@ -243,12 +243,20 @@ function computeChangedCoverage(options) {
 
   // 全域變更門檻檢查（亦納入無法對應行的情況由 per-file 保護）
   if (summary.lines.total > 0 && summary.lines.pct < thresholds.lines) {
-    if (!failures.some(function (f) { return f.metric === "lines" && !f.file; })) {
+    if (
+      !failures.some(function (f) {
+        return f.metric === "lines" && !f.file;
+      })
+    ) {
       failures.push({ metric: "lines", actual: summary.lines.pct, expected: thresholds.lines });
     }
   }
   if (summary.branches.total > 0 && summary.branches.pct < thresholds.branches) {
-    if (!failures.some(function (f) { return f.metric === "branches" && !f.file; })) {
+    if (
+      !failures.some(function (f) {
+        return f.metric === "branches" && !f.file;
+      })
+    ) {
       failures.push({ metric: "branches", actual: summary.branches.pct, expected: thresholds.branches });
     }
   }
@@ -317,7 +325,11 @@ function runChangedCoverageCheck(options) {
   const log = settings.log || console.log;
   const projectRoot = settings.projectRoot || PROJECT_ROOT;
   const base = parseBaseArg(argv) || settings.base;
-  const getDiffFn = settings.getDiff || function (opts) { return getDiff(Object.assign({ base: base }, opts || {})); };
+  const getDiffFn =
+    settings.getDiff ||
+    function (opts) {
+      return getDiff(Object.assign({ base: base }, opts || {}));
+    };
   const readCov = settings.readCoverage || readCoverage;
   const thresholds = settings.thresholds || qualityConfig.THRESHOLDS.changed || { lines: 80, branches: 70 };
 

@@ -35,7 +35,10 @@ console.log("1. 驗證可由品質設定組裝 c8 量測參數...");
   assert(joined.includes("--reporter=json-summary"), "應產出 json-summary 報告");
   assert(joined.includes("--report-dir"), "應指定報告目錄");
   assert(joined.includes(qualityConfig.PATHS.coverageDir), "報告目錄應對齊品質設定");
-  assert(joined.includes("scripts/run-tests.js") || joined.includes(path.join("scripts", "run-tests.js")), "應執行 scripts/run-tests.js 作為測試入口");
+  assert(
+    joined.includes("scripts/run-tests.js") || joined.includes(path.join("scripts", "run-tests.js")),
+    "應執行 scripts/run-tests.js 作為測試入口"
+  );
   console.log("   ✓ c8 量測參數組裝驗證通過！\n");
 }
 
@@ -58,7 +61,10 @@ console.log("2. 驗證 --collect-only 僅執行量測不進行門檻檢查...");
   });
   assert.strictEqual(code, 0, "量測成功且 collect-only 時應回傳 0");
   assert(spawnCalled, "應呼叫子行程執行 c8");
-  assert(String(spawnCalled.cmd).includes("c8") || (spawnCalled.args || []).join(" ").includes("c8"), "應透過 c8 執行量測");
+  assert(
+    String(spawnCalled.cmd).includes("c8") || (spawnCalled.args || []).join(" ").includes("c8"),
+    "應透過 c8 執行量測"
+  );
   assert.strictEqual(thresholdCalled, false, "collect-only 模式不應執行門檻檢查");
   console.log("   ✓ --collect-only 行為驗證通過！\n");
 }
@@ -126,7 +132,12 @@ console.log("5. 驗證全域覆蓋率低於門檻時檢查失敗...");
     thresholds: { lines: 30, statements: 30, functions: 60, branches: 40 }
   });
   assert.strictEqual(result.ok, false, "低於門檻應失敗");
-  assert(result.failures.some(function (f) { return f.metric === "lines"; }), "應指出 lines 未達標");
+  assert(
+    result.failures.some(function (f) {
+      return f.metric === "lines";
+    }),
+    "應指出 lines 未達標"
+  );
   console.log("   ✓ 門檻不足失敗驗證通過！\n");
 }
 
@@ -154,7 +165,12 @@ console.log("6. 驗證覆蓋率低於基準線（回退）時檢查失敗...");
     thresholds: { lines: 30, statements: 30, functions: 60, branches: 37 }
   });
   assert.strictEqual(result.ok, false, "回退應失敗");
-  assert(result.failures.some(function (f) { return f.metric === "branches" && /基準線|回退/.test(f.reason); }), "應指出 branches 低於基準線");
+  assert(
+    result.failures.some(function (f) {
+      return f.metric === "branches" && /基準線|回退/.test(f.reason);
+    }),
+    "應指出 branches 低於基準線"
+  );
   console.log("   ✓ 基準線回退失敗驗證通過！\n");
 }
 

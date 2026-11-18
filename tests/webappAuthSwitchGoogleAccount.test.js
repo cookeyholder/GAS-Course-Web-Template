@@ -37,10 +37,7 @@ function run() {
   const ctx = createDeps();
   const auth = authModule.createAuthController(ctx.deps);
   auth.switchGoogleAccount();
-  assert.strictEqual(
-    ctx.state.loginError,
-    "無法取得 Web App 網址，請確認部署狀態後重新整理頁面"
-  );
+  assert.strictEqual(ctx.state.loginError, "無法取得 Web App 網址，請確認部署狀態後重新整理頁面");
   assert.strictEqual(ctx.state.loginBusy, false);
   assert.strictEqual(ctx.calls.opened.length, 0);
   console.log("3. 缺少 Web App 網址時不導向 ✓\n");

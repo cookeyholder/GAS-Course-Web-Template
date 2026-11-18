@@ -128,9 +128,7 @@ function createDeps(overrides) {
         calls.apiCalls.push({ action: action, payload: payload });
         if (Object.prototype.hasOwnProperty.call(apiResponses, action)) {
           const response = apiResponses[action];
-          return Promise.resolve(
-            typeof response === "function" ? response(payload) : response
-          );
+          return Promise.resolve(typeof response === "function" ? response(payload) : response);
         }
         return Promise.resolve({ ok: true });
       }

@@ -49,8 +49,14 @@ function makeHtmlServiceRecorder() {
         _content: content,
         _width: null,
         _height: null,
-        setWidth: function (w) { out._width = w; return out; },
-        setHeight: function (h) { out._height = h; return out; }
+        setWidth: function (w) {
+          out._width = w;
+          return out;
+        },
+        setHeight: function (h) {
+          out._height = h;
+          return out;
+        }
       };
       calls.push(out);
       return out;
@@ -63,8 +69,20 @@ console.log("1. 取得有效 Web App URL 時應顯示開啟連結並彈出對話
 {
   const { ui, calls } = makeUiRecorder();
   const { HtmlService, calls: htmlCalls } = makeHtmlServiceRecorder();
-  const SpreadsheetApp = { getUi: function () { return ui; } };
-  const ScriptApp = { getService: function () { return { getUrl: function () { return "https://script.google.com/macros/s/abc/exec"; } }; } };
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
+  const ScriptApp = {
+    getService: function () {
+      return {
+        getUrl: function () {
+          return "https://script.google.com/macros/s/abc/exec";
+        }
+      };
+    }
+  };
 
   withGlobals({ SpreadsheetApp: SpreadsheetApp, ScriptApp: ScriptApp, HtmlService: HtmlService }, function () {
     main.openWebAppDialog();
@@ -91,7 +109,11 @@ console.log("2. ScriptApp 未定義或無法取得 URL 時應顯示未部署提�
   const fallback = "尚未部署 Web App，請先使用 clasp deploy 或於 Apps Script 編輯器發布網頁應用程式";
   const { ui, calls } = makeUiRecorder();
   const { HtmlService, calls: htmlCalls } = makeHtmlServiceRecorder();
-  const SpreadsheetApp = { getUi: function () { return ui; } };
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
 
   withGlobals({ SpreadsheetApp: SpreadsheetApp, ScriptApp: undefined, HtmlService: HtmlService }, function () {
     main.openWebAppDialog();
@@ -110,8 +132,20 @@ console.log("3. ScriptApp.getUrl 回傳空字串時應顯示未部署提示...")
 {
   const { ui, calls } = makeUiRecorder();
   const { HtmlService, calls: htmlCalls } = makeHtmlServiceRecorder();
-  const SpreadsheetApp = { getUi: function () { return ui; } };
-  const ScriptApp = { getService: function () { return { getUrl: function () { return ""; } }; } };
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
+  const ScriptApp = {
+    getService: function () {
+      return {
+        getUrl: function () {
+          return "";
+        }
+      };
+    }
+  };
 
   withGlobals({ SpreadsheetApp: SpreadsheetApp, ScriptApp: ScriptApp, HtmlService: HtmlService }, function () {
     main.openWebAppDialog();
@@ -127,7 +161,11 @@ console.log("4. ScriptApp 無 getService 時應顯示未部署提示...");
 {
   const { ui, calls } = makeUiRecorder();
   const { HtmlService, calls: htmlCalls } = makeHtmlServiceRecorder();
-  const SpreadsheetApp = { getUi: function () { return ui; } };
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
   const ScriptApp = {};
 
   withGlobals({ SpreadsheetApp: SpreadsheetApp, ScriptApp: ScriptApp, HtmlService: HtmlService }, function () {
@@ -142,8 +180,20 @@ console.log("4. ScriptApp 無 getService 時應顯示未部署提示...");
 console.log("5. 建構或顯示對話框拋出例外時應顯示失敗警示...");
 {
   const { ui, calls } = makeUiRecorder();
-  const SpreadsheetApp = { getUi: function () { return ui; } };
-  const ScriptApp = { getService: function () { return { getUrl: function () { return "https://example.com"; } }; } };
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
+  const ScriptApp = {
+    getService: function () {
+      return {
+        getUrl: function () {
+          return "https://example.com";
+        }
+      };
+    }
+  };
   const HtmlService = {
     createHtmlOutput: function () {
       throw new Error("boom");
@@ -165,8 +215,20 @@ console.log("5. 建構或顯示對話框拋出例外時應顯示失敗警示..."
 console.log("6. getUrl 拋出例外時應顯示失敗警示...");
 {
   const { ui, calls } = makeUiRecorder();
-  const SpreadsheetApp = { getUi: function () { return ui; } };
-  const ScriptApp = { getService: function () { return { getUrl: function () { throw new Error("url fail"); } }; } };
+  const SpreadsheetApp = {
+    getUi: function () {
+      return ui;
+    }
+  };
+  const ScriptApp = {
+    getService: function () {
+      return {
+        getUrl: function () {
+          throw new Error("url fail");
+        }
+      };
+    }
+  };
   const { HtmlService } = makeHtmlServiceRecorder();
 
   withGlobals({ SpreadsheetApp: SpreadsheetApp, ScriptApp: ScriptApp, HtmlService: HtmlService }, function () {
