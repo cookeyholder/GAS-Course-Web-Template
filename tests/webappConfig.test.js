@@ -156,4 +156,31 @@ console.log("9. tabs 與 apiUrl 應依環境正確產生...");
   console.log("   ✓ tabs 與 apiUrl 驗證通過！\n");
 }
 
+console.log("10. applyBrowserConfig 應將瀏覽器參數組裝為 MEA.config...");
+{
+  assert.strictEqual(typeof configModule.applyBrowserConfig, "function", "應匯出 applyBrowserConfig");
+  const root = {};
+  const win = {
+    location: {
+      search: "?mock=true&switch=1&api=https://x.test/exec",
+      protocol: "https:",
+      hostname: "example.com",
+      href: "https://example.com/app?mock=true#h"
+    },
+    GAS_WEBAPP_URL: "https://script.google.com/macros/s/abc/exec",
+    SWITCH_ACCOUNT: false
+  };
+  const config = configModule.applyBrowserConfig(root, win);
+  assert.strictEqual(root.MEA.config, config);
+  assert.strictEqual(config.mock, true);
+  assert.strictEqual(config.switchAccount, true);
+  assert.strictEqual(config.apiUrl, "https://x.test/exec");
+  assert.strictEqual(config.hostname === undefined, true);
+
+  const fallback = configModule.applyBrowserConfig({}, { GAS_WEBAPP_URL: "ftp://x", SWITCH_ACCOUNT: true });
+  assert.strictEqual(fallback.apiUrl, "");
+  assert.strictEqual(fallback.switchAccount, true);
+  console.log("   ✓ 瀏覽器設定組裝驗證通過！\n");
+}
+
 console.log("✓ webapp/js/config.js 測試全數通過！\n");

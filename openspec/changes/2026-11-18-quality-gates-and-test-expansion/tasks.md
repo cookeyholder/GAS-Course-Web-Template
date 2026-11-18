@@ -121,7 +121,7 @@
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G6 完成後 | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | `webapp/js/auth.js` 目標收斂 |
+| G6 完成後 | 2026-11-19 | 73.55% (5729/7789) | 73.55% (5729/7789) | 87.64% (298/340) | 75.21% (1290/1715) | 82.029 | 16 | 600.00 (`webapp/js/mock.js::<anon method-3>`) | `webapp/js/auth.js` 目標收斂，剩餘違規集中於 G7/G8 |
 
 ---
 
@@ -152,7 +152,7 @@
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G7 完成後 | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | 前端頁面/UI/互動目標收斂 |
+| G7 完成後 | 2026-11-19 | 83.68% (6782/8104) | 83.68% (6782/8104) | 87.12% (352/404) | 76.20% (1505/1975) | 82.029 | 7 | 600.00 (`webapp/js/mock.js::<anon method-3>`) | 前端頁面/UI/互動目標收斂，剩餘違規集中於 G8/G9 |
 
 ---
 
@@ -163,14 +163,14 @@
 - [x] G8.3 重構/補測試目標：`scripts/deploy.js::getArgValue`（L23, 6, 0.0%, 42.00）；驗證同上。
 - [x] G8.4 重構/補測試目標：`scripts/build-webapp.js::build`（L29, 7, 0.0%, 56.00）；驗證同上。
 - [x] G8.5 重構/補測試目標：`scripts/languageCheck.js::<anon method-4>`（L126, 6, 0.0%, 42.00）；驗證同上。
-- [ ] G8.6 收斂剩餘品質門檻缺口：修正所有殘餘 CRAP > 30 或 MI < 20 項目（若有新增/遺漏），並提升覆蓋率至符合全域與變更門檻；驗證：`npm run check:complexity`、`npm run check:coverage`、`npm run check:changed-coverage`（具比較基準時）通過。
+- [x] G8.6 收斂剩餘品質門檻缺口：修正所有殘餘 CRAP > 30 或 MI < 20 項目（若有新增/遺漏），並提升覆蓋率至符合全域與變更門檻；驗證：`npm run check:complexity`、`npm run check:coverage`、`npm run check:changed-coverage`（具比較基準時）通過。
 
 #### 量測快照（完成本組後更新）
 
 | 階段 | 時間 | Lines (LCOV) | Statements | Functions | Branches | MI 最低 | CRAP > 30 數 | CRAP 最高 | 備註 |
 | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | --- |
 | 基準 | 2026-11-18 | 27.37% (1529/5586) | 27.37% (1529/5586) | 58.82% (50/85) | 37.87% (125/330) | 69.134 (`webapp/js/config.js`) | 56 | 1482.00 (`subjectCodeTransformer.js::getNormalizedCourses`) |  |
-| G8 完成後 | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | _待填寫_ | Mock/腳本與剩餘違規收斂，目標達 CRAP/MI 門檻 |
+| G8 完成後 | 2026-11-19 | 91.16% (7614/8352) | 91.16% (7614/8352) | 87.91% (393/447) | 77.04% (1638/2126) | 83.954 | 2 | 46.96 (`webapp/js/config.js::<anon method-1>`) | Mock/腳本完成重構；G8.6 另行收斂 config.js/checkCoverage.js 兩項 |
 
 ---
 

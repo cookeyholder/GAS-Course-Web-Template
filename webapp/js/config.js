@@ -8,17 +8,7 @@
   const api = factory();
 
   if (typeof window !== "undefined") {
-    const MEA = (root.MEA = root.MEA || {});
-    const search = (window.location && window.location.search) || "";
-    const params = new URLSearchParams(search);
-    MEA.config = api.buildFrontendConfig({
-      search: search,
-      protocol: (window.location && window.location.protocol) || "",
-      hostname: (window.location && window.location.hostname) || "",
-      href: (window.location && window.location.href) || "",
-      gasWebappUrl: typeof window.GAS_WEBAPP_URL === "string" ? window.GAS_WEBAPP_URL : "",
-      switchAccount: window.SWITCH_ACCOUNT === true || params.get("switch") === "1"
-    });
+    api.applyBrowserConfig(root, window);
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -149,8 +139,36 @@
     };
   }
 
+  /**
+   * 將瀏覽器環境參數組裝為 MEA.config（從 UMD 外層抽出以便測試）。
+   *
+   * @param {Object} root - 全域命名空間物件（通常為 window）
+   * @param {Object} win - 瀏覽器 window 物件
+   * @returns {Object} 產生的前端設定
+   */
+  function applyBrowserConfig(root, win) {
+    const namespace = root || {};
+    const browser = win || {};
+    const MEA = (namespace.MEA = namespace.MEA || {});
+    const location = browser.location || {};
+    const search = location.search || "";
+    const gasWebappUrl =
+      typeof browser.GAS_WEBAPP_URL === "string" ? browser.GAS_WEBAPP_URL : "";
+    const config = buildFrontendConfig({
+      search: search,
+      protocol: location.protocol || "",
+      hostname: location.hostname || "",
+      href: location.href || "",
+      gasWebappUrl: gasWebappUrl,
+      switchAccount: browser.SWITCH_ACCOUNT === true
+    });
+    MEA.config = config;
+    return config;
+  }
+
   return {
     resolveDefaultApiUrl: resolveDefaultApiUrl,
-    buildFrontendConfig: buildFrontendConfig
+    buildFrontendConfig: buildFrontendConfig,
+    applyBrowserConfig: applyBrowserConfig
   };
 });

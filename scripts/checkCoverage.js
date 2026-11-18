@@ -168,23 +168,28 @@ function evaluateCoverageThresholds(options) {
 function defaultCheckThresholds(options) {
   const settings = options || {};
   const log = settings.log || console.log;
-  const summaryPath = path.join(PROJECT_ROOT, qualityConfig.PATHS.coverageSummary);
+  const fsApi = settings.fs || fs;
+  const pathApi = settings.path || path;
+  const root = settings.projectRoot || PROJECT_ROOT;
+  const configApi = settings.qualityConfig || qualityConfig;
+  const summaryPath =
+    settings.summaryPath || pathApi.join(root, configApi.PATHS.coverageSummary);
 
-  if (!fs.existsSync(summaryPath)) {
+  if (!fsApi.existsSync(summaryPath)) {
     log("[checkCoverage] 找不到覆蓋率摘要檔：" + summaryPath);
     return 1;
   }
 
   let summary;
   try {
-    summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
+    summary = JSON.parse(fsApi.readFileSync(summaryPath, "utf8"));
   } catch (error) {
     log("[checkCoverage] 無法讀取覆蓋率摘要：" + error.message);
     return 1;
   }
 
-  const baseline = qualityConfig.loadBaseline();
-  const thresholds = qualityConfig.THRESHOLDS.global || {};
+  const baseline = configApi.loadBaseline();
+  const thresholds = configApi.THRESHOLDS.global || {};
   const result = evaluateCoverageThresholds({
     summary: summary,
     baseline: baseline,
