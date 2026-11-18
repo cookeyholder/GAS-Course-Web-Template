@@ -6,7 +6,7 @@
     "build:webapp": "node scripts/build-webapp.js",
     "push": "npm run build:webapp && clasp push",
     "pull": "clasp pull",
-    "deploy": "clasp push && clasp deploy",
+    "deploy": "node scripts/deploy.js",
     "open": "clasp open",
     "logs": "clasp logs",
     "watch": "clasp push --watch",

@@ -760,9 +760,15 @@ clasp deploy -i &lt;您的 Deployment ID&gt; -d "更新：修正課程搜尋分�
           </div>
 
           <h3 style="font-size: 16px; margin: 20px 0 8px">7.5 一鍵部署快捷指令</h3>
-          <p>在專案中，您也可以直接執行：</p>
+          <p>在專案中，您也可以直接執行（預設會先建置並推送，再建立新部署）：</p>
           <div class="code-box">
             <pre><code>npm run deploy</code></pre>
+          </div>
+          <p>若要更新既有部署以保持 Web App 網址固定，可指定 Deployment ID：</p>
+          <div class="code-box">
+            <pre><code>CLASP_DEPLOYMENT_ID=&lt;您的 Deployment ID&gt; npm run deploy
+# 或
+node scripts/deploy.js -i &lt;您的 Deployment ID&gt; -d "版本說明"</code></pre>
           </div>
         </section>
 

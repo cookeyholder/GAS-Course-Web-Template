@@ -108,8 +108,12 @@ npm run build:webapp
 # 2. 推送後端 .js 檔案與 index.html 至 GAS
 npm run push
 
-# 3. 發布 Web App 新版本 (或於 Apps Script 網頁介面發布)
+# 3. 發布 Web App 新版本（預設建置 + 推送 + 部署）
 npm run deploy
+
+# 若要更新既有部署以保持 Web App 網址固定，可指定 Deployment ID：
+# CLASP_DEPLOYMENT_ID=<DEPLOYMENT_ID> npm run deploy
+# 或：node scripts/deploy.js -i <DEPLOYMENT_ID> -d "版本說明"
 ```
 
 ### 5. 初始化後端資料庫工作表
