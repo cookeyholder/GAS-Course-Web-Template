@@ -1,0 +1,11 @@
+node_modules/
+coverage/
+dist/
+.clasp/
+.codegraph/
+index.html
+package-lock.json
+*.xls
+*.xlsx
+*.pdf
+openspec/

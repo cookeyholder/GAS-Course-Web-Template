@@ -16,11 +16,11 @@
 ## 3. 文件重寫與部署/使用說明同步
 
 - [x] 3.1 重寫 `docs/gis-login-guide.html` 為本範本雙軌登入教學（GIS、GAS ActiveUser/AccountChooser、OAuth 授權碼回呼條件、網域限制、常見錯誤與排除），移除 KSVS 專屬內容。
-- [ ] 3.2 視實作補充或更新相關文件/說明（如 README、部署與設定注意事項），確保與程式行為、設定鍵名與 npm scripts 一致。
+- [x] 3.2 視實作補充或更新相關文件/說明（如 README、部署與設定注意事項），確保與程式行為、設定鍵名與 npm scripts 一致。
 
 ## 4. 開發工具鏈與品質閘門導入
 
-- [ ] 4.1 導入 Prettier 與忽略規則（`.prettierrc*`、`.prettierignore`），並調整腳本/流程避免建置產物干擾。
+- [x] 4.1 導入 Prettier 與忽略規則（`.prettierrc*`、`.prettierignore`），並調整腳本/流程避免建置產物干擾。
 - [ ] 4.2 導入 `scripts/languageCheck.js` 與必要的測試/品質腳本基礎（含 `scripts/run-tests.js` 自動探索測試），更新 `package.json` scripts 與 devDependencies。
 - [ ] 4.3 新增 `.github/workflows/quality-gates.yml`（至少包含格式檢查、語言檢查、測試），並依本專案基線設定可通過的品質門檻策略。
 - [ ] 4.4 導入部署輔助改進（如 `scripts/deploy.js` 與相關設定/ignore 調整），維持與現有 clasp 流程相容並文件化使用方式。
