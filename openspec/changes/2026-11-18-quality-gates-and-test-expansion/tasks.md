@@ -15,7 +15,7 @@
 - [x] G1.3 整合 c8 與 `scripts/run-tests.js` 產出 `text/lcov/json/json-summary` 報告（含 `--all` 全量納管範圍）；驗證：`npm run test:coverage` 可重現量測。
 - [x] G1.4 實作 `check:coverage`（全域門檻與基準線不回退，初始門檻 Lines>=30%、Statements>=30%、Functions>=60%、Branches>=40% 且不得低於基準線）；驗證：未達標/回退失敗、達標成功。
 - [x] G1.5 實作 `check:complexity` 計算模組 MI 與函式 CRAP，輸出摘要與 JSON 報告並強制 CRAP <= 30、MI >= 20；驗證：可定位違規並正確回報狀態。
-- [ ] G1.6 實作 `check:changed-coverage`（diff + 覆蓋率，支援 `--base`/CI），門檻 Lines>=80%、Branches>=70%，無可量測變更時明確成功/略過；驗證：案例行為正確。
+- [x] G1.6 實作 `check:changed-coverage`（diff + 覆蓋率，支援 `--base`/CI），門檻 Lines>=80%、Branches>=70%，無可量測變更時明確成功/略過；驗證：案例行為正確。
 - [ ] G1.7 啟用 Husky + lint-staged，`pre-commit` 對暫存檔執行 `prettier --write`（自動格式化並更新暫存）與適用語言規範檢查，確保 CI/非互動安裝安全；驗證：hook 可重現且格式化生效。
 - [ ] G1.8 更新 `.github/workflows/quality-gates.yml` 納入覆蓋率/變更覆蓋率/CRAP/MI 檢查與 diff 所需 checkout 設定，並對齊 Node 版本策略（本機/CI 以 Node 24 為目標，文件化）；驗證：workflow 與指令流程一致。
 - [ ] G1.9 更新 `README.md`、`AGENTS.md`（及必要文件）說明品質指令、hook、自動格式化、門檻與基準線/不回退政策；驗證：可依文件重現。
