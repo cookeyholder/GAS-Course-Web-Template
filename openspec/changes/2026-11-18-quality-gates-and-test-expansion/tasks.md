@@ -132,7 +132,7 @@
 - [x] G7.3 重構/補測試目標：`webapp/js/accounts.js::<anon method-4>`（L65, 7, 0.0%, 56.00）；驗證同上。
 - [x] G7.4 重構/補測試目標：`webapp/js/accounts.js::<anon method-9>`（L187, 6, 0.0%, 42.00）；驗證同上。
 - [x] G7.5 重構/補測試目標：`webapp/js/accounts.js::saveSettings`（L37, 6, 0.0%, 42.00）；驗證同上。
-- [ ] G7.6 重構/補測試目標：`webapp/js/courses.js::renderView`（L95, 18, 0.0%, 342.00）；驗證同上。
+- [x] G7.6 重構/補測試目標：`webapp/js/courses.js::renderView`（L95, 18, 0.0%, 342.00）；驗證同上。
 - [ ] G7.7 重構/補測試目標：`webapp/js/courses.js::fetchList`（L10, 10, 0.0%, 110.00）；驗證同上。
 - [ ] G7.8 重構/補測試目標：`webapp/js/courses.js::<anon method-2>`（L27, 10, 0.0%, 110.00）；驗證同上。
 - [ ] G7.9 重構/補測試目標：`webapp/js/courses.js::handleSearch`（L55, 8, 0.0%, 72.00）；驗證同上。
