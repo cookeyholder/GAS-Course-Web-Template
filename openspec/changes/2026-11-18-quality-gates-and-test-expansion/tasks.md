@@ -90,7 +90,7 @@
 
 - [x] G5.1 重構/補測試目標：`webapp/js/api.js::requestOnce`（L72, 18, 0.0%, 342.00）；驗證：`npm test` 通過且 CRAP <= 30（涵蓋 RPC/fetch、回應解析與錯誤處理）。
 - [x] G5.2 重構/補測試目標：`webapp/js/api.js::<anon method-6>`（L168, 10, 0.0%, 110.00）；驗證同上。
-- [ ] G5.3 重構/補測試目標：`webapp/js/app.js::render`（L81, 9, 0.0%, 90.00）；驗證同上。
+- [x] G5.3 重構/補測試目標：`webapp/js/app.js::render`（L81, 9, 0.0%, 90.00）；驗證同上。
 - [ ] G5.4 重構/補測試目標：`webapp/js/app.js::setTab`（L10, 7, 0.0%, 56.00）；驗證同上。
 - [ ] G5.5 重構/補測試目標：`webapp/js/app.js::applyInitialAuth`（L40, 7, 0.0%, 56.00）；驗證同上（含 INITIAL_AUTH/switch/mock 分流可測分支）。
 - [ ] G5.6 重構/補測試目標：`webapp/js/app.js::cleanUrlQuery`（L30, 6, 0.0%, 42.00）；驗證同上。
