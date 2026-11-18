@@ -1,0 +1,7 @@
+# pre-commit：對暫存檔執行 Prettier 自動格式化（lint-staged）並進行語言規範檢查
+if command -v npx >/dev/null 2>&1; then
+  npx --no-install lint-staged
+else
+  echo "[pre-commit] 找不到 npx，略過 lint-staged"
+fi
+node scripts/languageCheck.js
