@@ -34,7 +34,7 @@ console.log("1. 驗證可由品質設定組裝 c8 量測參數...");
   assert(joined.includes("--reporter=json"), "應產出 json 報告");
   assert(joined.includes("--reporter=json-summary"), "應產出 json-summary 報告");
   assert(joined.includes("--report-dir"), "應指定報告目錄");
-  assert(joined.includes(qualityConfig.PATHS.coverageDir), "報告目錄應對齊品質設定");
+  assert(joined.includes(qualityConfig.PATHS.coverageDir), "報告目錄應與品質設定一致");
   assert(
     joined.includes("scripts/run-tests.js") || joined.includes(path.join("scripts", "run-tests.js")),
     "應執行 scripts/run-tests.js 作為測試入口"

@@ -92,7 +92,7 @@ Always check `@/openspec/` or repository documentation when the request:
 
 ## 開發指令與日常工作流
 
-> 執行環境：本機與 CI 以 **Node.js 24** 為目標版本（`package.json` engines 與 `.github/workflows/quality-gates.yml` 對齊）。
+> 執行環境：本機與 CI 以 **Node.js 24** 為目標版本（`package.json` engines 與 `.github/workflows/quality-gates.yml` 一致）。
 
 ```bash
 # 1. 執行本地自動化單元測試

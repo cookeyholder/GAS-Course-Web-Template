@@ -23,7 +23,7 @@ console.log("1. 驗證 checkout 具備 diff 所需的完整歷史設定...");
   console.log("   ✓ checkout 設定驗證通過！\n");
 }
 
-console.log("2. 驗證 Node 版本策略對齊 Node 24...");
+console.log("2. 驗證 Node 版本策略與 Node 24 一致...");
 {
   assert(/node-version\s*:\s*["']?24/.test(content), "CI 應使用 Node 24（本機/CI 目標一致）");
   console.log("   ✓ Node 版本策略驗證通過！\n");

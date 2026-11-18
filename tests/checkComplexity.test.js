@@ -147,7 +147,7 @@ console.log("4. 驗證 runComplexityCheck 會輸出 JSON 報告並依結果回�
   assert(
     writes[0].reportPath.endsWith(qualityConfig.PATHS.complexityReport.replace(/^reports\//, "")) ||
       writes[0].reportPath.indexOf("complexity") !== -1,
-    "報告路徑應對齊品質設定"
+    "報告路徑應與品質設定一致"
   );
   const parsed = JSON.parse(writes[0].content);
   assert(parsed.summary && parsed.violations, "報告應包含 summary 與 violations");
