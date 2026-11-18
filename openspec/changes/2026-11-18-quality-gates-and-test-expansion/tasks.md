@@ -138,7 +138,7 @@
 - [x] G7.9 重構/補測試目標：`webapp/js/courses.js::handleSearch`（L55, 8, 0.0%, 72.00）；驗證同上。
 - [x] G7.10 重構/補測試目標：`webapp/js/imports.js::renderView`（L247, 14, 0.0%, 210.00）；驗證同上。
 - [x] G7.11 重構/補測試目標：`webapp/js/imports.js::looksLikeCourseCodes`（L64, 8, 0.0%, 72.00）；驗證同上。
-- [ ] G7.12 重構/補測試目標：`webapp/js/imports.js::pickCourseSheetRows`（L78, 7, 0.0%, 56.00）；驗證同上。
+- [x] G7.12 重構/補測試目標：`webapp/js/imports.js::pickCourseSheetRows`（L78, 7, 0.0%, 56.00）；驗證同上。
 - [ ] G7.13 重構/補測試目標：`webapp/js/imports.js::<anon method-10>`（L216, 7, 0.0%, 56.00）；驗證同上。
 - [ ] G7.14 重構/補測試目標：`webapp/js/ui.js::renderLoginView`（L273, 18, 0.0%, 342.00）；驗證同上。
 - [ ] G7.15 重構/補測試目標：`webapp/js/ui.js::renderOverviewView`（L357, 14, 0.0%, 210.00）；驗證同上。
