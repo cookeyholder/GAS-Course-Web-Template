@@ -1,5 +1,7 @@
 node_modules/
 coverage/
+reports/
+.nyc_output/
 dist/
 .clasp/
 .codegraph/
