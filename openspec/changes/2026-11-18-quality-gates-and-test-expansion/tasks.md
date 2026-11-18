@@ -108,7 +108,7 @@
 ## G6. 前端登入與授權流程（目標函式逐一收斂）
 
 - [x] G6.1 重構/補測試目標：`webapp/js/auth.js::applyLoginSuccess`（L70, 19, 0.0%, 380.00）；驗證：`npm test` 通過且 CRAP <= 30。
-- [ ] G6.2 重構/補測試目標：`webapp/js/auth.js::<anon method-11>`（L331, 18, 0.0%, 342.00）；驗證同上。
+- [x] G6.2 重構/補測試目標：`webapp/js/auth.js::<anon method-11>`（L331, 18, 0.0%, 342.00）；驗證同上。
 - [ ] G6.3 重構/補測試目標：`webapp/js/auth.js::<anon method-10>`（L300, 14, 0.0%, 210.00）；驗證同上。
 - [ ] G6.4 重構/補測試目標：`webapp/js/auth.js::loginWithGoogleRedirect`（L190, 10, 0.0%, 110.00）；驗證同上。
 - [ ] G6.5 重構/補測試目標：`webapp/js/auth.js::switchGoogleAccount`（L166, 9, 0.0%, 90.00）；驗證同上。
