@@ -104,12 +104,112 @@ function runCoverageCheck(options) {
   return checkThresholds({ log: log });
 }
 
+const METRICS = ["lines", "statements", "functions", "branches"];
+
 /**
- * 預設門檻檢查（G1.4 實作前暫為通過/骨架）。
+ * 依門檻與基準線評估覆蓋率摘要。
  *
+ * @param {Object} options - 評估選項
+ * @param {Object} options.summary - c8 coverage-summary 物件（含 total）
+ * @param {Object} options.baseline - 基準線物件（含 coverage.totals）
+ * @param {Object} options.thresholds - 門檻物件
+ * @returns {{ok: boolean, failures: Array<{metric: string, actual: number, expected: number, reason: string}>}}
+ */
+function evaluateCoverageThresholds(options) {
+  const settings = options || {};
+  const summary = settings.summary || {};
+  const total = summary.total || {};
+  const baseline = settings.baseline || {};
+  const baselineTotals = (baseline.coverage && baseline.coverage.totals) || {};
+  const thresholds = settings.thresholds || {};
+  const failures = [];
+
+  METRICS.forEach(function (metric) {
+    const actual = total[metric] && typeof total[metric].pct === "number" ? total[metric].pct : 0;
+    const minThreshold = typeof thresholds[metric] === "number" ? thresholds[metric] : 0;
+    const baselinePct =
+      baselineTotals[metric] && typeof baselineTotals[metric].pct === "number"
+        ? baselineTotals[metric].pct
+        : 0;
+    const required = Math.max(minThreshold, baselinePct);
+
+    if (actual < required) {
+      if (actual < minThreshold) {
+        failures.push({
+          metric: metric,
+          actual: actual,
+          expected: minThreshold,
+          reason: "低於門檻"
+        });
+      } else {
+        failures.push({
+          metric: metric,
+          actual: actual,
+          expected: baselinePct,
+          reason: "低於基準線（回退）"
+        });
+      }
+    }
+  });
+
+  return {
+    ok: failures.length === 0,
+    failures: failures
+  };
+}
+
+/**
+ * 預設門檻檢查：讀取覆蓋率摘要與基準線並比對門檻/不回退政策。
+ *
+ * @param {Object} [options] - 執行選項
+ * @param {Function} [options.log] - 輸出函式
  * @returns {number} 結束碼
  */
-function defaultCheckThresholds() {
+function defaultCheckThresholds(options) {
+  const settings = options || {};
+  const log = settings.log || console.log;
+  const summaryPath = path.join(PROJECT_ROOT, qualityConfig.PATHS.coverageSummary);
+
+  if (!fs.existsSync(summaryPath)) {
+    log("[checkCoverage] 找不到覆蓋率摘要檔：" + summaryPath);
+    return 1;
+  }
+
+  let summary;
+  try {
+    summary = JSON.parse(fs.readFileSync(summaryPath, "utf8"));
+  } catch (error) {
+    log("[checkCoverage] 無法讀取覆蓋率摘要：" + error.message);
+    return 1;
+  }
+
+  const baseline = qualityConfig.loadBaseline();
+  const thresholds = qualityConfig.THRESHOLDS.global || {};
+  const result = evaluateCoverageThresholds({
+    summary: summary,
+    baseline: baseline,
+    thresholds: thresholds
+  });
+
+  if (!result.ok) {
+    log("[checkCoverage] 覆蓋率檢查未通過：");
+    result.failures.forEach(function (failure) {
+      log(
+        "  - " +
+          failure.metric +
+          "：" +
+          failure.actual +
+          "%（要求 >= " +
+          failure.expected +
+          "%，" +
+          failure.reason +
+          "）"
+      );
+    });
+    return 1;
+  }
+
+  log("[checkCoverage] 覆蓋率檢查通過（符合門檻且未低於基準線）。");
   return 0;
 }
 
@@ -132,6 +232,7 @@ module.exports = {
   resolveLocalC8: resolveLocalC8,
   buildC8Args: buildC8Args,
   runCoverageCheck: runCoverageCheck,
+  evaluateCoverageThresholds: evaluateCoverageThresholds,
   defaultCheckThresholds: defaultCheckThresholds,
   main: main
 };
