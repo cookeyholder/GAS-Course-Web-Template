@@ -309,6 +309,97 @@ function normalizeCourseCodes(rawData, options) {
   return normalized;
 }
 
+function resolveImportCourseSpreadsheet_(options) {
+  const opts = options || {};
+  return (
+    opts.spreadsheet ||
+    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
+      ? SpreadsheetApp.getActiveSpreadsheet()
+      : null)
+  );
+}
+
+function resolveNormalizeCourseCodesFn_() {
+  if (typeof globalThis !== "undefined" && typeof globalThis.normalizeCourseCodes === "function") {
+    return globalThis.normalizeCourseCodes;
+  }
+  return normalizeCourseCodes;
+}
+
+function resolveSafeApplySheetFontSizeFn_() {
+  if (typeof safeApplySheetFontSize === "function") return safeApplySheetFontSize;
+  if (typeof globalThis !== "undefined" && typeof globalThis.safeApplySheetFontSize === "function") {
+    return globalThis.safeApplySheetFontSize;
+  }
+  return function () {};
+}
+
+function buildPreNormalizedImportResult_(rawData) {
+  const rows = Array.isArray(rawData) ? rawData.slice() : [];
+  if (rows.length > 0 && Array.isArray(rows[0]) && String(rows[0][0]).trim() === NORMALIZED_COURSE_HEADERS[0]) {
+    rows.shift();
+  }
+  return {
+    rows: rows,
+    stats: {
+      sourceRows: rows.length,
+      excludedRows: 0,
+      keptCourseRows: rows.length,
+      expandedRows: rows.length,
+      returnedRows: rows.length
+    }
+  };
+}
+
+function prepareCourseImportResult_(rawData, options) {
+  if (options.preNormalized === true) {
+    return buildPreNormalizedImportResult_(rawData);
+  }
+  return resolveNormalizeCourseCodesFn_()(rawData, { withStats: true });
+}
+
+function getOrCreateCourseIndexSheet_(ss) {
+  let sheet = ss.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
+  if (!sheet) {
+    sheet = ss.insertSheet(NORMALIZED_COURSE_SHEET_NAME);
+  }
+  return sheet;
+}
+
+function prepareCourseIndexSheet_(sheet, options) {
+  if (options.reset !== false) {
+    sheet.clearContents();
+  }
+  if (sheet.getMaxColumns() < NORMALIZED_COURSE_HEADERS.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), NORMALIZED_COURSE_HEADERS.length - sheet.getMaxColumns());
+  }
+}
+
+function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
+  const colCount = NORMALIZED_COURSE_HEADERS.length;
+  const rowCount = Math.max(sheet.getMaxRows(), totalDataRows + 1);
+  sheet.getRange(1, 1, 1, colCount).setValues([NORMALIZED_COURSE_HEADERS]);
+  sheet.getRange(1, 1, 1, colCount).setFontWeight("bold");
+  sheet.getRange(1, 1, rowCount, colCount).setNumberFormat("@");
+}
+
+function writeCourseIndexRowsInChunks_(sheet, rows) {
+  const colCount = NORMALIZED_COURSE_HEADERS.length;
+  for (let start = 0; start < rows.length; start += COURSE_INDEX_WRITE_CHUNK_SIZE) {
+    const chunk = rows.slice(start, start + COURSE_INDEX_WRITE_CHUNK_SIZE);
+    sheet.getRange(start + 2, 1, chunk.length, colCount).setValues(chunk);
+  }
+}
+
+function finalizeCourseIndexSheet_(sheet, totalDataRows) {
+  const colCount = NORMALIZED_COURSE_HEADERS.length;
+  const rowCount = Math.max(sheet.getMaxRows(), totalDataRows + 1);
+  resolveSafeApplySheetFontSizeFn_()(sheet.getRange(1, 1, rowCount, colCount), 11);
+  if (sheet.getFrozenRows() < 1) {
+    sheet.setFrozenRows(1);
+  }
+}
+
 /**
  * 匯入正規化課程代碼至工作表
  *
@@ -321,71 +412,19 @@ function normalizeCourseCodes(rawData, options) {
  */
 function importNormalizedCourseCodes(rawData, options) {
   options = options || {};
-  const ss =
-    options.spreadsheet ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
+  const ss = resolveImportCourseSpreadsheet_(options);
   if (!ss) {
     throw new Error("找不到有效的試算表物件");
   }
 
-  const inputRows = Array.isArray(rawData) ? rawData : [];
-  let result;
-
-  if (options.preNormalized === true) {
-    const rows = inputRows.slice();
-    if (rows.length > 0 && Array.isArray(rows[0]) && String(rows[0][0]).trim() === NORMALIZED_COURSE_HEADERS[0]) {
-      rows.shift();
-    }
-    result = {
-      rows: rows,
-      stats: {
-        sourceRows: rows.length,
-        excludedRows: 0,
-        keptCourseRows: rows.length,
-        expandedRows: rows.length,
-        returnedRows: rows.length
-      }
-    };
-  } else {
-    result = normalizeCourseCodes(rawData, { withStats: true });
-  }
+  const result = prepareCourseImportResult_(rawData, options);
   const rows = result.rows;
+  const sheet = getOrCreateCourseIndexSheet_(ss);
 
-  let sheet = ss.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
-  if (!sheet) {
-    sheet = ss.insertSheet(NORMALIZED_COURSE_SHEET_NAME);
-  }
-
-  if (options.reset !== false) {
-    sheet.clearContents();
-  }
-
-  if (sheet.getMaxColumns() < NORMALIZED_COURSE_HEADERS.length) {
-    sheet.insertColumnsAfter(sheet.getMaxColumns(), NORMALIZED_COURSE_HEADERS.length - sheet.getMaxColumns());
-  }
-
-  sheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setValues([NORMALIZED_COURSE_HEADERS]);
-  sheet.getRange(1, 1, 1, NORMALIZED_COURSE_HEADERS.length).setFontWeight("bold");
-  sheet
-    .getRange(1, 1, Math.max(sheet.getMaxRows(), rows.length + 1), NORMALIZED_COURSE_HEADERS.length)
-    .setNumberFormat("@");
-
-  // 分批寫入，避免單次 setValues 資料量過大逾時
-  for (let start = 0; start < rows.length; start += COURSE_INDEX_WRITE_CHUNK_SIZE) {
-    const chunk = rows.slice(start, start + COURSE_INDEX_WRITE_CHUNK_SIZE);
-    sheet.getRange(start + 2, 1, chunk.length, NORMALIZED_COURSE_HEADERS.length).setValues(chunk);
-  }
-
-  safeApplySheetFontSize(
-    sheet.getRange(1, 1, Math.max(sheet.getMaxRows(), rows.length + 1), NORMALIZED_COURSE_HEADERS.length),
-    11
-  );
-
-  if (sheet.getFrozenRows() < 1) {
-    sheet.setFrozenRows(1);
-  }
+  prepareCourseIndexSheet_(sheet, options);
+  writeCourseIndexHeaderAndFormat_(sheet, rows.length);
+  writeCourseIndexRowsInChunks_(sheet, rows);
+  finalizeCourseIndexSheet_(sheet, rows.length);
 
   return {
     ok: true,
