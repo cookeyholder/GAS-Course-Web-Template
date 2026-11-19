@@ -24,7 +24,7 @@
 
 ## 3. UI/UX 與無障礙
 
-- [ ] 3.1 class/CSS 對齊：將 39 個未定義 class 映射到既有 CSS class，補 `.table`、`.btn.secondary`、分頁與 768px 以下 RWD 規則；以自動比對腳本驗證 0 個遺漏。
+- [x] 3.1 class/CSS 對齊：將 39 個未定義 class 映射到既有 CSS class，補 `.table`、`.btn.secondary`、分頁與 768px 以下 RWD 規則；以自動比對腳本驗證 0 個遺漏。
 - [ ] 3.2 上傳區鍵盤可操作：`uploadDropzone` 補 `tabindex="0"`、`role="button"`、`aria-label` 與 Enter/Space 處理，或改用可聚焦 `<label for="fileInput">`。
 - [ ] 3.3 Modal 無障礙：補 `role="dialog"`、`aria-modal="true"`、`aria-labelledby`、初始焦點、Tab 焦點陷阱、Esc 關閉與關閉後焦點還原。
 - [ ] 3.4 表單標籤關聯：所有 `<label>` 補 `for`，控制項補 `aria-label`／`aria-labelledby`，加入 `sr-only` 樣式；覆蓋帳號、系統設定、課程搜尋與風格選單。

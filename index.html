@@ -6613,6 +6613,360 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     transform: rotate(360deg);
   }
 }
+
+/* ==========================================================================
+   UI class 對齊補充（task 3.1）
+   將前端元件實際產生的 class 映射到既有設計系統的等效樣式；全部僅使用
+   設計 token，因此 13 種風格與深淺色模式皆能一致套用。此區段同時提供
+   .table、.btn.secondary、分頁列與 768px 以下的行動版規則。
+   ========================================================================== */
+
+/* 版面容器別名（對應 .app-shell / .main-area） */
+.app-layout {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 18px 20px 48px;
+}
+.app-content {
+  margin-top: 14px;
+}
+
+/* Header 別名（對應 .brand / .header-meta / .pill） */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.brand-text {
+  min-width: 0;
+}
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.style-selector-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.gis-button-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+.user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--fill);
+  white-space: nowrap;
+}
+.user-avatar {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 導覽別名 */
+.nav-tabs-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.nav-name {
+  white-space: nowrap;
+}
+
+/* 面板與卡片別名（對應 .panel-head / .card） */
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--fill);
+}
+.overview-panel {
+  min-width: 0;
+}
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* 概覽功能網格 */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.feature-item {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 18px;
+  box-shadow: var(--shadow);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.feature-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.feature-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+.feature-text {
+  margin-top: 8px;
+}
+
+/* 上傳區別名（對應 .dropzone / .drop-copy） */
+.upload-dropzone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 148px;
+  margin: 14px;
+  padding: 16px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: var(--radius);
+  background: var(--fill);
+  color: var(--ink-2);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+.upload-dropzone:hover,
+.upload-dropzone.dragover,
+.dragover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.dropzone-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+.dropzone-title {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.dropzone-desc {
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+/* 表格（對應 .grid-table） */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.table th,
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-2);
+  text-align: left;
+}
+.table th {
+  background: var(--fill-2);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* 次要按鈕 */
+.btn.secondary {
+  border-color: var(--line-2);
+  background: var(--fill);
+  color: var(--ink);
+}
+.btn.secondary:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* 篩選表單（對應 .filter-bar） */
+.filter-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 分頁列 */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.pagination-info {
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* 提示訊息（對應 .notice） */
+.alert {
+  margin-top: 10px;
+  padding: 11px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--fill);
+  color: var(--ink);
+  font-size: 14.5px;
+}
+.alert.err {
+  border-color: var(--err);
+  background: var(--err-bg);
+  color: var(--err);
+}
+.alert-icon {
+  margin-right: 6px;
+}
+
+/* 登入頁別名（對應 .login-wrap / .login-foot） */
+.login-container {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.login-footer {
+  padding: 12px 24px;
+  border-top: 1px solid var(--line-2);
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* Modal 別名（對應 .modal-head / .modal-foot） */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--fill);
+}
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line-2);
+  background: var(--fill);
+}
+.modal-close {
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 16px;
+}
+.modal-close:hover {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+/* Toast 內容別名與顯示狀態 */
+.toast-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1;
+}
+.toast-msg {
+  flex: 1 1 auto;
+}
+.toast.visible {
+  opacity: 1;
+}
+
+/* 工具類 */
+.text-accent {
+  color: var(--accent);
+}
+.font-sm {
+  font-size: 13px;
+}
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+/* 新版 UI 行動版規則（768px 以下） */
+@media (max-width: 768px) {
+  .app-layout {
+    padding: 12px;
+  }
+  .header-tools {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+  .filter-form > * {
+    width: 100%;
+  }
+  .table-responsive {
+    overflow-x: auto;
+  }
+  .pagination-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .modal-card {
+    max-height: 92vh;
+  }
+}
 </style>
 </head>
 <body>

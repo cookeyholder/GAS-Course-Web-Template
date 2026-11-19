@@ -29,6 +29,9 @@ jobs:
       - name: Language check
         run: npm run check:lang
 
+      - name: UI class alignment check
+        run: npm run check:ui-classes
+
       - name: Tests
         run: npm test
 
