@@ -8,6 +8,13 @@
  * 3. 系統使用說明 (SHEET_SYSTEM_INSTRUCTIONS)
  */
 
+const GAS_RUNTIME =
+  typeof globalThis !== "undefined" && globalThis.gasRuntime
+    ? globalThis.gasRuntime
+    : typeof require === "function"
+      ? require("./gasRuntime.js")
+      : null;
+
 // ============================================================================
 // 工作表名稱常數
 // ============================================================================
@@ -81,26 +88,14 @@ function getRoleDisplayName(role) {
 // ============================================================================
 
 function resolveDbSpreadsheet_(options) {
+  if (GAS_RUNTIME) return GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
   const opts = options || {};
-  return (
-    opts.spreadsheet ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null)
-  );
+  return opts.spreadsheet || null;
 }
 
 function getNormalizedCourseHeaders_() {
-  if (typeof NORMALIZED_COURSE_HEADERS !== "undefined") return NORMALIZED_COURSE_HEADERS;
-  if (typeof globalThis !== "undefined" && globalThis.NORMALIZED_COURSE_HEADERS) {
-    return globalThis.NORMALIZED_COURSE_HEADERS;
-  }
-  if (typeof require !== "undefined") {
-    try {
-      return require("./subjectCodeTransformer.js").NORMALIZED_COURSE_HEADERS;
-    } catch (e) {
-      // ignore
-    }
+  if (GAS_RUNTIME) {
+    return GAS_RUNTIME.resolveDependency_("NORMALIZED_COURSE_HEADERS", "./subjectCodeTransformer.js", []);
   }
   return [];
 }

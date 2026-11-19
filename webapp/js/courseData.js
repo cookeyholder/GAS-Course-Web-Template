@@ -20,9 +20,6 @@
     const host = root || {};
     if (host.MEA && host.MEA.courseNormalizationShared) return host.MEA.courseNormalizationShared;
     if (host.courseNormalizationShared) return host.courseNormalizationShared;
-    if (typeof globalThis !== "undefined" && globalThis.courseNormalizationShared) {
-      return globalThis.courseNormalizationShared;
-    }
     if (typeof require === "function") return require("../../courseNormalizationShared.js");
     throw new Error("找不到共用正規化模組 courseNormalizationShared");
   }

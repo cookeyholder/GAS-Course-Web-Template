@@ -112,6 +112,64 @@ function run() {
   assert(gasSandbox.courseNormalizationShared, "GAS 應掛載 globalThis.courseNormalizationShared");
   console.log("   ✓ GAS 環境驗證通過！\n");
 
+  console.log("6. courseData.js 應覆蓋 MEA / globalThis / require 三種相依解析...");
+  const frontendPath = require.resolve("../webapp/js/courseData.js");
+  const savedMea = globalThis.MEA;
+  const savedShared = globalThis.courseNormalizationShared;
+  function reloadFrontend() {
+    delete require.cache[frontendPath];
+    return require(frontendPath);
+  }
+  try {
+    globalThis.MEA = { courseNormalizationShared: shared };
+    delete globalThis.courseNormalizationShared;
+    assert.strictEqual(reloadFrontend().normalizeCourseCodes, shared.normalizeCourseCodes);
+
+    delete globalThis.MEA;
+    globalThis.courseNormalizationShared = shared;
+    assert.strictEqual(reloadFrontend().normalizeCourseCodes, shared.normalizeCourseCodes);
+
+    delete globalThis.courseNormalizationShared;
+    assert.strictEqual(reloadFrontend().normalizeCourseCodes, shared.normalizeCourseCodes);
+  } finally {
+    if (savedMea === undefined) delete globalThis.MEA;
+    else globalThis.MEA = savedMea;
+    if (savedShared === undefined) delete globalThis.courseNormalizationShared;
+    else globalThis.courseNormalizationShared = savedShared;
+    delete require.cache[frontendPath];
+    require(frontendPath);
+  }
+  console.log("   ✓ 相依解析分支驗證通過！\n");
+
+  console.log("7. 共用模組邊界與篩選分支應正確...");
+  assert.deepStrictEqual(shared.expandCourseRow(null), []);
+  assert.deepStrictEqual(shared.expandCourseRow(["短列"]), []);
+  assert.strictEqual(shared.isCourseCodeHeaderRow(null), false);
+  assert.strictEqual(shared.isCourseCodeHeaderRow([]), false);
+  assert.strictEqual(shared.isExcludedCourseRow(null), false);
+  const headerByAttr = new Array(39).fill("");
+  headerByAttr[11] = "科目屬性";
+  assert.strictEqual(shared.isCourseCodeHeaderRow(headerByAttr), true);
+  assert.strictEqual(shared.normalizeCourseCodes(null).length, 0);
+  assert.strictEqual(shared.normalizeCourseCodes([["x"]]).length, 0);
+
+  const sample = createSampleRow();
+  sample[31] = "B";
+  assert.strictEqual(shared.normalizeCourseCodes([sample], { withStats: false }).length, 2);
+  assert.strictEqual(shared.normalizeCourseCodes([sample], { academicYear: "999" }).length, 0);
+  assert.strictEqual(shared.normalizeCourseCodes([sample], { semester: "2" }).length, 1);
+  assert.strictEqual(shared.getOpenWay("Z"), "Z");
+
+  shared.EXCLUDED_SUBJECT_ATTRIBUTES.push("3");
+  try {
+    const excluded = shared.normalizeCourseCodes([sample], { withStats: true });
+    assert.strictEqual(excluded.rows.length, 0);
+    assert.strictEqual(excluded.stats.excludedRows, 1);
+  } finally {
+    shared.EXCLUDED_SUBJECT_ATTRIBUTES.pop();
+  }
+  console.log("   ✓ 邊界與篩選分支驗證通過！\n");
+
   console.log("✓ courseNormalizationShared.js 測試全數通過！\n");
 }
 

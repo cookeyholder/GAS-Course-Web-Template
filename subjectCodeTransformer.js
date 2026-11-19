@@ -25,6 +25,12 @@ function resolveCourseNormalizationShared_() {
 }
 
 const COURSE_NORMALIZATION_SHARED = resolveCourseNormalizationShared_();
+const GAS_RUNTIME =
+  typeof globalThis !== "undefined" && globalThis.gasRuntime
+    ? globalThis.gasRuntime
+    : typeof require === "function"
+      ? require("./gasRuntime.js")
+      : null;
 const NORMALIZED_COURSE_HEADERS = COURSE_NORMALIZATION_SHARED.NORMALIZED_COURSE_HEADERS;
 const EXCLUDED_SUBJECT_ATTRIBUTES = COURSE_NORMALIZATION_SHARED.EXCLUDED_SUBJECT_ATTRIBUTES;
 const GROUP_CODE_NAMES = COURSE_NORMALIZATION_SHARED.GROUP_CODE_NAMES;
@@ -45,29 +51,15 @@ const isExcludedCourseRow = COURSE_NORMALIZATION_SHARED.isExcludedCourseRow;
 const expandCourseRow = COURSE_NORMALIZATION_SHARED.expandCourseRow;
 const normalizeCourseCodes = COURSE_NORMALIZATION_SHARED.normalizeCourseCodes;
 
+function resolveRouteDependency_(name, modulePath, fallback) {
+  if (GAS_RUNTIME) return GAS_RUNTIME.resolveDependency_(name, modulePath, fallback);
+  return fallback;
+}
+
 function resolveImportCourseSpreadsheet_(options) {
+  if (GAS_RUNTIME) return GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
   const opts = options || {};
-  return (
-    opts.spreadsheet ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null)
-  );
-}
-
-function resolveNormalizeCourseCodesFn_() {
-  if (typeof globalThis !== "undefined" && typeof globalThis.normalizeCourseCodes === "function") {
-    return globalThis.normalizeCourseCodes;
-  }
-  return normalizeCourseCodes;
-}
-
-function resolveSafeApplySheetFontSizeFn_() {
-  if (typeof safeApplySheetFontSize === "function") return safeApplySheetFontSize;
-  if (typeof globalThis !== "undefined" && typeof globalThis.safeApplySheetFontSize === "function") {
-    return globalThis.safeApplySheetFontSize;
-  }
-  return function () {};
+  return opts.spreadsheet || null;
 }
 
 function buildPreNormalizedImportResult_(rawData) {
@@ -91,7 +83,7 @@ function prepareCourseImportResult_(rawData, options) {
   if (options.preNormalized === true) {
     return buildPreNormalizedImportResult_(rawData);
   }
-  return resolveNormalizeCourseCodesFn_()(rawData, { withStats: true });
+  return resolveRouteDependency_("normalizeCourseCodes", null, normalizeCourseCodes)(rawData, { withStats: true });
 }
 
 function getOrCreateCourseIndexSheet_(ss) {
@@ -119,17 +111,11 @@ function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
   sheet.getRange(1, 1, totalDataRows + 1, colCount).setNumberFormat("@");
 }
 
-/** 取得公式注入跳脫函式；GAS 全域共用，Node 測試可注入。 */
-function resolveSanitizeRowMatrixFn_() {
-  if (typeof sanitizeRowMatrix === "function") return sanitizeRowMatrix;
-  return function (matrix) {
-    return matrix;
-  };
-}
-
 function writeCourseIndexRowsInChunks_(sheet, rows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
-  const sanitize = resolveSanitizeRowMatrixFn_();
+  const sanitize = resolveRouteDependency_("sanitizeRowMatrix", "./utilities.js", function (matrix) {
+    return matrix;
+  });
   for (let start = 0; start < rows.length; start += COURSE_INDEX_WRITE_CHUNK_SIZE) {
     const chunk = rows.slice(start, start + COURSE_INDEX_WRITE_CHUNK_SIZE);
     sheet.getRange(start + 2, 1, chunk.length, colCount).setValues(sanitize(chunk));
@@ -138,7 +124,10 @@ function writeCourseIndexRowsInChunks_(sheet, rows) {
 
 function finalizeCourseIndexSheet_(sheet, totalDataRows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
-  resolveSafeApplySheetFontSizeFn_()(sheet.getRange(1, 1, totalDataRows + 1, colCount), 11);
+  resolveRouteDependency_("safeApplySheetFontSize", "./utilities.js", function () {})(
+    sheet.getRange(1, 1, totalDataRows + 1, colCount),
+    11
+  );
   if (sheet.getFrozenRows() < 1) {
     sheet.setFrozenRows(1);
   }

@@ -35,7 +35,7 @@
 
 - [x] 4.1 強化同構測試：將 `tests/courseCodeNormalization.test.js` 改為 `deepStrictEqual(backendResult.rows, frontendResult.rows)` 並逐一比對 7 張對照表與 `NORMALIZED_COURSE_HEADERS`，讓內容漂移立即失敗。
 - [x] 4.2 抽出共用純 JS 模組 `courseNormalizationShared.js`，後端 `subjectCodeTransformer.js` 直接引用、前端由 `scripts/build-webapp.js` 注入，消除兩份重複實作。
-- [ ] 4.3 統一相依解析：建立單一 `resolveDependency_`（module.exports → globalThis → fallback）與 `getActiveSpreadsheetSafe_`，取代三套重疊機制；移除 `Object.assign(globalThis)` 與空 catch，改為 fail-fast 並白名單注入。
+- [x] 4.3 統一相依解析：建立單一 `resolveDependency_`（module.exports → globalThis → fallback）與 `getActiveSpreadsheetSafe_`，取代三套重疊機制；移除 `Object.assign(globalThis)` 與空 catch，改為 fail-fast 並白名單注入。
 - [ ] 4.4 清理死碼與重複：`webApiSuccess`、`DEPARTMENT_CODES`、`DEPARTMENT_NAMES`、`safeTrim`、`generateUniqueId` 移除或改為衍生；合併 `getSystemConfigSheet_`／`getRequiredSystemConfigSheet_`；統一角色名稱、工作表名稱與版本號來源。
 - [ ] 4.5 建立 `ACTION_REGISTRY` 單一登錄來源，讓 `WEB_API_PUBLIC_ACTIONS`／`WRITE_ACTIONS`／`LOCKED_ACTIONS`／`ROLE_PERMISSIONS`／路由 switch／mock handler 由同一定義產生，並加測試驗證 action 與 mock handler 一致。
 - [ ] 4.6 mock 與 state.js：讓 mock `getCourseIndex` 接收篩選/分頁參數並與後端回應形狀一致；新增 `tests/webappState.test.js` 覆蓋 setState 合併、listener 順序/拋錯隔離與 unsubscribe。

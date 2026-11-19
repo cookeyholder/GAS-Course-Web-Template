@@ -14,20 +14,32 @@
 // API 常數
 // ============================================================================
 
-// Node.js 單元測試環境全域相容性支援（GAS 環境下自動忽略）
-if (typeof require !== "undefined") {
-  try {
-    const db = require("./databaseInitializer.js");
-    Object.assign(globalThis, db);
-  } catch (e) {}
-  try {
-    const transformer = require("./subjectCodeTransformer.js");
-    Object.assign(globalThis, transformer);
-  } catch (e) {}
-  try {
-    const utils = require("./utilities.js");
-    Object.assign(globalThis, utils);
-  } catch (e) {}
+const GAS_RUNTIME =
+  typeof globalThis !== "undefined" && globalThis.gasRuntime
+    ? globalThis.gasRuntime
+    : typeof require === "function"
+      ? require("./gasRuntime.js")
+      : null;
+
+// Node.js 單元測試環境：僅注入白名單匯出，避免 Object.assign 全域污染與空 catch 掩蓋錯誤。
+if (typeof require !== "undefined" && GAS_RUNTIME) {
+  GAS_RUNTIME.injectGlobals_("./databaseInitializer.js", [
+    "normalizeRole",
+    "getRoleDisplayName",
+    "readSystemSettings",
+    "saveSystemSettings",
+    "readWhitelist",
+    "saveWhitelist",
+    "getAccountRole",
+    "bootstrapAdminIfNeeded",
+    "initializeDatabaseSheets"
+  ]);
+  GAS_RUNTIME.injectGlobals_("./subjectCodeTransformer.js", [
+    "importNormalizedCourseCodes",
+    "getNormalizedCourses",
+    "getCourseIndexStats"
+  ]);
+  GAS_RUNTIME.injectGlobals_("./utilities.js", ["safeApplySheetFontSize", "safeSetNumberFormat", "sanitizeRowMatrix"]);
 }
 
 const WEB_API_VERSION = "1.1.0";
@@ -835,19 +847,16 @@ function getPublicConfig() {
 }
 
 function resolveRouteDependency_(name, fallback) {
+  // 向後相容：測試可透過 module.exports 覆寫單一 action 的相依。
   if (typeof module !== "undefined" && module.exports && typeof module.exports[name] === "function") {
     return module.exports[name];
   }
-  if (typeof globalThis !== "undefined" && typeof globalThis[name] === "function") {
-    return globalThis[name];
-  }
+  if (GAS_RUNTIME) return GAS_RUNTIME.resolveDependency_(name, null, fallback);
   return fallback;
 }
 
 function getRouteSpreadsheet_() {
-  return typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-    ? SpreadsheetApp.getActiveSpreadsheet()
-    : null;
+  return GAS_RUNTIME ? GAS_RUNTIME.getActiveSpreadsheetSafe_() : null;
 }
 
 function routePublicWebApiAction_(name, payload) {
