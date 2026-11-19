@@ -25,11 +25,10 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const SHEETJS_CDN = [
-    "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js",
-    "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
-    "https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"
-  ];
+  // SheetJS 自 0.19 起僅於官方 CDN 發布；固定單一版本並以 SRI 驗證完整性。
+  const SHEETJS_VERSION = "0.20.3";
+  const SHEETJS_CDN = ["https://cdn.sheetjs.com/xlsx-" + SHEETJS_VERSION + "/package/dist/xlsx.full.min.js"];
+  const SHEETJS_SRI = "sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT";
 
   const SAMPLE_COLUMN_INDEXES = [0, 1, 2, 4, 5, 7, 10, 11, 12];
 
@@ -291,6 +290,8 @@
           const script = doc.createElement("script");
           script.src = SHEETJS_CDN[index++];
           script.async = true;
+          script.integrity = SHEETJS_SRI;
+          script.crossOrigin = "anonymous";
           script.onload = function () {
             if (win.XLSX) {
               resolve(win.XLSX);
@@ -529,6 +530,8 @@
   return {
     createImportsModule: createImportsModule,
     SHEETJS_CDN: SHEETJS_CDN,
+    SHEETJS_VERSION: SHEETJS_VERSION,
+    SHEETJS_SRI: SHEETJS_SRI,
     SAMPLE_COLUMN_INDEXES: SAMPLE_COLUMN_INDEXES,
     looksLikeCourseCodes: looksLikeCourseCodes,
     pickCourseSheetRows: pickCourseSheetRows,
