@@ -222,7 +222,7 @@ async function run() {
   ctx.app.render();
   assert(ctx.elements.app.innerHTML.indexOf('id="uploadDropzone"') !== -1);
   assert(ctx.elements.app.innerHTML.indexOf('<header class="app-header">') !== -1);
-  assert(ctx.elements.app.innerHTML.indexOf('<nav class="app-nav">') !== -1);
+  assert(ctx.elements.app.innerHTML.indexOf('<nav class="app-nav" aria-label="主要導覽">') !== -1);
   console.log("4. 匯入頁籤與頁首、導覽列外殼可渲染 ✓\n");
 
   const preventDefaultCalls = { count: 0 };

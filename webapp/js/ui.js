@@ -146,6 +146,7 @@
     const iconSpan = doc.createElement("span");
     iconSpan.className = "toast-icon";
     iconSpan.textContent = resolveToastIcon(kind);
+    if (typeof iconSpan.setAttribute === "function") iconSpan.setAttribute("aria-hidden", "true");
 
     const textSpan = doc.createElement("span");
     textSpan.className = "toast-msg";
@@ -288,6 +289,23 @@
       return nodes;
     }
 
+    /**
+     * 對話框開啟時標記背景地標為 inert，關閉時還原，避免焦點與點擊穿透。
+     *
+     * @param {boolean} enabled - 是否啟用 inert
+     */
+    function setBackgroundInert(enabled) {
+      if (!doc || typeof doc.querySelectorAll !== "function") return;
+      const nodes = doc.querySelectorAll(".app-nav, .app-content");
+      for (let i = 0; i < nodes.length; i++) {
+        if (enabled) {
+          if (typeof nodes[i].setAttribute === "function") nodes[i].setAttribute("inert", "");
+        } else if (typeof nodes[i].removeAttribute === "function") {
+          nodes[i].removeAttribute("inert");
+        }
+      }
+    }
+
     function modal(title, contentHtml, buttons) {
       const host = doc.getElementById("modalHost");
       if (!host) return;
@@ -344,6 +362,7 @@
       card.appendChild(foot);
       overlay.appendChild(card);
       host.appendChild(overlay);
+      setBackgroundInert(true);
 
       modalRestoreFocus = previousFocus;
 
@@ -390,6 +409,7 @@
     function closeModal() {
       const host = doc.getElementById("modalHost");
       if (host) host.innerHTML = "";
+      setBackgroundInert(false);
       const restoreTarget = modalRestoreFocus;
       modalRestoreFocus = null;
       if (restoreTarget && typeof restoreTarget.focus === "function") restoreTarget.focus();
@@ -398,7 +418,7 @@
     function renderUserPill(user) {
       return (
         '  <div class="user-pill">' +
-        '    <span class="user-avatar">👤</span>' +
+        '    <span class="user-avatar" aria-hidden="true">👤</span>' +
         '    <span class="user-name">' +
         escapeHtml(user.name || user.email) +
         "</span>" +
@@ -421,7 +441,7 @@
       return (
         '<header class="app-header">' +
         '<div class="header-brand">' +
-        '  <div class="brand-mark">📋</div>' +
+        '  <div class="brand-mark" aria-hidden="true">📋</div>' +
         '  <div class="brand-text">' +
         '    <h1 class="brand-title">' +
         escapeHtml(systemName) +
@@ -460,13 +480,16 @@
       for (let i = 0; i < tabs.length; i++) {
         const t = tabs[i];
         const active = t.id === currentTab ? " active" : "";
+        const current = t.id === currentTab ? ' aria-current="page"' : "";
         tabsHtml +=
           '<button type="button" class="nav-tab' +
           active +
-          '" onclick="MEA.setTab(\'' +
+          '"' +
+          current +
+          " onclick=\"MEA.setTab('" +
           t.id +
           "')\">" +
-          '<span class="nav-icon">' +
+          '<span class="nav-icon" aria-hidden="true">' +
           t.icon +
           "</span>" +
           '<span class="nav-name">' +
@@ -475,13 +498,19 @@
           "</button>";
       }
 
-      return '<nav class="app-nav">' + '<div class="nav-tabs-container">' + tabsHtml + "</div>" + "</nav>";
+      return (
+        '<nav class="app-nav" aria-label="主要導覽">' +
+        '<div class="nav-tabs-container">' +
+        tabsHtml +
+        "</div>" +
+        "</nav>"
+      );
     }
 
     function renderLoginErrorHtml(loginError) {
       if (!loginError) return "";
       return (
-        '<div class="login-alert err"><span class="alert-icon">⚠</span><span>' +
+        '<div class="login-alert err" role="alert"><span class="alert-icon" aria-hidden="true">⚠</span><span>' +
         escapeHtml(loginError) +
         "</span></div>"
       );
@@ -547,7 +576,7 @@
         "</div>" +
         '<div class="login-card">' +
         '  <div class="login-brand">' +
-        '    <div class="login-logo">✨</div>' +
+        '    <div class="login-logo" aria-hidden="true">✨</div>' +
         '    <h2 class="login-title">' +
         escapeHtml(config.systemName || MEA.config.title) +
         "</h2>" +
@@ -617,27 +646,27 @@
         '<div class="card mt-4">' +
         '  <h3 class="card-title">🚀 範本功能快速導覽</h3>' +
         '  <div class="feature-grid mt-3">' +
-        '    <div class="feature-item" onclick="MEA.setTab(\'import\')">' +
-        '      <div class="feature-icon">📥</div>' +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'import\')">' +
+        '      <div class="feature-icon" aria-hidden="true">📥</div>' +
         '      <div class="feature-text">' +
         "        <h4>課程代碼匯入與 1NF 正規化</h4>" +
         "        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程索引。</p>" +
         "      </div>" +
-        "    </div>" +
-        '    <div class="feature-item" onclick="MEA.setTab(\'courses\')">' +
-        '      <div class="feature-icon">📚</div>' +
+        "    </button>" +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'courses\')">' +
+        '      <div class="feature-icon" aria-hidden="true">📚</div>' +
         '      <div class="feature-text">' +
         "        <h4>正規化課程檢索與分頁</h4>" +
         "        <p>提供多維度關鍵字、學年、學期、科別篩選機制，支援大批量課程資料快速檢索。</p>" +
         "      </div>" +
-        "    </div>" +
-        '    <div class="feature-item" onclick="MEA.setTab(\'settings\')">' +
-        '      <div class="feature-icon">⚙️</div>' +
+        "    </button>" +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'settings\')">' +
+        '      <div class="feature-icon" aria-hidden="true">⚙️</div>' +
         '      <div class="feature-text">' +
         "        <h4>系統設定與授權管理 (RBAC)</h4>" +
         "        <p>維護 Google OAuth 設定、登入網域限制、學期參數與系統存取授權白名單。</p>" +
         "      </div>" +
-        "    </div>" +
+        "    </button>" +
         "  </div>" +
         "</div>"
       );
@@ -725,6 +754,7 @@
         getLoginMode: getLoginMode,
         renderOverviewMetrics: renderOverviewMetrics,
         renderFeatureGrid: renderFeatureGrid,
+        setBackgroundInert: setBackgroundInert,
         updateThemeToggleLabels: updateThemeToggleLabels
       });
     }

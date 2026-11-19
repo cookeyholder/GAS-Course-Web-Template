@@ -352,7 +352,7 @@ html[data-style="paper"][data-theme="dark"] {
   --paper: #1c1a15;
   --ink: #ebe5d8;
   --ink-2: #b5ad9e;
-  --ink-3: #7b7467;
+  --ink-3: #948d80;
   --line: #4a443a;
   --line-2: #2d2a24;
   --fill: #242119;
@@ -408,7 +408,7 @@ html[data-style="claymorphism"][data-theme="dark"] {
   --paper: #1c1d29;
   --ink: #f8fafc;
   --ink-2: #cbd5e1;
-  --ink-3: #64748b;
+  --ink-3: #8294ad;
   --line: rgba(255, 255, 255, 0.08);
   --line-2: rgba(255, 255, 255, 0.05);
   --fill: #242636;
@@ -859,7 +859,7 @@ html[data-style="happyhues10"][data-theme="dark"] {
   --paper: #001e1d;
   --ink: #fffffe;
   --ink-2: #abd1c6;
-  --ink-3: #6d988d;
+  --ink-3: #8cbfae;
   --line: #abd1c6;
   --line-2: rgba(171, 209, 198, 0.25);
   --fill: #082d2c;
@@ -6442,6 +6442,16 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   font-family: var(--mono);
   font-size: 12px;
 }
+.field-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--err);
+}
+.field-error[hidden] {
+  display: none;
+}
 .login-actions {
   display: flex;
   flex-direction: column;
@@ -6988,9 +6998,53 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     max-height: 92vh;
   }
 }
+
+/* ==========================================================================
+   無障礙：跳過連結、焦點可見性與減少動態效果（WCAG 2.1 AA）
+   ========================================================================== */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999;
+  padding: 8px 12px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 8px;
+  top: 8px;
+}
+
+/* 部分元件以 outline: none 覆寫全域 :focus-visible，這裡確保鍵盤焦點環仍可見。 */
+.stage3-diff-summary:focus-visible,
+.stage4-pool-item:focus-visible,
+.stage4-instructions-editor:focus-visible,
+.modal-search-input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .spinner {
+    animation: none !important;
+  }
+}
 </style>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">跳至主要內容</a>
   <div id="app"></div>
   <div id="toastHost" class="toast-host" aria-live="polite"></div>
   <div id="modalHost" class="modal-host"></div>
@@ -8949,6 +9003,7 @@ window.MEA = window.MEA || {};
     const iconSpan = doc.createElement("span");
     iconSpan.className = "toast-icon";
     iconSpan.textContent = resolveToastIcon(kind);
+    if (typeof iconSpan.setAttribute === "function") iconSpan.setAttribute("aria-hidden", "true");
 
     const textSpan = doc.createElement("span");
     textSpan.className = "toast-msg";
@@ -9091,6 +9146,23 @@ window.MEA = window.MEA || {};
       return nodes;
     }
 
+    /**
+     * 對話框開啟時標記背景地標為 inert，關閉時還原，避免焦點與點擊穿透。
+     *
+     * @param {boolean} enabled - 是否啟用 inert
+     */
+    function setBackgroundInert(enabled) {
+      if (!doc || typeof doc.querySelectorAll !== "function") return;
+      const nodes = doc.querySelectorAll(".app-nav, .app-content");
+      for (let i = 0; i < nodes.length; i++) {
+        if (enabled) {
+          if (typeof nodes[i].setAttribute === "function") nodes[i].setAttribute("inert", "");
+        } else if (typeof nodes[i].removeAttribute === "function") {
+          nodes[i].removeAttribute("inert");
+        }
+      }
+    }
+
     function modal(title, contentHtml, buttons) {
       const host = doc.getElementById("modalHost");
       if (!host) return;
@@ -9147,6 +9219,7 @@ window.MEA = window.MEA || {};
       card.appendChild(foot);
       overlay.appendChild(card);
       host.appendChild(overlay);
+      setBackgroundInert(true);
 
       modalRestoreFocus = previousFocus;
 
@@ -9193,6 +9266,7 @@ window.MEA = window.MEA || {};
     function closeModal() {
       const host = doc.getElementById("modalHost");
       if (host) host.innerHTML = "";
+      setBackgroundInert(false);
       const restoreTarget = modalRestoreFocus;
       modalRestoreFocus = null;
       if (restoreTarget && typeof restoreTarget.focus === "function") restoreTarget.focus();
@@ -9201,7 +9275,7 @@ window.MEA = window.MEA || {};
     function renderUserPill(user) {
       return (
         '  <div class="user-pill">' +
-        '    <span class="user-avatar">👤</span>' +
+        '    <span class="user-avatar" aria-hidden="true">👤</span>' +
         '    <span class="user-name">' +
         escapeHtml(user.name || user.email) +
         "</span>" +
@@ -9224,7 +9298,7 @@ window.MEA = window.MEA || {};
       return (
         '<header class="app-header">' +
         '<div class="header-brand">' +
-        '  <div class="brand-mark">📋</div>' +
+        '  <div class="brand-mark" aria-hidden="true">📋</div>' +
         '  <div class="brand-text">' +
         '    <h1 class="brand-title">' +
         escapeHtml(systemName) +
@@ -9263,13 +9337,16 @@ window.MEA = window.MEA || {};
       for (let i = 0; i < tabs.length; i++) {
         const t = tabs[i];
         const active = t.id === currentTab ? " active" : "";
+        const current = t.id === currentTab ? ' aria-current="page"' : "";
         tabsHtml +=
           '<button type="button" class="nav-tab' +
           active +
-          '" onclick="MEA.setTab(\'' +
+          '"' +
+          current +
+          " onclick=\"MEA.setTab('" +
           t.id +
           "')\">" +
-          '<span class="nav-icon">' +
+          '<span class="nav-icon" aria-hidden="true">' +
           t.icon +
           "</span>" +
           '<span class="nav-name">' +
@@ -9278,13 +9355,19 @@ window.MEA = window.MEA || {};
           "</button>";
       }
 
-      return '<nav class="app-nav">' + '<div class="nav-tabs-container">' + tabsHtml + "</div>" + "</nav>";
+      return (
+        '<nav class="app-nav" aria-label="主要導覽">' +
+        '<div class="nav-tabs-container">' +
+        tabsHtml +
+        "</div>" +
+        "</nav>"
+      );
     }
 
     function renderLoginErrorHtml(loginError) {
       if (!loginError) return "";
       return (
-        '<div class="login-alert err"><span class="alert-icon">⚠</span><span>' +
+        '<div class="login-alert err" role="alert"><span class="alert-icon" aria-hidden="true">⚠</span><span>' +
         escapeHtml(loginError) +
         "</span></div>"
       );
@@ -9350,7 +9433,7 @@ window.MEA = window.MEA || {};
         "</div>" +
         '<div class="login-card">' +
         '  <div class="login-brand">' +
-        '    <div class="login-logo">✨</div>' +
+        '    <div class="login-logo" aria-hidden="true">✨</div>' +
         '    <h2 class="login-title">' +
         escapeHtml(config.systemName || MEA.config.title) +
         "</h2>" +
@@ -9420,27 +9503,27 @@ window.MEA = window.MEA || {};
         '<div class="card mt-4">' +
         '  <h3 class="card-title">🚀 範本功能快速導覽</h3>' +
         '  <div class="feature-grid mt-3">' +
-        '    <div class="feature-item" onclick="MEA.setTab(\'import\')">' +
-        '      <div class="feature-icon">📥</div>' +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'import\')">' +
+        '      <div class="feature-icon" aria-hidden="true">📥</div>' +
         '      <div class="feature-text">' +
         "        <h4>課程代碼匯入與 1NF 正規化</h4>" +
         "        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程索引。</p>" +
         "      </div>" +
-        "    </div>" +
-        '    <div class="feature-item" onclick="MEA.setTab(\'courses\')">' +
-        '      <div class="feature-icon">📚</div>' +
+        "    </button>" +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'courses\')">' +
+        '      <div class="feature-icon" aria-hidden="true">📚</div>' +
         '      <div class="feature-text">' +
         "        <h4>正規化課程檢索與分頁</h4>" +
         "        <p>提供多維度關鍵字、學年、學期、科別篩選機制，支援大批量課程資料快速檢索。</p>" +
         "      </div>" +
-        "    </div>" +
-        '    <div class="feature-item" onclick="MEA.setTab(\'settings\')">' +
-        '      <div class="feature-icon">⚙️</div>' +
+        "    </button>" +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'settings\')">' +
+        '      <div class="feature-icon" aria-hidden="true">⚙️</div>' +
         '      <div class="feature-text">' +
         "        <h4>系統設定與授權管理 (RBAC)</h4>" +
         "        <p>維護 Google OAuth 設定、登入網域限制、學期參數與系統存取授權白名單。</p>" +
         "      </div>" +
-        "    </div>" +
+        "    </button>" +
         "  </div>" +
         "</div>"
       );
@@ -9528,6 +9611,7 @@ window.MEA = window.MEA || {};
         getLoginMode: getLoginMode,
         renderOverviewMetrics: renderOverviewMetrics,
         renderFeatureGrid: renderFeatureGrid,
+        setBackgroundInert: setBackgroundInert,
         updateThemeToggleLabels: updateThemeToggleLabels
       });
     }
@@ -10404,8 +10488,8 @@ window.MEA = window.MEA || {};
       '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
       '  <div class="dropzone-title">點擊選擇或拖曳 108 課綱課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
-      '  <input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />' +
-      "</div>"
+      "</div>" +
+      '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />'
     );
   }
 
@@ -10511,7 +10595,7 @@ window.MEA = window.MEA || {};
       '    <table class="table">' +
       "      <thead>" +
       "        <tr>" +
-      "          <th>開課學年</th><th>學期</th><th>年級</th><th>課程代碼</th><th>科目名稱</th><th>科別</th><th>科目屬性</th><th>必選修</th><th>學分</th>" +
+      '          <th scope="col">開課學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分</th>' +
       "        </tr>" +
       "      </thead>" +
       "      <tbody>" +
@@ -11600,18 +11684,52 @@ window.MEA = window.MEA || {};
     }
 
     /**
+     * 標記欄位驗證失敗，並以欄位層級錯誤訊息通知輔助科技。
+     *
+     * @param {string} fieldId - 表單控制項 id
+     * @param {string} message - 錯誤訊息
+     */
+    function setFieldError(fieldId, message) {
+      const field = getElementById(fieldId);
+      const error = getElementById(fieldId + "Error");
+      if (field && typeof field.setAttribute === "function") field.setAttribute("aria-invalid", "true");
+      if (error) {
+        error.textContent = message;
+        if (typeof error.removeAttribute === "function") error.removeAttribute("hidden");
+      }
+      MEA.ui.toast(message, "warn");
+    }
+
+    /**
+     * 清除欄位錯誤標記與訊息。
+     *
+     * @param {Object} field - 表單控制項
+     */
+    function clearFieldError(field) {
+      if (!field) return;
+      if (typeof field.removeAttribute === "function") field.removeAttribute("aria-invalid");
+      const id = typeof field.getAttribute === "function" ? field.getAttribute("id") : "";
+      const error = id ? getElementById(id + "Error") : null;
+      if (error) {
+        error.textContent = "";
+        if (typeof error.setAttribute === "function") error.setAttribute("hidden", "");
+      }
+    }
+
+    /**
      * 處理「新增」按鈕點擊（原 addAccountPrompt 的 onClick 回呼）。
      */
     function handleAddAccountClick() {
       const values = readNewAccountValues();
+      clearFieldError(getElementById("newAccountEmail"));
       if (!values.email || values.email.indexOf("@") === -1) {
-        MEA.ui.toast("請填寫有效的 Email", "warn");
+        setFieldError("newAccountEmail", "請填寫有效的 Email");
         return;
       }
 
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
       if (isDuplicateEmail(cur, values.email)) {
-        MEA.ui.toast("此 Email 已在白名單中", "warn");
+        setFieldError("newAccountEmail", "此 Email 已在白名單中");
         return;
       }
 
@@ -11644,7 +11762,9 @@ window.MEA = window.MEA || {};
       const html =
         '<div class="form-group">' +
         '  <label class="label" for="newAccountEmail">Google Email</label>' +
-        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" />' +
+        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" onchange="MEA.accounts.clearFieldError(this)" />' +
+        '  <span class="hint" id="newAccountEmailHint">請輸入完整的 Google 電子郵件地址。</span>' +
+        '  <span class="field-error" id="newAccountEmailError" role="alert" hidden></span>' +
         "</div>" +
         '<div class="form-group mt-2">' +
         '  <label class="label" for="newAccountName">姓名或職稱</label>' +
@@ -11842,29 +11962,29 @@ window.MEA = window.MEA || {};
         '    <div class="row">' +
         '      <div class="col" style="flex:2;">' +
         '        <label class="label" for="cfgSystemName">系統名稱</label>' +
-        '        <input type="text" id="cfgSystemName" class="input" value="' +
+        '        <input type="text" id="cfgSystemName" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.systemName || "") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
         '        <label class="label" for="cfgSchoolYear">目前學年度</label>' +
-        '        <input type="text" id="cfgSchoolYear" class="input" value="' +
+        '        <input type="text" id="cfgSchoolYear" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.schoolYear || "114") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
         '        <label class="label" for="cfgSemester">目前學期</label>' +
-        '        <input type="text" id="cfgSemester" class="input" value="' +
+        '        <input type="text" id="cfgSemester" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.semester || "1") +
         '" />' +
         "      </div>" +
         "    </div>" +
         '    <div class="form-group mt-3">' +
         '      <label class="label" for="cfgClientId">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
-        '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" value="' +
+        '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" aria-describedby="cfgClientIdHint" value="' +
         MEA.ui.escapeHtml(data.clientId || "") +
         '" />' +
-        '      <span class="hint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
+        '      <span class="hint" id="cfgClientIdHint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
         '      <label class="label" for="cfgClientSecret">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
@@ -11874,10 +11994,10 @@ window.MEA = window.MEA || {};
         "    </div>" +
         '    <div class="form-group mt-3">' +
         '      <label class="label" for="cfgAllowedDomain">Google 登入允許網域（選填）</label>' +
-        '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" value="' +
+        '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" aria-describedby="cfgAllowedDomainHint" value="' +
         MEA.ui.escapeHtml(data.allowedLoginDomain || data["Google 登入允許網域"] || "") +
         '" />' +
-        '      <span class="hint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
+        '      <span class="hint" id="cfgAllowedDomainHint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
         '      <label class="checkbox-label" for="cfgRestrictWhitelist">' +
@@ -11967,6 +12087,7 @@ window.MEA = window.MEA || {};
       loadSettingsAndAccounts: loadSettingsAndAccounts,
       saveSettings: saveSettings,
       addAccountPrompt: addAccountPrompt,
+      clearFieldError: clearFieldError,
       removeAccount: removeAccount,
       toggleAccount: toggleAccount,
       renderView: renderView
@@ -12019,7 +12140,7 @@ window.MEA = window.MEA || {};
 
   const LOADING_VIEW_HTML =
     '<div class="login-container">' +
-    '<div class="login-card text-center py-12">' +
+    '<div class="login-card text-center py-12" role="status" aria-label="系統載入中" aria-busy="true">' +
     '  <div class="spinner mb-4"></div>' +
     '  <div class="text-muted">正在初始化系統連線與設定...</div>' +
     "</div>" +
@@ -12200,7 +12321,7 @@ window.MEA = window.MEA || {};
         '<div class="app-layout">' +
         (invoke(MEA.ui, "renderHeader") || "") +
         (invoke(MEA.ui, "renderNavbar") || "") +
-        '<main class="app-content">' +
+        '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +
         "</div>";

@@ -252,18 +252,52 @@
     }
 
     /**
+     * 標記欄位驗證失敗，並以欄位層級錯誤訊息通知輔助科技。
+     *
+     * @param {string} fieldId - 表單控制項 id
+     * @param {string} message - 錯誤訊息
+     */
+    function setFieldError(fieldId, message) {
+      const field = getElementById(fieldId);
+      const error = getElementById(fieldId + "Error");
+      if (field && typeof field.setAttribute === "function") field.setAttribute("aria-invalid", "true");
+      if (error) {
+        error.textContent = message;
+        if (typeof error.removeAttribute === "function") error.removeAttribute("hidden");
+      }
+      MEA.ui.toast(message, "warn");
+    }
+
+    /**
+     * 清除欄位錯誤標記與訊息。
+     *
+     * @param {Object} field - 表單控制項
+     */
+    function clearFieldError(field) {
+      if (!field) return;
+      if (typeof field.removeAttribute === "function") field.removeAttribute("aria-invalid");
+      const id = typeof field.getAttribute === "function" ? field.getAttribute("id") : "";
+      const error = id ? getElementById(id + "Error") : null;
+      if (error) {
+        error.textContent = "";
+        if (typeof error.setAttribute === "function") error.setAttribute("hidden", "");
+      }
+    }
+
+    /**
      * 處理「新增」按鈕點擊（原 addAccountPrompt 的 onClick 回呼）。
      */
     function handleAddAccountClick() {
       const values = readNewAccountValues();
+      clearFieldError(getElementById("newAccountEmail"));
       if (!values.email || values.email.indexOf("@") === -1) {
-        MEA.ui.toast("請填寫有效的 Email", "warn");
+        setFieldError("newAccountEmail", "請填寫有效的 Email");
         return;
       }
 
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
       if (isDuplicateEmail(cur, values.email)) {
-        MEA.ui.toast("此 Email 已在白名單中", "warn");
+        setFieldError("newAccountEmail", "此 Email 已在白名單中");
         return;
       }
 
@@ -296,7 +330,9 @@
       const html =
         '<div class="form-group">' +
         '  <label class="label" for="newAccountEmail">Google Email</label>' +
-        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" />' +
+        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" onchange="MEA.accounts.clearFieldError(this)" />' +
+        '  <span class="hint" id="newAccountEmailHint">請輸入完整的 Google 電子郵件地址。</span>' +
+        '  <span class="field-error" id="newAccountEmailError" role="alert" hidden></span>' +
         "</div>" +
         '<div class="form-group mt-2">' +
         '  <label class="label" for="newAccountName">姓名或職稱</label>' +
@@ -494,29 +530,29 @@
         '    <div class="row">' +
         '      <div class="col" style="flex:2;">' +
         '        <label class="label" for="cfgSystemName">系統名稱</label>' +
-        '        <input type="text" id="cfgSystemName" class="input" value="' +
+        '        <input type="text" id="cfgSystemName" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.systemName || "") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
         '        <label class="label" for="cfgSchoolYear">目前學年度</label>' +
-        '        <input type="text" id="cfgSchoolYear" class="input" value="' +
+        '        <input type="text" id="cfgSchoolYear" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.schoolYear || "114") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
         '        <label class="label" for="cfgSemester">目前學期</label>' +
-        '        <input type="text" id="cfgSemester" class="input" value="' +
+        '        <input type="text" id="cfgSemester" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.semester || "1") +
         '" />' +
         "      </div>" +
         "    </div>" +
         '    <div class="form-group mt-3">' +
         '      <label class="label" for="cfgClientId">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
-        '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" value="' +
+        '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" aria-describedby="cfgClientIdHint" value="' +
         MEA.ui.escapeHtml(data.clientId || "") +
         '" />' +
-        '      <span class="hint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
+        '      <span class="hint" id="cfgClientIdHint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
         '      <label class="label" for="cfgClientSecret">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
@@ -526,10 +562,10 @@
         "    </div>" +
         '    <div class="form-group mt-3">' +
         '      <label class="label" for="cfgAllowedDomain">Google 登入允許網域（選填）</label>' +
-        '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" value="' +
+        '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" aria-describedby="cfgAllowedDomainHint" value="' +
         MEA.ui.escapeHtml(data.allowedLoginDomain || data["Google 登入允許網域"] || "") +
         '" />' +
-        '      <span class="hint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
+        '      <span class="hint" id="cfgAllowedDomainHint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
         '      <label class="checkbox-label" for="cfgRestrictWhitelist">' +
@@ -619,6 +655,7 @@
       loadSettingsAndAccounts: loadSettingsAndAccounts,
       saveSettings: saveSettings,
       addAccountPrompt: addAccountPrompt,
+      clearFieldError: clearFieldError,
       removeAccount: removeAccount,
       toggleAccount: toggleAccount,
       renderView: renderView

@@ -37,7 +37,7 @@
 
   const LOADING_VIEW_HTML =
     '<div class="login-container">' +
-    '<div class="login-card text-center py-12">' +
+    '<div class="login-card text-center py-12" role="status" aria-label="系統載入中" aria-busy="true">' +
     '  <div class="spinner mb-4"></div>' +
     '  <div class="text-muted">正在初始化系統連線與設定...</div>' +
     "</div>" +
@@ -218,7 +218,7 @@
         '<div class="app-layout">' +
         (invoke(MEA.ui, "renderHeader") || "") +
         (invoke(MEA.ui, "renderNavbar") || "") +
-        '<main class="app-content">' +
+        '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +
         "</div>";
