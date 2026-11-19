@@ -15,7 +15,9 @@ console.log("開始執行 activityLogModuleIndependence 測試...\n");
 
 function requireInFreshProcess(target) {
   const script =
-    "const mod = require(" + JSON.stringify(path.join(root, target)) + ");" +
+    "const mod = require(" +
+    JSON.stringify(path.join(root, target)) +
+    ");" +
     "if (!mod || typeof mod !== 'object') throw new Error('模組匯出異常');" +
     "process.stdout.write(Object.keys(mod).sort().join(','));";
   return execFileSync(process.execPath, ["-e", script], { cwd: root, encoding: "utf8" });

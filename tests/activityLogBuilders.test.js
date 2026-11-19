@@ -14,9 +14,7 @@ console.log("開始執行 activityLogBuilders 測試...\n");
 function withGlobals(temp, fn) {
   const prev = {};
   Object.keys(temp).forEach(function (key) {
-    prev[key] = Object.prototype.hasOwnProperty.call(globalThis, key)
-      ? globalThis[key]
-      : undefined;
+    prev[key] = Object.prototype.hasOwnProperty.call(globalThis, key) ? globalThis[key] : undefined;
     if (temp[key] === undefined) delete globalThis[key];
     else globalThis[key] = temp[key];
   });
@@ -221,11 +219,9 @@ console.log("9. 敏感欄位與原始資料不得進入任何詳情...");
     { ok: true }
   );
   const text = JSON.stringify(detail);
-  ["SESSION-TOKEN-X", "CSRF-TOKEN-X", "ID-TOKEN-X", "CREDENTIAL-X", "原始", "回傳內容"].forEach(
-    function (needle) {
-      assert.strictEqual(text.indexOf(needle), -1, "不得寫入 " + needle);
-    }
-  );
+  ["SESSION-TOKEN-X", "CSRF-TOKEN-X", "ID-TOKEN-X", "CREDENTIAL-X", "原始", "回傳內容"].forEach(function (needle) {
+    assert.strictEqual(text.indexOf(needle), -1, "不得寫入 " + needle);
+  });
   assert.strictEqual(detail.指標.登入方式, "一般登入");
   console.log("   ✓ 敏感欄位排除驗證通過！\n");
 }

@@ -337,13 +337,13 @@
         detailId +
         '" onclick="MEA.activityLog.toggleDetail(\'' +
         MEA.ui.escapeHtml(requestId) +
-        '\')">' +
+        "')\">" +
         (expanded ? "收起" : "展開") +
         "</button></td>" +
         "</tr>" +
         "<tr" +
         (expanded ? "" : " hidden") +
-        '><td colspan="8"><pre class="mono font-sm" id="' +
+        '><td colspan="8"><pre class="mono font-sm activity-log-detail" id="' +
         detailId +
         '">' +
         MEA.ui.escapeHtml(item.detail) +
@@ -362,9 +362,7 @@
         return '<tr><td colspan="8" class="text-center py-8 text-muted">正在載入操作日誌...</td></tr>';
       }
       if (state.list.length === 0) {
-        return (
-          '<tr><td colspan="8" class="text-center py-8 text-muted">目前沒有符合條件的操作日誌。</td></tr>'
-        );
+        return '<tr><td colspan="8" class="text-center py-8 text-muted">目前沒有符合條件的操作日誌。</td></tr>';
       }
       let html = "";
       state.list.forEach(function (row, index) {

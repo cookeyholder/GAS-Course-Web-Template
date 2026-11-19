@@ -487,9 +487,7 @@ function baseDeps(overrides) {
         return Promise.resolve({ ok: true, rows: [], total: 0 });
       }
     };
-    const api = apiModule.createApiClient(
-      baseDeps({ config: { storageKey: "s", mock: true }, mock: mock })
-    );
+    const api = apiModule.createApiClient(baseDeps({ config: { storageKey: "s", mock: true }, mock: mock }));
     const query = {
       startDate: "2026-11-13",
       endDate: "2026-11-19",

@@ -325,7 +325,9 @@
       const pageSize = Math.min(500, Math.max(1, Number(options.pageSize) || 50));
       const startDate = String(options.startDate || "");
       const endDate = String(options.endDate || "");
-      const email = String(options.email || "").trim().toLowerCase();
+      const email = String(options.email || "")
+        .trim()
+        .toLowerCase();
       const category = String(options.category || "").trim();
       const rows = buildMockActivityRows().filter(function (row) {
         const day = row.timestamp.slice(0, 10);

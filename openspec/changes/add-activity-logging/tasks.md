@@ -34,7 +34,7 @@
 - [x] 5.2 新增 `webapp/js/activityLog.js`，實作清單渲染、時間區間（Asia/Taipei 日期區間）／操作者／事件類別篩選、分頁控制與詳情 JSON 展開；表格標頭具 `scope="col"`、展開按鈕具 `aria-expanded`、篩選控制項具標籤；以新增 `tests/webappActivityLogRenderView.test.js` 驗證渲染與無障礙屬性。
 - [x] 5.3 在 `webapp/js/api.js` 新增 `getActivityLog` 呼叫（沿用 `text/plain;charset=utf-8` 避開 OPTIONS 預檢）；在 `webapp/js/mock.js` 補模擬日誌資料與 action 處理（遵循既有 `actionHandlers` 的 6 空格縮排格式以通過完整性檢查）；以 `tests/webappMockHandle.test.js` 驗證 mock 回傳格式。
 - [x] 5.4 在 `webapp/js/ui.js` 的 `renderNavbar()` 依頁籤權限旗標與 `MEA.state.user.role` 過濾頁籤，並在 `webapp/js/app.js` 的 `setTab()`／`buildBodyHtml()` 加入同一守門，防止直接竄改 state 進入管理員頁籤；以 `tests/webappUiRenderOverviewView.test.js` 與新增測試驗證角色可見性與直接竄改防護。
-- [ ] 5.5 於 `webapp/styles.css` 補齊新頁籤所需 class，通過 `npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`。
+- [x] 5.5 於 `webapp/styles.css` 補齊新頁籤所需 class，通過 `npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`。
 - [ ] 5.6 在 `webapp/index.html` 的 `BUILD:JS` 區塊加入 `<script src="js/activityLog.js"></script>`，位置於 `accounts.js` 之後、`app.js` 之前；以 `npm run build:webapp` 確認內嵌順序正確。
 
 ## 6. 文件、建置與驗證

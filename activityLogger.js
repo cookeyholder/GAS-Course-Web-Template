@@ -122,12 +122,7 @@ function resolveSpreadsheet_(ss) {
  * @returns {Object} 具 get/put 方法的快取物件
  */
 function getActivityLogCache_(deps) {
-  if (
-    deps &&
-    deps.cache &&
-    typeof deps.cache.get === "function" &&
-    typeof deps.cache.put === "function"
-  ) {
+  if (deps && deps.cache && typeof deps.cache.get === "function" && typeof deps.cache.put === "function") {
     return deps.cache;
   }
   if (typeof CacheService !== "undefined" && CacheService.getScriptCache) {
@@ -280,8 +275,7 @@ function cleanupActivityLogRows(options) {
  */
 function ensureActivityLogCleanupTrigger_(options) {
   const opts = options || {};
-  const scriptApp =
-    opts.scriptApp || (typeof ScriptApp !== "undefined" ? ScriptApp : null);
+  const scriptApp = opts.scriptApp || (typeof ScriptApp !== "undefined" ? ScriptApp : null);
   if (!scriptApp || typeof scriptApp.newTrigger !== "function") {
     return { ok: false, created: false, reason: "unavailable" };
   }
@@ -298,12 +292,7 @@ function ensureActivityLogCleanupTrigger_(options) {
     if (exists) return { ok: true, created: false, reason: "exists" };
   }
   try {
-    scriptApp
-      .newTrigger(handlerName)
-      .timeBased()
-      .atHour(3)
-      .everyDays(1)
-      .create();
+    scriptApp.newTrigger(handlerName).timeBased().atHour(3).everyDays(1).create();
     return { ok: true, created: true, reason: "created" };
   } catch (error) {
     console.error("建立操作日誌清理觸發器失敗：", error && error.message ? error.message : error);
@@ -313,18 +302,18 @@ function ensureActivityLogCleanupTrigger_(options) {
 
 const ACTIVITY_LOGGER_API = {
   ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
-    ACTIVITY_LOG_CACHE_PREFIX: ACTIVITY_LOG_CACHE_PREFIX,
-    WRITE_COUNT_CACHE_KEY: WRITE_COUNT_CACHE_KEY,
-    LAST_ROW_SAMPLE_INTERVAL: LAST_ROW_SAMPLE_INTERVAL,
-    MAX_ACTIVITY_LOG_ROWS: MAX_ACTIVITY_LOG_ROWS,
-    TARGET_ACTIVITY_LOG_ROWS: TARGET_ACTIVITY_LOG_ROWS,
-    MAX_FIELD_LENGTH: MAX_FIELD_LENGTH,
-    SENSITIVE_RECORD_KEYS: SENSITIVE_RECORD_KEYS,
-    getActivityLogCache: getActivityLogCache_,
-    appendActivityLog: appendActivityLog_,
-    appendActivityLog_: appendActivityLog_,
-    buildActivityLogRow: buildActivityLogRow_,
-    cleanupActivityLogRows: cleanupActivityLogRows,
+  ACTIVITY_LOG_CACHE_PREFIX: ACTIVITY_LOG_CACHE_PREFIX,
+  WRITE_COUNT_CACHE_KEY: WRITE_COUNT_CACHE_KEY,
+  LAST_ROW_SAMPLE_INTERVAL: LAST_ROW_SAMPLE_INTERVAL,
+  MAX_ACTIVITY_LOG_ROWS: MAX_ACTIVITY_LOG_ROWS,
+  TARGET_ACTIVITY_LOG_ROWS: TARGET_ACTIVITY_LOG_ROWS,
+  MAX_FIELD_LENGTH: MAX_FIELD_LENGTH,
+  SENSITIVE_RECORD_KEYS: SENSITIVE_RECORD_KEYS,
+  getActivityLogCache: getActivityLogCache_,
+  appendActivityLog: appendActivityLog_,
+  appendActivityLog_: appendActivityLog_,
+  buildActivityLogRow: buildActivityLogRow_,
+  cleanupActivityLogRows: cleanupActivityLogRows,
   ensureActivityLogCleanupTrigger: ensureActivityLogCleanupTrigger_,
   ensureActivityLogCleanupTrigger_: ensureActivityLogCleanupTrigger_
 };

@@ -120,7 +120,7 @@ function run() {
   console.log("2. 空清單與預設日期區間 ✓\n");
 
   const thCount = (html.match(/<th scope="col">/g) || []).length;
-  assert.strictEqual(thCount, 8, "八個表格標頭皆應具 scope=\"col\"");
+  assert.strictEqual(thCount, 8, '八個表格標頭皆應具 scope="col"');
   ["activityLogStartDate", "activityLogEndDate", "activityLogEmail", "activityLogCategory"].forEach(function (id) {
     assert(html.indexOf('for="' + id + '"') !== -1, "篩選控制項 " + id + " 應有標籤");
   });
@@ -163,15 +163,17 @@ function run() {
   assert(html.indexOf('aria-expanded="false"') !== -1, "未展開按鈕應標記 false");
   assert(html.indexOf('aria-controls="activityLogDetail_0"') !== -1);
   assert(html.indexOf("<tr hidden>") !== -1, "未展開的詳情列應隱藏");
-  assert(html.indexOf('共 1 筆紀錄 · 第 1 / 1 頁') !== -1);
-  assert(html.indexOf('MEA.activityLog.toggleDetail(\'req-1\')') !== -1);
+  assert(html.indexOf("共 1 筆紀錄 · 第 1 / 1 頁") !== -1);
+  assert(html.indexOf("MEA.activityLog.toggleDetail('req-1')") !== -1);
   console.log("4. 日誌資料列與未展開詳情 ✓\n");
 
   ctx.state.activityLog.expanded = { "req-1": true };
   html = log.renderView();
   assert(html.indexOf('aria-expanded="true"') !== -1, "展開按鈕應標記 true");
   assert(html.indexOf("收起") !== -1);
-  assert(html.indexOf('<tr><td colspan="8"><pre class="mono font-sm" id="activityLogDetail_0">') !== -1);
+  assert(
+    html.indexOf('<tr><td colspan="8"><pre class="mono font-sm activity-log-detail" id="activityLogDetail_0">') !== -1
+  );
   assert(html.indexOf("{&quot;版本&quot;:1,&quot;指標&quot;:{}}") !== -1, "詳情 JSON 應跳脫");
   console.log("5. 展開詳情與 JSON 跳脫 ✓\n");
 

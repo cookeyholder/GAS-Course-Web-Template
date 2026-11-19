@@ -1008,9 +1008,7 @@ function resolveActivityLogDateRange_(payload) {
   const datePattern = /^\d{4}-\d{2}-\d{2}$/;
   const requestedEnd = String(source.endDate || "").slice(0, 10);
   const requestedStart = String(source.startDate || "").slice(0, 10);
-  const endDate = datePattern.test(requestedEnd)
-    ? requestedEnd
-    : formatTaipeiDate_(now);
+  const endDate = datePattern.test(requestedEnd) ? requestedEnd : formatTaipeiDate_(now);
   const defaultStart = formatTaipeiDate_(
     new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000)
   );
@@ -1058,7 +1056,9 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
   const lastRow = Math.max(0, Number(sheet.getLastRow()) || 0);
   if (lastRow < 2) return emptyResult;
   const values = sheet.getRange(2, 1, lastRow - 1, 12).getValues() || [];
-  const emailFilter = String(source.email || "").trim().toLowerCase();
+  const emailFilter = String(source.email || "")
+    .trim()
+    .toLowerCase();
   const categoryFilter = String(source.category || "").trim();
   const matched = [];
   values.forEach(function (row) {
@@ -1066,7 +1066,13 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
     const timestamp = String(cells[0] || "");
     if (timestamp < range.start || timestamp > range.end) return;
     if (categoryFilter && String(cells[2] || "") !== categoryFilter) return;
-    if (emailFilter && String(cells[5] || "").toLowerCase().indexOf(emailFilter) === -1) return;
+    if (
+      emailFilter &&
+      String(cells[5] || "")
+        .toLowerCase()
+        .indexOf(emailFilter) === -1
+    )
+      return;
     matched.push({
       timestamp: timestamp,
       requestId: String(cells[1] || ""),
@@ -1259,12 +1265,14 @@ const ACTIVITY_LOG_EXCLUDED_ACTIONS = ["ping", "getPublicConfig", "getActivityLo
  * @returns {Object} 日誌中繼資料
  */
 function getActivityLogMeta_(action) {
-  return ACTION_REGISTRY.getActionMeta(action) || {
-    category: "query",
-    label: action || "未識別動作",
-    detailKey: "none",
-    enabled: true
-  };
+  return (
+    ACTION_REGISTRY.getActionMeta(action) || {
+      category: "query",
+      label: action || "未識別動作",
+      detailKey: "none",
+      enabled: true
+    }
+  );
 }
 
 /**
@@ -1398,10 +1406,7 @@ function buildActivityLogRecord_(context, meta, payload, result, before, after) 
   if (typeof Utilities !== "undefined" && Utilities.formatDate) {
     timestamp = Utilities.formatDate(now, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
   } else {
-    timestamp = new Date(now.getTime() + 8 * 60 * 60 * 1000)
-      .toISOString()
-      .replace("T", " ")
-      .slice(0, 19);
+    timestamp = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
   }
   return {
     timestamp: timestamp,
@@ -1501,11 +1506,7 @@ function executeWebApi(payload, event) {
     if (actionMeta && shouldLogActivity_(action, actionMeta)) {
       afterSnapshot = captureActivityLogSnapshot_(actionMeta);
     }
-    if (
-      (action === "login" || action === "loginWithActiveUser") &&
-      result &&
-      result.ok
-    ) {
+    if ((action === "login" || action === "loginWithActiveUser") && result && result.ok) {
       recordWebApiIdentity_(context, null, result);
     }
     return finish_(result);
@@ -1526,21 +1527,11 @@ function executeWebApi(payload, event) {
     if (!actionMeta) actionMeta = getActivityLogMeta_(context.action);
     if (actionMeta && shouldLogActivity_(context.action, actionMeta)) {
       const loggerModule = resolveActivityLogModule_("activityLogger", "./activityLogger.js");
-      const appendFn = getOverridableApiFn_(
-        "appendActivityLog",
-        loggerModule ? loggerModule.appendActivityLog : null
-      );
+      const appendFn = getOverridableApiFn_("appendActivityLog", loggerModule ? loggerModule.appendActivityLog : null);
       if (typeof appendFn === "function") {
         try {
           appendFn(
-            buildActivityLogRecord_(
-              context,
-              actionMeta,
-              payload,
-              finalResult,
-              beforeSnapshot,
-              afterSnapshot
-            ),
+            buildActivityLogRecord_(context, actionMeta, payload, finalResult, beforeSnapshot, afterSnapshot),
             getRouteSpreadsheet_()
           );
         } catch (error) {

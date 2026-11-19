@@ -117,8 +117,7 @@ const DETAIL_BUILDERS = {
     captureBefore: null,
     describe: function (before, after, payload) {
       const safe = projectPayload_(payload);
-      const useActiveUser =
-        safe.useActiveUser === true || safe.action === "loginWithActiveUser";
+      const useActiveUser = safe.useActiveUser === true || safe.action === "loginWithActiveUser";
       return {
         指標: {
           登入方式: useActiveUser ? "使用現存帳號" : "一般登入"
@@ -137,8 +136,7 @@ const DETAIL_BUILDERS = {
           }
         };
       }
-      const expandedRows =
-        result && typeof result.rows === "number" ? result.rows : stats.expandedRows;
+      const expandedRows = result && typeof result.rows === "number" ? result.rows : stats.expandedRows;
       return {
         指標: {
           上傳筆數: numberOrNull_(stats.sourceRows),

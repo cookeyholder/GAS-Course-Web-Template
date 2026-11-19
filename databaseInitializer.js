@@ -262,11 +262,7 @@ function initializeDatabaseSheets(options) {
   ensureActivityLogSheet_(ss, createdSheets);
 
   // 安裝每日清理觸發器；無 ScriptApp 時（例如 Node 測試）安全略過
-  const ensureTrigger = GAS_RUNTIME.resolveDependency_(
-    "ensureActivityLogCleanupTrigger_",
-    "./activityLogger.js",
-    null
-  );
+  const ensureTrigger = GAS_RUNTIME.resolveDependency_("ensureActivityLogCleanupTrigger_", "./activityLogger.js", null);
   let cleanupTrigger = { ok: false, created: false, reason: "unavailable" };
   if (typeof ensureTrigger === "function") {
     try {

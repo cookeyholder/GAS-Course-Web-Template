@@ -31,7 +31,13 @@ function setup(user) {
     }
   };
   const app = appModule.createAppController(ctx.deps);
-  return { ctx: ctx, app: app, getActivityFetch: function () { return activityFetch; } };
+  return {
+    ctx: ctx,
+    app: app,
+    getActivityFetch: function () {
+      return activityFetch;
+    }
+  };
 }
 
 function run() {

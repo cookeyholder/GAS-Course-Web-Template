@@ -262,10 +262,7 @@ console.log("11. 超過上限時刪除最舊資料至保留 15,000 筆...");
   assert.strictEqual(result.after, logger.TARGET_ACTIVITY_LOG_ROWS);
   assert.strictEqual(result.deleted, 5050);
   assert.deepStrictEqual(calls, [[2, 5050]]);
-  assert.strictEqual(
-    store[logger.ACTIVITY_LOG_CACHE_PREFIX + "last_row"],
-    String(lastRow - 5050)
-  );
+  assert.strictEqual(store[logger.ACTIVITY_LOG_CACHE_PREFIX + "last_row"], String(lastRow - 5050));
   console.log("   ✓ 超量清理驗證通過！\n");
 }
 
