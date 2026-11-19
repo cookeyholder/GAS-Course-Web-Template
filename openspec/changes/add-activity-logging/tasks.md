@@ -40,6 +40,6 @@
 ## 6. 文件、建置與驗證
 
 - [x] 6.1 更新 `README.md`、`AGENTS.md` 與 `docs/architecture-guide.html`，說明操作日誌工作表、管理員頁籤、20,000 列清理閾值與每日觸發器清理機制；調整 `scripts/languageCheck.js` 的 `EXCLUDED_DIRECTORIES` 使 `openspec` 目錄納入語言檢查（或另加 CI 步驟檢查 `openspec/changes/**`），修復語言閘門對提案文件失效的漏洞；以 `npm run check:lang` 驗證全專案（含 OpenSpec 文件）皆為臺灣繁體中文與用語規範。
-- [ ] 6.2 執行 `npm run build:webapp`，確認 `index.html` 內嵌 `activityLog.js` 且順序正確（依 5.6 之樣板註冊）；連續兩次建置雜湊一致；以 `sha256sum` 比對驗證。
+- [x] 6.2 執行 `npm run build:webapp`，確認 `index.html` 內嵌 `activityLog.js` 且順序正確（依 5.6 之樣板註冊）；連續兩次建置雜湊一致；以 `sha256sum` 比對驗證。
 - [ ] 6.3 執行完整品質閘門：`npm test`、`npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`、`npm run test:coverage`、`npm run check:coverage`、`CHANGED_COVERAGE_BASE=main npm run check:changed-coverage`、`npm run check:complexity`，全部通過且不得低於基準線。
 - [ ] 6.4 執行 `openspec validate "add-activity-logging" --strict`，確認 5 份產物（proposal、design、兩份 spec、tasks）與所有任務完成、規格驗證通過。
