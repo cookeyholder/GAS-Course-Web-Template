@@ -34,13 +34,6 @@ const ACTIVITY_LOG_FIELDS = [
 /** CacheService 鍵前綴（與其他快取資料區隔） */
 const ACTIVITY_LOG_CACHE_PREFIX = "gas_tmpl_activitylog_";
 
-/** 寫入次數與抽樣列數的快取鍵 */
-const WRITE_COUNT_CACHE_KEY = ACTIVITY_LOG_CACHE_PREFIX + "write_count";
-const SAMPLED_LAST_ROW_CACHE_KEY = ACTIVITY_LOG_CACHE_PREFIX + "last_row";
-
-/** 每累計多少筆寫入才取樣一次 getLastRow()，降低試算表 API 呼叫 */
-const LAST_ROW_SAMPLE_INTERVAL = 100;
-
 /** 超過此資料列數即觸發清理，清理後保留目標列數（不含標題列） */
 const MAX_ACTIVITY_LOG_ROWS = 20000;
 const TARGET_ACTIVITY_LOG_ROWS = 15000;
@@ -71,19 +64,6 @@ const TRUNCATED_FIELDS = [
   "role",
   "summary",
   "errorCode"
-];
-
-/** 即使出現在紀錄物件中也不得寫入的敏感欄位 */
-const SENSITIVE_RECORD_KEYS = [
-  "token",
-  "csrfToken",
-  "idToken",
-  "credential",
-  "rows",
-  "rawRows",
-  "payload",
-  "response",
-  "resultPayload"
 ];
 
 /** 解析工作表名稱，優先使用 gasRuntime 單一來源。 */
@@ -129,37 +109,6 @@ function getActivityLogCache_(deps) {
     return CacheService.getScriptCache();
   }
   return ACTIVITY_LOG_MEMORY_CACHE;
-}
-
-/**
- * 累計寫入次數，並每 100 次取樣一次工作表列數。
- *
- * @param {Object} sheet - 操作日誌工作表
- * @param {Object} [deps] - 相依注入
- * @returns {number} 目前計數
- */
-function bumpWriteCount_(sheet, deps) {
-  const cache = getActivityLogCache_(deps);
-  let count = 0;
-  try {
-    count = parseInt(cache.get(WRITE_COUNT_CACHE_KEY), 10) || 0;
-  } catch (error) {
-    count = 0;
-  }
-  count += 1;
-  try {
-    cache.put(WRITE_COUNT_CACHE_KEY, String(count));
-  } catch (error) {
-    // 快取失敗不影響日誌寫入
-  }
-  if (count % LAST_ROW_SAMPLE_INTERVAL === 0 && typeof sheet.getLastRow === "function") {
-    try {
-      cache.put(SAMPLED_LAST_ROW_CACHE_KEY, String(sheet.getLastRow()));
-    } catch (error) {
-      // 取樣失敗不影響日誌寫入
-    }
-  }
-  return count;
 }
 
 /**
@@ -225,7 +174,7 @@ function normalizeDetailField_(value) {
 /**
  * 將日誌紀錄轉換為試算表列。
  * 接受完整 12 欄物件；缺少欄位時補上空字串。
- * 僅讀取白名單欄位，故敏感欄位（token、原始 rows、回傳內容）不會寫入。
+ * 僅讀取 ACTIVITY_LOG_FIELDS 白名單欄位，故未列名的敏感資料不會寫入。
  *
  * @param {Object|Array} record - 日誌紀錄
  * @returns {Array} 12 欄資料列
@@ -240,7 +189,6 @@ function buildActivityLogRow_(record) {
   }
   const source = record || {};
   return ACTIVITY_LOG_FIELDS.map(function (field, index) {
-    if (SENSITIVE_RECORD_KEYS.indexOf(field) !== -1) return "";
     const value = source[field];
     const safeValue = value === null || value === undefined ? "" : value;
     if (index === detailIndex) return normalizeDetailField_(safeValue);
@@ -264,7 +212,6 @@ function appendActivityLog_(record, ss, deps) {
     const sheet = spreadsheet.getSheetByName(resolveSheetName_());
     if (!sheet || typeof sheet.appendRow !== "function") return false;
     sheet.appendRow(buildActivityLogRow_(record));
-    bumpWriteCount_(sheet, options);
     return true;
   } catch (error) {
     console.error("寫入操作日誌失敗：", error && error.message ? error.message : error);
@@ -302,11 +249,6 @@ function cleanupActivityLogRows(options) {
     }
     const deleted = dataRows - TARGET_ACTIVITY_LOG_ROWS;
     sheet.deleteRows(2, deleted);
-    try {
-      getActivityLogCache_(opts).put(SAMPLED_LAST_ROW_CACHE_KEY, String(lastRow - deleted));
-    } catch (error) {
-      // 快取更新失敗不影響清理結果
-    }
     return {
       ok: true,
       before: dataRows,
@@ -357,12 +299,9 @@ function ensureActivityLogCleanupTrigger_(options) {
 const ACTIVITY_LOGGER_API = {
   ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
   ACTIVITY_LOG_CACHE_PREFIX: ACTIVITY_LOG_CACHE_PREFIX,
-  WRITE_COUNT_CACHE_KEY: WRITE_COUNT_CACHE_KEY,
-  LAST_ROW_SAMPLE_INTERVAL: LAST_ROW_SAMPLE_INTERVAL,
   MAX_ACTIVITY_LOG_ROWS: MAX_ACTIVITY_LOG_ROWS,
   TARGET_ACTIVITY_LOG_ROWS: TARGET_ACTIVITY_LOG_ROWS,
   MAX_FIELD_LENGTH: MAX_FIELD_LENGTH,
-  SENSITIVE_RECORD_KEYS: SENSITIVE_RECORD_KEYS,
   getActivityLogCache: getActivityLogCache_,
   appendActivityLog: appendActivityLog_,
   appendActivityLog_: appendActivityLog_,
