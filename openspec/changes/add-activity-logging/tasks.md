@@ -3,7 +3,7 @@
 - [x] 1.1 在 `gasRuntime.js` 新增並匯出 `SHEET_ACTIVITY_LOG = "操作日誌"`；以 `tests/cleanupSingleSource.test.js` 驗證新常數納入單一來源檢查。
 - [x] 1.2 在 `databaseInitializer.js` 新增 `ensureActivityLogSheet_`，建立含時間戳記、請求識別碼、事件類別、動作名稱、結果、操作者 email、操作者姓名、角色、摘要、詳情 JSON、耗時（毫秒）、錯誤代碼共 12 欄的工作表，設定凍結標題列並對詳情欄位套用純文字格式 `@`；時間戳記格式使用 `Utilities.formatDate(date, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss")`；於 `initializeDatabaseSheets` 呼叫並加入建立清單；以新增 `tests/databaseInitializerActivityLog.test.js` 驗證建立、欄位、格式與既有工作表不受影響。
 - [x] 1.3 在 `databaseInitializer.js` 的 `getSystemInstructionRows_()` 補充操作日誌工作表用途說明；既有試算表的說明工作表維持原樣不覆寫（沿用 `ensureXxxSheet_` 存在即返回行為），僅新試算表看到新說明；以 `npm test` 驗證無回歸。
-- [ ] 1.4 驗證重複初始化時日誌工作表不重複建立、既有日誌不被覆寫；以 `tests/databaseInitializerActivityLog.test.js` 的冪等情境驗證。
+- [x] 1.4 驗證重複初始化時日誌工作表不重複建立、既有日誌不被覆寫；以 `tests/databaseInitializerActivityLog.test.js` 的冪等情境驗證。
 
 ## 2. 動作中繼資料與摘要產生器
 

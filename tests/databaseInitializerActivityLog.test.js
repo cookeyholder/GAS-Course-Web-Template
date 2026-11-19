@@ -117,4 +117,17 @@ console.log("2. 既有工作表應不受影響...");
   console.log("   ✓ 既有工作表不受影響驗證通過！\n");
 }
 
+console.log("3. 重複初始化應保持冪等且不覆寫既有日誌...");
+{
+  const activity = makeSheet();
+  activity.ops.push(["pre-existing-log-row"]);
+  const ss = makeSpreadsheet({ [db.SHEET_ACTIVITY_LOG]: activity });
+  const result = db.initializeDatabaseSheets({ spreadsheet: ss });
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(ss._inserted.indexOf(db.SHEET_ACTIVITY_LOG), -1, "不應重複建立操作日誌工作表");
+  assert.strictEqual(result.createdSheets.indexOf(db.SHEET_ACTIVITY_LOG), -1, "不應列入建立清單");
+  assert.deepStrictEqual(activity.ops, [["pre-existing-log-row"]], "既有日誌資料不應被覆寫");
+  console.log("   ✓ 冪等性驗證通過！\n");
+}
+
 console.log("✓ databaseInitializerActivityLog.test.js 測試全數通過！\n");
