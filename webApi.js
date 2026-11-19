@@ -997,6 +997,27 @@ function formatTaipeiDate_(date) {
 }
 
 /**
+ * 將操作日誌時間戳記正規化為 `yyyy-MM-dd HH:mm:ss` 字串。
+ * 試算表可能把日期字串隱含轉為 `Date` 物件，讀取端須先正規化才能正確比較與排序。
+ *
+ * @param {*} value - 原始時間戳記儲存格值
+ * @returns {string} 正規化後的時間戳記字串；非日期值一律轉字串
+ */
+function normalizeActivityLogTimestamp_(value) {
+  if (!(value instanceof Date)) {
+    return String(value === null || value === undefined ? "" : value);
+  }
+  const time = value.getTime();
+  if (!isFinite(time)) return "";
+  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    return Utilities.formatDate(value, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+  }
+  // Node 測試環境無 Utilities：以固定 +8 小時偏移格式化，不依賴機器時區
+  const taipei = new Date(time + 8 * 60 * 60 * 1000);
+  return taipei.toISOString().replace("T", " ").slice(0, 19);
+}
+
+/**
  * 解析操作日誌查詢的時間區間，預設最近 7 天（含端點）。
  *
  * @param {Object} payload - 請求 payload
@@ -1063,7 +1084,7 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
   const matched = [];
   values.forEach(function (row) {
     const cells = Array.isArray(row) ? row : [];
-    const timestamp = String(cells[0] || "");
+    const timestamp = normalizeActivityLogTimestamp_(cells[0]);
     if (timestamp < range.start || timestamp > range.end) return;
     if (categoryFilter && String(cells[2] || "") !== categoryFilter) return;
     if (
@@ -1733,6 +1754,7 @@ if (typeof module !== "undefined" && module.exports) {
     routeWebApiAction: routeWebApiAction,
     handleGetActivityLogWebApiAction: handleGetActivityLogWebApiAction_,
     formatTaipeiDate: formatTaipeiDate_,
+    normalizeActivityLogTimestamp: normalizeActivityLogTimestamp_,
     getPublicConfig: getPublicConfig,
     executeWebApi: executeWebApi,
     createWebApiLogContext: createWebApiLogContext_,

@@ -800,4 +800,67 @@ console.log("20. 完整 executeWebApi 應為 saveWhitelist 同時記錄新增與
   console.log("   ✓ 白名單新增與移除整合驗證通過！\n");
 }
 
+console.log("21. 假工作表回傳 Date 物件時仍能查到且排序正確...");
+{
+  const newer = new Date("2026-11-19T02:00:00.000Z"); // Asia/Taipei 2026-11-19 10:00:00
+  const older = new Date("2026-11-18T01:30:00.000Z"); // Asia/Taipei 2026-11-18 09:30:00
+  assert.strictEqual(api.normalizeActivityLogTimestamp(newer), "2026-11-19 10:00:00");
+  assert.strictEqual(api.normalizeActivityLogTimestamp("2026-11-19 10:00:00"), "2026-11-19 10:00:00");
+  assert.strictEqual(api.normalizeActivityLogTimestamp(null), "");
+  assert.strictEqual(api.normalizeActivityLogTimestamp(undefined), "");
+  withGlobals(
+    {
+      Utilities: {
+        formatDate: function (date, timezone, pattern) {
+          assert.strictEqual(timezone, "Asia/Taipei");
+          assert.strictEqual(pattern, "yyyy-MM-dd HH:mm:ss");
+          return "2026-11-19 10:00:00";
+        }
+      }
+    },
+    function () {
+      assert.strictEqual(api.normalizeActivityLogTimestamp(newer), "2026-11-19 10:00:00");
+    }
+  );
+
+  const rows = [
+    [older, "r-old", "query", "查詢", "success", "a@example.com", "甲", "檢視人員", "s1", "{}", 2, ""],
+    [newer, "r-new", "query", "查詢", "success", "a@example.com", "甲", "檢視人員", "s2", "{}", 1, ""]
+  ];
+  const sheet = {
+    getLastRow: function () {
+      return rows.length + 1;
+    },
+    getRange: function (r, c, numRows) {
+      return {
+        getValues: function () {
+          return rows.slice(r - 2, r - 2 + numRows).map(function (row) {
+            return row.slice();
+          });
+        }
+      };
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  const result = api.handleGetActivityLogWebApiAction(
+    { startDate: "2026-11-18", endDate: "2026-11-19", page: 1, pageSize: 50 },
+    { role: "admin" },
+    ss
+  );
+  assert.strictEqual(result.total, 2, "Date 物件仍應落在日期區間內");
+  assert.deepStrictEqual(
+    result.rows.map(function (row) {
+      return row.requestId;
+    }),
+    ["r-new", "r-old"],
+    "應依正規化後時間遞減排序"
+  );
+  assert.strictEqual(result.rows[0].timestamp, "2026-11-19 10:00:00");
+  console.log("   ✓ Date 物件正規化與排序驗證通過！\n");
+}
+
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");
