@@ -1446,6 +1446,18 @@ function buildActivityLogRecord_(context, meta, payload, result, before, after) 
       // 詳情產生失敗時保留最小可用的版本化結構
     }
   }
+  // 失敗請求（例如 CSRF 驗證失敗）未實際執行寫入，不得留下基於 payload 推導的誤導變動。
+  // importCourseCodes 的統計標記（指標）仍須保留，以利稽核失敗原因。
+  if (result && result.ok === false) {
+    if (!detail || typeof detail !== "object" || Array.isArray(detail)) {
+      detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
+    }
+    if (!detail.指標 || typeof detail.指標 !== "object" || Array.isArray(detail.指標)) {
+      detail.指標 = {};
+    }
+    detail.變動 = [];
+    detail.指標.執行 = "未執行";
+  }
   const now = new Date();
   let timestamp;
   if (typeof Utilities !== "undefined" && Utilities.formatDate) {

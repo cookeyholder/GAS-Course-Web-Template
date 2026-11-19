@@ -863,4 +863,83 @@ console.log("21. 假工作表回傳 Date 物件時仍能查到且排序正確...
   console.log("   ✓ Date 物件正規化與排序驗證通過！\n");
 }
 
+console.log("22. 失敗請求應清除誤導變動並保留匯入統計標記...");
+{
+  const written = [];
+
+  // CSRF 失敗模擬：saveSystemSettings 依 payload 推導出變動，但寫入未實際執行
+  withGlobals(
+    {
+      readSystemSettings: function () {
+        return { schoolYear: "112", semester: "1", systemName: "舊系統" };
+      }
+    },
+    function () {
+      withOverrides(
+        {
+          authorizeWebApiAction: function () {
+            return {
+              session: { email: "admin@example.com", name: "管理員", role: "admin", csrfToken: "ok" }
+            };
+          },
+          routeWebApiAction: function () {
+            return { ok: false, error: "invalid_csrf_token", message: "CSRF 驗證失敗" };
+          },
+          appendActivityLog: function (record) {
+            written.push(record);
+          }
+        },
+        function () {
+          api.executeWebApi(
+            {
+              action: "saveSystemSettings",
+              token: "tok",
+              csrfToken: "bad",
+              settings: { schoolYear: "113", semester: "2", systemName: "新系統" }
+            },
+            {}
+          );
+        }
+      );
+    }
+  );
+  assert.strictEqual(written.length, 1, "應寫入一列失敗日誌");
+  const csrfDetail = JSON.parse(written[0].detail);
+  assert.deepStrictEqual(csrfDetail.變動, [], "CSRF 失敗不得保留變動明細");
+  assert.strictEqual(csrfDetail.指標.執行, "未執行", "失敗請求應標註未執行");
+  assert.strictEqual(csrfDetail.指標.變動欄數, 3, "失敗時仍可保留依快照推導出的指標數值");
+
+  // importCourseCodes 失敗時保留統計標記（指標）但清除變動並標註未執行
+  withOverrides(
+    {
+      authorizeWebApiAction: function () {
+        return {
+          session: { email: "admin@example.com", name: "管理員", role: "admin", csrfToken: "ok" }
+        };
+      },
+      routeWebApiAction: function () {
+        return {
+          ok: false,
+          error: "validation_failed",
+          message: "驗證失敗",
+          stats: { sourceRows: 10, excludedRows: 2, keptCourseRows: 8, expandedRows: 24, returnedRows: 0 }
+        };
+      },
+      appendActivityLog: function (record) {
+        written.push(record);
+      }
+    },
+    function () {
+      api.executeWebApi({ action: "importCourseCodes", token: "tok", csrfToken: "ok" }, {});
+    }
+  );
+  assert.strictEqual(written.length, 2, "應再寫入一列匯入失敗日誌");
+  const importDetail = JSON.parse(written[1].detail);
+  assert.deepStrictEqual(importDetail.變動, [], "失敗匯入不得保留變動");
+  assert.strictEqual(importDetail.指標.執行, "未執行");
+  assert.strictEqual(importDetail.指標.上傳筆數, 10, "應保留匯入統計標記");
+  assert.strictEqual(importDetail.指標.展開筆數, 24);
+  console.log("   ✓ 失敗請求變動清除與統計保留驗證通過！\n");
+}
+
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");
