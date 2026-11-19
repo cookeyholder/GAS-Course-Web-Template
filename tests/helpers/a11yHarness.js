@@ -17,6 +17,7 @@ const uiModule = require("../../webapp/js/ui.js");
 const coursesModule = require("../../webapp/js/courses.js");
 const accountsModule = require("../../webapp/js/accounts.js");
 const importsModule = require("../../webapp/js/imports.js");
+const activityLogModule = require("../../webapp/js/activityLog.js");
 const appModule = require("../../webapp/js/app.js");
 
 const INDEX_PATH = path.join(__dirname, "..", "..", "webapp", "index.html");
@@ -115,7 +116,20 @@ function createFrontend(dom, stateOverrides) {
         courses: { list: [], page: 1, pageSize: 30, total: 0 },
         settings: { data: {}, accounts: [], loading: false, saving: false },
         imports: {},
-        importBusy: false
+        importBusy: false,
+        activityLog: {
+          list: [],
+          total: 0,
+          page: 1,
+          pageSize: 50,
+          totalPages: 1,
+          startDate: "2026-11-13",
+          endDate: "2026-11-19",
+          email: "",
+          category: "",
+          loading: false,
+          expanded: {}
+        }
       },
       stateOverrides || {}
     ),
@@ -147,6 +161,7 @@ function createFrontend(dom, stateOverrides) {
   MEA.courses = coursesModule.createCoursesModule({ MEA: MEA, document: doc });
   MEA.accounts = accountsModule.createAccountsModule({ MEA: MEA, document: doc });
   MEA.imports = importsModule.createImportsModule({ MEA: MEA, window: win, document: doc });
+  MEA.activityLog = activityLogModule.createActivityLogModule({ MEA: MEA, document: doc });
 
   const app = appModule.createAppController({
     MEA: MEA,
@@ -167,6 +182,21 @@ function createFrontend(dom, stateOverrides) {
  * @returns {Array<Object>} 夾具清單
  */
 function collectFixtures() {
+  const activityLogRow = {
+    timestamp: "2026-11-19 10:00:00",
+    requestId: "req-001",
+    category: "write",
+    action: "儲存系統設定",
+    result: "success",
+    email: "admin@example.edu.tw",
+    name: "測試管理員",
+    role: "系統管理員",
+    summary: "儲存系統設定",
+    detail: '{"版本":1,"動作":"saveSystemSettings","指標":{},"變動":[]}',
+    durationMs: 12,
+    errorCode: ""
+  };
+
   const definitions = [
     { name: "login", state: { view: "login" } },
     { name: "login-error", state: { view: "login", loginError: "工作階段已過期，請重新登入" } },
@@ -194,6 +224,74 @@ function collectFixtures() {
           loading: false,
           saving: false
         }
+      }
+    },
+    {
+      name: "activity-log",
+      state: {
+        view: "ready",
+        tab: "activityLog",
+        activityLog: {
+          list: [activityLogRow],
+          total: 1,
+          page: 1,
+          pageSize: 50,
+          totalPages: 1,
+          startDate: "2026-11-13",
+          endDate: "2026-11-19",
+          email: "",
+          category: "",
+          loading: false,
+          expanded: {}
+        }
+      }
+    },
+    {
+      name: "activity-log-expanded",
+      state: {
+        view: "ready",
+        tab: "activityLog",
+        activityLog: {
+          list: [activityLogRow],
+          total: 1,
+          page: 1,
+          pageSize: 50,
+          totalPages: 1,
+          startDate: "2026-11-13",
+          endDate: "2026-11-19",
+          email: "",
+          category: "",
+          loading: false,
+          expanded: { "req-001": true }
+        }
+      }
+    },
+    {
+      name: "activity-log-empty",
+      state: {
+        view: "ready",
+        tab: "activityLog",
+        activityLog: {
+          list: [],
+          total: 0,
+          page: 1,
+          pageSize: 50,
+          totalPages: 1,
+          startDate: "2026-11-13",
+          endDate: "2026-11-19",
+          email: "",
+          category: "",
+          loading: false,
+          expanded: {}
+        }
+      }
+    },
+    {
+      name: "activity-log-guard",
+      state: {
+        view: "ready",
+        tab: "activityLog",
+        user: { email: "viewer@example.edu.tw", role: "viewer", roleName: "檢視人員" }
       }
     },
     {
