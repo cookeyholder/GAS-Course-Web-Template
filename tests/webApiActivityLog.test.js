@@ -345,4 +345,96 @@ console.log("13. 日誌附加失敗不影響原本回應...");
   console.log("   ✓ 附加失敗不阻斷驗證通過！\n");
 }
 
+console.log("14. 寫入動作應擷取 before/after 並只傳遞白名單投影 payload...");
+{
+  const calls = [];
+  const rows = [];
+  let captureIndex = 0;
+  const fakeBuilders = {
+    captureBefore: function () {
+      const snapshot = "snap-" + captureIndex;
+      captureIndex += 1;
+      calls.push(["capture", snapshot]);
+      return snapshot;
+    },
+    projectPayload: function (payload) {
+      const projected = {};
+      if (payload && payload.action) projected.action = payload.action;
+      return projected;
+    },
+    describe: function (detailKey, before, after, payload, result) {
+      calls.push(["describe", detailKey, before, after, payload]);
+      return { 版本: 1, 動作: payload.action, 指標: {}, 變動: [] };
+    }
+  };
+  withGlobals({ activityLogBuilders: fakeBuilders }, function () {
+    withOverrides(
+      {
+        appendActivityLog: function (record) {
+          rows.push(record);
+        },
+        routeWebApiAction: function () {
+          return { ok: true };
+        }
+      },
+      function () {
+        api.executeWebApi(
+          {
+            action: "saveSystemSettings",
+            token: "SECRET-TOKEN",
+            rows: [["RAW-ROW"]],
+            settings: { schoolYear: "115" }
+          },
+          {}
+        );
+      }
+    );
+  });
+  assert.deepStrictEqual(calls[0], ["capture", "snap-0"]);
+  assert.deepStrictEqual(calls[1], ["capture", "snap-1"]);
+  assert.strictEqual(calls[2][0], "describe");
+  assert.strictEqual(calls[2][1], "systemSettings");
+  assert.strictEqual(calls[2][2], "snap-0");
+  assert.strictEqual(calls[2][3], "snap-1");
+  assert.deepStrictEqual(calls[2][4], { action: "saveSystemSettings" });
+  assert.strictEqual(rows.length, 1);
+  const detailText = rows[0].detail;
+  assert(detailText.indexOf("版本") !== -1);
+  assert.strictEqual(detailText.indexOf("SECRET-TOKEN"), -1);
+  assert.strictEqual(detailText.indexOf("RAW-ROW"), -1);
+  console.log("   ✓ before/after 與白名單投影驗證通過！\n");
+}
+
+console.log("15. 例外動作不應擷取快照...");
+{
+  let captureCalls = 0;
+  const fakeBuilders = {
+    captureBefore: function () {
+      captureCalls += 1;
+      return null;
+    },
+    projectPayload: function (payload) {
+      return payload || {};
+    },
+    describe: function () {
+      return { 版本: 1, 指標: {}, 變動: [] };
+    }
+  };
+  withGlobals({ activityLogBuilders: fakeBuilders }, function () {
+    withOverrides(
+      {
+        appendActivityLog: function () {},
+        routeWebApiAction: function () {
+          return { ok: true };
+        }
+      },
+      function () {
+        api.executeWebApi({ action: "ping" }, {});
+      }
+    );
+  });
+  assert.strictEqual(captureCalls, 0);
+  console.log("   ✓ 例外動作略過驗證通過！\n");
+}
+
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");

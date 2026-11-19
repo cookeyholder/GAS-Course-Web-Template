@@ -1133,6 +1133,48 @@ function resolveActivityLogModule_(name, modulePath) {
 const ACTIVITY_LOG_EXCLUDED_ACTIONS = ["ping", "getPublicConfig", "getActivityLog"];
 
 /**
+ * 取得動作的日誌中繼資料；未登錄動作（例如解析失敗）使用預設值以確保仍寫入日誌。
+ *
+ * @param {string} action - 動作名稱
+ * @returns {Object} 日誌中繼資料
+ */
+function getActivityLogMeta_(action) {
+  return ACTION_REGISTRY.getActionMeta(action) || {
+    category: "query",
+    label: action || "未識別動作",
+    detailKey: "none",
+    enabled: true
+  };
+}
+
+/**
+ * 判斷動作是否應寫入日誌。
+ *
+ * @param {string} action - 動作名稱
+ * @param {Object} meta - 日誌中繼資料
+ * @returns {boolean} 是否寫入
+ */
+function shouldLogActivity_(action, meta) {
+  return ACTIVITY_LOG_EXCLUDED_ACTIONS.indexOf(action) === -1 && meta.enabled !== false;
+}
+
+/**
+ * 呼叫詳情產生器的 snapshots 擷取函式（若定義）。
+ *
+ * @param {Object} meta - 日誌中繼資料
+ * @returns {*} 變動前／後快照或 null
+ */
+function captureActivityLogSnapshot_(meta) {
+  const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
+  if (!builders || typeof builders.captureBefore !== "function") return null;
+  try {
+    return builders.captureBefore(meta.detailKey, getRouteSpreadsheet_());
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
  * 建立請求層級的日誌 context。
  * 身分欄位一開始保持空白，待授權結果或登入結果回傳後再補寫。
  *
@@ -1212,14 +1254,21 @@ function buildActivityLogSummary_(context, meta, result) {
  * @param {Object} meta - 動作日誌中繼資料
  * @param {Object} payload - 請求 payload（僅供詳情產生器取白名單欄位）
  * @param {Object} result - action 回傳結果
+ * @param {*} [before] - 變動前快照
+ * @param {*} [after] - 變動後快照
  * @returns {Object} 12 欄日誌紀錄
  */
-function buildActivityLogRecord_(context, meta, payload, result) {
+function buildActivityLogRecord_(context, meta, payload, result, before, after) {
   const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
   let detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
   if (builders && typeof builders.describe === "function") {
     try {
-      detail = builders.describe(meta.detailKey, null, null, payload || {}, result || {});
+      // 攔截器只傳遞白名單投影，即使產生器日後改變也不會接觸敏感欄位。
+      const safePayload =
+        builders && typeof builders.projectPayload === "function"
+          ? builders.projectPayload(payload || {})
+          : payload || {};
+      detail = builders.describe(meta.detailKey, before, after, safePayload, result || {});
     } catch (error) {
       // 詳情產生失敗時保留最小可用的版本化結構
     }
@@ -1265,6 +1314,9 @@ function executeWebApi(payload, event) {
   let lock = null;
   let hasLock = false;
   let finalResult = null;
+  let actionMeta = null;
+  let beforeSnapshot = null;
+  let afterSnapshot = null;
   const finish_ = function (result) {
     finalResult = result;
     if (result && result.ok === false && !context.errorCode) {
@@ -1291,6 +1343,11 @@ function executeWebApi(payload, event) {
     if (action === "") {
       context.errorCode = "missing_action";
       return finish_(webApiError("missing_action", "缺少 action 參數"));
+    }
+
+    actionMeta = getActivityLogMeta_(action);
+    if (shouldLogActivity_(action, actionMeta)) {
+      beforeSnapshot = captureActivityLogSnapshot_(actionMeta);
     }
 
     // 先取得一次授權結果供日誌 context 使用，並直接交給路由，避免重複授權。
@@ -1321,6 +1378,9 @@ function executeWebApi(payload, event) {
         ? module.exports.routeWebApiAction
         : routeWebApiAction;
     const result = routeFn(action, payload, event, authorization);
+    if (actionMeta && shouldLogActivity_(action, actionMeta)) {
+      afterSnapshot = captureActivityLogSnapshot_(actionMeta);
+    }
     if (
       (action === "login" || action === "loginWithActiveUser") &&
       result &&
@@ -1342,28 +1402,29 @@ function executeWebApi(payload, event) {
       }
     }
     // 統一日誌寫入必須在解鎖之後，且不得再次取得同一把 Script Lock。
-    if (ACTIVITY_LOG_EXCLUDED_ACTIONS.indexOf(context.action) === -1) {
-      const meta = ACTION_REGISTRY.getActionMeta(context.action) || {
-        category: "query",
-        label: context.action || "未識別動作",
-        detailKey: "none",
-        enabled: true
-      };
-      if (meta.enabled !== false) {
-        const loggerModule = resolveActivityLogModule_("activityLogger", "./activityLogger.js");
-        const appendFn = getOverridableApiFn_(
-          "appendActivityLog",
-          loggerModule ? loggerModule.appendActivityLog : null
-        );
-        if (typeof appendFn === "function") {
-          try {
-            appendFn(
-              buildActivityLogRecord_(context, meta, payload, finalResult),
-              getRouteSpreadsheet_()
-            );
-          } catch (error) {
-            console.error("寫入操作日誌失敗：", error && error.message ? error.message : error);
-          }
+    // 解析失敗或缺少 action 時仍須寫入，故補上預設中繼資料。
+    if (!actionMeta) actionMeta = getActivityLogMeta_(context.action);
+    if (actionMeta && shouldLogActivity_(context.action, actionMeta)) {
+      const loggerModule = resolveActivityLogModule_("activityLogger", "./activityLogger.js");
+      const appendFn = getOverridableApiFn_(
+        "appendActivityLog",
+        loggerModule ? loggerModule.appendActivityLog : null
+      );
+      if (typeof appendFn === "function") {
+        try {
+          appendFn(
+            buildActivityLogRecord_(
+              context,
+              actionMeta,
+              payload,
+              finalResult,
+              beforeSnapshot,
+              afterSnapshot
+            ),
+            getRouteSpreadsheet_()
+          );
+        } catch (error) {
+          console.error("寫入操作日誌失敗：", error && error.message ? error.message : error);
         }
       }
     }
