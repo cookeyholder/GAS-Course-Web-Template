@@ -1693,22 +1693,17 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  let payload;
+  let payload = null;
   try {
     const parseFn = getOverridableApiFn_("parseWebApiPayload", parseWebApiPayload);
     payload = parseFn(e);
   } catch (error) {
-    return jsonResponse(webApiError("invalid_json", "請求 JSON 格式錯誤"));
-  }
-  if (payload === null) {
-    return jsonResponse(webApiError("invalid_json", "請求 JSON 格式錯誤"));
+    // 解析例外不提前回傳；改由 executeWebApi 的 try／finally 統一寫入失敗日誌
+    payload = null;
   }
 
-  const action = String(payload.action || (e && e.parameter && e.parameter.action) || "").trim();
-  if (action === "") {
-    return jsonResponse(webApiError("missing_action", "缺少 action 參數"));
-  }
-
+  // null／非物件 payload 與缺少 action 皆由 executeWebApi 判定並回傳對應錯誤，
+  // 如此兩條 HTTP 失敗路徑也能進入最外層日誌攔截。
   const execFn = getOverridableApiFn_("executeWebApi", executeWebApi);
   return jsonResponse(execFn(payload, e));
 }

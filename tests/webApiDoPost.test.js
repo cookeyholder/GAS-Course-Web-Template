@@ -145,4 +145,45 @@ console.log("7. executeWebApi 回傳錯誤物件時應原樣包裝回應...");
   console.log("   ✓ 錯誤回應透傳驗證通過！\n");
 }
 
+console.log("8. 解析失敗與缺少 action 兩條路徑應各寫入一列失敗日誌...");
+{
+  const written = [];
+  withStubbed(
+    api,
+    "appendActivityLog",
+    function (record) {
+      written.push(record);
+    },
+    function () {
+      // 路徑一：parseWebApiPayload 拋出例外
+      withStubbed(
+        api,
+        "parseWebApiPayload",
+        function () {
+          throw new Error("boom");
+        },
+        function () {
+          const r = api.doPost({ postData: { contents: "{}" } });
+          assert.strictEqual(r.ok, false);
+          assert.strictEqual(r.error, "invalid_json");
+        }
+      );
+      // 路徑二：解析回傳 null（JSON 格式錯誤）
+      const invalid = api.doPost({ postData: { contents: "{bad json" } });
+      assert.strictEqual(invalid.error, "invalid_json");
+      // 路徑三：缺少 action
+      const missing = api.doPost({ postData: { contents: JSON.stringify({}) } });
+      assert.strictEqual(missing.error, "missing_action");
+    }
+  );
+  assert.strictEqual(written.length, 3, "三條失敗路徑應各寫入一列日誌");
+  assert(written.some(function (record) {
+    return record.errorCode === "invalid_json";
+  }), "應記錄 invalid_json 錯誤代碼");
+  assert(written.some(function (record) {
+    return record.errorCode === "missing_action";
+  }), "應記錄 missing_action 錯誤代碼");
+  console.log("   ✓ 失敗路徑寫入日誌驗證通過！\n");
+}
+
 console.log("✓ doPost 測試全數通過！\n");
