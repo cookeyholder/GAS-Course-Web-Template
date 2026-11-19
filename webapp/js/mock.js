@@ -200,14 +200,45 @@
       return { ok: true, rows: mockCoursesList.length };
     }
 
-    function createCourseIndex() {
+    /**
+     * 以與後端 getNormalizedCourses 相同的篩選與分頁規則查詢 mock 課程索引。
+     *
+     * @param {Object} [payload] - 查詢條件
+     * @returns {Object} `{ ok, list, total, page, pageSize, totalPages }`
+     */
+    function createCourseIndex(payload) {
+      const source = payload || {};
+      const keyword = String(source.keyword || "")
+        .trim()
+        .toLowerCase();
+      const academicYear = String(source.academicYear || "").trim();
+      const semester = String(source.semester || "").trim();
+      const department = String(source.department || "").trim();
+      const matched = mockCoursesList.filter(function (course) {
+        if (academicYear !== "" && String(course.academicYear || "") !== academicYear) return false;
+        if (semester !== "" && String(course.semester || "") !== semester) return false;
+        if (department !== "" && String(course.department || "") !== department) return false;
+        if (keyword === "") return true;
+        const line = [course.courseCode, course.subjectName, course.department, course.group]
+          .map(function (value) {
+            return String(value || "");
+          })
+          .join(" ")
+          .toLowerCase();
+        return line.indexOf(keyword) !== -1;
+      });
+      const page = Math.max(1, parseInt(source.page, 10) || 1);
+      const pageSize = Math.max(1, Math.min(200, parseInt(source.pageSize, 10) || 50));
+      const total = matched.length;
+      const totalPages = Math.ceil(total / pageSize) || 1;
+      const start = (page - 1) * pageSize;
       return {
         ok: true,
-        list: mockCoursesList,
-        total: mockCoursesList.length,
-        page: 1,
-        pageSize: 50,
-        totalPages: 1
+        list: matched.slice(start, start + pageSize),
+        total: total,
+        page: page,
+        pageSize: pageSize,
+        totalPages: totalPages
       };
     }
 
