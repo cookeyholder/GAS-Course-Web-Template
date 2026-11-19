@@ -66,6 +66,10 @@
 
 淺色與深色模式一般文字對比 MUST 至少 4.5:1，UI 元件與焦點指標對比 MUST 至少 3:1。`--ink-3` MUST 調整至符合 4.5:1；`.input:focus`／`.select:focus` 的 outline MUST 使用高對比色（如 `--accent`），不得使用低對比的 `--accent-bg` 覆蓋通用 `:focus-visible`。錯誤與警告 Toast MUST 設 `role="alert"`。`scripts/checkContrast.js` MUST 同時檢查深色模式文字與主要前景／背景組合，並能偵測回退。
 
+#### Scenario: 次要文字通過 AA
+- **WHEN** 以 WCAG 公式計算淺色 `--ink-3` 對背景與卡片色的對比
+- **THEN** 兩者皆 ≥ 4.5:1
+
 #### Scenario: 深色文字通過 AA
 - **WHEN** 以 WCAG 公式計算深色主題主要文字對背景與卡片的對比
 - **THEN** 兩者皆 ≥ 4.5:1
