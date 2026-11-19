@@ -486,13 +486,21 @@
                 <td><code>staff</code></td>
                 <td>業務人員</td>
                 <td>業務讀寫權限</td>
-                <td><code>["read", "importCourseCodes", "getCourseIndex"]</code></td>
+                <td>
+                  <code
+                    >["getSession", "logout", "getCourseIndex", "getCourseIndexStats", "getSystemSettings",
+                    "importCourseCodes"]</code
+                  >
+                </td>
               </tr>
               <tr>
                 <td><code>viewer</code></td>
                 <td>檢視人員</td>
                 <td>唯讀查詢權限</td>
-                <td><code>["read", "getCourseIndex"]</code>（僅能檢索公開清單）</td>
+                <td>
+                  <code>["getSession", "logout", "getCourseIndex", "getCourseIndexStats", "getSystemSettings"]</code
+                  >（僅能檢索與讀取設定，無法匯入或修改）
+                </td>
               </tr>
             </tbody>
           </table>
@@ -502,30 +510,38 @@
         <section class="section" id="step1">
           <h2 class="section-title"><span class="step-num">2</span> 步驟一：在後端定義角色與中文名稱</h2>
           <p>
-            所有角色定義集中於 <code>databaseInitializer.js</code>。若要新增角色（例如
-            <code>manager</code> 主管），請在此加入定義與標準化比對邏輯：
+            中文角色名稱集中於 <code>gasRuntime.js</code> 的 <code>ROLE_DEFINITIONS</code>，供後端各模組共用；<code
+              >databaseInitializer.js</code
+            >
+            的 <code>normalizeRole()</code> 會參照該定義，同時接受中文名稱與英文代碼。若要新增角色（例如
+            <code>manager</code> 主管），請在 <code>gasRuntime.js</code> 加入定義，並於
+            <code>normalizeRole()</code> 增加比對：
           </p>
 
           <div class="code-box">
             <div class="code-header">
-              <span>databaseInitializer.js (約第 36 行)</span>
+              <span>gasRuntime.js（角色名稱單一來源）</span>
               <button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
             </div>
-            <pre><code>/** 授權角色定義 */
-const ROLE_DEFINITIONS = {
+            <pre><code>const ROLE_DEFINITIONS = {
   admin: "系統管理員",
   manager: "主管人員",   // 👈 1. 新增角色代碼與中文標籤
   staff: "業務人員",
   viewer: "檢視人員"
-};
+};</code></pre>
+          </div>
 
-/** 角色名稱轉代碼標準化 */
-function normalizeRole(role) {
+          <div class="code-box">
+            <div class="code-header">
+              <span>databaseInitializer.js（標準化比對）</span>
+              <button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
+            </div>
+            <pre><code>function normalizeRole(role) {
   const r = String(role || "").trim().toLowerCase();
-  if (r === "系統管理員" || r === "admin") return "admin";
-  if (r === "主管人員" || r === "manager") return "manager"; // 👈 2. 支援中文與英文代碼比對
-  if (r === "業務人員" || r === "staff") return "staff";
-  if (r === "檢視人員" || r === "viewer") return "viewer";
+  if (r === ROLE_DEFINITIONS.admin || r === "admin") return "admin";
+  if (r === ROLE_DEFINITIONS.manager || r === "manager") return "manager"; // 👈 2. 支援中文與英文比對
+  if (r === ROLE_DEFINITIONS.staff || r === "staff") return "staff";
+  if (r === ROLE_DEFINITIONS.viewer || r === "viewer") return "viewer";
   return r || "viewer";
 }</code></pre>
           </div>
@@ -542,41 +558,44 @@ function normalizeRole(role) {
         <section class="section" id="step2">
           <h2 class="section-title"><span class="step-num">3</span> 步驟二：設定後端權限矩陣 (ROLE_PERMISSIONS)</h2>
           <p>
-            開啟 <code>webApi.js</code>，在 <code>ROLE_PERMISSIONS</code> 中明確列出該角色被允許呼叫的 API Action 名稱：
+            所有 action 與角色允許清單集中於 <code>actionRegistry.js</code> 的 <code>ACTIONS</code> 登錄表；<code
+              >webApi.js</code
+            >
+            的 <code>ROLE_PERMISSIONS</code>、公開／寫入／鎖定 action 清單皆由該表產生，不再手動維護多份陣列。新增
+            action 時必須同時完成登錄、路由與前端 mock handler，否則一致性測試會失敗。
           </p>
 
           <div class="code-box">
             <div class="code-header">
-              <span>webApi.js (約第 42 行)</span>
+              <span>actionRegistry.js（action 登錄表）</span>
               <button class="copy-btn" onclick="copyCode(this)">複製程式碼</button>
             </div>
-            <pre><code>/** 角色權限矩陣（RBAC） */
-const ROLE_PERMISSIONS = {
-  admin: ["*"], // 星號代表具備最高權限，可呼叫任何 Action
-  manager: [    // 👈 主管專屬權限名單
-    "read",
-    "getCourseIndex",
-    "getSystemSettings",
-    "exportReports"    // 假設新增的匯出功能 Action
-  ],
-  staff: [
-    "read",
-    "importCourseCodes", // 允許寫入課程代碼
-    "getCourseIndex",
-    "getSystemSettings"
-  ],
-  viewer: [
-    "read",              // 僅唯讀
-    "getCourseIndex"
-  ]
-};</code></pre>
+            <pre><code>const ACTIONS = {
+  ping: { public: true },
+  getPublicConfig: { public: true },
+  login: { public: true },
+  loginWithActiveUser: { public: true },
+  getSession: { roles: ALL_ROLES },
+  logout: { write: true, roles: ALL_ROLES },
+  importCourseCodes: { write: true, locked: true, roles: ["admin", "staff"] },
+  getCourseIndex: { roles: ALL_ROLES },
+  getCourseIndexStats: { roles: ALL_ROLES },
+  getSystemSettings: { roles: ALL_ROLES },
+  saveSystemSettings: { write: true, locked: true, roles: ["admin"] },
+  getAccounts: { roles: ["admin"] },
+  saveWhitelist: { write: true, locked: true, roles: ["admin"] }
+};
+
+// webApi.js：由同一份登錄表產生，不需重複列舉
+const ROLE_PERMISSIONS = ACTION_REGISTRY.buildRolePermissions();</code></pre>
           </div>
 
           <div class="alert warn">
             <span
               >🔒 <strong>後端防護機制</strong>：所有請求抵達 <code>routeWebApiAction()</code> 前，均會經由
-              <code>authorizeWebApiAction()</code> 進行驗證。即便有心人士繞過前端直接發送
-              POST，只要角色權限不符，後端一律回傳 <code>{ ok: false, error: "forbidden" }</code>。</span
+              <code>authorizeWebApiAction()</code> 進行驗證。角色權限採明確 action 列舉，不再以
+              <code>getXxx</code> 通配規則自動授權；未登錄的 action 會直接回傳
+              <code>unknown_action</code>，角色不符則回傳 <code>{ ok: false, error: "forbidden" }</code>。</span
             >
           </div>
         </section>
@@ -646,6 +665,14 @@ if (!canImport) {
         <!-- Section 5 -->
         <section class="section" id="step4">
           <h2 class="section-title"><span class="step-num">5</span> 步驟四：指派使用者角色</h2>
+          <div class="alert info">
+            <span
+              >💡
+              <strong>首次管理員開通</strong>：初始化後白名單為空時，登入鏈會在明確允許開通的條件下，讓第一位成功驗證的
+              Google
+              帳號成為系統管理員；寫入於短鎖臨界區完成並再次確認白名單仍為空，避免並發搶占。後續角色調整請由管理員在此頁籤或試算表為之。</span
+            >
+          </div>
           <p>您可以透過兩種途徑指派與調整使用者的角色：</p>
           <ol>
             <li>
@@ -670,7 +697,7 @@ if (!canImport) {
           </p>
 
           <p>
-            <strong>1. 修改 <code>databaseInitializer.js</code>：</strong>
+            <strong>1. 修改 <code>gasRuntime.js</code> 的 <code>ROLE_DEFINITIONS</code>：</strong>
           </p>
           <div class="code-box">
             <pre><code>const ROLE_DEFINITIONS = {
@@ -682,14 +709,25 @@ if (!canImport) {
           </div>
 
           <p>
-            <strong>2. 修改 <code>webApi.js</code>：</strong>
+            <strong
+              >2. 修改 <code>databaseInitializer.js</code> 的 <code>normalizeRole()</code>，並在
+              <code>actionRegistry.js</code> 的 <code>ALL_ROLES</code> 與各 action 的 <code>roles</code> 加入
+              <code>auditor</code>：</strong
+            >
           </p>
           <div class="code-box">
-            <pre><code>const ROLE_PERMISSIONS = {
-  admin: ["*"],
-  auditor: ["read", "getCourseIndex", "getSystemSettings"], // 👈 允許唯讀設定與課程
-  staff: ["read", "importCourseCodes", "getCourseIndex", "getSystemSettings"],
-  viewer: ["read", "getCourseIndex"]
+            <pre><code>const ALL_ROLES = ["admin", "auditor", "staff", "viewer"];
+
+const ACTIONS = {
+  getCourseIndex: { roles: ALL_ROLES },       // 👈 稽核主管可查課程
+  getCourseIndexStats: { roles: ALL_ROLES },
+  getSystemSettings: { roles: ALL_ROLES },    // 👈 稽核主管可讀設定
+  getSession: { roles: ALL_ROLES },
+  logout: { write: true, roles: ALL_ROLES },
+  importCourseCodes: { write: true, locked: true, roles: ["admin", "staff"] }, // 稽核主管不可匯入
+  saveSystemSettings: { write: true, locked: true, roles: ["admin"] },
+  getAccounts: { roles: ["admin"] },
+  saveWhitelist: { write: true, locked: true, roles: ["admin"] }
 };</code></pre>
           </div>
 

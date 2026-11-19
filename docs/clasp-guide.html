@@ -693,9 +693,13 @@ npm run push
             <p>在頻繁修改程式碼時，可以開啟監聽模式：</p>
             <div class="code-box">
               <pre><code>npm run watch
-# 或：clasp push --watch</code></pre>
+# 等同於：npm run build:webapp &amp;&amp; clasp push --watch</code></pre>
             </div>
-            <p>只要檔案一存檔，clasp 就會自動將異動同步至雲端，免去手動輸入指令的繁瑣。</p>
+            <p>
+              <code>npm run watch</code> 會先打包前端一次，再進入監聽模式；日後若修改
+              <code>webapp/</code> 內的樣式或模組，請重新執行建置（或重新啟動監聽），讓根目錄 <code>index.html</code>
+              更新後再由 clasp 推送，避免雲端仍使用舊的打包產物。
+            </p>
           </div>
 
           <div class="step-box">

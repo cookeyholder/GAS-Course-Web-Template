@@ -19,17 +19,20 @@ GAS-Course-Web-Template/
 ├── package.json                # npm 腳本與相依套件設定
 │
 ├── main.js                     # Google 試算表容器選單 (onOpen、初始化工作表、開啟 Web App)
-├── databaseInitializer.js     # 資料庫純資料工作表初始化（系統設定與授權、課程索引、說明；含登入網域等設定欄位）
-├── subjectCodeTransformer.js   # 108 課綱代碼對照字典、1NF 正規化展開與分頁查詢函式
+├── gasRuntime.js               # GAS/Node 單一相依解析、白名單注入、工作表名稱／角色定義／API 版本號來源
+├── actionRegistry.js           # Web API action 單一登錄來源（公開／寫入／鎖定清單與 RBAC 矩陣）
+├── courseNormalizationShared.js # 前後端共用之 108 課綱常數與 1NF 正規化純函式
+├── databaseInitializer.js      # 資料庫純資料工作表初始化（系統設定與授權、課程索引、說明；含登入網域等設定欄位）
+├── subjectCodeTransformer.js   # 108 課綱 1NF 正規化展開、分頁查詢與試算表寫入（共用模組由 courseNormalizationShared.js 提供）
 ├── webApi.js                   # API 路由總管與 executeWebApi 共用入口（RPC/doPost）、雙軌登入、OAuth 回呼、Session/CSRF、RBAC、LockService
 ├── utilities.js                # 儲存格安全格式化、公式注入防護 (sanitizeFormulaValue)、通用工具
 │
 ├── webapp/                     # 前端原始碼目錄 (模組化開發，便於維護)
-│   ├── index.html              # HTML 骨架與建置標記 (BUILD:CSS、BUILD:JS)
+│   ├── index.html              # HTML 骨架與建置標記 (BUILD:CSS、BUILD:JS；本機 mock 開發入口)
 │   ├── styles.css              # 多風格 CSS 設計系統 (13 款風格、通用卡片/導覽、深色模式高對比度校正)
 │   └── js/
-│       ├── config.js           # 前端全域設定、分頁導覽與樣式清單
-│       ├── courseData.js       # 前端代碼對照字典與 1NF 正規化預覽計算
+│       ├── config.js           # 前端全域設定、API 端點白名單、分頁導覽與樣式清單
+│       ├── courseData.js       # 轉發共用正規化模組，供前端 1NF 即時預覽計算
 │       ├── mock.js             # 本機離線開發測試 Mock API 模擬器（前端攔截，含登入/CSRF/公開設定相容欄位）
 │       ├── api.js              # API 客戶端（RPC 優先 + fetch 備援、自動夾帶 Token/CSRF、暫時性錯誤重試）
 │       ├── state.js            # 響應式狀態容器 (State Store) 與訂閱發布機制
@@ -47,6 +50,8 @@ GAS-Course-Web-Template/
 │   ├── checkCoverage.js        # 全域覆蓋率量測（c8）與不回退檢查
 │   ├── checkChangedCoverage.js # 變更覆蓋率檢查（diff + lcov）
 │   ├── checkComplexity.js      # 函式 CRAP 與模組 MI 檢查
+│   ├── checkUiClasses.js       # JS 使用的 class 必須存在於 CSS 之對齊檢查
+│   ├── checkContrast.js        # UI 色彩對比度（WCAG）檢查
 │   └── languageCheck.js        # 臺灣繁體中文與禁用詞檢查
 │
 ├── docs/                       # 技術與教學文件目錄 (HTML 離線說明文件)
@@ -138,15 +143,15 @@ npm run deploy
 
 本範本支援在無需連線 Google Apps Script 伺服器的情況下直接進行前端開發與樣式調整：
 
-1. 執行打包：
-   ```bash
-   npm run build:webapp
-   ```
-2. 直接在任何瀏覽器開啟根目錄之 `index.html`，並於網址列加上 `?mock=true`：
+1. 直接在瀏覽器開啟**開發原始檔** `webapp/index.html`，並於網址列加上 `?mock=true`：
    ```text
-   file:///path/to/GAS-Course-Web-Template/index.html?mock=true
+   file:///path/to/GAS-Course-Web-Template/webapp/index.html?mock=true
    ```
-3. 系統將自動啟用 `webapp/js/mock.js` 模擬器，提供完整的模擬登入、課程清單瀏覽、檔案上傳與設定儲存操作。所有的 Mock 身分驗證均由前端模擬器攔截，線上後端環境不留任何測試後門。
+   若使用本機伺服器，可改以 `http://localhost:8080/webapp/index.html?mock=true` 開啟。
+2. 系統將自動啟用 `webapp/js/mock.js` 模擬器，提供完整的模擬登入、課程索引篩選與分頁、檔案上傳預覽與設定儲存操作。所有的 Mock 身分驗證均由前端模擬器攔截，後端不留任何測試後門。
+3. **正式建置產物根目錄 `index.html` 會忽略 `?mock=true`**：`scripts/build-webapp.js` 注入 `MEA_PRODUCTION_BUILD` 標記，`config.js` 據此停用 Mock 模式，避免部署後仍可切換假資料。若要在打包產物上驗證 Mock，請使用開發原始檔（上述步驟 1）。
+
+> **提醒**：Mock 已與後端 API 回應形狀對齊（`getCourseIndex` 支援 `keyword`、`academicYear`、`semester`、`department`、`page`、`pageSize`），適合驗證介面流程；正式功能仍需在 GAS 環境完成整合驗證。
 
 ---
 
@@ -168,6 +173,10 @@ npm run format
 
 # 語言規範檢查（臺灣繁體中文 zh-TW）
 npm run check:lang
+
+# UI class 與 CSS 對齊、WCAG 對比度檢查
+npm run check:ui-classes
+npm run check:contrast
 
 # 測試覆蓋率量測與檢查（c8，產出 text/lcov/json/json-summary）
 npm run test:coverage
@@ -201,7 +210,7 @@ npm run build:webapp
 
 ### CI 品質閘門行為
 
-`.github/workflows/quality-gates.yml`（Quality Gates）在每次推送與 Pull Request 時，以 Node 24 依序執行：checkout（取得完整 Git 歷史供變更覆蓋率比對）、安裝相依（CI 環境略過 Husky 初始化）、`format:check`、`check:lang`、`npm test`、`check:coverage`、`check:complexity`、`check:changed-coverage`。任一步驟失敗即阻擋合併；所有步驟都可在本機以同名 npm 指令重現。
+`.github/workflows/quality-gates.yml`（Quality Gates）在每次推送與 Pull Request 時，以 Node 24 依序執行：checkout（取得完整 Git 歷史供變更覆蓋率比對）、安裝相依（CI 環境略過 Husky 初始化）、`format:check`、`check:lang`、`check:ui-classes`、`check:contrast`、建置產物一致性（`npm run build:webapp` 後 `git diff --exit-code -- index.html`）、`npm test`、`check:coverage`、`check:complexity`、`check:changed-coverage`。任一步驟失敗即阻擋合併；所有步驟都可在本機以同名 npm 指令重現。
 
 相依套件由 `package-lock.json` 鎖定，CI 使用 `npm ci --ignore-scripts || npm install --ignore-scripts` 安裝並搭配 npm cache；SheetJS 於前端由 CDN 動態載入，故不列為 npm 相依。
 
@@ -242,19 +251,28 @@ npm run build:webapp
 
 - **一般網頁環境**：前端載入 Google Identity Services（GIS）並取得 ID Token，呼叫後端 `login` 驗證後建立 Session。
 - **GAS 容器環境**：前端可透過 AccountChooser / `switch=1` 流程呼叫 `loginWithActiveUser`，避免沙箱 `origin_mismatch` 對 GIS 彈窗的限制。
-- **授權碼回呼（選用）**：`doGet` 可處理 OAuth 授權碼回呼並注入 `INITIAL_AUTH`，由前端啟動流程接手還原登入狀態（需正確設定 Client ID/Secret 與重新導向 URI）。
-- 後端驗證 Google ID Token（`iss`、`email_verified`、`aud`）並支援可選登入網域限制；登入與授權仍套用白名單、停用狀態與首次管理員開通規則。
+- **授權碼回呼（選用）**：`doGet` 可處理 OAuth 授權碼回呼並注入 `INITIAL_AUTH`，由前端啟動流程接手還原登入狀態（需正確設定 Client ID/Secret 與重新導向 URI）。回呼 `state` 攜帶前端產生的一次性 nonce，後端以 `CacheService` 消耗並比對 `redirectUri`，重放或不符即拒絕。
+- 後端驗證 Google ID Token（`iss`、`email_verified`、`aud`、`exp`、`iat`，含合理時差容忍）並支援可選登入網域限制（大小寫一致正規化）；登入與授權仍套用白名單、停用狀態與首次管理員開通規則。首次開通僅在明確 `allowBootstrap` 且白名單為空時，於短鎖臨界區再次確認後寫入。
 - 登入後核發 Session Token 與 CSRF Token（`CacheService`，預設 6 小時）；寫入型 action 需驗證 CSRF。
-- 前端 API 於 GAS 容器優先使用 `google.script.run.executeWebApi`（RPC），非容器環境以 `POST text/plain;charset=utf-8` 備援並對暫時性錯誤進行重試。
+- 前端 API 於 GAS 容器優先使用 `google.script.run.executeWebApi`（RPC），非容器環境以 `POST text/plain;charset=utf-8` 備援並對暫時性錯誤進行重試（jitter ±20%、總上限 10 秒，大型匯入停用自動重試並以 `importId` 冪等防重複寫入）。
+- 所有 action 由 `actionRegistry.js` 單一登錄來源產生公開／寫入／鎖定清單與 RBAC 矩陣；未登錄的 action 在路由層直接回傳 `unknown_action`。
 
 ### 3. 全方位資訊安全架構 (Security Hardening)
 
 - **試算表公式注入防護 (Formula Injection)**：
   在 `utilities.js` 提供 `sanitizeFormulaValue` 與 `sanitizeRowMatrix`，於寫入系統設定與白名單等試算表儲存格前，自動檢核開頭符號（`=`、`+`、`-`、`@`、`\t`、`\r`）並加上前置單引號，杜絕 CSV/試算表公式代碼注入攻擊。
 - **HTTP 方法白名單與 CSRF 防護**：
-  `doGet` 僅允許唯讀檢查等公開路徑，其餘操作需經受控 API 流程；寫入型 action 需驗證 CSRF Token，並搭配 Session 權限檢查與 `LockService` 併發保護。
+  `doGet` 僅允許唯讀檢查等公開路徑，其餘操作需經受控 API 流程；寫入型 action 需驗證 CSRF Token，並搭配 Session 權限檢查與 `LockService` 併發保護。RBAC 採明確 action 列舉（不支援 `getXxx` 通配授權），寫入動作依角色嚴格控管。
+- **API 端點白名單**：
+  前端僅接受同源、`GAS_WEBAPP_URL` 明確設定之端點、`https://script.google.com/macros/s/<id>/exec` 與本機開發端點；其他 `?api=` 值一律忽略，避免 Session／CSRF Token 外送至惡意站台。
+- **OAuth state nonce 一次性驗證**：
+  授權碼回呼的 `state` 由前端以 `sessionStorage` 保存 nonce 與 `redirectUri`；後端一次性消耗 nonce 並綁定重新導向 URI，外部 HTTP 交換權杖與 ID Token 驗證皆在取得鎖前完成，寫入鏈才進入 `LockService` 臨界區。
+- **匯入邊界防護**：
+  後端限制匯入列數／欄數上限，並驗證 `preNormalized` 為 14 欄二維陣列；寫入前套用 `sanitizeRowMatrix` 並設定 `@` 純文字格式，防堵公式注入與超大資料量逾時。
+- **第三方資源完整性**：
+  SheetJS CDN 固定單一版本 `0.20.3` 並附上 `integrity`（SRI）與 `crossorigin`，避免版本混用與CDN 內容遭竄改。
 - **後端無測試後門**：
-  Mock 模式僅由前端模擬器攔截（`?mock=true`），後端不提供未認證之測試登入後門。
+  Mock 模式僅由前端模擬器攔截，且正式建置產物忽略 `?mock=true`；後端不提供未認證之測試登入後門。
 - **DOM / XSS 注入防護**：
   前端涉及使用者 Email 等動態參數之行內事件，一律使用 `decodeURIComponent(encodeURIComponent(...))` 處理，阻斷字串跳脫崩潰與 XSS。
 

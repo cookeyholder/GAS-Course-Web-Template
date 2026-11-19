@@ -429,7 +429,7 @@
           <div class="flow-diagram">
             <div class="flow-node">
               <strong>開發階段</strong>
-              webapp/ 下 11 個 JS 模組與 styles.css
+              webapp/ 下 12 個 JS 模組與 styles.css，另與根目錄共用模組協作
             </div>
             <div class="flow-node">
               <strong>建置腳本</strong>
@@ -452,6 +452,17 @@
               <code>scripts/build-webapp.js</code> 是純原生 Node.js 腳本，透過簡單正規表達式將檔案內容逐一插入
               <code>&lt;style&gt;</code> 與 <code>&lt;script&gt;</code> 區塊，建置耗時不到 50
               毫秒，零相依、零設定負擔！</span
+            >
+          </div>
+
+          <div class="alert info">
+            <span
+              >🧩 <strong>單一來源模組</strong>：<code>gasRuntime.js</code> 統一 GAS／Node
+              相依解析、白名單全域注入與工作表／角色／版本號常數；<code>courseNormalizationShared.js</code>
+              由前後端共同引用，避免正規化規則漂移；<code>actionRegistry.js</code> 統一 action
+              登錄、公開／寫入／鎖定清單與 RBAC 矩陣。建置產物另注入
+              <code>MEA_PRODUCTION_BUILD</code> 標記以停用正式環境的 Mock 模式，CI
+              會檢查建置產物是否與原始碼一致。</span
             >
           </div>
         </section>
