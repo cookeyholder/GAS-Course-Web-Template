@@ -264,14 +264,90 @@
       return { ok: true, accounts: mockAccounts.slice() };
     }
 
+    /** 將毫秒時間戳記格式化為 Asia/Taipei 的 yyyy-MM-dd HH:mm:ss */
+    function formatMockTimestamp(ms) {
+      const shifted = new Date(ms + 8 * 60 * 60 * 1000);
+      return shifted.toISOString().slice(0, 19).replace("T", " ");
+    }
+
+    /** 建立相對於目前時間的示範日誌列（最近六小時內） */
+    function buildMockActivityRows() {
+      const now = nowFn();
+      return [
+        {
+          timestamp: formatMockTimestamp(now - 5 * 60 * 1000),
+          requestId: "mock-req-3",
+          category: "write",
+          action: "儲存系統設定",
+          result: "success",
+          email: "admin@example.com",
+          name: "測試管理員",
+          role: "系統管理員",
+          summary: "儲存系統設定成功",
+          detail: '{"版本":1,"動作":"saveSystemSettings","指標":{},"變動":[]}',
+          durationMs: 18,
+          errorCode: ""
+        },
+        {
+          timestamp: formatMockTimestamp(now - 90 * 60 * 1000),
+          requestId: "mock-req-2",
+          category: "auth",
+          action: "登入",
+          result: "success",
+          email: "admin@example.com",
+          name: "測試管理員",
+          role: "系統管理員",
+          summary: "登入成功",
+          detail: '{"版本":1,"動作":"login","指標":{},"變動":[]}',
+          durationMs: 6,
+          errorCode: ""
+        },
+        {
+          timestamp: formatMockTimestamp(now - 6 * 60 * 60 * 1000),
+          requestId: "mock-req-1",
+          category: "query",
+          action: "查詢課程代碼",
+          result: "failure",
+          email: "teacher@example.com",
+          name: "測試教師",
+          role: "業務人員",
+          summary: "查詢課程代碼失敗：forbidden",
+          detail: '{"版本":1,"動作":"getCourseIndex","指標":{},"變動":[]}',
+          durationMs: 3,
+          errorCode: "forbidden"
+        }
+      ];
+    }
+
     function getActivityLog(payload) {
       const options = payload || {};
+      const page = Math.max(1, Number(options.page) || 1);
+      const pageSize = Math.min(500, Math.max(1, Number(options.pageSize) || 50));
+      const startDate = String(options.startDate || "");
+      const endDate = String(options.endDate || "");
+      const email = String(options.email || "").trim().toLowerCase();
+      const category = String(options.category || "").trim();
+      const rows = buildMockActivityRows().filter(function (row) {
+        const day = row.timestamp.slice(0, 10);
+        if (startDate && day < startDate) return false;
+        if (endDate && day > endDate) return false;
+        if (email && row.email.toLowerCase().indexOf(email) === -1) return false;
+        if (category && row.category !== category) return false;
+        return true;
+      });
+      rows.sort(function (a, b) {
+        if (a.timestamp < b.timestamp) return 1;
+        if (a.timestamp > b.timestamp) return -1;
+        return 0;
+      });
       return {
         ok: true,
-        rows: [],
-        total: 0,
-        page: Number(options.page) || 1,
-        pageSize: Number(options.pageSize) || 50
+        rows: rows.slice((page - 1) * pageSize, page * pageSize),
+        total: rows.length,
+        page: page,
+        pageSize: pageSize,
+        startDate: startDate,
+        endDate: endDate
       };
     }
 

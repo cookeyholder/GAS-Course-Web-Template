@@ -356,12 +356,23 @@
       return callWithRetry(action, payload, callOptions);
     }
 
+    /**
+     * 查詢操作日誌：沿用共用的 call 通道，維持 text/plain;charset=utf-8 請求格式。
+     *
+     * @param {Object} [payload] - 查詢參數（日期區間、操作者、類別與分頁）
+     * @returns {Promise<Object>} 日誌查詢回應
+     */
+    function getActivityLog(payload) {
+      return call("getActivityLog", payload);
+    }
+
     return {
       getToken: getToken,
       setToken: setToken,
       getCsrfToken: getCsrfToken,
       setCsrfToken: setCsrfToken,
       call: call,
+      getActivityLog: getActivityLog,
       callWithRetry: callWithRetry,
       requestOnce: requestOnce,
       parseApiResponse: parseApiResponse

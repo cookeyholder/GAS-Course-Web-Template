@@ -314,6 +314,74 @@ function createMock(overrides) {
     console.log("   ✓ 輕量統計 Mock 驗證通過！\n");
   }
 
+  console.log("17. getActivityLog 應回傳示範日誌並支援分頁與篩選...");
+  {
+    const { mock } = createMock();
+    const all = await mock.handle("getActivityLog", {
+      startDate: "2000-01-01",
+      endDate: "2099-12-31"
+    });
+    assert.strictEqual(all.ok, true);
+    assert(all.rows.length >= 3, "應內建至少三筆示範日誌");
+    assert.strictEqual(all.total, all.rows.length);
+    assert.strictEqual(all.page, 1);
+    assert.strictEqual(all.pageSize, 50);
+    all.rows.forEach(function (row) {
+      assert(row.timestamp && row.requestId && row.action, "每筆日誌應具備必要欄位");
+      assert(row.detail && typeof row.detail === "string", "詳情應為 JSON 字串");
+      JSON.parse(row.detail);
+    });
+
+    const paged = await mock.handle("getActivityLog", {
+      startDate: "2000-01-01",
+      endDate: "2099-12-31",
+      page: 2,
+      pageSize: 2
+    });
+    assert.strictEqual(paged.rows.length, all.rows.length - 2);
+    assert.strictEqual(paged.page, 2);
+    assert.strictEqual(paged.pageSize, 2);
+
+    const byCategory = await mock.handle("getActivityLog", {
+      startDate: "2000-01-01",
+      endDate: "2099-12-31",
+      category: "auth"
+    });
+    assert(byCategory.rows.length >= 1);
+    byCategory.rows.forEach(function (row) {
+      assert.strictEqual(row.category, "auth");
+    });
+
+    const byEmail = await mock.handle("getActivityLog", {
+      startDate: "2000-01-01",
+      endDate: "2099-12-31",
+      email: "teacher@example.com"
+    });
+    assert.strictEqual(byEmail.rows.length, 1);
+    assert.strictEqual(byEmail.rows[0].result, "failure");
+    assert.strictEqual(byEmail.rows[0].errorCode, "forbidden");
+
+    const outOfRange = await mock.handle("getActivityLog", {
+      startDate: "2000-01-01",
+      endDate: "2000-01-02"
+    });
+    assert.strictEqual(outOfRange.rows.length, 0);
+    assert.strictEqual(outOfRange.total, 0);
+    console.log("   ✓ 示範日誌、分頁與篩選驗證通過！\n");
+  }
+
+  console.log("18. getActivityLog 分頁上限應限制為 500...");
+  {
+    const { mock } = createMock();
+    const result = await mock.handle("getActivityLog", {
+      startDate: "2000-01-01",
+      endDate: "2099-12-31",
+      pageSize: 9999
+    });
+    assert.strictEqual(result.pageSize, 500);
+    console.log("   ✓ 分頁上限驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/mock.js 測試全數通過！\n");
 })().catch(function (error) {
   console.error(error);
