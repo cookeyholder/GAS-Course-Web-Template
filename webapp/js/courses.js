@@ -386,15 +386,19 @@
       return (
         '<div class="filter-bar">' +
         '  <form class="filter-form" onsubmit="MEA.courses.handleSearch(event)">' +
+        '    <label class="sr-only" for="courseSearchKeyword">搜尋關鍵字</label>' +
         '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
         MEA.ui.escapeHtml(courses.keyword || "") +
         '" />' +
+        '    <label class="sr-only" for="courseSearchDept">科別篩選</label>' +
         '    <select id="courseSearchDept" class="select">' +
         deptOptionsHtml +
         "</select>" +
+        '    <label class="sr-only" for="courseSearchYear">開課學年</label>' +
         '    <input type="text" id="courseSearchYear" class="input compact" style="width:100px;" placeholder="學年 (如 114)" value="' +
         MEA.ui.escapeHtml(courses.academicYear || "") +
         '" />' +
+        '    <label class="sr-only" for="courseSearchSem">學期篩選</label>' +
         '    <select id="courseSearchSem" class="select compact" style="width:100px;">' +
         '      <option value="">學期</option>' +
         '      <option value="1"' +

@@ -113,7 +113,12 @@ function setup() {
   closeBtn.id = "modalCloseBtn";
   dom.elements.modalCloseBtn = closeBtn;
   const MEA = { config: {}, state: {} };
-  const ui = uiModule.createUiModule({ MEA: MEA, document: dom.doc, window: {} });
+  const ui = uiModule.createUiModule({
+    MEA: MEA,
+    document: dom.doc,
+    window: {},
+    exposeInternals: true
+  });
   MEA.ui = ui;
   return { dom: dom, ui: ui, closeBtn: closeBtn };
 }
@@ -233,6 +238,71 @@ console.log("5. 點擊遮罩背景應可關閉對話框...");
   overlay.onclick({ target: overlay });
   assert.strictEqual(ctx.dom.elements.modalHost.innerHTML, "");
   console.log("   ✓ 遮罩關閉驗證通過！\n");
+}
+
+console.log("6. 可聚焦元素收集應容忍無效根節點與異常節點...\n");
+{
+  const ctx = setup();
+  assert.deepStrictEqual(ctx.ui.collectFocusableElements(null), [], "空根節點應回傳空陣列");
+  assert.deepStrictEqual(ctx.ui.collectFocusableElements({}), [], "缺少 querySelectorAll 應回傳空陣列");
+  const noAttributeNode = { tagName: "BUTTON", disabled: false };
+  const disabledNode = { tagName: "BUTTON", disabled: true, getAttribute: () => null };
+  const skipTabNode = {
+    tagName: "DIV",
+    disabled: false,
+    getAttribute: (name) => (name === "tabindex" ? "-1" : null)
+  };
+  const root = {
+    querySelectorAll: function () {
+      return [noAttributeNode, disabledNode, skipTabNode];
+    }
+  };
+  assert.deepStrictEqual(
+    ctx.ui.collectFocusableElements(root),
+    [noAttributeNode],
+    "禁用與 tabindex=-1 節點應被略過，缺少 getAttribute 的節點仍保留"
+  );
+  console.log("   ✓ 可聚焦元素收集防禦路徑通過！\n");
+}
+
+console.log("7. 沒有關閉鈕與可聚焦元素時，Tab 不應產生錯誤...\n");
+{
+  const dom = createDom();
+  dom.elements.modalHost = createElement("div", dom);
+  dom.elements.modalHost.innerHTML = "";
+  const MEA = { config: {}, state: {} };
+  const ui = uiModule.createUiModule({
+    MEA: MEA,
+    document: dom.doc,
+    window: {},
+    exposeInternals: true
+  });
+  MEA.ui = ui;
+  ui.modal("空對話框", "<p>沒有可聚焦元素</p>", []);
+  const overlay = findByClass(dom, "modal-overlay");
+  assert.strictEqual(dom.state.activeElement, null, "沒有可聚焦元素時不應設定焦點");
+  let prevented = 0;
+  overlay.onkeydown({
+    key: "Tab",
+    preventDefault: function () {
+      prevented += 1;
+    }
+  });
+  assert.strictEqual(prevented, 0, "空對話框不應攔截 Tab");
+  console.log("   ✓ 空對話框防禦路徑通過！\n");
+}
+
+console.log("8. 鍵盤事件缺少事件、按鍵或為其他按鍵時應安全忽略...\n");
+{
+  const ctx = setup();
+  ctx.ui.modal("提示", "<p>內容</p>");
+  const overlay = findByClass(ctx.dom, "modal-overlay");
+  overlay.onkeydown(null);
+  overlay.onkeydown({ keyCode: 9, preventDefault: () => {} });
+  overlay.onkeydown({ key: "a", keyCode: 65, preventDefault: () => {} });
+  overlay.onkeydown({ key: "Tab", keyCode: 0, preventDefault: () => {} });
+  assert(findByClass(ctx.dom, "modal-overlay"), "非 Escape 按鍵不應關閉對話框");
+  console.log("   ✓ 鍵盤事件防禦路徑通過！\n");
 }
 
 console.log("✓ 對話框無障礙測試全數通過！\n");

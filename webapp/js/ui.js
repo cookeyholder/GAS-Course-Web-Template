@@ -420,6 +420,7 @@
         '<div class="header-tools">' +
         renderUserPill(user) +
         '  <div class="style-selector-wrap">' +
+        '    <label class="sr-only" for="styleSelect">介面風格</label>' +
         '    <select id="styleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         renderStyleOptions(styles, curStyle) +
         "    </select>" +
@@ -518,6 +519,7 @@
       return (
         '<div class="login-container">' +
         '<div class="login-header-tools">' +
+        '  <label class="sr-only" for="loginStyleSelect">介面風格</label>' +
         '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         styleOptionsHtml +
         "  </select>" +
@@ -690,6 +692,7 @@
 
     if (options.exposeInternals) {
       Object.assign(api, {
+        collectFocusableElements: collectFocusableElements,
         renderStyleOptions: renderStyleOptions,
         resolveToastKind: resolveToastKind,
         resolveToastIcon: resolveToastIcon,

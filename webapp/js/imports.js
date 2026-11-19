@@ -123,7 +123,7 @@
       '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
       '  <div class="dropzone-title">點擊選擇或拖曳 108 課綱課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
-      '  <input type="file" id="fileInput" class="sr-only" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />' +
+      '  <input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />' +
       "</div>"
     );
   }

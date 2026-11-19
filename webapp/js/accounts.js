@@ -264,15 +264,15 @@
     function addAccountPrompt() {
       const html =
         '<div class="form-group">' +
-        '  <label class="label">Google Email</label>' +
+        '  <label class="label" for="newAccountEmail">Google Email</label>' +
         '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" />' +
         "</div>" +
         '<div class="form-group mt-2">' +
-        '  <label class="label">姓名或職稱</label>' +
+        '  <label class="label" for="newAccountName">姓名或職稱</label>' +
         '  <input type="text" id="newAccountName" class="input" placeholder="王小明" />' +
         "</div>" +
         '<div class="form-group mt-2">' +
-        '  <label class="label">指派角色</label>' +
+        '  <label class="label" for="newAccountRole">指派角色</label>' +
         '  <select id="newAccountRole" class="select">' +
         '    <option value="viewer">檢視人員 (viewer)</option>' +
         '    <option value="staff">業務人員 (staff)</option>' +
@@ -441,46 +441,46 @@
         '  <form class="mt-3" onsubmit="MEA.accounts.saveSettings(event)">' +
         '    <div class="row">' +
         '      <div class="col" style="flex:2;">' +
-        '        <label class="label">系統名稱</label>' +
+        '        <label class="label" for="cfgSystemName">系統名稱</label>' +
         '        <input type="text" id="cfgSystemName" class="input" value="' +
         MEA.ui.escapeHtml(data.systemName || "") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
-        '        <label class="label">目前學年度</label>' +
+        '        <label class="label" for="cfgSchoolYear">目前學年度</label>' +
         '        <input type="text" id="cfgSchoolYear" class="input" value="' +
         MEA.ui.escapeHtml(data.schoolYear || "114") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
-        '        <label class="label">目前學期</label>' +
+        '        <label class="label" for="cfgSemester">目前學期</label>' +
         '        <input type="text" id="cfgSemester" class="input" value="' +
         MEA.ui.escapeHtml(data.semester || "1") +
         '" />' +
         "      </div>" +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
+        '      <label class="label" for="cfgClientId">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
         '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" value="' +
         MEA.ui.escapeHtml(data.clientId || "") +
         '" />' +
         '      <span class="hint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
+        '      <label class="label" for="cfgClientSecret">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
         '      <input type="password" id="cfgClientSecret" class="input mono" value="' +
         MEA.ui.escapeHtml(data.clientSecret || "") +
         '" />' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google 登入允許網域（選填）</label>' +
+        '      <label class="label" for="cfgAllowedDomain">Google 登入允許網域（選填）</label>' +
         '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" value="' +
         MEA.ui.escapeHtml(data.allowedLoginDomain || data["Google 登入允許網域"] || "") +
         '" />' +
         '      <span class="hint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="checkbox-label">' +
+        '      <label class="checkbox-label" for="cfgRestrictWhitelist">' +
         '        <input type="checkbox" id="cfgRestrictWhitelist"' +
         (data.restrictWhitelist ? " checked" : "") +
         " />" +

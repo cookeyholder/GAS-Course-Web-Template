@@ -8711,6 +8711,7 @@ window.MEA = window.MEA || {};
         '<div class="header-tools">' +
         renderUserPill(user) +
         '  <div class="style-selector-wrap">' +
+        '    <label class="sr-only" for="styleSelect">介面風格</label>' +
         '    <select id="styleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         renderStyleOptions(styles, curStyle) +
         "    </select>" +
@@ -8809,6 +8810,7 @@ window.MEA = window.MEA || {};
       return (
         '<div class="login-container">' +
         '<div class="login-header-tools">' +
+        '  <label class="sr-only" for="loginStyleSelect">介面風格</label>' +
         '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         styleOptionsHtml +
         "  </select>" +
@@ -8981,6 +8983,7 @@ window.MEA = window.MEA || {};
 
     if (options.exposeInternals) {
       Object.assign(api, {
+        collectFocusableElements: collectFocusableElements,
         renderStyleOptions: renderStyleOptions,
         resolveToastKind: resolveToastKind,
         resolveToastIcon: resolveToastIcon,
@@ -9786,7 +9789,7 @@ window.MEA = window.MEA || {};
       '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
       '  <div class="dropzone-title">點擊選擇或拖曳 108 課綱課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
-      '  <input type="file" id="fileInput" class="sr-only" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />' +
+      '  <input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />' +
       "</div>"
     );
   }
@@ -10633,15 +10636,19 @@ window.MEA = window.MEA || {};
       return (
         '<div class="filter-bar">' +
         '  <form class="filter-form" onsubmit="MEA.courses.handleSearch(event)">' +
+        '    <label class="sr-only" for="courseSearchKeyword">搜尋關鍵字</label>' +
         '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
         MEA.ui.escapeHtml(courses.keyword || "") +
         '" />' +
+        '    <label class="sr-only" for="courseSearchDept">科別篩選</label>' +
         '    <select id="courseSearchDept" class="select">' +
         deptOptionsHtml +
         "</select>" +
+        '    <label class="sr-only" for="courseSearchYear">開課學年</label>' +
         '    <input type="text" id="courseSearchYear" class="input compact" style="width:100px;" placeholder="學年 (如 114)" value="' +
         MEA.ui.escapeHtml(courses.academicYear || "") +
         '" />' +
+        '    <label class="sr-only" for="courseSearchSem">學期篩選</label>' +
         '    <select id="courseSearchSem" class="select compact" style="width:100px;">' +
         '      <option value="">學期</option>' +
         '      <option value="1"' +
@@ -10980,15 +10987,15 @@ window.MEA = window.MEA || {};
     function addAccountPrompt() {
       const html =
         '<div class="form-group">' +
-        '  <label class="label">Google Email</label>' +
+        '  <label class="label" for="newAccountEmail">Google Email</label>' +
         '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" />' +
         "</div>" +
         '<div class="form-group mt-2">' +
-        '  <label class="label">姓名或職稱</label>' +
+        '  <label class="label" for="newAccountName">姓名或職稱</label>' +
         '  <input type="text" id="newAccountName" class="input" placeholder="王小明" />' +
         "</div>" +
         '<div class="form-group mt-2">' +
-        '  <label class="label">指派角色</label>' +
+        '  <label class="label" for="newAccountRole">指派角色</label>' +
         '  <select id="newAccountRole" class="select">' +
         '    <option value="viewer">檢視人員 (viewer)</option>' +
         '    <option value="staff">業務人員 (staff)</option>' +
@@ -11157,46 +11164,46 @@ window.MEA = window.MEA || {};
         '  <form class="mt-3" onsubmit="MEA.accounts.saveSettings(event)">' +
         '    <div class="row">' +
         '      <div class="col" style="flex:2;">' +
-        '        <label class="label">系統名稱</label>' +
+        '        <label class="label" for="cfgSystemName">系統名稱</label>' +
         '        <input type="text" id="cfgSystemName" class="input" value="' +
         MEA.ui.escapeHtml(data.systemName || "") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
-        '        <label class="label">目前學年度</label>' +
+        '        <label class="label" for="cfgSchoolYear">目前學年度</label>' +
         '        <input type="text" id="cfgSchoolYear" class="input" value="' +
         MEA.ui.escapeHtml(data.schoolYear || "114") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
-        '        <label class="label">目前學期</label>' +
+        '        <label class="label" for="cfgSemester">目前學期</label>' +
         '        <input type="text" id="cfgSemester" class="input" value="' +
         MEA.ui.escapeHtml(data.semester || "1") +
         '" />' +
         "      </div>" +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
+        '      <label class="label" for="cfgClientId">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
         '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" value="' +
         MEA.ui.escapeHtml(data.clientId || "") +
         '" />' +
         '      <span class="hint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
+        '      <label class="label" for="cfgClientSecret">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
         '      <input type="password" id="cfgClientSecret" class="input mono" value="' +
         MEA.ui.escapeHtml(data.clientSecret || "") +
         '" />' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google 登入允許網域（選填）</label>' +
+        '      <label class="label" for="cfgAllowedDomain">Google 登入允許網域（選填）</label>' +
         '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" value="' +
         MEA.ui.escapeHtml(data.allowedLoginDomain || data["Google 登入允許網域"] || "") +
         '" />' +
         '      <span class="hint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="checkbox-label">' +
+        '      <label class="checkbox-label" for="cfgRestrictWhitelist">' +
         '        <input type="checkbox" id="cfgRestrictWhitelist"' +
         (data.restrictWhitelist ? " checked" : "") +
         " />" +
