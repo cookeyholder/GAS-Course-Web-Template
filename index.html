@@ -27,13 +27,14 @@ html[data-style="blueprint"] {
   --paper: #ffffff;
   --ink: #16181d;
   --ink-2: #4b5260;
-  --ink-3: #7a8494;
+  --ink-3: #5f6a7a;
   --line: #1d2026;
   --line-2: #d6dae1;
   --fill: #f3f5f8;
   --fill-2: #e9edf3;
   --accent: #1d5fbf;
   --accent-bg: #e4ecf8;
+  --focus-ring: var(--accent);
   --ok: #1f7a4d;
   --ok-bg: #e3f3ea;
   --err: #c62828;
@@ -326,7 +327,7 @@ html[data-style="paper"] {
   --paper: #fdfbf6;
   --ink: #1f1c17;
   --ink-2: #57514a;
-  --ink-3: #8c867b;
+  --ink-3: #6b6459;
   --line: #cbc3b4;
   --line-2: #e5dfd3;
   --fill: #f3eee4;
@@ -380,7 +381,7 @@ html[data-style="claymorphism"] {
   --paper: #ffffff;
   --ink: #1e293b;
   --ink-2: #475569;
-  --ink-3: #94a3b8;
+  --ink-3: #5b6778;
   --line: rgba(226, 232, 240, 0.85);
   --line-2: rgba(241, 245, 249, 0.9);
   --fill: #f1f5fb;
@@ -492,7 +493,7 @@ html[data-style="nes"] {
   --paper: #ffffff;
   --ink: #212529;
   --ink-2: #495057;
-  --ink-3: #868e96;
+  --ink-3: #565c63;
   --line: #212529;
   --line-2: #495057;
   --fill: #f8f9fa;
@@ -833,7 +834,7 @@ html[data-style="happyhues10"] {
   --paper: #fffffe;
   --ink: #001e1d;
   --ink-2: #0f3433;
-  --ink-3: #436663;
+  --ink-3: #2f4f4a;
   --line: #004643;
   --line-2: rgba(0, 70, 67, 0.2);
   --fill: #e8f4f1;
@@ -1076,7 +1077,7 @@ html[data-style="happyhues12"] {
   --paper: #fffffe;
   --ink: #232946;
   --ink-2: #3e4468;
-  --ink-3: #6b7299;
+  --ink-3: #4a5078;
   --line: #232946;
   --line-2: rgba(35, 41, 70, 0.2);
   --fill: #edeef9;
@@ -1203,7 +1204,7 @@ html[data-style="happyhues3"] {
   --paper: #fffffe;
   --ink: #094067;
   --ink-2: #24577f;
-  --ink-3: #5f6c7b;
+  --ink-3: #556170;
   --line: #094067;
   --line-subtle: #90b4ce;
   --primary: #3da9fc;
@@ -1901,8 +1902,16 @@ html {
   scrollbar-color: var(--ink-3) transparent;
 }
 
+/* 部分風格的 accent 為淺色裝飾色，對比不足 3:1，改用作為主要文字的 --ink 當焦點環。 */
+html[data-style="nes"],
+html[data-style="happyhues14"],
+html[data-style="happyhues10"],
+html[data-style="happyhues12"] {
+  --focus-ring: var(--ink);
+}
+
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -2711,7 +2720,8 @@ a {
 }
 .input:focus,
 .select:focus {
-  outline: 2px solid var(--accent-bg);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
   border-color: var(--accent);
 }
 .checkbox-label {
@@ -8410,6 +8420,16 @@ window.MEA = window.MEA || {};
   }
 
   /**
+   * 取得 Toast 的無障礙角色；錯誤與警告使用 alert 以即時宣告。
+   *
+   * @param {string} kind - 正規化後種類
+   * @returns {string|null} 角色名稱或 null
+   */
+  function resolveToastRole(kind) {
+    return kind === "err" || kind === "warn" ? "alert" : null;
+  }
+
+  /**
    * 建立 Toast 元素。
    *
    * @param {Object} doc - document 依賴
@@ -8420,6 +8440,9 @@ window.MEA = window.MEA || {};
   function createToastElement(doc, message, kind) {
     const t = doc.createElement("div");
     t.className = "toast " + kind;
+
+    const role = resolveToastRole(kind);
+    if (role && typeof t.setAttribute === "function") t.setAttribute("role", role);
 
     const iconSpan = doc.createElement("span");
     iconSpan.className = "toast-icon";
@@ -8986,6 +9009,7 @@ window.MEA = window.MEA || {};
         collectFocusableElements: collectFocusableElements,
         renderStyleOptions: renderStyleOptions,
         resolveToastKind: resolveToastKind,
+        resolveToastRole: resolveToastRole,
         resolveToastIcon: resolveToastIcon,
         resolveToastDuration: resolveToastDuration,
         createToastElement: createToastElement,
@@ -9012,6 +9036,7 @@ window.MEA = window.MEA || {};
     roleName: roleName,
     renderStyleOptions: renderStyleOptions,
     resolveToastKind: resolveToastKind,
+    resolveToastRole: resolveToastRole,
     resolveToastIcon: resolveToastIcon,
     resolveToastDuration: resolveToastDuration,
     createToastElement: createToastElement,

@@ -119,6 +119,16 @@
   }
 
   /**
+   * 取得 Toast 的無障礙角色；錯誤與警告使用 alert 以即時宣告。
+   *
+   * @param {string} kind - 正規化後種類
+   * @returns {string|null} 角色名稱或 null
+   */
+  function resolveToastRole(kind) {
+    return kind === "err" || kind === "warn" ? "alert" : null;
+  }
+
+  /**
    * 建立 Toast 元素。
    *
    * @param {Object} doc - document 依賴
@@ -129,6 +139,9 @@
   function createToastElement(doc, message, kind) {
     const t = doc.createElement("div");
     t.className = "toast " + kind;
+
+    const role = resolveToastRole(kind);
+    if (role && typeof t.setAttribute === "function") t.setAttribute("role", role);
 
     const iconSpan = doc.createElement("span");
     iconSpan.className = "toast-icon";
@@ -695,6 +708,7 @@
         collectFocusableElements: collectFocusableElements,
         renderStyleOptions: renderStyleOptions,
         resolveToastKind: resolveToastKind,
+        resolveToastRole: resolveToastRole,
         resolveToastIcon: resolveToastIcon,
         resolveToastDuration: resolveToastDuration,
         createToastElement: createToastElement,
@@ -721,6 +735,7 @@
     roleName: roleName,
     renderStyleOptions: renderStyleOptions,
     resolveToastKind: resolveToastKind,
+    resolveToastRole: resolveToastRole,
     resolveToastIcon: resolveToastIcon,
     resolveToastDuration: resolveToastDuration,
     createToastElement: createToastElement,

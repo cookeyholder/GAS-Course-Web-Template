@@ -32,6 +32,9 @@ jobs:
       - name: UI class alignment check
         run: npm run check:ui-classes
 
+      - name: WCAG contrast check
+        run: npm run check:contrast
+
       - name: Tests
         run: npm test
 
