@@ -206,8 +206,18 @@ function expandCourseRow(row) {
   const expanded = [];
   if (!Array.isArray(row) || row.length < 31) return expanded;
 
-  const entryYear = row[16] === null || row[16] === undefined ? "" : String(row[16]).trim();
+  const rawEntryYear = row[16];
+  const entryYear = rawEntryYear === null || rawEntryYear === undefined ? "" : String(rawEntryYear).trim();
   const fallbackOpenWay = row[10];
+  const rawCourseCode = row[0];
+  const courseCode = rawCourseCode === null || rawCourseCode === undefined ? "" : String(rawCourseCode).trim();
+  const rawSubjectName = row[2];
+  const subjectName = rawSubjectName === null || rawSubjectName === undefined ? "" : String(rawSubjectName).trim();
+  const groupName = getGroupName(row[6]) || "";
+  const departmentName = getDepartmentNameByCode(row[7]) || "";
+  const subjectType = getSubjectType(row[9]) || "";
+  const subjectAttribution = getSubjectAttribution(row[11]) || "";
+  const requiredOrElective = isRequiredOrElective(row[15]) || "";
 
   for (let s = 0; s < 6; s++) {
     const credits = Number(row[19 + s] || 0);
@@ -217,8 +227,9 @@ function expandCourseRow(row) {
     if (!(credits > 0 || hours > 0)) continue;
 
     const gradeIndex = Math.floor(s / 2);
+    const rawAcademicYear = row[16 + gradeIndex];
     const academicYear =
-      row[16 + gradeIndex] === null || row[16 + gradeIndex] === undefined ? "" : String(row[16 + gradeIndex]).trim();
+      rawAcademicYear === null || rawAcademicYear === undefined ? "" : String(rawAcademicYear).trim();
     const semester = String((s % 2) + 1);
 
     const semesterOpenWay =
@@ -229,14 +240,14 @@ function expandCourseRow(row) {
       semester,
       String(gradeIndex + 1),
       entryYear,
-      row[0] === null || row[0] === undefined ? "" : String(row[0]).trim(),
-      row[2] === null || row[2] === undefined ? "" : String(row[2]).trim(),
-      getGroupName(row[6]) || "",
-      getDepartmentNameByCode(row[7]) || "",
-      getSubjectType(row[9]) || "",
+      courseCode,
+      subjectName,
+      groupName,
+      departmentName,
+      subjectType,
       getOpenWay(semesterOpenWay) || "",
-      getSubjectAttribution(row[11]) || "",
-      isRequiredOrElective(row[15]) || "",
+      subjectAttribution,
+      requiredOrElective,
       credits,
       hours
     ]);

@@ -50,6 +50,38 @@ async function run() {
     console.log("   ✓ 統計失敗包容驗證通過！\n");
   }
 
+  console.log("2.1 統計回應失敗或缺少 API 時應安全略過...");
+  {
+    const ctx = createDeps();
+    ctx.state.courses.total = 88;
+    ctx.setResponder(function () {
+      return Promise.resolve({ ok: false, total: 999 });
+    });
+    const controller = coursesModule.createCoursesModule(ctx.deps);
+    await controller.fetchStats();
+    assert.strictEqual(ctx.state.courses.total, 88, "失敗回應不應覆蓋總筆數");
+
+    const missingApiCtx = createDeps();
+    missingApiCtx.deps.MEA = { state: missingApiCtx.state, setState: missingApiCtx.MEA.setState };
+    const missingApiController = coursesModule.createCoursesModule(missingApiCtx.deps);
+    await missingApiController.fetchStats();
+    assert.strictEqual(missingApiCtx.calls.apiCalls.length, 0);
+    console.log("   ✓ 統計失敗情境驗證通過！\n");
+  }
+
+  console.log("2.2 統計 total 為 0 時應明確寫入零值...");
+  {
+    const ctx = createDeps();
+    ctx.state.courses.total = 50;
+    ctx.setResponder(function () {
+      return Promise.resolve({ ok: true, total: 0 });
+    });
+    const controller = coursesModule.createCoursesModule(ctx.deps);
+    await controller.fetchStats();
+    assert.strictEqual(ctx.state.courses.total, 0);
+    console.log("   ✓ 零筆數驗證通過！\n");
+  }
+
   console.log("3. 相同參數的並行清單請求應只送出一次且共享結果...");
   {
     const ctx = createDeps();
