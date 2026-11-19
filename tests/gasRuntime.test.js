@@ -47,10 +47,10 @@ function run() {
   console.log("   ✓ 試算表取得驗證通過！\n");
 
   console.log("5. injectGlobals_ 應只注入白名單且缺漏時 fail-fast...");
-  const injected = runtime.injectGlobals_("./utilities.js", ["safeTrim"]);
-  assert.strictEqual(globalThis.safeTrim, injected.safeTrim);
-  assert.strictEqual(typeof globalThis.safeTrim, "function");
-  assert.deepStrictEqual(Object.keys(injected), ["safeTrim"]);
+  const injected = runtime.injectGlobals_("./utilities.js", ["sanitizeRowMatrix"]);
+  assert.strictEqual(globalThis.sanitizeRowMatrix, injected.sanitizeRowMatrix);
+  assert.strictEqual(typeof globalThis.sanitizeRowMatrix, "function");
+  assert.deepStrictEqual(Object.keys(injected), ["sanitizeRowMatrix"]);
   assert.throws(function () {
     runtime.injectGlobals_("./utilities.js", ["notExportedName"]);
   }, /未匯出/);

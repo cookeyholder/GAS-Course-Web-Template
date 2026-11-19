@@ -42,7 +42,11 @@ if (typeof require !== "undefined" && GAS_RUNTIME) {
   GAS_RUNTIME.injectGlobals_("./utilities.js", ["safeApplySheetFontSize", "safeSetNumberFormat", "sanitizeRowMatrix"]);
 }
 
-const WEB_API_VERSION = "1.1.0";
+/** Web API 版本號由 gasRuntime 提供（單一來源） */
+const WEB_API_VERSION = GAS_RUNTIME.WEB_API_VERSION;
+
+/** 系統管理員顯示名稱由 gasRuntime 提供（單一來源） */
+const ADMIN_ROLE_NAME = GAS_RUNTIME.ROLE_DEFINITIONS.admin;
 const WEB_API_SESSION_TTL_SECONDS = 21600; // 6 小時
 const WEB_API_LOCK_TIMEOUT_MS = 15000;
 const OAUTH_STATE_NONCE_CACHE_PREFIX = "gas_tmpl_oauth_nonce_";
@@ -93,10 +97,6 @@ function jsonResponse(data) {
     return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
   }
   return data;
-}
-
-function webApiSuccess(payload) {
-  return Object.assign({ ok: true }, payload || {});
 }
 
 function webApiError(code, message) {
@@ -255,11 +255,14 @@ function createSessionForEmail(email, name, options) {
   }
 
   if (settings.restrictWhitelist && !account.found) {
-    return webApiError("not_whitelisted", "您的帳號（" + cleanEmail + "）尚未加入系統授權名單，請洽系統管理員開通權限");
+    return webApiError(
+      "not_whitelisted",
+      "您的帳號（" + cleanEmail + "）尚未加入系統授權名單，請洽" + ADMIN_ROLE_NAME + "開通權限"
+    );
   }
 
   if (account.found && account.enabled === false) {
-    return webApiError("account_disabled", "您的帳號（" + cleanEmail + "）目前處於停用狀態，請洽系統管理員");
+    return webApiError("account_disabled", "您的帳號（" + cleanEmail + "）目前處於停用狀態，請洽" + ADMIN_ROLE_NAME);
   }
 
   const role = account.role;
@@ -380,7 +383,10 @@ function verifyGoogleIdToken(idToken, expectedClientId, configuredDomain, deps) 
 
   const cleanClientId = String(expectedClientId || "").trim();
   if (!cleanClientId) {
-    return webApiError("server_misconfigured", "系統尚未設定 Google OAuth Client ID，請系統管理員先完成系統設定");
+    return webApiError(
+      "server_misconfigured",
+      "系統尚未設定 Google OAuth Client ID，請" + ADMIN_ROLE_NAME + "先完成系統設定"
+    );
   }
 
   try {
@@ -706,7 +712,7 @@ function handleOAuthCodeCallback(code, e, deps) {
   const clientSecret = String(settings.clientSecret || "").trim();
 
   if (!clientId) {
-    return webApiError("server_misconfigured", "系統尚未設定 OAuth Client ID，請系統管理員先完成系統設定");
+    return webApiError("server_misconfigured", "系統尚未設定 OAuth Client ID，請" + ADMIN_ROLE_NAME + "先完成系統設定");
   }
   if (!clientSecret) {
     return webApiError("missing_client_secret", "系統尚未設定 OAuth Client Secret，無法完成 Google 帳號登入");
@@ -984,14 +990,14 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
 
     case "saveSystemSettings":
       if (session.role !== "admin") {
-        return webApiError("forbidden", "僅系統管理員可修改系統參數");
+        return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可修改系統參數");
       }
       resolveRouteDependency_("saveSystemSettings", saveSystemSettings)(payload.settings || {}, ss);
       return { ok: true };
 
     case "getAccounts":
       if (session.role !== "admin") {
-        return webApiError("forbidden", "僅系統管理員可檢視授權白名單");
+        return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可檢視授權白名單");
       }
       return {
         ok: true,
@@ -1000,7 +1006,7 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
 
     case "saveWhitelist":
       if (session.role !== "admin") {
-        return webApiError("forbidden", "僅系統管理員可修改授權白名單");
+        return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可修改授權白名單");
       }
       return resolveRouteDependency_("saveWhitelist", saveWhitelist)(payload.accounts || [], ss);
 
@@ -1189,7 +1195,6 @@ if (typeof module !== "undefined" && module.exports) {
     WEB_API_IMPORT_RESULT_PREFIX: WEB_API_IMPORT_RESULT_PREFIX,
     ROLE_PERMISSIONS: ROLE_PERMISSIONS,
     jsonResponse: jsonResponse,
-    webApiSuccess: webApiSuccess,
     webApiError: webApiError,
     parseWebApiPayload: parseWebApiPayload,
     hasPermission: hasPermission,

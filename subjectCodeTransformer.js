@@ -5,9 +5,6 @@
  * 對照表與正規化純邏輯已抽至 courseNormalizationShared.js，前後端共用單一來源。
  */
 
-/** 正規化課程索引工作表名稱 */
-const NORMALIZED_COURSE_SHEET_NAME = "正規化課程索引";
-
 /** 一次批次寫入正規化課程索引的最大列數 */
 const COURSE_INDEX_WRITE_CHUNK_SIZE = 5000;
 
@@ -31,6 +28,9 @@ const GAS_RUNTIME =
     : typeof require === "function"
       ? require("./gasRuntime.js")
       : null;
+/** 正規化課程索引工作表名稱統一由 gasRuntime 提供（單一來源） */
+const NORMALIZED_COURSE_SHEET_NAME = GAS_RUNTIME.SHEET_COURSE_INDEX;
+
 const NORMALIZED_COURSE_HEADERS = COURSE_NORMALIZATION_SHARED.NORMALIZED_COURSE_HEADERS;
 const EXCLUDED_SUBJECT_ATTRIBUTES = COURSE_NORMALIZATION_SHARED.EXCLUDED_SUBJECT_ATTRIBUTES;
 const GROUP_CODE_NAMES = COURSE_NORMALIZATION_SHARED.GROUP_CODE_NAMES;

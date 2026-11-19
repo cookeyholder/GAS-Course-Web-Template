@@ -17,6 +17,25 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  /** 系統設定與授權工作表名稱（前後端共用單一來源） */
+  const SHEET_SYSTEM_CONFIG = "系統設定與授權";
+
+  /** 1NF 正規化課程索引工作表名稱（前後端共用單一來源） */
+  const SHEET_COURSE_INDEX = "正規化課程索引";
+
+  /** 系統使用說明工作表名稱（前後端共用單一來源） */
+  const SHEET_SYSTEM_INSTRUCTIONS = "系統使用說明";
+
+  /** Web API 版本號（所有後端回應共用單一來源） */
+  const WEB_API_VERSION = "1.1.0";
+
+  /** 授權角色定義（所有後端角色顯示名稱共用單一來源） */
+  const ROLE_DEFINITIONS = {
+    admin: "系統管理員",
+    staff: "業務人員",
+    viewer: "檢視人員"
+  };
+
   /**
    * 判斷物件是否自有指定屬性。
    *
@@ -108,6 +127,11 @@
   }
 
   return {
+    SHEET_SYSTEM_CONFIG: SHEET_SYSTEM_CONFIG,
+    SHEET_COURSE_INDEX: SHEET_COURSE_INDEX,
+    SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
+    WEB_API_VERSION: WEB_API_VERSION,
+    ROLE_DEFINITIONS: ROLE_DEFINITIONS,
     hasOwn: hasOwn,
     getRuntime_: getRuntime_,
     resolveDependency_: resolveDependency_,
