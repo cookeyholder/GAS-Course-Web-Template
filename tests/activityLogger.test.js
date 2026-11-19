@@ -213,4 +213,83 @@ console.log("9. 未提供注入快取時應使用記憶體備援...");
   console.log("   ✓ 記憶體備援驗證通過！\n");
 }
 
+console.log("10. 未達上限時不清理...");
+{
+  const calls = [];
+  const sheet = {
+    getLastRow: function () {
+      return logger.MAX_ACTIVITY_LOG_ROWS + 1;
+    },
+    deleteRows: function (start, count) {
+      calls.push([start, count]);
+    }
+  };
+  const ss = makeSpreadsheet(sheet);
+  const result = logger.cleanupActivityLogRows({ spreadsheet: ss });
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.deleted, 0);
+  assert.deepStrictEqual(calls, []);
+  console.log("   ✓ 未達上限驗證通過！\n");
+}
+
+console.log("11. 超過上限時刪除最舊資料至保留 15,000 筆...");
+{
+  const calls = [];
+  const store = {};
+  const cache = {
+    get: function (key) {
+      return store[key] || null;
+    },
+    put: function (key, value) {
+      store[key] = String(value);
+    }
+  };
+  const lastRow = logger.MAX_ACTIVITY_LOG_ROWS + 51;
+  const sheet = {
+    getLastRow: function () {
+      return lastRow;
+    },
+    deleteRows: function (start, count) {
+      calls.push([start, count]);
+    }
+  };
+  const result = logger.cleanupActivityLogRows({
+    spreadsheet: makeSpreadsheet(sheet),
+    cache: cache
+  });
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.before, logger.MAX_ACTIVITY_LOG_ROWS + 50);
+  assert.strictEqual(result.after, logger.TARGET_ACTIVITY_LOG_ROWS);
+  assert.strictEqual(result.deleted, 5050);
+  assert.deepStrictEqual(calls, [[2, 5050]]);
+  assert.strictEqual(
+    store[logger.ACTIVITY_LOG_CACHE_PREFIX + "last_row"],
+    String(lastRow - 5050)
+  );
+  console.log("   ✓ 超量清理驗證通過！\n");
+}
+
+console.log("12. 清理失敗應回報失敗而非拋出...");
+{
+  const originalError = console.error;
+  console.error = function () {};
+  try {
+    const result = logger.cleanupActivityLogRows({
+      spreadsheet: {
+        getSheetByName: function () {
+          return {
+            getLastRow: function () {
+              throw new Error("模擬讀取失敗");
+            }
+          };
+        }
+      }
+    });
+    assert.strictEqual(result.ok, false);
+  } finally {
+    console.error = originalError;
+  }
+  console.log("   ✓ 清理失敗處理驗證通過！\n");
+}
+
 console.log("✓ activityLogger.test.js 測試全數通過！\n");

@@ -41,6 +41,10 @@ const SAMPLED_LAST_ROW_CACHE_KEY = ACTIVITY_LOG_CACHE_PREFIX + "last_row";
 /** 每累計多少筆寫入才取樣一次 getLastRow()，降低試算表 API 呼叫 */
 const LAST_ROW_SAMPLE_INTERVAL = 100;
 
+/** 超過此資料列數即觸發清理，清理後保留目標列數（不含標題列） */
+const MAX_ACTIVITY_LOG_ROWS = 20000;
+const TARGET_ACTIVITY_LOG_ROWS = 15000;
+
 /** Node 測試環境的記憶體快取備援（不實作 TTL，過期行為由注入的 fake cache 驗證） */
 const ACTIVITY_LOG_MEMORY_STORE = {};
 const ACTIVITY_LOG_MEMORY_CACHE = {
@@ -219,17 +223,67 @@ function appendActivityLog_(record, ss, deps) {
   }
 }
 
+/**
+ * 清理過舊的操作日誌，保留最新的 TARGET_ACTIVITY_LOG_ROWS 筆資料。
+ * 供每日離峰觸發器呼叫；可注入 spreadsheet 以便 Node 測試。
+ *
+ * @param {Object} [options] - 選項
+ * @param {*} [options.spreadsheet] - 明確指定的試算表
+ * @param {Object} [options.cache] - 明確指定的快取（供取樣值更新）
+ * @returns {Object} `{ ok, before, after, deleted }`
+ */
+function cleanupActivityLogRows(options) {
+  const opts = options || {};
+  try {
+    const spreadsheet = resolveSpreadsheet_(opts.spreadsheet);
+    if (!spreadsheet || typeof spreadsheet.getSheetByName !== "function") {
+      return { ok: false, before: 0, after: 0, deleted: 0 };
+    }
+    const sheet = spreadsheet.getSheetByName(resolveSheetName_());
+    if (!sheet || typeof sheet.getLastRow !== "function") {
+      return { ok: false, before: 0, after: 0, deleted: 0 };
+    }
+    const lastRow = Math.max(0, Number(sheet.getLastRow()) || 0);
+    const dataRows = Math.max(0, lastRow - 1);
+    if (dataRows <= MAX_ACTIVITY_LOG_ROWS) {
+      return { ok: true, before: dataRows, after: dataRows, deleted: 0 };
+    }
+    if (typeof sheet.deleteRows !== "function") {
+      return { ok: false, before: dataRows, after: dataRows, deleted: 0 };
+    }
+    const deleted = dataRows - TARGET_ACTIVITY_LOG_ROWS;
+    sheet.deleteRows(2, deleted);
+    try {
+      getActivityLogCache_(opts).put(SAMPLED_LAST_ROW_CACHE_KEY, String(lastRow - deleted));
+    } catch (error) {
+      // 快取更新失敗不影響清理結果
+    }
+    return {
+      ok: true,
+      before: dataRows,
+      after: TARGET_ACTIVITY_LOG_ROWS,
+      deleted: deleted
+    };
+  } catch (error) {
+    console.error("清理操作日誌失敗：", error && error.message ? error.message : error);
+    return { ok: false, before: 0, after: 0, deleted: 0 };
+  }
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
     ACTIVITY_LOG_CACHE_PREFIX: ACTIVITY_LOG_CACHE_PREFIX,
     WRITE_COUNT_CACHE_KEY: WRITE_COUNT_CACHE_KEY,
     LAST_ROW_SAMPLE_INTERVAL: LAST_ROW_SAMPLE_INTERVAL,
+    MAX_ACTIVITY_LOG_ROWS: MAX_ACTIVITY_LOG_ROWS,
+    TARGET_ACTIVITY_LOG_ROWS: TARGET_ACTIVITY_LOG_ROWS,
     MAX_FIELD_LENGTH: MAX_FIELD_LENGTH,
     SENSITIVE_RECORD_KEYS: SENSITIVE_RECORD_KEYS,
     getActivityLogCache: getActivityLogCache_,
     appendActivityLog: appendActivityLog_,
     appendActivityLog_: appendActivityLog_,
-    buildActivityLogRow: buildActivityLogRow_
+    buildActivityLogRow: buildActivityLogRow_,
+    cleanupActivityLogRows: cleanupActivityLogRows
   };
 }
