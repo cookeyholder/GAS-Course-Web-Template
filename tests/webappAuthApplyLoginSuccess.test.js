@@ -64,13 +64,9 @@ function run() {
     loginBusy: false,
     loginError: ""
   });
-  assert.deepStrictEqual(authModule.getLoginToast(fullUser, false), {
+  assert.deepStrictEqual(authModule.getLoginToast(fullUser), {
     message: "歡迎回來，甲君！",
     level: "ok"
-  });
-  assert.deepStrictEqual(authModule.getLoginToast(fullUser, true), {
-    message: "初次登入已自動開通系統管理員權限！",
-    level: "warn"
   });
   console.log("3. 使用者物件、成功狀態與提示訊息純函式 ✓\n");
 
@@ -118,8 +114,8 @@ function run() {
     .then(function (user) {
       assert.strictEqual(user.name, "d@example.test");
       assert.strictEqual(user.roleName, undefined);
-      assert.strictEqual(ctx.calls.toasts[1].level, "warn");
-      assert.strictEqual(ctx.calls.toasts[1].message, "初次登入已自動開通系統管理員權限！");
+      assert.strictEqual(ctx.calls.toasts[1].level, "ok");
+      assert.strictEqual(ctx.calls.toasts[1].message, "歡迎回來，d@example.test！");
       assert.strictEqual(ctx.calls.fetchStats, 2);
       console.log("6. 初次登入管理員提示分支 ✓\n");
 

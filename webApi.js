@@ -419,7 +419,10 @@ function loginWithGoogleIdToken(idToken, options) {
   if (!verify.ok) return verify;
 
   const createSessionFn = getOverridableApiFn_("createSessionForEmail", createSessionForEmail);
-  return createSessionFn(verify.email, verify.name, { spreadsheet: ss, allowBootstrap: true });
+  return createSessionFn(verify.email, verify.name, {
+    spreadsheet: ss,
+    allowBootstrap: resolvedOptions.allowBootstrap === true
+  });
 }
 
 function resolveLoginSpreadsheet_(options) {
@@ -455,7 +458,10 @@ function loginWithActiveUser(options) {
   }
 
   const createSessionFn = getOverridableApiFn_("createSessionForEmail", createSessionForEmail);
-  return createSessionFn(email, email, { spreadsheet: ss, allowBootstrap: true });
+  return createSessionFn(email, email, {
+    spreadsheet: ss,
+    allowBootstrap: !!(options && options.allowBootstrap === true)
+  });
 }
 
 function isAllowedOAuthRedirectUri(uri) {
@@ -691,7 +697,10 @@ function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss, s
   return runOAuthCallbackWriteLock_(function () {
     const stateValidation = validateOAuthCallbackState_(context.state, context.expectedRedirectUri, deps);
     if (!stateValidation.ok) return stateValidation;
-    return createSessionFn(verification.email, verification.name, { spreadsheet: ss, allowBootstrap: true });
+    return createSessionFn(verification.email, verification.name, {
+      spreadsheet: ss,
+      allowBootstrap: false
+    });
   }, deps);
 }
 
@@ -816,6 +825,13 @@ function getPublicConfig() {
       : null;
   const settings = readSystemSettings(ss);
 
+  let needsBootstrap = false;
+  try {
+    needsBootstrap = (getOverridableApiFn_("readWhitelist", readWhitelist)(ss) || []).length === 0;
+  } catch (error) {
+    needsBootstrap = false;
+  }
+
   let webAppUrl = "";
   try {
     if (typeof ScriptApp !== "undefined" && ScriptApp.getService) {
@@ -844,7 +860,8 @@ function getPublicConfig() {
     hasClientSecret: Boolean(settings.clientSecret),
     allowedDomain: normalizeAllowedDomain(settings.allowedLoginDomain),
     activeEmail: activeEmail,
-    webAppUrl: webAppUrl
+    webAppUrl: webAppUrl,
+    needsBootstrap: needsBootstrap
   };
 }
 
@@ -868,12 +885,17 @@ function routePublicWebApiAction_(name, payload) {
     case "getPublicConfig":
       return getOverridableApiFn_("getPublicConfig", getPublicConfig)();
     case "login":
-      return getOverridableApiFn_(
-        "loginWithGoogleIdToken",
-        loginWithGoogleIdToken
-      )(payload ? payload.idToken || payload.credential : "");
+      return getOverridableApiFn_("loginWithGoogleIdToken", loginWithGoogleIdToken)(
+        payload ? payload.idToken || payload.credential : "",
+        { allowBootstrap: !!(payload && payload.bootstrap === true) }
+      );
     case "loginWithActiveUser":
-      return getOverridableApiFn_("loginWithActiveUser", loginWithActiveUser)();
+      return getOverridableApiFn_(
+        "loginWithActiveUser",
+        loginWithActiveUser
+      )({
+        allowBootstrap: !!(payload && payload.bootstrap === true)
+      });
     default:
       return null;
   }

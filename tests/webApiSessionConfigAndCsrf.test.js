@@ -97,7 +97,8 @@ console.log("1. getPublicConfig 應彙整系統設定與執行環境資訊...");
     hasClientSecret: true,
     allowedDomain: "example.com",
     activeEmail: "admin@example.com",
-    webAppUrl: "https://script.google.com/app"
+    webAppUrl: "https://script.google.com/app",
+    needsBootstrap: false
   });
   console.log("   ✓ 完整設定彙整驗證通過！\n");
 }
@@ -137,6 +138,7 @@ console.log("2. getPublicConfig 於環境資訊缺失或例外時應使用預設
   assert.strictEqual(r.allowedDomain, "");
   assert.strictEqual(r.activeEmail, "");
   assert.strictEqual(r.webAppUrl, "");
+  assert.strictEqual(r.needsBootstrap, true, "空白名單預設視為待開通情境");
   console.log("   ✓ 預設值與例外分支驗證通過！\n");
 }
 

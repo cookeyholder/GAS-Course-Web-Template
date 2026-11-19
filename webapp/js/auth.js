@@ -47,7 +47,6 @@
   const MISSING_WEBAPP_URL_ERROR = "無法取得 Web App 網址，請確認部署狀態後重新整理頁面";
   const OAUTH_STATE_STORAGE_KEY = "gas_tmpl_oauth_state";
   const MISSING_CHOOSER_URL_ERROR = "無法建立 Google 帳戶切換網址，請稍後再試";
-  const BOOTSTRAP_TOAST_MESSAGE = "初次登入已自動開通系統管理員權限！";
 
   // ---------------------------------------------------------------------------
   // 純函式：登入結果轉換
@@ -86,10 +85,7 @@
     };
   }
 
-  function getLoginToast(user, bootstrapped) {
-    if (bootstrapped) {
-      return { message: BOOTSTRAP_TOAST_MESSAGE, level: "warn" };
-    }
+  function getLoginToast(user) {
     return { message: "歡迎回來，" + user.name + "！", level: "ok" };
   }
 
@@ -406,6 +402,11 @@
       return (MEA.state && MEA.state.publicConfig) || {};
     }
 
+    /** 只有後端公開設定明確標記待開通時，才在登入請求附上 bootstrap 旗標。 */
+    function shouldRequestBootstrap() {
+      return getPublicConfig().needsBootstrap === true;
+    }
+
     function isGasHosted() {
       return detectGasHosting(MEA.config, win ? win.google : null);
     }
@@ -458,7 +459,7 @@
       applyCsrfToken(MEA.api, result.csrfToken);
       const user = buildLoginUser(result, getRoleNames());
       MEA.setState(buildLoginSuccessState(user));
-      const toast = getLoginToast(user, result.bootstrapped);
+      const toast = getLoginToast(user);
       MEA.ui.toast(toast.message, toast.level);
       invokeFetchStats(MEA);
       return Promise.resolve(user);
@@ -471,7 +472,10 @@
         return;
       }
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("login", { credential: credential }).then(applyLoginSuccess).catch(handleAuthCallFailure);
+      MEA.api
+        .call("login", { credential: credential, bootstrap: shouldRequestBootstrap() })
+        .then(applyLoginSuccess)
+        .catch(handleAuthCallFailure);
     }
 
     function buildGoogleAuthUrl(clientId, redirectUri) {
@@ -509,7 +513,10 @@
 
     function loginActiveUser() {
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("loginWithActiveUser", {}).then(applyLoginSuccess).catch(handleAuthCallFailure);
+      MEA.api
+        .call("loginWithActiveUser", { bootstrap: shouldRequestBootstrap() })
+        .then(applyLoginSuccess)
+        .catch(handleAuthCallFailure);
     }
 
     function createGisReadyHandler(host, clientId) {
@@ -556,7 +563,10 @@
 
     function loginMock() {
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("login", { mock: true }).then(applyLoginSuccess).catch(handleAuthCallFailure);
+      MEA.api
+        .call("login", { mock: true, bootstrap: shouldRequestBootstrap() })
+        .then(applyLoginSuccess)
+        .catch(handleAuthCallFailure);
     }
 
     function scheduleRenderGoogleButton() {
