@@ -97,11 +97,18 @@ console.log("1. 全新試算表應建立 12 欄操作日誌工作表...");
   assert.strictEqual(db.ACTIVITY_LOG_HEADERS.length, 12, "表頭應為 12 欄");
   assert.deepStrictEqual(headerWrite[5][0], db.ACTIVITY_LOG_HEADERS, "表頭內容應正確");
 
-  const formatCall = activity.ops.find(function (o) {
+  const formatCalls = activity.ops.filter(function (o) {
     return o[0] === "setNumberFormat" && o[5] === "@";
   });
-  assert(formatCall, "詳情欄位應套用純文字格式 @");
-  assert.strictEqual(formatCall[2], 10, "純文字格式應套用第 10 欄（詳情 JSON）");
+  assert.strictEqual(formatCalls.length, 2, "應對第 1 欄與第 10 欄各套用一次純文字格式");
+  const formattedColumns = formatCalls.map(function (o) {
+    return o[2];
+  });
+  assert(formattedColumns.indexOf(1) !== -1, "純文字格式應套用第 1 欄（時間戳記）");
+  assert(formattedColumns.indexOf(10) !== -1, "純文字格式應套用第 10 欄（詳情 JSON）");
+  formatCalls.forEach(function (o) {
+    assert(o[3] > 1000, "格式化範圍應放大（> 1000 列），實得 " + o[3]);
+  });
   console.log("   ✓ 建立與格式驗證通過！\n");
 }
 
@@ -126,8 +133,35 @@ console.log("3. 重複初始化應保持冪等且不覆寫既有日誌...");
   assert.strictEqual(result.ok, true);
   assert.strictEqual(ss._inserted.indexOf(db.SHEET_ACTIVITY_LOG), -1, "不應重複建立操作日誌工作表");
   assert.strictEqual(result.createdSheets.indexOf(db.SHEET_ACTIVITY_LOG), -1, "不應列入建立清單");
-  assert.deepStrictEqual(activity.ops, [["pre-existing-log-row"]], "既有日誌資料不應被覆寫");
+  assert.deepStrictEqual(activity.ops[0], ["pre-existing-log-row"], "既有日誌資料不應被覆寫");
+  assert.strictEqual(
+    activity.ops.filter(function (o) {
+      return o[0] === "setValues";
+    }).length,
+    0,
+    "既有工作表不應被寫入資料"
+  );
   console.log("   ✓ 冪等性驗證通過！\n");
+}
+
+console.log("4. 既有操作日誌工作表亦應補上第 1 欄與第 10 欄純文字格式...");
+{
+  const activity = makeSheet();
+  activity.ops.push(["pre-existing-log-row"]);
+  const ss = makeSpreadsheet({ [db.SHEET_ACTIVITY_LOG]: activity });
+  db.initializeDatabaseSheets({ spreadsheet: ss });
+
+  const formatCalls = activity.ops.filter(function (o) {
+    return o[0] === "setNumberFormat" && o[5] === "@";
+  });
+  assert.strictEqual(formatCalls.length, 2, "既有工作表應對第 1 欄與第 10 欄各套用一次純文字格式");
+  const formattedColumns = formatCalls.map(function (o) {
+    return o[2];
+  });
+  assert(formattedColumns.indexOf(1) !== -1, "純文字格式應套用第 1 欄（時間戳記）");
+  assert(formattedColumns.indexOf(10) !== -1, "純文字格式應套用第 10 欄（詳情 JSON）");
+  assert.deepStrictEqual(activity.ops[0], ["pre-existing-log-row"], "既有資料不應被覆寫");
+  console.log("   ✓ 既有工作表格式補強驗證通過！\n");
 }
 
 console.log("✓ databaseInitializerActivityLog.test.js 測試全數通過！\n");
