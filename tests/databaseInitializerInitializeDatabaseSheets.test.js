@@ -213,6 +213,10 @@ function makeGenericSheet(options) {
         setFontSize: function (v) {
           ops.push(["setFontSize", r, c, numRows, numCols, v]);
           return this;
+        },
+        setNumberFormat: function (v) {
+          ops.push(["setNumberFormat", r, c, numRows, numCols, v]);
+          return this;
         }
       };
     }
@@ -251,9 +255,9 @@ console.log("1. 缺少有效試算表物件時應拋出錯誤...");
   console.log("   ✓ 缺少試算表錯誤驗證通過！\n");
 }
 
-console.log("2. 全部工作表不存在時應建立三張工作表並回傳建立清單...");
+console.log("2. 全部工作表不存在時應建立四張工作表並回傳建立清單...");
 {
-  const created = { config: null, course: null, instruct: null };
+  const created = { config: null, course: null, instruct: null, activity: null };
   const ss = makeSpreadsheet({});
   ss.insertSheet = function (name) {
     ss._inserted.push(name);
@@ -282,6 +286,12 @@ console.log("2. 全部工作表不存在時應建立三張工作表並回傳建�
       ss._store[name] = s;
       return s;
     }
+    if (name === db.SHEET_ACTIVITY_LOG) {
+      const s = makeGenericSheet({ maxCols: db.ACTIVITY_LOG_HEADERS.length });
+      created.activity = s;
+      ss._store[name] = s;
+      return s;
+    }
     const s = makeGenericSheet();
     ss._store[name] = s;
     return s;
@@ -293,13 +303,19 @@ console.log("2. 全部工作表不存在時應建立三張工作表並回傳建�
     }
   );
   assert.strictEqual(result.ok, true);
-  assert.deepStrictEqual(result.sheets, [db.SHEET_SYSTEM_CONFIG, db.SHEET_COURSE_INDEX, db.SHEET_SYSTEM_INSTRUCTIONS]);
+  assert.deepStrictEqual(result.sheets, [
+    db.SHEET_SYSTEM_CONFIG,
+    db.SHEET_COURSE_INDEX,
+    db.SHEET_SYSTEM_INSTRUCTIONS,
+    db.SHEET_ACTIVITY_LOG
+  ]);
   assert.deepStrictEqual(result.createdSheets, [
     db.SHEET_SYSTEM_CONFIG,
     db.SHEET_COURSE_INDEX,
-    db.SHEET_SYSTEM_INSTRUCTIONS
+    db.SHEET_SYSTEM_INSTRUCTIONS,
+    db.SHEET_ACTIVITY_LOG
   ]);
-  assert(created.config && created.course && created.instruct, "應建立三張工作表");
+  assert(created.config && created.course && created.instruct && created.activity, "應建立四張工作表");
   // config 初始化：寫入預設參數、表頭與凍結
   assert(
     created.config.ops.some(function (o) {
@@ -357,6 +373,25 @@ console.log("2. 全部工作表不存在時應建立三張工作表並回傳建�
     }),
     "應設定說明標題字級"
   );
+  // activity 初始化：12 欄表頭、凍結與詳情純文字格式
+  assert(
+    created.activity.ops.some(function (o) {
+      return o[0] === "setValues" && o[1] === 1 && o[2] === 1 && o[4] === db.ACTIVITY_LOG_HEADERS.length;
+    }),
+    "應寫入操作日誌 12 欄表頭"
+  );
+  assert(
+    created.activity.ops.some(function (o) {
+      return o[0] === "setFrozenRows" && o[1] === 1;
+    }),
+    "操作日誌應凍結首列"
+  );
+  assert(
+    created.activity.ops.some(function (o) {
+      return o[0] === "setNumberFormat" && o[5] === "@";
+    }),
+    "詳情欄位應套用純文字格式"
+  );
   console.log("   ✓ 全新初始化驗證通過！\n");
 }
 
@@ -373,7 +408,8 @@ console.log("3. 工作表皆已存在且結構完整時應具冪等性且不建�
   const ss = makeSpreadsheet({
     [db.SHEET_SYSTEM_CONFIG]: config,
     [db.SHEET_COURSE_INDEX]: course,
-    [db.SHEET_SYSTEM_INSTRUCTIONS]: instruct
+    [db.SHEET_SYSTEM_INSTRUCTIONS]: instruct,
+    [db.SHEET_ACTIVITY_LOG]: makeGenericSheet({ maxCols: db.ACTIVITY_LOG_HEADERS.length })
   });
   const result = withGlobals(
     { SpreadsheetApp: undefined, NORMALIZED_COURSE_HEADERS: transformer.NORMALIZED_COURSE_HEADERS },
@@ -412,7 +448,8 @@ console.log("4. 既有設定工作表結構缺漏時應補齊表頭、參數與�
   const ss = makeSpreadsheet({
     [db.SHEET_SYSTEM_CONFIG]: config,
     [db.SHEET_COURSE_INDEX]: course,
-    [db.SHEET_SYSTEM_INSTRUCTIONS]: instruct
+    [db.SHEET_SYSTEM_INSTRUCTIONS]: instruct,
+    [db.SHEET_ACTIVITY_LOG]: makeGenericSheet({ maxCols: db.ACTIVITY_LOG_HEADERS.length })
   });
   const result = withGlobals(
     { SpreadsheetApp: undefined, NORMALIZED_COURSE_HEADERS: transformer.NORMALIZED_COURSE_HEADERS },
@@ -548,7 +585,8 @@ console.log("6. 舊工作表應一次性更名為新名稱並保留既有資料.
   const ss = makeSpreadsheet({
     [db.SHEET_SYSTEM_CONFIG]: config,
     [db.LEGACY_SHEET_COURSE_INDEX]: legacyCourse,
-    [db.SHEET_SYSTEM_INSTRUCTIONS]: instruct
+    [db.SHEET_SYSTEM_INSTRUCTIONS]: instruct,
+    [db.SHEET_ACTIVITY_LOG]: makeGenericSheet({ maxCols: db.ACTIVITY_LOG_HEADERS.length })
   });
   const runInit = function () {
     return withGlobals(

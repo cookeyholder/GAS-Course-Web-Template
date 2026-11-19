@@ -29,6 +29,7 @@ function run() {
   assert.strictEqual(db.SHEET_COURSE_INDEX, gasRuntime.SHEET_COURSE_INDEX);
   assert.strictEqual(db.LEGACY_SHEET_COURSE_INDEX, gasRuntime.LEGACY_SHEET_COURSE_INDEX);
   assert.strictEqual(db.SHEET_SYSTEM_INSTRUCTIONS, gasRuntime.SHEET_SYSTEM_INSTRUCTIONS);
+  assert.strictEqual(db.SHEET_ACTIVITY_LOG, gasRuntime.SHEET_ACTIVITY_LOG);
   assert.strictEqual(gasRuntime.SHEET_ACTIVITY_LOG, "操作日誌");
   assert.strictEqual(transformer.NORMALIZED_COURSE_SHEET_NAME, gasRuntime.SHEET_COURSE_INDEX);
   console.log("   ✓ 工作表名稱驗證通過！\n");

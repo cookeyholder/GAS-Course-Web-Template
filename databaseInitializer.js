@@ -24,6 +24,23 @@ const SHEET_SYSTEM_CONFIG = GAS_RUNTIME.SHEET_SYSTEM_CONFIG;
 const SHEET_COURSE_INDEX = GAS_RUNTIME.SHEET_COURSE_INDEX;
 const LEGACY_SHEET_COURSE_INDEX = GAS_RUNTIME.LEGACY_SHEET_COURSE_INDEX;
 const SHEET_SYSTEM_INSTRUCTIONS = GAS_RUNTIME.SHEET_SYSTEM_INSTRUCTIONS;
+const SHEET_ACTIVITY_LOG = GAS_RUNTIME.SHEET_ACTIVITY_LOG;
+
+/** 操作日誌工作表 12 欄表頭（順序為日誌寫入依據） */
+const ACTIVITY_LOG_HEADERS = [
+  "時間戳記",
+  "請求識別碼",
+  "事件類別",
+  "動作名稱",
+  "結果",
+  "操作者 email",
+  "操作者姓名",
+  "角色",
+  "摘要",
+  "詳情 JSON",
+  "耗時（毫秒）",
+  "錯誤代碼"
+];
 
 // ============================================================================
 // 預設參數與欄位定義
@@ -199,6 +216,26 @@ function ensureInstructionsSheet_(ss, createdSheets) {
   createdSheets.push(SHEET_SYSTEM_INSTRUCTIONS);
 }
 
+function createActivityLogSheet_(ss) {
+  const sheet = ss.insertSheet(SHEET_ACTIVITY_LOG);
+  const headerRange = sheet.getRange(1, 1, 1, ACTIVITY_LOG_HEADERS.length);
+  headerRange.setValues([ACTIVITY_LOG_HEADERS]);
+  headerRange.setFontWeight("bold").setBackground("#e2e8f0");
+  sheet.setFrozenRows(1);
+  // 詳情欄位（第 10 欄）預先套用純文字格式，避免 JSON 內容被誤判為公式或數字
+  const detailRange = sheet.getRange(2, 10, 1000, 1);
+  if (detailRange && typeof detailRange.setNumberFormat === "function") {
+    detailRange.setNumberFormat("@");
+  }
+  return sheet;
+}
+
+function ensureActivityLogSheet_(ss, createdSheets) {
+  if (ss.getSheetByName(SHEET_ACTIVITY_LOG)) return;
+  createActivityLogSheet_(ss);
+  createdSheets.push(SHEET_ACTIVITY_LOG);
+}
+
 /**
  * 完整初始化／檢查所有後端工作表
  *
@@ -219,10 +256,11 @@ function initializeDatabaseSheets(options) {
   ensureSystemConfigSheet_(ss, createdSheets);
   ensureCourseIndexSheet_(ss, createdSheets);
   ensureInstructionsSheet_(ss, createdSheets);
+  ensureActivityLogSheet_(ss, createdSheets);
 
   return {
     ok: true,
-    sheets: [SHEET_SYSTEM_CONFIG, SHEET_COURSE_INDEX, SHEET_SYSTEM_INSTRUCTIONS],
+    sheets: [SHEET_SYSTEM_CONFIG, SHEET_COURSE_INDEX, SHEET_SYSTEM_INSTRUCTIONS, SHEET_ACTIVITY_LOG],
     createdSheets: createdSheets
   };
 }
@@ -616,6 +654,8 @@ if (typeof module !== "undefined" && module.exports) {
     SHEET_COURSE_INDEX: SHEET_COURSE_INDEX,
     LEGACY_SHEET_COURSE_INDEX: LEGACY_SHEET_COURSE_INDEX,
     SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
+    SHEET_ACTIVITY_LOG: SHEET_ACTIVITY_LOG,
+    ACTIVITY_LOG_HEADERS: ACTIVITY_LOG_HEADERS,
     DEFAULT_SYSTEM_PARAMS: DEFAULT_SYSTEM_PARAMS,
     WHITELIST_HEADERS: WHITELIST_HEADERS,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
