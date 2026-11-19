@@ -18,9 +18,9 @@
 ## 3. 查詢驗證與讀取成本
 
 - [x] 3.1 `resolveActivityLogDateRange_` 拒絕不存在的日期（如 `2026-13-40`）、`startDate > endDate` 與年份超出 1970–2100 的區間，並回傳錯誤代碼 `invalid_date_range` 與明確訊息，不回退預設值、不回傳空資料；`webapp/js/activityLog.js` 的錯誤處理需攔截此代碼並顯示對應訊息；補後端邏輯測試與前端錯誤顯示測試
-- [ ] 3.2 將 `handleGetActivityLogWebApiAction_` 改為由最後一列往前每批 500 列讀取；跨出 `range.start` 後再多讀一批才停止（容忍鎖外產生時間戳記的輕微順序錯置），或達 `ACTIVITY_LOG_MAX_SCAN_ROWS` 即終止。**僅達上限**回傳 `truncated: true`，此時 `total` 為下限並由 spec 場景固定；補測試驗證不會一次讀取整表、跨出日期下界時 `total` 精確且無 `truncated` 欄位、達上限時 `total` 語意為下限
-- [ ] 3.3 將 `durationMs` 缺值（`""`／`null`／`undefined`）統一回傳 `null`，修正 `tests/webApiActivityLogBranchCoverage.test.js` 中預期 `NaN` 的斷言
-- [ ] 3.4 將 `category` 篩選改為兩側 `toLowerCase()` 比對，並補大小寫混合的查詢測試
+- [x] 3.2 將 `handleGetActivityLogWebApiAction_` 改為由最後一列往前每批 500 列讀取；跨出 `range.start` 後再多讀一批才停止（容忍鎖外產生時間戳記的輕微順序錯置），或達 `ACTIVITY_LOG_MAX_SCAN_ROWS` 即終止。**僅達上限**回傳 `truncated: true`，此時 `total` 為下限並由 spec 場景固定；補測試驗證不會一次讀取整表、跨出日期下界時 `total` 精確且無 `truncated` 欄位、達上限時 `total` 語意為下限
+- [x] 3.3 將 `durationMs` 缺值（`""`／`null`／`undefined`）統一回傳 `null`，修正 `tests/webApiActivityLogBranchCoverage.test.js` 中預期 `NaN` 的斷言
+- [x] 3.4 將 `category` 篩選改為兩側 `toLowerCase()` 比對，並補大小寫混合的查詢測試
 
 ## 4. 孤兒元素清理
 

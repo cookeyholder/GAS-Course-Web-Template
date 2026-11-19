@@ -982,6 +982,10 @@ function handleSaveWhitelistWebApiAction_(payload, session, ss) {
 const ACTIVITY_LOG_DEFAULT_DAYS = 7;
 const ACTIVITY_LOG_PAGE_SIZE_DEFAULT = 50;
 const ACTIVITY_LOG_PAGE_SIZE_MAX = 500;
+/** 單次查詢最多往前掃描的資料列數；超過上限回傳 truncated: true */
+const ACTIVITY_LOG_MAX_SCAN_ROWS = 5000;
+/** 每批往前讀取的列數 */
+const ACTIVITY_LOG_SCAN_BATCH_SIZE = 500;
 
 /**
  * 以 Asia/Taipei 時區格式化日期；GAS 使用 Utilities，Node 測試採固定 +8 偏移。
@@ -1114,53 +1118,97 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
   }
   const lastRow = Math.max(0, Number(sheet.getLastRow()) || 0);
   if (lastRow < 2) return emptyResult;
-  const values = sheet.getRange(2, 1, lastRow - 1, 12).getValues() || [];
   const emailFilter = String(source.email || "")
     .trim()
     .toLowerCase();
-  const categoryFilter = String(source.category || "").trim();
+  const categoryFilter = String(source.category || "")
+    .trim()
+    .toLowerCase();
+
+  const dataRowCount = lastRow - 1;
+  const maxScanRows = Math.min(dataRowCount, ACTIVITY_LOG_MAX_SCAN_ROWS);
+  let scannedRows = 0;
+  let cursor = lastRow;
+  let crossedRangeStart = false;
+  let readAfterCross = false;
   const matched = [];
-  values.forEach(function (row) {
-    const cells = Array.isArray(row) ? row : [];
-    const timestamp = normalizeActivityLogTimestamp_(cells[0]);
-    if (timestamp < range.start || timestamp > range.end) return;
-    if (categoryFilter && String(cells[2] || "") !== categoryFilter) return;
-    if (
-      emailFilter &&
-      String(cells[5] || "")
-        .toLowerCase()
-        .indexOf(emailFilter) === -1
-    )
-      return;
-    matched.push({
-      timestamp: timestamp,
-      requestId: String(cells[1] || ""),
-      category: String(cells[2] || ""),
-      action: String(cells[3] || ""),
-      result: String(cells[4] || ""),
-      email: String(cells[5] || ""),
-      name: String(cells[6] || ""),
-      role: String(cells[7] || ""),
-      summary: String(cells[8] || ""),
-      detail: String(cells[9] || ""),
-      durationMs: cells[10] === "" || cells[10] === null ? null : Number(cells[10]),
-      errorCode: String(cells[11] || "")
-    });
-  });
+
+  while (cursor >= 2 && scannedRows < maxScanRows && !(crossedRangeStart && readAfterCross)) {
+    const batchSize = Math.min(ACTIVITY_LOG_SCAN_BATCH_SIZE, cursor - 1, maxScanRows - scannedRows);
+    const batchStart = cursor - batchSize + 1;
+    const values = sheet.getRange(batchStart, 1, batchSize, 12).getValues() || [];
+    scannedRows += batchSize;
+    cursor = batchStart - 1;
+    if (crossedRangeStart) readAfterCross = true;
+
+    for (let i = values.length - 1; i >= 0; i -= 1) {
+      const cells = Array.isArray(values[i]) ? values[i] : [];
+      const timestamp = normalizeActivityLogTimestamp_(cells[0]);
+      if (timestamp < range.start) {
+        crossedRangeStart = true;
+        continue;
+      }
+      if (timestamp > range.end) continue;
+
+      const rowCategory = String(cells[2] || "");
+      if (categoryFilter && rowCategory.toLowerCase() !== categoryFilter) continue;
+      if (
+        emailFilter &&
+        String(cells[5] || "")
+          .toLowerCase()
+          .indexOf(emailFilter) === -1
+      )
+        continue;
+
+      const rawDuration = cells[10];
+      let durationMs = null;
+      if (!(rawDuration === "" || rawDuration === null || rawDuration === undefined)) {
+        const parsedDuration = Number(rawDuration);
+        durationMs = isFinite(parsedDuration) ? parsedDuration : null;
+      }
+
+      matched.push({
+        _rowIndex: batchStart + i,
+        timestamp: timestamp,
+        requestId: String(cells[1] || ""),
+        category: rowCategory,
+        action: String(cells[3] || ""),
+        result: String(cells[4] || ""),
+        email: String(cells[5] || ""),
+        name: String(cells[6] || ""),
+        role: String(cells[7] || ""),
+        summary: String(cells[8] || ""),
+        detail: String(cells[9] || ""),
+        durationMs: durationMs,
+        errorCode: String(cells[11] || "")
+      });
+    }
+  }
+
   matched.sort(function (a, b) {
     if (a.timestamp < b.timestamp) return 1;
     if (a.timestamp > b.timestamp) return -1;
-    return 0;
+    // 同時間戳記維持原始列順序（較早列在前），與既有穩定排序行為一致
+    return a._rowIndex - b._rowIndex;
   });
-  return {
+  const rows = matched.slice((page - 1) * pageSize, page * pageSize).map(function (row) {
+    const copy = Object.assign({}, row);
+    delete copy._rowIndex;
+    return copy;
+  });
+
+  const truncated = scannedRows >= ACTIVITY_LOG_MAX_SCAN_ROWS && dataRowCount > ACTIVITY_LOG_MAX_SCAN_ROWS;
+  const result = {
     ok: true,
-    rows: matched.slice((page - 1) * pageSize, page * pageSize),
+    rows: rows,
     total: matched.length,
     page: page,
     pageSize: pageSize,
     startDate: range.startDate,
     endDate: range.endDate
   };
+  if (truncated) result.truncated = true;
+  return result;
 }
 
 /** 將所有 action 的處理函式註冊至 ACTION_REGISTRY，消除獨立 switch 造成的漂移。 */

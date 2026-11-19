@@ -599,6 +599,7 @@ console.log("17. 日誌清單應依時間遞減排序並分頁...");
     }
   );
   assert.strictEqual(result.total, 3);
+  assert.strictEqual(result.truncated, undefined, "未達掃描上限時不應標記 truncated");
   assert.strictEqual(result.pageSize, 2);
   assert.deepStrictEqual(
     result.rows.map(function (row) {
@@ -989,6 +990,257 @@ console.log("23. 無效日期區間應回傳明確錯誤且不回退預設值...
   assert(/^\d{4}-\d{2}-\d{2}$/.test(fallback.startDate));
   assert(/^\d{4}-\d{2}-\d{2}$/.test(fallback.endDate));
   console.log("   ✓ 無效日期區間驗證通過！\n");
+}
+
+console.log("24. 由最後一列往前分批讀取，跨出日期下界即停止且不標記 truncated...");
+{
+  const calls = [];
+  // 600 列資料（超過單批 500）：
+  // - 前 540 列在查詢區間下界之前（2026-10-*）
+  // - 後段含 3 列符合區間（2026-11-14~16）與少量較新資料
+  const dataRows = [];
+  for (let i = 0; i < 540; i += 1) {
+    dataRows.push([
+      "2026-10-01 08:00:00",
+      "old-" + i,
+      "auth",
+      "登入",
+      "success",
+      "a@example.com",
+      "甲",
+      "檢視人員",
+      "s",
+      "{}",
+      1,
+      ""
+    ]);
+  }
+  dataRows.push([
+    "2026-11-13 08:00:00",
+    "r5",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  dataRows.push([
+    "2026-11-14 08:00:00",
+    "r6",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  dataRows.push([
+    "2026-11-15 08:00:00",
+    "r7",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  dataRows.push([
+    "2026-11-16 08:00:00",
+    "r8",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  dataRows.push([
+    "2026-11-17 08:00:00",
+    "r9",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  for (let i = dataRows.length; i < 600; i += 1) {
+    dataRows.push([
+      "2026-11-18 08:00:00",
+      "new-" + i,
+      "auth",
+      "登入",
+      "success",
+      "a@example.com",
+      "甲",
+      "檢視人員",
+      "s",
+      "{}",
+      1,
+      ""
+    ]);
+  }
+
+  const sheet = {
+    getLastRow: function () {
+      return dataRows.length + 1;
+    },
+    getRange: function (r, c, numRows, numCols) {
+      calls.push({ row: r, col: c, numRows: numRows, numCols: numCols });
+      return {
+        getValues: function () {
+          return dataRows.slice(r - 2, r - 2 + numRows).map(function (row) {
+            return row.slice();
+          });
+        }
+      };
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  const result = api.handleGetActivityLogWebApiAction(
+    { startDate: "2026-11-14", endDate: "2026-11-16", page: 1, pageSize: 50 },
+    { role: "admin" },
+    ss
+  );
+  assert.deepStrictEqual(
+    result.rows.map(function (row) {
+      return row.requestId;
+    }),
+    ["r8", "r7", "r6"],
+    "應回傳區間內資料並依時間遞減排序"
+  );
+  assert.strictEqual(result.total, 3, "跨出日期下界時 total 應精確");
+  assert.strictEqual(result.truncated, undefined, "未達掃描上限不應標記 truncated");
+  assert(
+    calls.every(function (c) {
+      return c.numRows <= 500 && c.numCols === 12;
+    }),
+    "單次讀取不得超過批次上限且應固定 12 欄"
+  );
+  assert(
+    calls.length >= 2 &&
+      calls.every(function (c) {
+        return c.numRows < dataRows.length;
+      }),
+    "不應一次讀取整表"
+  );
+  // 跨出 range.start 後會再多讀一批以容忍時間戳記錯置，但不應掃描至最舊區塊
+  assert(calls.length <= 3, "跨出日期下界後僅再多讀一批即可停止，實際 " + calls.length + " 批");
+  console.log("   ✓ 分批讀取與提前終止驗證通過！\n");
+}
+
+console.log("25. 達掃描上限時應回傳 truncated 且 total 為已掃描下限...");
+{
+  const totalDataRows = 5200; // 超過 ACTIVITY_LOG_MAX_SCAN_ROWS (5000)
+  const sheet = {
+    getLastRow: function () {
+      return totalDataRows + 1;
+    },
+    getRange: function (r, c, numRows) {
+      // 所有資料都在查詢區間內，迫使掃描達上限
+      const values = [];
+      for (let i = 0; i < numRows; i += 1) {
+        const rowNum = r + i;
+        values.push([
+          "2026-11-19 12:00:00",
+          "r" + rowNum,
+          "query",
+          "查詢",
+          "success",
+          "a@example.com",
+          "甲",
+          "檢視人員",
+          "s",
+          "{}",
+          1,
+          ""
+        ]);
+      }
+      return {
+        getValues: function () {
+          return values;
+        }
+      };
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  const result = api.handleGetActivityLogWebApiAction(
+    { startDate: "2000-01-01", endDate: "2099-12-31", page: 1, pageSize: 50 },
+    { role: "admin" },
+    ss
+  );
+  assert.strictEqual(result.truncated, true, "達掃描上限應標記 truncated");
+  assert(result.total <= 5000, "total 應為已掃描範圍的符合筆數（下限），實得 " + result.total);
+  assert(result.total > 0, "應有掃描到的符合列");
+  assert.strictEqual(result.rows.length, 50, "仍應依分頁回傳本頁資料");
+  console.log("   ✓ 掃描上限與 truncated 驗證通過！\n");
+}
+
+console.log("26. category 篩選應不分大小寫...");
+{
+  const rows = [
+    ["2026-11-19 10:00:00", "r1", "Auth", "登入", "success", "a@example.com", "甲", "檢視人員", "s", "{}", 1, ""],
+    ["2026-11-19 11:00:00", "r2", "WRITE", "寫入", "success", "a@example.com", "甲", "管理員", "s", "{}", 1, ""],
+    ["2026-11-19 12:00:00", "r3", "query", "查詢", "success", "a@example.com", "甲", "檢視人員", "s", "{}", 1, ""]
+  ];
+  const sheet = {
+    getLastRow: function () {
+      return rows.length + 1;
+    },
+    getRange: function () {
+      return {
+        getValues: function () {
+          return rows.map(function (r) {
+            return r.slice();
+          });
+        }
+      };
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  ["auth", "AUTH", "Auth"].forEach(function (cat) {
+    const result = api.handleGetActivityLogWebApiAction(
+      { startDate: "2000-01-01", endDate: "2099-12-31", category: cat },
+      { role: "admin" },
+      ss
+    );
+    assert.strictEqual(result.total, 1, "category " + cat + " 應命中一筆");
+    assert.strictEqual(result.rows[0].requestId, "r1");
+  });
+  console.log("   ✓ category 大小寫不敏感驗證通過！\n");
 }
 
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");
