@@ -168,6 +168,31 @@ function isAllowedGoogleDomain(email, configuredDomain, hostedDomain) {
   return emailDomain === allowedDomain || hosted === allowedDomain;
 }
 
+/**
+ * 在短臨界區內執行首次管理員開通；寫入前重新檢查白名單以避免並發覆寫。
+ * 無 LockService 的 Node 測試環境直接執行回呼。
+ */
+function runBootstrapWithLock_(fn) {
+  if (typeof LockService === "undefined" || !LockService.getScriptLock) return fn();
+  const lock = LockService.getScriptLock();
+  let acquired = false;
+  try {
+    acquired = lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
+  } catch (lockError) {
+    acquired = false;
+  }
+  if (!acquired) return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
+  try {
+    return fn();
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (releaseError) {
+      // 釋放失敗不影響已完成的寫入結果
+    }
+  }
+}
+
 function createSessionForEmail(email, name, options) {
   options = options || {};
   const ss =
@@ -179,7 +204,23 @@ function createSessionForEmail(email, name, options) {
   const cleanEmail = String(email || "")
     .trim()
     .toLowerCase();
-  const bootstrapped = bootstrapAdminIfNeeded(cleanEmail, name, ss);
+
+  // 安全預設：只有明確標記 allowBootstrap 且白名單為空時才允許首次開通。
+  let bootstrapped = false;
+  if (options.allowBootstrap === true) {
+    const currentAccounts = readWhitelist(ss) || [];
+    if (currentAccounts.length === 0) {
+      const bootstrapResult = runBootstrapWithLock_(function () {
+        if ((readWhitelist(ss) || []).length !== 0) return false;
+        return !!bootstrapAdminIfNeeded(cleanEmail, name, ss);
+      });
+      if (bootstrapResult && typeof bootstrapResult === "object" && bootstrapResult.ok === false) {
+        return bootstrapResult;
+      }
+      bootstrapped = bootstrapResult === true;
+    }
+  }
+
   const account = getAccountRole(cleanEmail, ss);
   const settings = readSystemSettings(ss);
 
@@ -321,7 +362,7 @@ function loginWithGoogleIdToken(idToken, options) {
   if (!verify.ok) return verify;
 
   const createSessionFn = getOverridableApiFn_("createSessionForEmail", createSessionForEmail);
-  return createSessionFn(verify.email, verify.name, { spreadsheet: ss });
+  return createSessionFn(verify.email, verify.name, { spreadsheet: ss, allowBootstrap: true });
 }
 
 function resolveLoginSpreadsheet_(options) {
@@ -357,7 +398,7 @@ function loginWithActiveUser(options) {
   }
 
   const createSessionFn = getOverridableApiFn_("createSessionForEmail", createSessionForEmail);
-  return createSessionFn(email, email, { spreadsheet: ss });
+  return createSessionFn(email, email, { spreadsheet: ss, allowBootstrap: true });
 }
 
 function isAllowedOAuthRedirectUri(uri) {
@@ -481,7 +522,7 @@ function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss) {
     deps && typeof deps.createSessionForEmail === "function" ? deps.createSessionForEmail : createSessionForEmail;
   const verification = verifyFn(tokenData.id_token, clientId, settings.allowedLoginDomain);
   if (!verification.ok) return verification;
-  return createSessionFn(verification.email, verification.name, { spreadsheet: ss });
+  return createSessionFn(verification.email, verification.name, { spreadsheet: ss, allowBootstrap: true });
 }
 
 function handleOAuthCodeCallback(code, e, deps) {

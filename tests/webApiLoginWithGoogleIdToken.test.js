@@ -117,7 +117,7 @@ console.log("2. 驗證成功時應建立 session 並回傳結果...");
   assert.deepStrictEqual(sessionArgs, {
     email: "user@example.com",
     name: "User",
-    options: { spreadsheet: ss }
+    options: { spreadsheet: ss, allowBootstrap: true }
   });
   console.log("   ✓ 驗證成功分支通過！\n");
 }

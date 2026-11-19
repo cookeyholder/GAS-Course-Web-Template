@@ -365,6 +365,31 @@ function withGlobal(name, value, fn) {
     console.log("   ✓ clientSecret 遮蔽驗證通過！\n");
   }
 
+  console.log("13.2 系統設定與角色缺值時遮蔽仍應安全降級...");
+  {
+    withStubbed(
+      api,
+      "authorizeWebApiAction",
+      function () {
+        return { ok: true, session: {} };
+      },
+      function () {
+        withGlobal(
+          "readSystemSettings",
+          function () {
+            return undefined;
+          },
+          function () {
+            const r = api.routeWebApiAction("getSystemSettings", { token: "t" });
+            assert.strictEqual(r.ok, true);
+            assert.deepStrictEqual(r.settings, {});
+          }
+        );
+      }
+    );
+    console.log("   ✓ 遮蔽降級驗證通過！\n");
+  }
+
   console.log("14. saveSystemSettings 權限與儲存行為...");
   {
     const staffSession = { role: "staff", csrfToken: "csrf-ok" };

@@ -126,7 +126,7 @@ console.log("5. 有效 email 應正規化並使用 options.spreadsheet 建立 se
   assert.deepStrictEqual(captured, {
     email: "user@example.com",
     name: "user@example.com",
-    options: { spreadsheet: ss }
+    options: { spreadsheet: ss, allowBootstrap: true }
   });
   console.log("   ✓ options.spreadsheet 驗證通過！\n");
 }
@@ -162,7 +162,7 @@ console.log("6. 無 options.spreadsheet 時應使用 SpreadsheetApp.getActiveSpr
       }
     );
   });
-  assert.deepStrictEqual(captured, { spreadsheet: ss });
+  assert.deepStrictEqual(captured, { spreadsheet: ss, allowBootstrap: true });
   console.log("   ✓ SpreadsheetApp fallback 驗證通過！\n");
 }
 
@@ -191,7 +191,7 @@ console.log("7. 無 SpreadsheetApp 時 spreadsheet 應為 null...");
       }
     );
   });
-  assert.deepStrictEqual(captured, { spreadsheet: null });
+  assert.deepStrictEqual(captured, { spreadsheet: null, allowBootstrap: true });
   console.log("   ✓ null spreadsheet 驗證通過！\n");
 }
 

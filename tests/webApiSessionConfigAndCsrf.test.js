@@ -220,6 +220,9 @@ console.log("6. createSessionForEmail 成功時應核發 token/csrf 並可驗證
   const r = withGlobals(
     {
       SpreadsheetApp: undefined,
+      readWhitelist: function () {
+        return [];
+      },
       bootstrapAdminIfNeeded: function (email, name, spreadsheet) {
         bootArgs = [email, name, spreadsheet];
         return true;
@@ -233,7 +236,10 @@ console.log("6. createSessionForEmail 成功時應核發 token/csrf 並可驗證
       }
     },
     function () {
-      return api.createSessionForEmail("  ADMIN@EXAMPLE.COM ", "Fallback", { spreadsheet: ss });
+      return api.createSessionForEmail("  ADMIN@EXAMPLE.COM ", "Fallback", {
+        spreadsheet: ss,
+        allowBootstrap: true
+      });
     }
   );
   assert.strictEqual(r.ok, true);
@@ -265,6 +271,226 @@ console.log("6. createSessionForEmail 成功時應核發 token/csrf 並可驗證
   assert.strictEqual(expired.ok, false);
   assert.strictEqual(expired.error, "session_expired");
   console.log("   ✓ session 核發、驗證與失效流程通過！\n");
+}
+
+console.log("6.1 白名單非空時即使標記 bootstrap 也不得寫入角色...");
+{
+  let bootstrapCalled = false;
+  const r = withGlobals(
+    {
+      SpreadsheetApp: undefined,
+      readWhitelist: function () {
+        return [{ email: "admin@example.com", role: "admin", enabled: true }];
+      },
+      bootstrapAdminIfNeeded: function () {
+        bootstrapCalled = true;
+        return true;
+      },
+      getAccountRole: function () {
+        return { found: false, role: "viewer", enabled: true };
+      },
+      readSystemSettings: function () {
+        return { allowedLoginDomain: "", restrictWhitelist: true };
+      }
+    },
+    function () {
+      return api.createSessionForEmail("intruder@example.com", "Intruder", {
+        spreadsheet: { id: "ss-nonempty" },
+        allowBootstrap: true
+      });
+    }
+  );
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.error, "not_whitelisted");
+  assert.strictEqual(bootstrapCalled, false, "白名單非空時不得呼叫 bootstrapAdminIfNeeded");
+  assert.strictEqual(r.token, undefined, "不得建立 session");
+  console.log("   ✓ 白名單非空守衛驗證通過！\n");
+}
+
+/** 建立 bootstrap 寫入鎖測試所需的共用全域 stub。 */
+function bootstrapLockGlobals_(lock, overrides) {
+  return Object.assign(
+    {
+      SpreadsheetApp: undefined,
+      LockService: lock
+        ? {
+            getScriptLock: function () {
+              return lock;
+            }
+          }
+        : undefined,
+      readWhitelist: function () {
+        return [];
+      },
+      bootstrapAdminIfNeeded: function () {
+        return true;
+      },
+      getAccountRole: function () {
+        return { found: true, role: "admin", enabled: true, name: "管理員" };
+      },
+      readSystemSettings: function () {
+        return { allowedLoginDomain: "", restrictWhitelist: true };
+      }
+    },
+    overrides || {}
+  );
+}
+
+console.log("6.2 bootstrap 寫入鎖：成功取得鎖時寫入並釋放...");
+{
+  let acquired = false;
+  let released = false;
+  const lock = {
+    tryLock: function () {
+      acquired = true;
+      return true;
+    },
+    releaseLock: function () {
+      released = true;
+    }
+  };
+  const r = withGlobals(bootstrapLockGlobals_(lock), function () {
+    return api.createSessionForEmail("admin@example.com", "Admin", {
+      spreadsheet: { id: "ss-lock" },
+      allowBootstrap: true
+    });
+  });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.bootstrapped, true);
+  assert.strictEqual(acquired, true);
+  assert.strictEqual(released, true);
+  console.log("   ✓ 鎖成功路徑通過！\n");
+}
+
+console.log("6.3 bootstrap 寫入鎖：無法取得鎖時回傳 lock_timeout...");
+{
+  const lock = {
+    tryLock: function () {
+      return false;
+    },
+    releaseLock: function () {
+      assert.fail("未取得鎖時不得釋放鎖");
+    }
+  };
+  const r = withGlobals(bootstrapLockGlobals_(lock), function () {
+    return api.createSessionForEmail("admin@example.com", "Admin", {
+      spreadsheet: { id: "ss-lock-fail" },
+      allowBootstrap: true
+    });
+  });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.error, "lock_timeout");
+  assert.strictEqual(r.token, undefined);
+  console.log("   ✓ 鎖逾時路徑通過！\n");
+}
+
+console.log("6.4 bootstrap 寫入鎖：tryLock 拋錯時回傳 lock_timeout...");
+{
+  const lock = {
+    tryLock: function () {
+      throw new Error("lock service unavailable");
+    },
+    releaseLock: function () {
+      assert.fail("tryLock 拋錯時不得釋放鎖");
+    }
+  };
+  const r = withGlobals(bootstrapLockGlobals_(lock), function () {
+    return api.createSessionForEmail("admin@example.com", "Admin", {
+      spreadsheet: { id: "ss-lock-throw" },
+      allowBootstrap: true
+    });
+  });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.error, "lock_timeout");
+  console.log("   ✓ tryLock 例外路徑通過！\n");
+}
+
+console.log("6.5 bootstrap 寫入鎖：releaseLock 拋錯不影響寫入結果...");
+{
+  const lock = {
+    tryLock: function () {
+      return true;
+    },
+    releaseLock: function () {
+      throw new Error("release failed");
+    }
+  };
+  const r = withGlobals(bootstrapLockGlobals_(lock), function () {
+    return api.createSessionForEmail("admin@example.com", "Admin", {
+      spreadsheet: { id: "ss-release-throw" },
+      allowBootstrap: true
+    });
+  });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.bootstrapped, true);
+  console.log("   ✓ releaseLock 例外容忍通過！\n");
+}
+
+console.log("6.6 bootstrap 雙重檢查：鎖內發現白名單已非空時不寫入...");
+{
+  let whitelistReads = 0;
+  let bootstrapCalled = false;
+  const lock = {
+    tryLock: function () {
+      return true;
+    },
+    releaseLock: function () {}
+  };
+  const globals = bootstrapLockGlobals_(lock, {
+    readWhitelist: function () {
+      whitelistReads += 1;
+      return whitelistReads === 1 ? [] : [{ email: "other@example.com", role: "admin" }];
+    },
+    bootstrapAdminIfNeeded: function () {
+      bootstrapCalled = true;
+      return true;
+    },
+    getAccountRole: function () {
+      return { found: true, role: "viewer", enabled: true, name: "檢視者" };
+    },
+    readSystemSettings: function () {
+      return { allowedLoginDomain: "", restrictWhitelist: false };
+    }
+  });
+  const r = withGlobals(globals, function () {
+    return api.createSessionForEmail("viewer@example.com", "Viewer", {
+      spreadsheet: { id: "ss-double-check" },
+      allowBootstrap: true
+    });
+  });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.role, "viewer");
+  assert.strictEqual(r.bootstrapped, false);
+  assert.strictEqual(whitelistReads, 2);
+  assert.strictEqual(bootstrapCalled, false, "鎖內二次檢查應阻止寫入");
+  console.log("   ✓ 雙重檢查路徑通過！\n");
+}
+
+console.log("6.7 readWhitelist 回傳 null 時應視為空白名單...");
+{
+  const lock = {
+    tryLock: function () {
+      return true;
+    },
+    releaseLock: function () {}
+  };
+  const globals = bootstrapLockGlobals_(lock, {
+    readWhitelist: function () {
+      return null;
+    },
+    getAccountRole: function () {
+      return { found: true, role: "admin", enabled: true, name: "管理員" };
+    }
+  });
+  const r = withGlobals(globals, function () {
+    return api.createSessionForEmail("admin@example.com", "Admin", {
+      spreadsheet: { id: "ss-null-whitelist" },
+      allowBootstrap: true
+    });
+  });
+  assert.strictEqual(r.ok, true);
+  assert.strictEqual(r.bootstrapped, true);
+  console.log("   ✓ null 白名單容錯路徑通過！\n");
 }
 
 console.log("7. getSessionInfo/getSessionState 錯誤分支應正確回應...");
