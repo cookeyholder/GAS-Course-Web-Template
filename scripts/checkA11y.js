@@ -39,6 +39,19 @@ function renderFixture(fixture, dom) {
   return doc;
 }
 
+let auditDom = null;
+
+/**
+ * 取得共用的 JSDOM 實例。axe-core 會快取首次執行時的 window，
+ * 因此所有稽核必須共用同一個 window，僅重設其 document 內容。
+ *
+ * @returns {Object} 共用的 JSDOM 實例
+ */
+function getAuditDom() {
+  if (!auditDom || !auditDom.window) auditDom = harness.createA11yDocument("light");
+  return auditDom;
+}
+
 /**
  * 對所有夾具執行 axe 稽核。
  *
@@ -47,7 +60,7 @@ function renderFixture(fixture, dom) {
  */
 async function runAudit(fixtures) {
   const list = Array.isArray(fixtures) ? fixtures : harness.collectFixtures();
-  const dom = harness.createA11yDocument("light");
+  const dom = getAuditDom();
   const previousWindow = global.window;
   const previousDocument = global.document;
   global.window = dom.window;
@@ -75,7 +88,6 @@ async function runAudit(fixtures) {
   } finally {
     global.window = previousWindow;
     global.document = previousDocument;
-    dom.window.close();
   }
 
   return failures;
