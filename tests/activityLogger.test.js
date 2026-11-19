@@ -151,4 +151,66 @@ console.log("6. 陣列形式的紀錄亦應套用截斷...");
   console.log("   ✓ 陣列紀錄截斷驗證通過！\n");
 }
 
+console.log("7. 寫入計數應每 100 次才取樣一次 getLastRow...");
+{
+  const store = {};
+  const cache = {
+    get: function (key) {
+      return store[key] || null;
+    },
+    put: function (key, value) {
+      store[key] = String(value);
+    }
+  };
+  let lastRowCalls = 0;
+  const sheet = Object.assign(makeSheet(), {
+    getLastRow: function () {
+      lastRowCalls += 1;
+      return 101;
+    }
+  });
+  const ss = makeSpreadsheet(sheet);
+  for (let i = 0; i < logger.LAST_ROW_SAMPLE_INTERVAL; i += 1) {
+    logger.appendActivityLog_(sampleRecord(), ss, { cache: cache });
+  }
+  assert.strictEqual(store[logger.WRITE_COUNT_CACHE_KEY], "100");
+  assert.strictEqual(lastRowCalls, 1, "100 次寫入應只取樣一次");
+  assert.strictEqual(store[logger.ACTIVITY_LOG_CACHE_PREFIX + "last_row"], "101");
+  console.log("   ✓ 抽樣間隔與注入驗證通過！\n");
+}
+
+console.log("8. 快取過期時計數重置且不誤觸取樣...");
+{
+  let lastRowCalls = 0;
+  const expiringCache = {
+    get: function () {
+      return null;
+    },
+    put: function () {}
+  };
+  const sheet = Object.assign(makeSheet(), {
+    getLastRow: function () {
+      lastRowCalls += 1;
+      return 10;
+    }
+  });
+  for (let i = 0; i < 10; i += 1) {
+    logger.appendActivityLog_(sampleRecord(), makeSpreadsheet(sheet), { cache: expiringCache });
+  }
+  assert.strictEqual(lastRowCalls, 0, "計數重置後不應取樣");
+  console.log("   ✓ 過期行為驗證通過！\n");
+}
+
+console.log("9. 未提供注入快取時應使用記憶體備援...");
+{
+  const cache = logger.getActivityLogCache();
+  assert.strictEqual(typeof cache.get, "function");
+  assert.strictEqual(typeof cache.put, "function");
+  const before = parseInt(cache.get(logger.WRITE_COUNT_CACHE_KEY), 10) || 0;
+  logger.appendActivityLog_(sampleRecord(), makeSpreadsheet(makeSheet()));
+  const after = parseInt(cache.get(logger.WRITE_COUNT_CACHE_KEY), 10) || 0;
+  assert.strictEqual(after, before + 1);
+  console.log("   ✓ 記憶體備援驗證通過！\n");
+}
+
 console.log("✓ activityLogger.test.js 測試全數通過！\n");

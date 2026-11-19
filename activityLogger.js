@@ -31,6 +31,27 @@ const ACTIVITY_LOG_FIELDS = [
   "errorCode"
 ];
 
+/** CacheService 鍵前綴（與其他快取資料區隔） */
+const ACTIVITY_LOG_CACHE_PREFIX = "gas_tmpl_activitylog_";
+
+/** 寫入次數與抽樣列數的快取鍵 */
+const WRITE_COUNT_CACHE_KEY = ACTIVITY_LOG_CACHE_PREFIX + "write_count";
+const SAMPLED_LAST_ROW_CACHE_KEY = ACTIVITY_LOG_CACHE_PREFIX + "last_row";
+
+/** 每累計多少筆寫入才取樣一次 getLastRow()，降低試算表 API 呼叫 */
+const LAST_ROW_SAMPLE_INTERVAL = 100;
+
+/** Node 測試環境的記憶體快取備援（不實作 TTL，過期行為由注入的 fake cache 驗證） */
+const ACTIVITY_LOG_MEMORY_STORE = {};
+const ACTIVITY_LOG_MEMORY_CACHE = {
+  get: function (key) {
+    return ACTIVITY_LOG_MEMORY_STORE[key] || null;
+  },
+  put: function (key, value) {
+    ACTIVITY_LOG_MEMORY_STORE[key] = String(value);
+  }
+};
+
 /** 單一欄位寫入上限（字元數），避免惡意超長內容撐爆工作表 */
 const MAX_FIELD_LENGTH = 500;
 
@@ -91,6 +112,58 @@ function resolveSpreadsheet_(ss) {
 }
 
 /**
+ * 取得寫入計數快取；GAS 用 CacheService，Node 測試可用 deps.cache 注入。
+ *
+ * @param {Object} [deps] - 相依注入
+ * @returns {Object} 具 get/put 方法的快取物件
+ */
+function getActivityLogCache_(deps) {
+  if (
+    deps &&
+    deps.cache &&
+    typeof deps.cache.get === "function" &&
+    typeof deps.cache.put === "function"
+  ) {
+    return deps.cache;
+  }
+  if (typeof CacheService !== "undefined" && CacheService.getScriptCache) {
+    return CacheService.getScriptCache();
+  }
+  return ACTIVITY_LOG_MEMORY_CACHE;
+}
+
+/**
+ * 累計寫入次數，並每 100 次取樣一次工作表列數。
+ *
+ * @param {Object} sheet - 操作日誌工作表
+ * @param {Object} [deps] - 相依注入
+ * @returns {number} 目前計數
+ */
+function bumpWriteCount_(sheet, deps) {
+  const cache = getActivityLogCache_(deps);
+  let count = 0;
+  try {
+    count = parseInt(cache.get(WRITE_COUNT_CACHE_KEY), 10) || 0;
+  } catch (error) {
+    count = 0;
+  }
+  count += 1;
+  try {
+    cache.put(WRITE_COUNT_CACHE_KEY, String(count));
+  } catch (error) {
+    // 快取失敗不影響日誌寫入
+  }
+  if (count % LAST_ROW_SAMPLE_INTERVAL === 0 && typeof sheet.getLastRow === "function") {
+    try {
+      cache.put(SAMPLED_LAST_ROW_CACHE_KEY, String(sheet.getLastRow()));
+    } catch (error) {
+      // 取樣失敗不影響日誌寫入
+    }
+  }
+  return count;
+}
+
+/**
  * 將值截斷至安全長度；非字串值維持原樣。
  *
  * @param {*} value - 原始值
@@ -138,6 +211,7 @@ function appendActivityLog_(record, ss, deps) {
     const sheet = spreadsheet.getSheetByName(resolveSheetName_());
     if (!sheet || typeof sheet.appendRow !== "function") return false;
     sheet.appendRow(buildActivityLogRow_(record));
+    bumpWriteCount_(sheet, options);
     return true;
   } catch (error) {
     console.error("寫入操作日誌失敗：", error && error.message ? error.message : error);
@@ -148,8 +222,12 @@ function appendActivityLog_(record, ss, deps) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
+    ACTIVITY_LOG_CACHE_PREFIX: ACTIVITY_LOG_CACHE_PREFIX,
+    WRITE_COUNT_CACHE_KEY: WRITE_COUNT_CACHE_KEY,
+    LAST_ROW_SAMPLE_INTERVAL: LAST_ROW_SAMPLE_INTERVAL,
     MAX_FIELD_LENGTH: MAX_FIELD_LENGTH,
     SENSITIVE_RECORD_KEYS: SENSITIVE_RECORD_KEYS,
+    getActivityLogCache: getActivityLogCache_,
     appendActivityLog: appendActivityLog_,
     appendActivityLog_: appendActivityLog_,
     buildActivityLogRow: buildActivityLogRow_
