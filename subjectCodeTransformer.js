@@ -383,11 +383,23 @@ function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
   sheet.getRange(1, 1, rowCount, colCount).setNumberFormat("@");
 }
 
+/** 取得公式注入跳脫函式；GAS 全域共用，Node 測試可注入。 */
+function resolveSanitizeRowMatrixFn_() {
+  if (typeof sanitizeRowMatrix === "function") return sanitizeRowMatrix;
+  if (typeof globalThis !== "undefined" && typeof globalThis.sanitizeRowMatrix === "function") {
+    return globalThis.sanitizeRowMatrix;
+  }
+  return function (matrix) {
+    return matrix;
+  };
+}
+
 function writeCourseIndexRowsInChunks_(sheet, rows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
+  const sanitize = resolveSanitizeRowMatrixFn_();
   for (let start = 0; start < rows.length; start += COURSE_INDEX_WRITE_CHUNK_SIZE) {
     const chunk = rows.slice(start, start + COURSE_INDEX_WRITE_CHUNK_SIZE);
-    sheet.getRange(start + 2, 1, chunk.length, colCount).setValues(chunk);
+    sheet.getRange(start + 2, 1, chunk.length, colCount).setValues(sanitize(chunk));
   }
 }
 

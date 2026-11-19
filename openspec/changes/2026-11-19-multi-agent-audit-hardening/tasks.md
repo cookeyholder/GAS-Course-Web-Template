@@ -9,7 +9,7 @@
 - [x] 1.7 SheetJS CDN 固定單一版本並補 `integrity`／`crossorigin`，移除 0.18.5 與 0.20.3 混用。
 - [x] 1.8 正式建置產物停用 mock：`build-webapp.js` 排除 `mock.js` 或在 `index.html` 標記正式環境忽略 `?mock=true`，本機 `webapp/` 開發仍可使用；補建置測試。
 - [x] 1.9 匯入防護：後端增加筆數/欄數上限與 `preNormalized` 為 14 欄二維陣列的結構驗證，超限回傳明確錯誤；補測試。
-- [ ] 1.10 課程索引寫入套用 `sanitizeRowMatrix`（保留 `@` 純文字格式），補公式注入測試。
+- [x] 1.10 課程索引寫入套用 `sanitizeRowMatrix`（保留 `@` 純文字格式），補公式注入測試。
 - [ ] 1.11 `validateTokenInfoClaims_` 明確檢查 `exp`/`iat`（含合理 clock skew），並將 4 處直接回傳 `err.message` 改為通用錯誤代碼與可本地化訊息；補測試。
 
 ## 2. 效能與渲染
