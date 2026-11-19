@@ -979,6 +979,126 @@ function handleSaveWhitelistWebApiAction_(payload, session, ss) {
   return resolveRouteDependency_("saveWhitelist", saveWhitelist)(payload.accounts || [], ss);
 }
 
+/** 操作日誌查詢預設值與上限 */
+const ACTIVITY_LOG_DEFAULT_DAYS = 7;
+const ACTIVITY_LOG_PAGE_SIZE_DEFAULT = 50;
+const ACTIVITY_LOG_PAGE_SIZE_MAX = 500;
+
+/**
+ * 以 Asia/Taipei 時區格式化日期；GAS 使用 Utilities，Node 測試採固定 +8 偏移。
+ *
+ * @param {Date} date - 日期物件
+ * @returns {string} yyyy-MM-dd
+ */
+function formatTaipeiDate_(date) {
+  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    return Utilities.formatDate(date, "Asia/Taipei", "yyyy-MM-dd");
+  }
+  return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * 解析操作日誌查詢的時間區間，預設最近 7 天（含端點）。
+ *
+ * @param {Object} payload - 請求 payload
+ * @returns {Object} `{ startDate, endDate, start, end }`
+ */
+function resolveActivityLogDateRange_(payload) {
+  const source = payload || {};
+  const now = new Date();
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  const requestedEnd = String(source.endDate || "").slice(0, 10);
+  const requestedStart = String(source.startDate || "").slice(0, 10);
+  const endDate = datePattern.test(requestedEnd)
+    ? requestedEnd
+    : formatTaipeiDate_(now);
+  const defaultStart = formatTaipeiDate_(
+    new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000)
+  );
+  const startDate = datePattern.test(requestedStart) ? requestedStart : defaultStart;
+  return {
+    startDate: startDate,
+    endDate: endDate,
+    start: startDate + " 00:00:00",
+    end: endDate + " 23:59:59"
+  };
+}
+
+/**
+ * 受保護 action：getActivityLog（僅管理員）。
+ * 回傳依時間遞減排序的分頁日誌，單次最多 500 筆。
+ */
+function handleGetActivityLogWebApiAction_(payload, session, ss) {
+  if (!session || session.role !== "admin") {
+    return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可查閱操作日誌");
+  }
+  const source = payload || {};
+  const range = resolveActivityLogDateRange_(source);
+  const page = Math.max(1, parseInt(source.page, 10) || 1);
+  const pageSize = Math.min(
+    ACTIVITY_LOG_PAGE_SIZE_MAX,
+    Math.max(1, parseInt(source.pageSize, 10) || ACTIVITY_LOG_PAGE_SIZE_DEFAULT)
+  );
+  const emptyResult = {
+    ok: true,
+    rows: [],
+    total: 0,
+    page: page,
+    pageSize: pageSize,
+    startDate: range.startDate,
+    endDate: range.endDate
+  };
+  const targetSs = ss || getRouteSpreadsheet_();
+  const sheet =
+    targetSs && typeof targetSs.getSheetByName === "function"
+      ? targetSs.getSheetByName(GAS_RUNTIME.SHEET_ACTIVITY_LOG)
+      : null;
+  if (!sheet || typeof sheet.getLastRow !== "function" || typeof sheet.getRange !== "function") {
+    return emptyResult;
+  }
+  const lastRow = Math.max(0, Number(sheet.getLastRow()) || 0);
+  if (lastRow < 2) return emptyResult;
+  const values = sheet.getRange(2, 1, lastRow - 1, 12).getValues() || [];
+  const emailFilter = String(source.email || "").trim().toLowerCase();
+  const categoryFilter = String(source.category || "").trim();
+  const matched = [];
+  values.forEach(function (row) {
+    const cells = Array.isArray(row) ? row : [];
+    const timestamp = String(cells[0] || "");
+    if (timestamp < range.start || timestamp > range.end) return;
+    if (categoryFilter && String(cells[2] || "") !== categoryFilter) return;
+    if (emailFilter && String(cells[5] || "").toLowerCase().indexOf(emailFilter) === -1) return;
+    matched.push({
+      timestamp: timestamp,
+      requestId: String(cells[1] || ""),
+      category: String(cells[2] || ""),
+      action: String(cells[3] || ""),
+      result: String(cells[4] || ""),
+      email: String(cells[5] || ""),
+      name: String(cells[6] || ""),
+      role: String(cells[7] || ""),
+      summary: String(cells[8] || ""),
+      detail: String(cells[9] || ""),
+      durationMs: cells[10] === "" || cells[10] === null ? null : Number(cells[10]),
+      errorCode: String(cells[11] || "")
+    });
+  });
+  matched.sort(function (a, b) {
+    if (a.timestamp < b.timestamp) return 1;
+    if (a.timestamp > b.timestamp) return -1;
+    return 0;
+  });
+  return {
+    ok: true,
+    rows: matched.slice((page - 1) * pageSize, page * pageSize),
+    total: matched.length,
+    page: page,
+    pageSize: pageSize,
+    startDate: range.startDate,
+    endDate: range.endDate
+  };
+}
+
 /** 將所有 action 的處理函式註冊至 ACTION_REGISTRY，消除獨立 switch 造成的漂移。 */
 function registerWebApiActionHandlers_() {
   const handlers = {
@@ -994,7 +1114,8 @@ function registerWebApiActionHandlers_() {
     getSystemSettings: handleGetSystemSettingsWebApiAction_,
     saveSystemSettings: handleSaveSystemSettingsWebApiAction_,
     getAccounts: handleGetAccountsWebApiAction_,
-    saveWhitelist: handleSaveWhitelistWebApiAction_
+    saveWhitelist: handleSaveWhitelistWebApiAction_,
+    getActivityLog: handleGetActivityLogWebApiAction_
   };
   Object.keys(handlers).forEach(function (name) {
     ACTION_REGISTRY.setHandler(name, handlers[name]);
@@ -1563,6 +1684,8 @@ if (typeof module !== "undefined" && module.exports) {
     logoutSession: logoutSession,
     authorizeWebApiAction: authorizeWebApiAction,
     routeWebApiAction: routeWebApiAction,
+    handleGetActivityLogWebApiAction: handleGetActivityLogWebApiAction_,
+    formatTaipeiDate: formatTaipeiDate_,
     getPublicConfig: getPublicConfig,
     executeWebApi: executeWebApi,
     createWebApiLogContext: createWebApiLogContext_,

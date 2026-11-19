@@ -264,6 +264,17 @@
       return { ok: true, accounts: mockAccounts.slice() };
     }
 
+    function getActivityLog(payload) {
+      const options = payload || {};
+      return {
+        ok: true,
+        rows: [],
+        total: 0,
+        page: Number(options.page) || 1,
+        pageSize: Number(options.pageSize) || 50
+      };
+    }
+
     function saveWhitelist(payload) {
       mockAccounts.length = 0;
       const incoming = payload && payload.accounts ? payload.accounts : [];
@@ -290,7 +301,8 @@
       getSystemSettings: createSystemSettings,
       saveSystemSettings: saveSystemSettings,
       getAccounts: createAccounts,
-      saveWhitelist: saveWhitelist
+      saveWhitelist: saveWhitelist,
+      getActivityLog: getActivityLog
     };
 
     function createUnknownActionResult(action) {

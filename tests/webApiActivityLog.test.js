@@ -437,4 +437,144 @@ console.log("15. 例外動作不應擷取快照...");
   console.log("   ✓ 例外動作略過驗證通過！\n");
 }
 
+console.log("16. 管理員可查詢日誌，非管理員被拒...");
+{
+  const rows = [
+    [
+      "2026-11-19 10:00:00", "req-1", "query", "查詢課程代碼", "success",
+      "admin@example.com", "管理員", "系統管理員", "查詢課程代碼成功", "{}", 12, ""
+    ]
+  ];
+  const sheet = {
+    getLastRow: function () {
+      return rows.length + 1;
+    },
+    getRange: function (r, c, numRows) {
+      return {
+        getValues: function () {
+          return rows.slice(r - 2, r - 2 + numRows).map(function (row) {
+            return row.slice();
+          });
+        }
+      };
+    }
+  };
+  const ss = {
+    getSheetByName: function (name) {
+      return name === "操作日誌" ? sheet : null;
+    }
+  };
+  const adminResult = withGlobals(
+    { SpreadsheetApp: { getActiveSpreadsheet: function () { return ss; } } },
+    function () {
+      return withOverrides(
+        {
+          authorizeWebApiAction: function () {
+            return { ok: true, session: { role: "admin", email: "admin@example.com" } };
+          },
+          appendActivityLog: function () {}
+        },
+        function () {
+          return api.executeWebApi(
+            { action: "getActivityLog", startDate: "2000-01-01", endDate: "2099-12-31" },
+            {}
+          );
+        }
+      );
+    }
+  );
+  assert.strictEqual(adminResult.ok, true);
+  assert.strictEqual(adminResult.total, 1);
+  assert.strictEqual(adminResult.rows.length, 1);
+  assert.strictEqual(adminResult.rows[0].requestId, "req-1");
+  assert.strictEqual(adminResult.rows[0].durationMs, 12);
+
+  const staffResult = withOverrides(
+    {
+      authorizeWebApiAction: function () {
+        return { ok: true, session: { role: "staff" } };
+      },
+      appendActivityLog: function () {}
+    },
+    function () {
+      return api.executeWebApi({ action: "getActivityLog" }, {});
+    }
+  );
+  assert.strictEqual(staffResult.ok, false);
+  assert.strictEqual(staffResult.error, "forbidden");
+  console.log("   ✓ 管理員查詢與角色拒絕驗證通過！\n");
+}
+
+console.log("17. 日誌清單應依時間遞減排序並分頁...");
+{
+  const rows = [
+    ["2026-11-19 10:00:00", "r1", "query", "查詢課程代碼", "success", "a@example.com", "甲", "檢視人員", "s1", "{}", 1, ""],
+    ["2026-11-18 09:00:00", "r2", "write", "儲存系統設定", "success", "b@example.com", "乙", "系統管理員", "s2", "{}", 2, ""],
+    ["2026-11-20 08:00:00", "r3", "query", "查詢課程統計", "failure", "a@example.com", "甲", "檢視人員", "s3", "{}", 3, "forbidden"]
+  ];
+  const sheet = {
+    getLastRow: function () { return rows.length + 1; },
+    getRange: function (r, c, numRows) {
+      return {
+        getValues: function () {
+          return rows.slice(r - 2, r - 2 + numRows).map(function (row) { return row.slice(); });
+        }
+      };
+    }
+  };
+  const result = api.handleGetActivityLogWebApiAction(
+    { startDate: "2000-01-01", endDate: "2099-12-31", page: 1, pageSize: 2 },
+    { role: "admin" },
+    { getSheetByName: function () { return sheet; } }
+  );
+  assert.strictEqual(result.total, 3);
+  assert.strictEqual(result.pageSize, 2);
+  assert.deepStrictEqual(result.rows.map(function (row) { return row.requestId; }), ["r3", "r1"]);
+
+  const page2 = api.handleGetActivityLogWebApiAction(
+    { startDate: "2000-01-01", endDate: "2099-12-31", page: 2, pageSize: 2 },
+    { role: "admin" },
+    { getSheetByName: function () { return sheet; } }
+  );
+  assert.deepStrictEqual(page2.rows.map(function (row) { return row.requestId; }), ["r2"]);
+  console.log("   ✓ 排序與分頁驗證通過！\n");
+}
+
+console.log("18. 預設僅回傳最近 7 天，且篩選與上限生效...");
+{
+  const today = api.formatTaipeiDate(new Date());
+  const oldDay = api.formatTaipeiDate(new Date(Date.now() - 30 * 24 * 60 * 60 * 1000));
+  const rows = [
+    [today + " 09:00:00", "recent", "query", "查詢課程代碼", "success", "a@example.com", "甲", "檢視人員", "s1", "{}", 1, ""],
+    [oldDay + " 09:00:00", "old", "query", "查詢課程代碼", "success", "a@example.com", "甲", "檢視人員", "s2", "{}", 1, ""],
+    [today + " 10:00:00", "write", "write", "儲存系統設定", "success", "b@example.com", "乙", "系統管理員", "s3", "{}", 2, ""]
+  ];
+  const sheet = {
+    getLastRow: function () { return rows.length + 1; },
+    getRange: function (r, c, numRows) {
+      return {
+        getValues: function () {
+          return rows.slice(r - 2, r - 2 + numRows).map(function (row) { return row.slice(); });
+        }
+      };
+    }
+  };
+  const ss = { getSheetByName: function () { return sheet; } };
+  const defaults = api.handleGetActivityLogWebApiAction({}, { role: "admin" }, ss);
+  assert.strictEqual(defaults.pageSize, 50);
+  assert.strictEqual(defaults.total, 2, "30 天前的資料不應出現");
+  assert.strictEqual(defaults.rows[0].requestId, "write");
+  assert.strictEqual(defaults.endDate, today);
+
+  const filtered = api.handleGetActivityLogWebApiAction(
+    { email: "a@example", category: "query", pageSize: 1000 },
+    { role: "admin" },
+    ss
+  );
+  assert.strictEqual(filtered.pageSize, 500, "單次上限應為 500");
+  assert.strictEqual(filtered.total, 1);
+  assert.strictEqual(filtered.rows[0].requestId, "recent");
+  console.log("   ✓ 預設區間、篩選與上限驗證通過！\n");
+}
+
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");

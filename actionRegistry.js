@@ -128,6 +128,13 @@
       logLabel: "儲存授權名單",
       logDetailKey: "whitelist",
       logEnabled: true
+    },
+    getActivityLog: {
+      roles: ["admin"],
+      logCategory: "query",
+      logLabel: "查詢操作日誌",
+      logDetailKey: "none",
+      logEnabled: false
     }
   };
 
