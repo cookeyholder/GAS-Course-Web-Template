@@ -1211,7 +1211,7 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
   return handler(payload, session, ss);
 }
 
-function routeWebApiAction(action, payload, event, authorizationOverride) {
+function routeWebApiAction(action, payload, event) {
   const name = String(action || "").trim();
   if (name === "") return webApiError("missing_action", "缺少 action 參數");
   if (!ACTION_REGISTRY.hasAction(name)) {
@@ -1221,8 +1221,9 @@ function routeWebApiAction(action, payload, event, authorizationOverride) {
   const publicResult = routePublicWebApiAction_(name, payload);
   if (publicResult !== null) return publicResult;
 
-  const authorization =
-    authorizationOverride || getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
+  // 路由一律自行向伺服器端 session 驗證；GAS 全域函式可經 google.script.run
+  // 直接呼叫，任何由呼叫端傳入的授權結果都不得作為信任依據。
+  const authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
   if (!authorization.ok) return authorization;
 
   const session = authorization.session;
@@ -1555,7 +1556,8 @@ function executeWebApi(payload, event) {
       beforeSnapshot = captureActivityLogSnapshot_(actionMeta);
     }
 
-    // 先取得一次授權結果供日誌 context 使用，並直接交給路由，避免重複授權。
+    // 取得一次授權結果僅供日誌 context 使用；路由會自行再次授權，
+    // 兩次都讀取伺服器端 session，避免把授權結果作為公開參數傳入路由。
     let authorization = null;
     try {
       authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(action, payload);
@@ -1574,7 +1576,7 @@ function executeWebApi(payload, event) {
       typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"
         ? module.exports.routeWebApiAction
         : routeWebApiAction;
-    const result = routeFn(action, payload, event, authorization);
+    const result = routeFn(action, payload, event);
     if (actionMeta && shouldLogActivity_(action, actionMeta)) {
       afterSnapshot = captureActivityLogSnapshot_(actionMeta);
     }

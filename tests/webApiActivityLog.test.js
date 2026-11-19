@@ -138,13 +138,13 @@ console.log("5. 缺少 action 仍應建立 context...");
   console.log("   ✓ 缺少 action context 驗證通過！\n");
 }
 
-console.log("6. 被置換的 routeWebApiAction 應收到單次授權結果...");
+console.log("6. 被置換的 routeWebApiAction 只應收到三個參數...");
 {
   const seen = [];
   withOverrides(
     {
-      routeWebApiAction: function (action, payload, event, authorization) {
-        seen.push({ action: action, authorization: authorization });
+      routeWebApiAction: function () {
+        seen.push(Array.prototype.slice.call(arguments));
         return { ok: true, replaced: true };
       }
     },
@@ -154,9 +154,8 @@ console.log("6. 被置換的 routeWebApiAction 應收到單次授權結果...");
     }
   );
   assert.strictEqual(seen.length, 1);
-  assert.strictEqual(seen[0].action, "ping");
-  assert.strictEqual(seen[0].authorization.ok, true);
-  assert.strictEqual(seen[0].authorization.session, null);
+  assert.strictEqual(seen[0].length, 3);
+  assert.strictEqual(seen[0][0], "ping");
   console.log("   ✓ 路由置換情境驗證通過！\n");
 }
 
