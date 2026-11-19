@@ -7230,23 +7230,50 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 });
   </script>
   <script>
-/* js/courseData.js */
+/* ../courseNormalizationShared.js */
 /**
- * @file courseData.js
- * @description 前端課程代碼 1NF 正規化處理模組
+ * @file courseNormalizationShared.js
+ * @description 108 課綱課程代碼對照表與 1NF 正規化純邏輯（前後端共用單一來源）
  *
- * 與後端 `subjectCodeTransformer.js` 保持相同規則，
- * 讓瀏覽器在上傳前即可即時預覽統計，並僅傳送正規化後的有效資料。
+ * 同時支援三種環境：
+ * - Node.js：module.exports
+ * - Google Apps Script：globalThis.courseNormalizationShared
+ * - 瀏覽器：window.MEA.courseNormalizationShared
  */
 (function (root, factory) {
-  const api = factory();
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = api;
-  }
-  root.MEA = root.MEA || {};
-  root.MEA.courseData = api;
-})(typeof window !== "undefined" ? window : globalThis, function () {
   "use strict";
+
+  const api = factory();
+
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  if (root) {
+    root.courseNormalizationShared = api;
+    root.MEA = root.MEA || {};
+    root.MEA.courseNormalizationShared = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  /** 正規化課程索引標準表頭（共 14 欄） */
+  const NORMALIZED_COURSE_HEADERS = [
+    "開課學年",
+    "開課學期",
+    "修課年級",
+    "學生入學年",
+    "課程代碼",
+    "科目名稱",
+    "群別",
+    "科別",
+    "課程類別",
+    "開課方式",
+    "科目屬性",
+    "必選修",
+    "學分數",
+    "開課時數"
+  ];
+
+  /** 科目屬性排除名單（本專案全數匯入，不剔除任何科目） */
+  const EXCLUDED_SUBJECT_ATTRIBUTES = [];
 
   const GROUP_CODE_NAMES = {
     11: "學術群",
@@ -7337,80 +7364,61 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     2: "選修"
   };
 
-  const EXCLUDED_SUBJECT_ATTRIBUTES = [];
-
-  const NORMALIZED_COURSE_HEADERS = [
-    "開課學年",
-    "開課學期",
-    "修課年級",
-    "學生入學年",
-    "課程代碼",
-    "科目名稱",
-    "群別",
-    "科別",
-    "課程類別",
-    "開課方式",
-    "科目屬性",
-    "必選修",
-    "學分數",
-    "開課時數"
-  ];
+  function normalizeCodeKey(code) {
+    return code === null || code === undefined ? "" : String(code).trim();
+  }
 
   function getGroupName(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return GROUP_CODE_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return GROUP_CODE_NAMES[key] || key;
   }
 
   function getDepartmentNameByCode(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return DEPARTMENT_CODE_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return DEPARTMENT_CODE_NAMES[key] || key;
   }
 
   function getSubjectType(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return SUBJECT_TYPE_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return SUBJECT_TYPE_NAMES[key] || key;
   }
 
   function getOpenWay(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return OPEN_WAY_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return OPEN_WAY_NAMES[key] || key;
   }
 
   function getSubjectAttribution(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return SUBJECT_ATTRIBUTION_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return SUBJECT_ATTRIBUTION_NAMES[key] || key;
   }
 
   function isRequiredOrElective(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return REQUIRED_ELECTIVE_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return REQUIRED_ELECTIVE_NAMES[key] || key;
   }
 
   function isCourseCodeHeaderRow(row) {
     if (!Array.isArray(row) || row.length === 0) return false;
-    const first = row[0] === null || row[0] === undefined ? "" : String(row[0]).trim();
-    const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
+    const first = normalizeCodeKey(row[0]);
+    const attr = normalizeCodeKey(row[11]);
     return first === "課程代碼" || attr === "科目屬性";
   }
 
   function isExcludedCourseRow(row) {
     if (!Array.isArray(row)) return false;
     if (EXCLUDED_SUBJECT_ATTRIBUTES.length === 0) return false;
-    const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
-    return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(attr) !== -1;
+    return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(normalizeCodeKey(row[11])) !== -1;
   }
 
   function expandCourseRow(row) {
     const expanded = [];
     if (!Array.isArray(row) || row.length < 31) return expanded;
 
-    const rawEntryYear = row[16];
-    const entryYear = rawEntryYear === null || rawEntryYear === undefined ? "" : String(rawEntryYear).trim();
+    const entryYear = normalizeCodeKey(row[16]);
     const fallbackOpenWay = row[10];
-    const rawCourseCode = row[0];
-    const courseCode = rawCourseCode === null || rawCourseCode === undefined ? "" : String(rawCourseCode).trim();
-    const rawSubjectName = row[2];
-    const subjectName = rawSubjectName === null || rawSubjectName === undefined ? "" : String(rawSubjectName).trim();
+    const courseCode = normalizeCodeKey(row[0]);
+    const subjectName = normalizeCodeKey(row[2]);
     const groupName = getGroupName(row[6]) || "";
     const departmentName = getDepartmentNameByCode(row[7]) || "";
     const subjectType = getSubjectType(row[9]) || "";
@@ -7420,17 +7428,14 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     for (let s = 0; s < 6; s++) {
       const credits = Number(row[19 + s] || 0);
       const hours = Number(row[25 + s] || 0);
-
       if (!(credits > 0 || hours > 0)) continue;
 
       const gradeIndex = Math.floor(s / 2);
-      const rawAcademicYear = row[16 + gradeIndex];
-      const academicYear =
-        rawAcademicYear === null || rawAcademicYear === undefined ? "" : String(rawAcademicYear).trim();
+      const academicYear = normalizeCodeKey(row[16 + gradeIndex]);
       const semester = String((s % 2) + 1);
-
+      const semesterValue = row[31 + s];
       const semesterOpenWay =
-        row[31 + s] === null || row[31 + s] === undefined || row[31 + s] === "" ? fallbackOpenWay : row[31 + s];
+        semesterValue === null || semesterValue === undefined || semesterValue === "" ? fallbackOpenWay : semesterValue;
 
       expanded.push([
         academicYear,
@@ -7454,17 +7459,15 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   function normalizeCourseCodes(rawData, options) {
-    options = options || {};
+    const opts = options || {};
     const rows = Array.isArray(rawData) ? rawData : [];
-    const academicYear =
-      options.academicYear === null || options.academicYear === undefined ? "" : String(options.academicYear).trim();
-    const semester = options.semester === null || options.semester === undefined ? "" : String(options.semester).trim();
+    const academicYear = normalizeCodeKey(opts.academicYear);
+    const semester = normalizeCodeKey(opts.semester);
 
     let sourceRows = 0;
     let excludedRows = 0;
     let keptCourseRows = 0;
     let totalExpanded = 0;
-
     const normalized = [];
 
     for (let i = 0; i < rows.length; i++) {
@@ -7473,7 +7476,6 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       if (isCourseCodeHeaderRow(row)) continue;
 
       sourceRows++;
-
       if (isExcludedCourseRow(row)) {
         excludedRows++;
         continue;
@@ -7491,7 +7493,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       }
     }
 
-    if (options.withStats) {
+    if (opts.withStats) {
       return {
         rows: normalized,
         stats: {
@@ -7508,14 +7510,14 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   return {
+    NORMALIZED_COURSE_HEADERS: NORMALIZED_COURSE_HEADERS,
+    EXCLUDED_SUBJECT_ATTRIBUTES: EXCLUDED_SUBJECT_ATTRIBUTES,
     GROUP_CODE_NAMES: GROUP_CODE_NAMES,
     DEPARTMENT_CODE_NAMES: DEPARTMENT_CODE_NAMES,
     SUBJECT_TYPE_NAMES: SUBJECT_TYPE_NAMES,
     OPEN_WAY_NAMES: OPEN_WAY_NAMES,
     SUBJECT_ATTRIBUTION_NAMES: SUBJECT_ATTRIBUTION_NAMES,
     REQUIRED_ELECTIVE_NAMES: REQUIRED_ELECTIVE_NAMES,
-    EXCLUDED_SUBJECT_ATTRIBUTES: EXCLUDED_SUBJECT_ATTRIBUTES,
-    NORMALIZED_COURSE_HEADERS: NORMALIZED_COURSE_HEADERS,
     getGroupName: getGroupName,
     getDepartmentNameByCode: getDepartmentNameByCode,
     getSubjectType: getSubjectType,
@@ -7526,6 +7528,61 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     isExcludedCourseRow: isExcludedCourseRow,
     expandCourseRow: expandCourseRow,
     normalizeCourseCodes: normalizeCourseCodes
+  };
+});
+  </script>
+  <script>
+/* js/courseData.js */
+/**
+ * @file courseData.js
+ * @description 前端課程代碼 1NF 正規化處理模組
+ *
+ * 共用對照表與正規化邏輯已抽至 courseNormalizationShared.js，
+ * 此檔僅負責將其掛載為 MEA.courseData 並維持既有呼叫契約。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory(root);
+
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  root.MEA = root.MEA || {};
+  root.MEA.courseData = api;
+})(typeof window !== "undefined" ? window : globalThis, function (root) {
+  "use strict";
+
+  function resolveShared_() {
+    const host = root || {};
+    if (host.MEA && host.MEA.courseNormalizationShared) return host.MEA.courseNormalizationShared;
+    if (host.courseNormalizationShared) return host.courseNormalizationShared;
+    if (typeof globalThis !== "undefined" && globalThis.courseNormalizationShared) {
+      return globalThis.courseNormalizationShared;
+    }
+    if (typeof require === "function") return require("../../courseNormalizationShared.js");
+    throw new Error("找不到共用正規化模組 courseNormalizationShared");
+  }
+
+  const shared = resolveShared_();
+
+  return {
+    GROUP_CODE_NAMES: shared.GROUP_CODE_NAMES,
+    DEPARTMENT_CODE_NAMES: shared.DEPARTMENT_CODE_NAMES,
+    SUBJECT_TYPE_NAMES: shared.SUBJECT_TYPE_NAMES,
+    OPEN_WAY_NAMES: shared.OPEN_WAY_NAMES,
+    SUBJECT_ATTRIBUTION_NAMES: shared.SUBJECT_ATTRIBUTION_NAMES,
+    REQUIRED_ELECTIVE_NAMES: shared.REQUIRED_ELECTIVE_NAMES,
+    EXCLUDED_SUBJECT_ATTRIBUTES: shared.EXCLUDED_SUBJECT_ATTRIBUTES,
+    NORMALIZED_COURSE_HEADERS: shared.NORMALIZED_COURSE_HEADERS,
+    getGroupName: shared.getGroupName,
+    getDepartmentNameByCode: shared.getDepartmentNameByCode,
+    getSubjectType: shared.getSubjectType,
+    getOpenWay: shared.getOpenWay,
+    getSubjectAttribution: shared.getSubjectAttribution,
+    isRequiredOrElective: shared.isRequiredOrElective,
+    isCourseCodeHeaderRow: shared.isCourseCodeHeaderRow,
+    isExcludedCourseRow: shared.isExcludedCourseRow,
+    expandCourseRow: shared.expandCourseRow,
+    normalizeCourseCodes: shared.normalizeCourseCodes
   };
 });
   </script>
