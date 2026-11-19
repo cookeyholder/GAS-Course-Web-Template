@@ -112,14 +112,18 @@
   function buildDropzoneHtml() {
     return (
       '<div class="upload-dropzone" id="uploadDropzone"' +
+      ' role="button"' +
+      ' tabindex="0"' +
+      ' aria-label="選擇或拖曳 108 課綱課程代碼 Excel 檔案"' +
       ' ondragover="MEA.imports.handleDragOver(event)"' +
       ' ondragleave="MEA.imports.handleDragLeave(event)"' +
       ' ondrop="MEA.imports.handleDrop(event)"' +
+      ' onkeydown="MEA.imports.handleDropzoneKey(event)"' +
       ' onclick="MEA.imports.pickFile()">' +
-      '  <div class="dropzone-icon">📁</div>' +
+      '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
       '  <div class="dropzone-title">點擊選擇或拖曳 108 課綱課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
-      '  <input type="file" id="fileInput" style="display:none;" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />' +
+      '  <input type="file" id="fileInput" class="sr-only" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />' +
       "</div>"
     );
   }
@@ -400,6 +404,19 @@
       if (input) input.click();
     }
 
+    /**
+     * 讓鍵盤使用者以 Enter 或 Space 觸發檔案選擇。
+     *
+     * @param {Object} e - 鍵盤事件
+     */
+    function handleDropzoneKey(e) {
+      if (!e) return;
+      const key = e.key || (e.keyCode === 32 ? " " : "");
+      if (key !== "Enter" && key !== " " && key !== "Spacebar") return;
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      pickFile();
+    }
+
     function handleFileSelect(input) {
       const file = input && input.files && input.files[0];
       if (input) input.value = "";
@@ -513,6 +530,7 @@
       loadSheetJs: loadSheetJs,
       previewFile: previewFile,
       pickFile: pickFile,
+      handleDropzoneKey: handleDropzoneKey,
       handleFileSelect: handleFileSelect,
       handleDragOver: handleDragOver,
       handleDragLeave: handleDragLeave,
