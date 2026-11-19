@@ -54,6 +54,11 @@ const WEB_API_LOCKED_ACTIONS = [
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const WEB_API_SESSION_PREFIX = "gas_tmpl_session_";
 
+/** 匯入 API 邊界限制：列數上限與原始／正規化欄數 */
+const WEB_API_IMPORT_MAX_ROWS = 100000;
+const WEB_API_IMPORT_RAW_COLUMNS = 39;
+const WEB_API_IMPORT_NORMALIZED_COLUMNS = 14;
+
 /** 角色權限矩陣（RBAC）：所有受保護 action 必須明確列舉，不使用 getXxx 通配規則 */
 const ROLE_PERMISSIONS = {
   admin: ["*"],
@@ -851,6 +856,31 @@ function sanitizeSystemSettingsForRole_(settings, role) {
   return safe;
 }
 
+/**
+ * 驗證匯入 payload 的二維陣列結構、列數上限與每列欄數。
+ * 回傳 null 代表通過；否則回傳 webApiError。
+ */
+function validateImportRowsPayload_(payload) {
+  const rows = payload && payload.rows;
+  if (!Array.isArray(rows) || rows.length === 0) {
+    return webApiError("missing_rows", "缺少課程代碼資料（rows）");
+  }
+  if (rows.length > WEB_API_IMPORT_MAX_ROWS) {
+    return webApiError("too_many_rows", "匯入筆數超過上限（最多 " + WEB_API_IMPORT_MAX_ROWS + " 筆），請分批匯入");
+  }
+  const expectedColumns =
+    payload.preNormalized === true ? WEB_API_IMPORT_NORMALIZED_COLUMNS : WEB_API_IMPORT_RAW_COLUMNS;
+  for (let i = 0; i < rows.length; i++) {
+    if (!Array.isArray(rows[i])) {
+      return webApiError("invalid_rows", "第 " + (i + 1) + " 列資料格式錯誤，請確認為二維陣列");
+    }
+    if (rows[i].length !== expectedColumns) {
+      return webApiError("invalid_columns", "第 " + (i + 1) + " 列欄數不符（應為 " + expectedColumns + " 欄）");
+    }
+  }
+  return null;
+}
+
 function routeProtectedWebApiAction_(name, payload, session, ss) {
   switch (name) {
     case "getSession":
@@ -858,14 +888,14 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
     case "logout":
       return getOverridableApiFn_("logoutSession", logoutSession)(payload.token);
 
-    case "importCourseCodes":
-      if (!payload || !Array.isArray(payload.rows) || payload.rows.length === 0) {
-        return webApiError("missing_rows", "缺少課程代碼資料（rows）");
-      }
+    case "importCourseCodes": {
+      const validation = validateImportRowsPayload_(payload);
+      if (validation) return validation;
       return resolveRouteDependency_("importNormalizedCourseCodes", importNormalizedCourseCodes)(payload.rows, {
         spreadsheet: ss,
         preNormalized: payload.preNormalized === true
       });
+    }
 
     case "getCourseIndex":
       return resolveRouteDependency_("getNormalizedCourses", getNormalizedCourses)(payload, ss);
@@ -1083,6 +1113,9 @@ if (typeof module !== "undefined" && module.exports) {
     WEB_API_PUBLIC_ACTIONS: WEB_API_PUBLIC_ACTIONS,
     WEB_API_WRITE_ACTIONS: WEB_API_WRITE_ACTIONS,
     WEB_API_LOCKED_ACTIONS: WEB_API_LOCKED_ACTIONS,
+    WEB_API_IMPORT_MAX_ROWS: WEB_API_IMPORT_MAX_ROWS,
+    WEB_API_IMPORT_RAW_COLUMNS: WEB_API_IMPORT_RAW_COLUMNS,
+    WEB_API_IMPORT_NORMALIZED_COLUMNS: WEB_API_IMPORT_NORMALIZED_COLUMNS,
     ROLE_PERMISSIONS: ROLE_PERMISSIONS,
     jsonResponse: jsonResponse,
     webApiSuccess: webApiSuccess,
@@ -1098,6 +1131,7 @@ if (typeof module !== "undefined" && module.exports) {
     parseOAuthState: parseOAuthState_,
     consumeOAuthNonce: consumeOAuthNonce_,
     validateOAuthCallbackState: validateOAuthCallbackState_,
+    validateImportRowsPayload: validateImportRowsPayload_,
     createSessionForEmail: createSessionForEmail,
     verifyGoogleIdToken: verifyGoogleIdToken,
     loginWithGoogleIdToken: loginWithGoogleIdToken,

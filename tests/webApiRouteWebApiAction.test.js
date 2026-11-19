@@ -243,7 +243,7 @@ function withGlobal(name, value, fn) {
             return { ok: true, count: 1 };
           },
           function () {
-            const rows = [{ a: 1 }];
+            const rows = [["114", "1", "1", "114", "C1", "科目1", "群", "科", "類", "式", "屬", "必", "2", "2"]];
             const r = api.routeWebApiAction("importCourseCodes", {
               csrfToken: "csrf-ok",
               rows: rows,
@@ -258,6 +258,52 @@ function withGlobal(name, value, fn) {
       }
     );
     console.log("   ✓ importCourseCodes 成功驗證通過！\n");
+  }
+
+  console.log("11.1 匯入列數上限與二維欄位結構驗證...");
+  {
+    const session = { role: "admin", csrfToken: "csrf-ok" };
+    let importCalls = 0;
+    withStubbed(
+      api,
+      "authorizeWebApiAction",
+      function () {
+        return { ok: true, session: session };
+      },
+      function () {
+        withGlobal(
+          "importNormalizedCourseCodes",
+          function () {
+            importCalls += 1;
+            return { ok: true, rows: 0 };
+          },
+          function () {
+            const normalizedRow = ["114", "1", "1", "114", "C1", "科目1", "群", "科", "類", "式", "屬", "必", "2", "2"];
+            const call = function (rows, preNormalized) {
+              return api.routeWebApiAction("importCourseCodes", {
+                csrfToken: "csrf-ok",
+                rows: rows,
+                preNormalized: preNormalized
+              });
+            };
+
+            assert.strictEqual(call([{ a: 1 }], true).error, "invalid_rows");
+            assert.strictEqual(call([["short"]], true).error, "invalid_columns");
+            assert.strictEqual(call([new Array(38).fill("")], false).error, "invalid_columns");
+
+            const tooMany = new Array(api.WEB_API_IMPORT_MAX_ROWS + 1);
+            for (let i = 0; i < tooMany.length; i++) tooMany[i] = normalizedRow;
+            assert.strictEqual(call(tooMany, true).error, "too_many_rows");
+            assert.strictEqual(importCalls, 0, "驗證失敗不得呼叫寫入");
+
+            const ok = call([normalizedRow], true);
+            assert.strictEqual(ok.ok, true);
+            assert.strictEqual(importCalls, 1);
+          }
+        );
+      }
+    );
+    console.log("   ✓ 匯入結構與上限驗證通過！\n");
   }
 
   console.log("12. getCourseIndex 應委派課程查詢...");
