@@ -11,6 +11,22 @@ const originalCreateContext = api.createWebApiLogContext;
 
 console.log("開始執行 webApiActivityLog 測試...\n");
 
+function withGlobals(temp, fn) {
+  const prev = {};
+  Object.keys(temp).forEach(function (key) {
+    prev[key] = Object.prototype.hasOwnProperty.call(global, key) ? global[key] : undefined;
+    global[key] = temp[key];
+  });
+  try {
+    return fn();
+  } finally {
+    Object.keys(temp).forEach(function (key) {
+      if (prev[key] === undefined) delete global[key];
+      else global[key] = prev[key];
+    });
+  }
+}
+
 function withOverrides(overrides, fn) {
   const prev = {};
   Object.keys(overrides).forEach(function (key) {
@@ -172,6 +188,161 @@ console.log("7. executeWebApi 應在登入成功後寫回 context 身分...");
   assert.strictEqual(contexts[0].email, "admin@example.com");
   assert.strictEqual(contexts[0].role, "系統管理員");
   console.log("   ✓ 注入式身分寫回驗證通過！\n");
+}
+
+console.log("8. 成功請求應寫入一列成功日誌...");
+{
+  const rows = [];
+  withOverrides(
+    {
+      appendActivityLog: function (record) {
+        rows.push(record);
+      },
+      routeWebApiAction: function () {
+        return { ok: true, rows: [] };
+      }
+    },
+    function () {
+      api.executeWebApi({ action: "getCourseIndex", page: 1 }, {});
+    }
+  );
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].result, "success");
+  assert.strictEqual(rows[0].errorCode, "");
+  assert.strictEqual(rows[0].category, "query");
+  assert.strictEqual(rows[0].action, "查詢課程代碼");
+  assert.strictEqual(typeof rows[0].durationMs, "number");
+  assert(rows[0].requestId.indexOf("req_") === 0);
+  console.log("   ✓ 成功日誌寫入驗證通過！\n");
+}
+
+console.log("9. 授權失敗應寫入失敗日誌與錯誤代碼...");
+{
+  const rows = [];
+  withOverrides(
+    {
+      appendActivityLog: function (record) {
+        rows.push(record);
+      },
+      routeWebApiAction: function () {
+        return api.webApiError("forbidden", "無權限");
+      }
+    },
+    function () {
+      api.executeWebApi({ action: "getAccounts" }, {});
+    }
+  );
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].result, "failure");
+  assert.strictEqual(rows[0].errorCode, "forbidden");
+  assert(rows[0].summary.indexOf("失敗") !== -1);
+  console.log("   ✓ 授權失敗日誌驗證通過！\n");
+}
+
+console.log("10. JSON 解析失敗與缺少 action 亦應寫入日誌...");
+{
+  const rows = [];
+  const capture = {
+    appendActivityLog: function (record) {
+      rows.push(record);
+    }
+  };
+  withOverrides(capture, function () {
+    api.executeWebApi("{bad", {});
+    api.executeWebApi({}, {});
+  });
+  assert.strictEqual(rows.length, 2);
+  assert.strictEqual(rows[0].errorCode, "invalid_json");
+  assert.strictEqual(rows[1].errorCode, "missing_action");
+  console.log("   ✓ 解析失敗與缺少 action 日誌驗證通過！\n");
+}
+
+console.log("11. 心跳、公開設定與日誌查詢不寫入日誌...");
+{
+  const rows = [];
+  withOverrides(
+    {
+      appendActivityLog: function (record) {
+        rows.push(record);
+      },
+      routeWebApiAction: function () {
+        return { ok: true };
+      }
+    },
+    function () {
+      ["ping", "getPublicConfig", "getActivityLog"].forEach(function (action) {
+        api.executeWebApi({ action: action }, {});
+      });
+    }
+  );
+  assert.strictEqual(rows.length, 0);
+  console.log("   ✓ 例外動作驗證通過！\n");
+}
+
+console.log("12. 日誌寫入應發生於釋放鎖之後...");
+{
+  const events = [];
+  let append = null;
+  withOverrides(
+    {
+      routeWebApiAction: function () {
+        return { ok: true };
+      },
+      appendActivityLog: function () {
+        events.push("log");
+      }
+    },
+    function () {
+      withGlobals(
+        {
+          LockService: {
+            getScriptLock: function () {
+              return {
+                tryLock: function () {
+                  return true;
+                },
+                releaseLock: function () {
+                  events.push("unlock");
+                }
+              };
+            }
+          }
+        },
+        function () {
+          append = api.executeWebApi({ action: "saveSystemSettings" }, {});
+        }
+      );
+    }
+  );
+  assert.strictEqual(append.ok, true);
+  assert.deepStrictEqual(events, ["unlock", "log"]);
+  console.log("   ✓ 解鎖順序驗證通過！\n");
+}
+
+console.log("13. 日誌附加失敗不影響原本回應...");
+{
+  const originalError = console.error;
+  console.error = function () {};
+  try {
+    withOverrides(
+      {
+        appendActivityLog: function () {
+          throw new Error("寫入失敗");
+        },
+        routeWebApiAction: function () {
+          return { ok: true, value: 1 };
+        }
+      },
+      function () {
+        const result = api.executeWebApi({ action: "getCourseIndex" }, {});
+        assert.strictEqual(result.ok, true);
+        assert.strictEqual(result.value, 1);
+      }
+    );
+  } finally {
+    console.error = originalError;
+  }
+  console.log("   ✓ 附加失敗不阻斷驗證通過！\n");
 }
 
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");

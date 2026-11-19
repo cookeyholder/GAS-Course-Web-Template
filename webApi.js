@@ -1111,6 +1111,28 @@ function routeWebApiAction(action, payload, event, authorizationOverride) {
 // ============================================================================
 
 /**
+ * 解析操作日誌模組：GAS 全域命名空間優先，Node 則以 require 載入。
+ *
+ * @param {string} name - 全域命名空間名稱
+ * @param {string} modulePath - Node.js 模組路徑
+ * @returns {Object|null} 模組 API
+ */
+function resolveActivityLogModule_(name, modulePath) {
+  if (typeof globalThis !== "undefined" && globalThis[name]) return globalThis[name];
+  if (typeof require === "function") {
+    try {
+      return require(modulePath);
+    } catch (error) {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** 不寫入日誌的例外動作（高頻心跳與日誌查詢本身） */
+const ACTIVITY_LOG_EXCLUDED_ACTIONS = ["ping", "getPublicConfig", "getActivityLog"];
+
+/**
  * 建立請求層級的日誌 context。
  * 身分欄位一開始保持空白，待授權結果或登入結果回傳後再補寫。
  *
@@ -1168,6 +1190,67 @@ function recordWebApiIdentity_(context, authorization, result) {
 }
 
 /**
+ * 產生操作日誌摘要（不含敏感內容與原始回傳值）。
+ *
+ * @param {Object} context - 日誌 context
+ * @param {Object} meta - 動作日誌中繼資料
+ * @param {Object} result - action 回傳結果
+ * @returns {string} 摘要文字
+ */
+function buildActivityLogSummary_(context, meta, result) {
+  const label = meta.label || context.action || "未識別動作";
+  if (result && result.ok === false) {
+    return label + "失敗：" + (result.error || "未知錯誤");
+  }
+  return label + "成功";
+}
+
+/**
+ * 建立操作日誌寫入紀錄。
+ *
+ * @param {Object} context - 日誌 context
+ * @param {Object} meta - 動作日誌中繼資料
+ * @param {Object} payload - 請求 payload（僅供詳情產生器取白名單欄位）
+ * @param {Object} result - action 回傳結果
+ * @returns {Object} 12 欄日誌紀錄
+ */
+function buildActivityLogRecord_(context, meta, payload, result) {
+  const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
+  let detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
+  if (builders && typeof builders.describe === "function") {
+    try {
+      detail = builders.describe(meta.detailKey, null, null, payload || {}, result || {});
+    } catch (error) {
+      // 詳情產生失敗時保留最小可用的版本化結構
+    }
+  }
+  const now = new Date();
+  let timestamp;
+  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    timestamp = Utilities.formatDate(now, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+  } else {
+    timestamp = new Date(now.getTime() + 8 * 60 * 60 * 1000)
+      .toISOString()
+      .replace("T", " ")
+      .slice(0, 19);
+  }
+  return {
+    timestamp: timestamp,
+    requestId: context.requestId,
+    category: meta.category,
+    action: meta.label || context.action || "未識別動作",
+    result: result && result.ok === true ? "success" : "failure",
+    email: context.email,
+    name: context.name,
+    role: context.role,
+    summary: buildActivityLogSummary_(context, meta, result),
+    detail: JSON.stringify(detail),
+    durationMs: Date.now() - context.startTime,
+    errorCode: context.errorCode || ""
+  };
+}
+
+/**
  * 執行 Web API Action，供 doPost 與 google.script.run 共用。
  *
  * @param {Object|string} payload - 請求資料物件或 JSON 字串
@@ -1181,21 +1264,34 @@ function executeWebApi(payload, event) {
   );
   let lock = null;
   let hasLock = false;
+  let finalResult = null;
+  const finish_ = function (result) {
+    finalResult = result;
+    if (result && result.ok === false && !context.errorCode) {
+      context.errorCode = result.error || "failed";
+    }
+    return result;
+  };
   try {
     if (typeof payload === "string") {
       try {
         payload = JSON.parse(payload);
       } catch (error) {
-        return webApiError("invalid_json", "請求 JSON 格式錯誤");
+        context.errorCode = "invalid_json";
+        return finish_(webApiError("invalid_json", "請求 JSON 格式錯誤"));
       }
     }
     if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-      return webApiError("invalid_json", "請求 JSON 格式錯誤");
+      context.errorCode = "invalid_json";
+      return finish_(webApiError("invalid_json", "請求 JSON 格式錯誤"));
     }
 
     const action = String(payload.action || (event && event.parameter && event.parameter.action) || "").trim();
     context.action = action;
-    if (action === "") return webApiError("missing_action", "缺少 action 參數");
+    if (action === "") {
+      context.errorCode = "missing_action";
+      return finish_(webApiError("missing_action", "缺少 action 參數"));
+    }
 
     // 先取得一次授權結果供日誌 context 使用，並直接交給路由，避免重複授權。
     let authorization = null;
@@ -1215,7 +1311,10 @@ function executeWebApi(payload, event) {
       } catch (lockError) {
         hasLock = false;
       }
-      if (!hasLock) return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
+      if (!hasLock) {
+        context.errorCode = "lock_timeout";
+        return finish_(webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試"));
+      }
     }
     const routeFn =
       typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"
@@ -1229,10 +1328,11 @@ function executeWebApi(payload, event) {
     ) {
       recordWebApiIdentity_(context, null, result);
     }
-    return result;
+    return finish_(result);
   } catch (error) {
     console.error("[webApi executeWebApi error] " + (error && error.stack ? error.stack : error));
-    return webApiError("server_error", "系統發生未預期的錯誤，請稍後再試");
+    context.errorCode = "server_error";
+    return finish_(webApiError("server_error", "系統發生未預期的錯誤，請稍後再試"));
   } finally {
     if (hasLock && lock) {
       try {
@@ -1241,8 +1341,32 @@ function executeWebApi(payload, event) {
         // 忽略解鎖失敗
       }
     }
-    // 統一日誌寫入將於 4.2 加入，確保發生在解鎖之後。
-    void context;
+    // 統一日誌寫入必須在解鎖之後，且不得再次取得同一把 Script Lock。
+    if (ACTIVITY_LOG_EXCLUDED_ACTIONS.indexOf(context.action) === -1) {
+      const meta = ACTION_REGISTRY.getActionMeta(context.action) || {
+        category: "query",
+        label: context.action || "未識別動作",
+        detailKey: "none",
+        enabled: true
+      };
+      if (meta.enabled !== false) {
+        const loggerModule = resolveActivityLogModule_("activityLogger", "./activityLogger.js");
+        const appendFn = getOverridableApiFn_(
+          "appendActivityLog",
+          loggerModule ? loggerModule.appendActivityLog : null
+        );
+        if (typeof appendFn === "function") {
+          try {
+            appendFn(
+              buildActivityLogRecord_(context, meta, payload, finalResult),
+              getRouteSpreadsheet_()
+            );
+          } catch (error) {
+            console.error("寫入操作日誌失敗：", error && error.message ? error.message : error);
+          }
+        }
+      }
+    }
   }
 }
 
@@ -1382,6 +1506,8 @@ if (typeof module !== "undefined" && module.exports) {
     executeWebApi: executeWebApi,
     createWebApiLogContext: createWebApiLogContext_,
     recordWebApiIdentity: recordWebApiIdentity_,
+    buildActivityLogRecord: buildActivityLogRecord_,
+    appendActivityLog: null,
     doGet: doGet,
     doPost: doPost
   };

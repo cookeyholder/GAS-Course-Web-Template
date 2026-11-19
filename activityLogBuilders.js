@@ -297,13 +297,20 @@ function describe(detailKey, before, after, payload, result) {
   };
 }
 
+const ACTIVITY_LOG_BUILDERS_API = {
+  ACTIVITY_DETAIL_VERSION: ACTIVITY_DETAIL_VERSION,
+  SAFE_PAYLOAD_KEYS: SAFE_PAYLOAD_KEYS,
+  projectPayload: projectPayload_,
+  getBuilder: getBuilder,
+  captureBefore: captureBefore,
+  describe: describe
+};
+
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    ACTIVITY_DETAIL_VERSION: ACTIVITY_DETAIL_VERSION,
-    SAFE_PAYLOAD_KEYS: SAFE_PAYLOAD_KEYS,
-    projectPayload: projectPayload_,
-    getBuilder: getBuilder,
-    captureBefore: captureBefore,
-    describe: describe
-  };
+  module.exports = ACTIVITY_LOG_BUILDERS_API;
+}
+if (typeof globalThis !== "undefined") {
+  globalThis.activityLogBuilders = ACTIVITY_LOG_BUILDERS_API;
+  globalThis.MEA = globalThis.MEA || {};
+  globalThis.MEA.activityLogBuilders = ACTIVITY_LOG_BUILDERS_API;
 }

@@ -311,9 +311,8 @@ function ensureActivityLogCleanupTrigger_(options) {
   }
 }
 
-if (typeof module !== "undefined" && module.exports) {
-  module.exports = {
-    ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
+const ACTIVITY_LOGGER_API = {
+  ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
     ACTIVITY_LOG_CACHE_PREFIX: ACTIVITY_LOG_CACHE_PREFIX,
     WRITE_COUNT_CACHE_KEY: WRITE_COUNT_CACHE_KEY,
     LAST_ROW_SAMPLE_INTERVAL: LAST_ROW_SAMPLE_INTERVAL,
@@ -326,7 +325,15 @@ if (typeof module !== "undefined" && module.exports) {
     appendActivityLog_: appendActivityLog_,
     buildActivityLogRow: buildActivityLogRow_,
     cleanupActivityLogRows: cleanupActivityLogRows,
-    ensureActivityLogCleanupTrigger: ensureActivityLogCleanupTrigger_,
-    ensureActivityLogCleanupTrigger_: ensureActivityLogCleanupTrigger_
-  };
+  ensureActivityLogCleanupTrigger: ensureActivityLogCleanupTrigger_,
+  ensureActivityLogCleanupTrigger_: ensureActivityLogCleanupTrigger_
+};
+
+if (typeof module !== "undefined" && module.exports) {
+  module.exports = ACTIVITY_LOGGER_API;
+}
+if (typeof globalThis !== "undefined") {
+  globalThis.activityLogger = ACTIVITY_LOGGER_API;
+  globalThis.MEA = globalThis.MEA || {};
+  globalThis.MEA.activityLogger = ACTIVITY_LOGGER_API;
 }
