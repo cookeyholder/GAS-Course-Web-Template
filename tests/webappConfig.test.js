@@ -31,11 +31,46 @@ function baseEnv(overrides) {
   );
 }
 
-console.log("2. resolveDefaultApiUrl：api 參數優先...");
+console.log("2. resolveDefaultApiUrl：可信 api 參數優先...");
 {
-  const url = configModule.resolveDefaultApiUrl(baseEnv({ search: "?api=https://api.test/exec&mock=true" }));
-  assert.strictEqual(url, "https://api.test/exec");
-  console.log("   ✓ api 參數優先驗證通過！\n");
+  const url = configModule.resolveDefaultApiUrl(
+    baseEnv({ search: "?api=https://script.google.com/macros/s/DEPLOY/exec&mock=true" })
+  );
+  assert.strictEqual(url, "https://script.google.com/macros/s/DEPLOY/exec");
+  console.log("   ✓ 可信 api 參數優先驗證通過！\n");
+}
+
+console.log("2.1 惡意 ?api= 端點應被拒絕且不回傳任何端點...");
+{
+  const env = baseEnv({ search: "?api=https://attacker.example/steal" });
+  assert.strictEqual(configModule.resolveDefaultApiUrl(env), "");
+  assert.strictEqual(configModule.isTrustedApiEndpoint("https://attacker.example/steal", env), false);
+  assert.strictEqual(configModule.isTrustedApiEndpoint("javascript:alert(1)", env), false);
+  assert.strictEqual(configModule.isTrustedApiEndpoint("not a url", env), false);
+  console.log("   ✓ 惡意端點拒絕驗證通過！\n");
+}
+
+console.log("2.2 isTrustedApiEndpoint 應接受同源、GAS、明確設定與本機端點...");
+{
+  const gasUrl = "https://script.google.com/macros/s/DEPLOY/exec";
+  const sameOrigin = baseEnv({ href: "https://example.com/app?x=1", gasWebappUrl: "" });
+  assert.strictEqual(configModule.isTrustedApiEndpoint("https://example.com/other/exec", sameOrigin), true);
+  assert.strictEqual(configModule.isTrustedApiEndpoint("/relative/exec", sameOrigin), true);
+  assert.strictEqual(configModule.isTrustedApiEndpoint(gasUrl, sameOrigin), true);
+  assert.strictEqual(configModule.isTrustedApiEndpoint(gasUrl + "?x=1", sameOrigin), true);
+
+  const configured = baseEnv({ gasWebappUrl: "https://proxy.example.com/gas/exec" });
+  assert.strictEqual(configModule.isTrustedApiEndpoint("https://proxy.example.com/gas/exec", configured), true);
+  assert.strictEqual(configModule.isTrustedApiEndpoint("https://proxy.example.com/other", configured), false);
+
+  const localPage = baseEnv({ protocol: "http:", hostname: "localhost", href: "http://localhost:8080/" });
+  assert.strictEqual(configModule.isTrustedApiEndpoint("http://127.0.0.1:3000/exec", localPage), true);
+  assert.strictEqual(configModule.isTrustedApiEndpoint("https://attacker.example/exec", localPage), false);
+
+  const filePage = baseEnv({ protocol: "file:", hostname: "", href: "file:///tmp/index.html" });
+  assert.strictEqual(configModule.isTrustedApiEndpoint("http://localhost:8080/exec", filePage), true);
+  assert.strictEqual(configModule.isTrustedApiEndpoint("https://attacker.example/exec", filePage), false);
+  console.log("   ✓ 可信端點白名單驗證通過！\n");
 }
 
 console.log("3. resolveDefaultApiUrl：gasWebappUrl 次之（需為 http 開頭）...");
@@ -155,11 +190,11 @@ console.log("9. tabs 與 apiUrl 應依環境正確產生...");
 {
   const c = configModule.buildFrontendConfig(
     baseEnv({
-      search: "?api=https://x.test/run",
+      search: "?api=https://script.google.com/macros/s/DEPLOY/exec",
       href: "https://example.com/app?y=1#z"
     })
   );
-  assert.strictEqual(c.apiUrl, "https://x.test/run");
+  assert.strictEqual(c.apiUrl, "https://script.google.com/macros/s/DEPLOY/exec");
   assert.deepStrictEqual(
     c.tabs.map(function (t) {
       return t.id;
@@ -178,7 +213,7 @@ console.log("10. applyBrowserConfig 應將瀏覽器參數組裝為 MEA.config...
   const root = {};
   const win = {
     location: {
-      search: "?mock=true&switch=1&api=https://x.test/exec",
+      search: "?mock=true&switch=1&api=https://script.google.com/macros/s/DEPLOY/exec",
       protocol: "https:",
       hostname: "example.com",
       href: "https://example.com/app?mock=true#h"
@@ -190,8 +225,21 @@ console.log("10. applyBrowserConfig 應將瀏覽器參數組裝為 MEA.config...
   assert.strictEqual(root.MEA.config, config);
   assert.strictEqual(config.mock, true);
   assert.strictEqual(config.switchAccount, true);
-  assert.strictEqual(config.apiUrl, "https://x.test/exec");
+  assert.strictEqual(config.apiUrl, "https://script.google.com/macros/s/DEPLOY/exec");
   assert.strictEqual(config.hostname === undefined, true);
+
+  const malicious = configModule.applyBrowserConfig(
+    {},
+    {
+      location: {
+        search: "?api=https://attacker.example/steal",
+        protocol: "https:",
+        hostname: "example.com",
+        href: "https://example.com/app"
+      }
+    }
+  );
+  assert.strictEqual(malicious.apiUrl, "", "惡意端點不得成為 API URL");
 
   const fallback = configModule.applyBrowserConfig({}, { GAS_WEBAPP_URL: "ftp://x", SWITCH_ACCOUNT: true });
   assert.strictEqual(fallback.apiUrl, "");

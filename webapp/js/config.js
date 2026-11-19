@@ -25,6 +25,60 @@
     }
   }
 
+  function isLocalHostname(hostname) {
+    const value = String(hostname || "").toLowerCase();
+    return value === "localhost" || value === "127.0.0.1";
+  }
+
+  /**
+   * 僅接受同源、明確設定的 GAS/代理端點、script.google.com Web App 網址，
+   * 以及本機開發頁面對應的本機端點；其餘 ?api= 值一律視為不可信。
+   */
+  function isTrustedApiEndpoint(candidate, env) {
+    const raw = String(candidate || "").trim();
+    if (!raw) return false;
+    // 僅接受絕對 URL 或根相對路徑，避免模糊字串被 URL 解析成同源路徑。
+    const hasScheme = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(raw);
+    if (!hasScheme && raw.charAt(0) !== "/") return false;
+    const source = env || {};
+    let target;
+    try {
+      target = source.href ? new URL(raw, source.href) : new URL(raw);
+    } catch (e) {
+      return false;
+    }
+    if (target.protocol !== "http:" && target.protocol !== "https:") return false;
+
+    const gasUrl = String(source.gasWebappUrl || "").trim();
+    if (gasUrl) {
+      try {
+        const gas = gasUrl.indexOf("://") === -1 ? new URL(gasUrl, source.href) : new URL(gasUrl);
+        if (target.origin === gas.origin && target.pathname.indexOf(gas.pathname) === 0) return true;
+      } catch (e) {
+        // 設定值異常時略過，改用下列規則判斷
+      }
+    }
+
+    if (/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:[/?#]|$)/.test(target.href)) {
+      return true;
+    }
+
+    if (source.href) {
+      try {
+        const page = new URL(source.href);
+        if (target.origin === page.origin) return true;
+      } catch (e) {
+        // 頁面網址異常時略過
+      }
+    }
+
+    if (source.protocol === "file:" || isLocalHostname(source.hostname)) {
+      if (isLocalHostname(target.hostname)) return true;
+    }
+
+    return false;
+  }
+
   function resolveDefaultApiUrl(env) {
     const source = env || {};
     const params = getSearchParams(source.search);
@@ -36,7 +90,10 @@
     const isGoogleUserContent = hostname.indexOf("googleusercontent.com") !== -1;
     const href = source.href || "";
 
-    if (apiParam) return apiParam;
+    if (apiParam) {
+      // 不受信任的 ?api= 直接忽略，避免 session/CSRF token 外送至惡意端點。
+      return isTrustedApiEndpoint(apiParam, source) ? apiParam : "";
+    }
     if (gasUrl) return gasUrl;
     if (!isFile && !isGoogleUserContent) {
       return href.split("#")[0].split("?")[0];
@@ -164,6 +221,7 @@
   }
 
   return {
+    isTrustedApiEndpoint: isTrustedApiEndpoint,
     resolveDefaultApiUrl: resolveDefaultApiUrl,
     buildFrontendConfig: buildFrontendConfig,
     applyBrowserConfig: applyBrowserConfig
