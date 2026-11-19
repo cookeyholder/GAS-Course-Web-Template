@@ -6,7 +6,7 @@
 
 ## 2. 稽核明細與寫入正確性
 
-- [ ] 2.1 讓 `webApi.js` 的 `buildActivityLogRecord_` 直接將原始 `payload` 傳給 `builders.describe()`，移除呼叫前的 `projectPayload` 投影；以注入的假 `builders.describe` 斷言收到的 payload 仍含 `settings`／`accounts` 原始內容
+- [x] 2.1 讓 `webApi.js` 的 `buildActivityLogRecord_` 直接將原始 `payload` 傳給 `builders.describe()`，移除呼叫前的 `projectPayload` 投影；以注入的假 `builders.describe` 斷言收到的 payload 仍含 `settings`／`accounts` 原始內容
 - [ ] 2.2 移除 `activityLogBuilders.js` 的 `describe()` 調度器內部第二次 `projectPayload_` 呼叫，使各產生器自行負責投影；確認 `auth`／`query` 仍各自呼叫 `projectPayload_`，`systemSettings`／`whitelist` 仍使用欄位級白名單
 - [ ] 2.3 一次修正 `tests/webApiActivityLog.test.js` 同一測試區塊的三處預期：「`describe` 只收到白名單投影」（約 399 行）、`captureBefore` 被呼叫兩次（約 393–394 行，`snap-0`／`snap-1`）、`calls[2][3] === "snap-1"`（約 398 行，afterSnapshot）；改為只呼叫一次且第三個引數不再傳入快照。另新增走完整 `executeWebApi` 後 `saveSystemSettings` 的 `detail.變動` 非空、`saveWhitelist` 同時含新增與移除成員的整合測試，並補 `accounts` 非陣列時不拋錯（回傳空變動）的防護與測試；確認缺陷回退時測試會失敗
 - [ ] 2.4 在 `databaseInitializer.js` 建立日誌工作表時，對第 1 欄與第 10 欄套用 `setNumberFormat("@")` 並放大格式化範圍；既有工作表路徑（`ensureActivityLogSheet_` 早退前）亦補上相同的純文字格式設定，不覆寫資料且保持冪等；補初始化與既有表兩條測試驗證兩欄皆設為純文字

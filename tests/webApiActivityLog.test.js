@@ -344,7 +344,7 @@ console.log("13. 日誌附加失敗不影響原本回應...");
   console.log("   ✓ 附加失敗不阻斷驗證通過！\n");
 }
 
-console.log("14. 寫入動作應擷取 before/after 並只傳遞白名單投影 payload...");
+console.log("14. 寫入動作應擷取快照並傳遞原始 payload 給產生器...");
 {
   const calls = [];
   const rows = [];
@@ -382,7 +382,8 @@ console.log("14. 寫入動作應擷取 before/after 並只傳遞白名單投影 
             action: "saveSystemSettings",
             token: "SECRET-TOKEN",
             rows: [["RAW-ROW"]],
-            settings: { schoolYear: "115" }
+            settings: { schoolYear: "115" },
+            accounts: [{ email: "new@example.com" }]
           },
           {}
         );
@@ -395,13 +396,24 @@ console.log("14. 寫入動作應擷取 before/after 並只傳遞白名單投影 
   assert.strictEqual(calls[2][1], "systemSettings");
   assert.strictEqual(calls[2][2], "snap-0");
   assert.strictEqual(calls[2][3], "snap-1");
-  assert.deepStrictEqual(calls[2][4], { action: "saveSystemSettings" });
+  const describePayload = calls[2][4];
+  assert.strictEqual(describePayload.action, "saveSystemSettings");
+  assert.deepStrictEqual(
+    describePayload.settings,
+    { schoolYear: "115" },
+    "產生器應收到原始 settings，才能計算欄位變動"
+  );
+  assert.deepStrictEqual(
+    describePayload.accounts,
+    [{ email: "new@example.com" }],
+    "產生器應收到原始 accounts，才能計算成員變動"
+  );
   assert.strictEqual(rows.length, 1);
   const detailText = rows[0].detail;
   assert(detailText.indexOf("版本") !== -1);
   assert.strictEqual(detailText.indexOf("SECRET-TOKEN"), -1);
   assert.strictEqual(detailText.indexOf("RAW-ROW"), -1);
-  console.log("   ✓ before/after 與白名單投影驗證通過！\n");
+  console.log("   ✓ 原始 payload 送達產生器驗證通過！\n");
 }
 
 console.log("15. 例外動作不應擷取快照...");

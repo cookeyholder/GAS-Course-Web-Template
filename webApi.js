@@ -1392,12 +1392,9 @@ function buildActivityLogRecord_(context, meta, payload, result, before, after) 
   let detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
   if (builders && typeof builders.describe === "function") {
     try {
-      // 攔截器只傳遞白名單投影，即使產生器日後改變也不會接觸敏感欄位。
-      const safePayload =
-        builders && typeof builders.projectPayload === "function"
-          ? builders.projectPayload(payload || {})
-          : payload || {};
-      detail = builders.describe(meta.detailKey, before, after, safePayload, result || {});
+      // 產生器自行以欄位級白名單挑選可記錄欄位；此處必須傳入原始 payload，
+      // 否則 settings／accounts 會被通用投影折疊而丟失變動明細。
+      detail = builders.describe(meta.detailKey, before, after, payload || {}, result || {});
     } catch (error) {
       // 詳情產生失敗時保留最小可用的版本化結構
     }
