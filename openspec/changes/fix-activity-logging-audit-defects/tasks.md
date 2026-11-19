@@ -39,7 +39,7 @@
 
 ## 6. 品質閘門與歸檔
 
-- [ ] 6.1 執行 `npm test`、`npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`，全數通過且無中國用語
+- [x] 6.1 執行 `npm test`、`npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`，全數通過且無中國用語
 - [ ] 6.2 執行 `npm run build:webapp`，確認 `index.html` 內嵌順序與語法正常，且 `index.html?mock=true` 可渲染日誌頁籤
 - [ ] 6.3 執行 `npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`，確認符合門檻且不低於基準線
 - [ ] 6.4 執行 `openspec validate fix-activity-logging-audit-defects --strict`，通過後依使用者指示同步 delta specs 並歸檔 change
