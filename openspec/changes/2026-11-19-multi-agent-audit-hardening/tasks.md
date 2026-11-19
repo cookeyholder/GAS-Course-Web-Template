@@ -39,7 +39,7 @@
 - [x] 4.4 清理死碼與重複：`webApiSuccess`、`DEPARTMENT_CODES`、`DEPARTMENT_NAMES`、`safeTrim`、`generateUniqueId` 移除或改為衍生；合併 `getSystemConfigSheet_`／`getRequiredSystemConfigSheet_`；統一角色名稱、工作表名稱與版本號來源。
 - [x] 4.5 建立 `ACTION_REGISTRY` 單一登錄來源，讓 `WEB_API_PUBLIC_ACTIONS`／`WRITE_ACTIONS`／`LOCKED_ACTIONS`／`ROLE_PERMISSIONS`／路由 switch／mock handler 由同一定義產生，並加測試驗證 action 與 mock handler 一致。
 - [x] 4.6 mock 與 state.js：讓 mock `getCourseIndex` 接收篩選/分頁參數並與後端回應形狀一致；新增 `tests/webappState.test.js` 覆蓋 setState 合併、listener 順序/拋錯隔離與 unsubscribe。
-- [ ] 4.7 工具鏈與閘門：`package.json` watch 先建置；CI 加入 JS class 必須存在於 CSS、對比度與建置產物一致性檢查；拆分 `checkChangedCoverage.js:getDiff` 降低 CRAP 至 < 30；auth 六處 `.then()` 補 `.catch()` 與網域大小寫一致。
+- [x] 4.7 工具鏈與閘門：`package.json` watch 先建置；CI 加入 JS class 必須存在於 CSS、對比度與建置產物一致性檢查；拆分 `checkChangedCoverage.js:getDiff` 降低 CRAP 至 < 30；auth 六處 `.then()` 補 `.catch()` 與網域大小寫一致。
 
 ## 5. 文件、驗證與封存
 

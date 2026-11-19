@@ -221,7 +221,8 @@
   function normalizeAllowedDomain(allowedDomain) {
     return String(allowedDomain || "")
       .trim()
-      .replace(/^@/, "");
+      .replace(/^@/, "")
+      .toLowerCase();
   }
 
   function buildAccountChooserUrl(webAppUrl, allowedDomain) {
@@ -470,7 +471,7 @@
         return;
       }
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("login", { credential: credential }).then(applyLoginSuccess);
+      MEA.api.call("login", { credential: credential }).then(applyLoginSuccess).catch(handleAuthCallFailure);
     }
 
     function buildGoogleAuthUrl(clientId, redirectUri) {
@@ -508,7 +509,7 @@
 
     function loginActiveUser() {
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("loginWithActiveUser", {}).then(applyLoginSuccess);
+      MEA.api.call("loginWithActiveUser", {}).then(applyLoginSuccess).catch(handleAuthCallFailure);
     }
 
     function createGisReadyHandler(host, clientId) {
@@ -524,6 +525,17 @@
 
     function handleGisFailure(error) {
       MEA.setState({ loginError: String(error && error.message ? error.message : error) });
+    }
+
+    /**
+     * 統一處理 API 呼叫拒絕，避免未捕獲的 Promise 例外並提供明確回饋。
+     *
+     * @param {*} error - 例外或錯誤物件
+     */
+    function handleAuthCallFailure(error) {
+      const message = (error && error.message) || DEFAULT_LOGIN_ERROR;
+      MEA.setState({ loginBusy: false, loginError: message });
+      MEA.ui.toast(message, "err");
     }
 
     function renderGoogleButton() {
@@ -544,7 +556,7 @@
 
     function loginMock() {
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("login", { mock: true }).then(applyLoginSuccess);
+      MEA.api.call("login", { mock: true }).then(applyLoginSuccess).catch(handleAuthCallFailure);
     }
 
     function scheduleRenderGoogleButton() {
@@ -590,12 +602,15 @@
     function restore() {
       const token = MEA.api.getToken();
       if (isMock()) {
-        MEA.api.call("getSession", {}).then(function (result) {
-          if (!applySessionSuccess(result)) {
-            MEA.setState(buildSessionFailureState(result));
-            scheduleRenderGoogleButton();
-          }
-        });
+        MEA.api
+          .call("getSession", {})
+          .then(function (result) {
+            if (!applySessionSuccess(result)) {
+              MEA.setState(buildSessionFailureState(result));
+              scheduleRenderGoogleButton();
+            }
+          })
+          .catch(handleAuthCallFailure);
         return;
       }
       if (!token) {
@@ -603,14 +618,17 @@
         scheduleRenderGoogleButton();
         return;
       }
-      MEA.api.call("getSession", { token: token }).then(function (result) {
-        if (!applySessionSuccess(result)) {
-          MEA.api.setToken("");
-          MEA.api.setCsrfToken("");
-          MEA.setState(buildSessionFailureState(result));
-          scheduleRenderGoogleButton();
-        }
-      });
+      MEA.api
+        .call("getSession", { token: token })
+        .then(function (result) {
+          if (!applySessionSuccess(result)) {
+            MEA.api.setToken("");
+            MEA.api.setCsrfToken("");
+            MEA.setState(buildSessionFailureState(result));
+            scheduleRenderGoogleButton();
+          }
+        })
+        .catch(handleAuthCallFailure);
     }
 
     return {

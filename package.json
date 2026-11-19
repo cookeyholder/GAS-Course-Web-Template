@@ -9,7 +9,7 @@
     "deploy": "node scripts/deploy.js",
     "open": "clasp open",
     "logs": "clasp logs",
-    "watch": "clasp push --watch",
+    "watch": "npm run build:webapp && clasp push --watch",
     "test": "node scripts/run-tests.js",
     "test:legacy": "node tests/courseCodeNormalization.test.js && node tests/api.test.js",
     "test:coverage": "node scripts/checkCoverage.js --collect-only",

@@ -35,6 +35,9 @@ jobs:
       - name: WCAG contrast check
         run: npm run check:contrast
 
+      - name: Build artifact consistency
+        run: npm run build:webapp && git diff --exit-code -- index.html
+
       - name: Tests
         run: npm test
 

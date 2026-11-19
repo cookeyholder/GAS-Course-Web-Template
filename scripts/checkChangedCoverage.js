@@ -277,26 +277,44 @@ function computeChangedCoverage(options) {
  * @param {Object} options - 選項
  * @returns {string} diff 內容
  */
+/**
+ * 執行單一 git diff 指令。
+ *
+ * @param {Function} execSync - 指令執行器
+ * @param {string} args - git diff 參數
+ * @returns {string} diff 文字
+ */
+function execGitDiff_(execSync, args) {
+  return execSync(args, {
+    cwd: PROJECT_ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "ignore"]
+  });
+}
+
+/**
+ * 以指定基準取得 diff，先嘗試三點比較，失敗時回退兩點比較。
+ *
+ * @param {Function} execSync - 指令執行器
+ * @param {string} base - 比較基準
+ * @returns {string} diff 文字
+ */
+function getDiffWithBase_(execSync, base) {
+  try {
+    return execGitDiff_(execSync, "git diff --unified=0 " + base + "...HEAD --");
+  } catch (error) {
+    return execGitDiff_(execSync, "git diff --unified=0 " + base + " --");
+  }
+}
+
 function getDiff(options) {
   const settings = options || {};
   const base = settings.base || process.env.CHANGED_COVERAGE_BASE || "HEAD~1";
   const execSync = settings.execSync || childProcess.execSync;
   try {
-    return execSync("git diff --unified=0 " + base + "...HEAD --", {
-      cwd: PROJECT_ROOT,
-      encoding: "utf8",
-      stdio: ["ignore", "pipe", "ignore"]
-    });
+    return getDiffWithBase_(execSync, base);
   } catch (error) {
-    try {
-      return execSync("git diff --unified=0 " + base + " --", {
-        cwd: PROJECT_ROOT,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"]
-      });
-    } catch (inner) {
-      return "";
-    }
+    return "";
   }
 }
 

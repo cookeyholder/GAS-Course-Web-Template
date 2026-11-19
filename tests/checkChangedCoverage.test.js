@@ -198,4 +198,41 @@ console.log("6. 驗證變更覆蓋率不足時 runChangedCoverageCheck 回傳失
   console.log("   ✓ 失敗狀態驗證通過！\n");
 }
 
+console.log("7. 驗證 getDiff 拆分後的三點比較、兩點回退與完全失敗...");
+{
+  const calls = [];
+  const diff = checkChangedCoverage.getDiff({
+    base: "main",
+    execSync: function (args) {
+      calls.push(args);
+      if (calls.length === 1) throw new Error("三點比較失敗");
+      return "兩點比較 diff";
+    }
+  });
+  assert.strictEqual(diff, "兩點比較 diff");
+  assert.deepStrictEqual(calls, ["git diff --unified=0 main...HEAD --", "git diff --unified=0 main --"]);
+  console.log("   ✓ 兩點回退驗證通過！\n");
+}
+{
+  const diff = checkChangedCoverage.getDiff({
+    base: "main",
+    execSync: function (args) {
+      assert.strictEqual(args, "git diff --unified=0 main...HEAD --");
+      return "三點比較 diff";
+    }
+  });
+  assert.strictEqual(diff, "三點比較 diff");
+  console.log("   ✓ 三點比較驗證通過！\n");
+}
+{
+  const diff = checkChangedCoverage.getDiff({
+    base: "main",
+    execSync: function () {
+      throw new Error("所有比較皆失敗");
+    }
+  });
+  assert.strictEqual(diff, "");
+  console.log("   ✓ 完全失敗回退驗證通過！\n");
+}
+
 console.log("✓ 變更覆蓋率檢查腳本測試全數通過！\n");
