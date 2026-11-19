@@ -66,6 +66,36 @@ function run() {
   assert(html.indexOf("&lt;系統管理員&gt;") !== -1);
   console.log("5. 使用者與設定值應跳脫 HTML ✓\n");
 
+  console.log("6. renderNavbar 應依管理員旗標與角色過濾頁籤...\n");
+  {
+    const ctx = createDeps();
+    ctx.config.tabs = [
+      { id: "overview", name: "概覽", icon: "📊" },
+      { id: "courses", name: "課程", icon: "📚" },
+      { id: "activityLog", name: "操作日誌", icon: "📜", adminOnly: true }
+    ];
+
+    ctx.state.user = { role: "viewer" };
+    let html = ctx.ui.renderNavbar();
+    assert(html.indexOf("概覽") !== -1);
+    assert(html.indexOf("課程") !== -1);
+    assert(html.indexOf("操作日誌") === -1, "非管理員不應看到操作日誌頁籤");
+
+    ctx.state.user = { role: "admin" };
+    html = ctx.ui.renderNavbar();
+    assert(html.indexOf("操作日誌") !== -1, "管理員應看到操作日誌頁籤");
+    assert(html.indexOf("MEA.setTab('activityLog')") !== -1);
+
+    ctx.state.user = null;
+    html = ctx.ui.renderNavbar();
+    assert(html.indexOf("操作日誌") === -1, "未登入者不應看到管理員頁籤");
+
+    ctx.state.user = { role: "staff" };
+    assert.strictEqual(ctx.ui.isTabAllowed(ctx.config.tabs[2], ctx.state.user), false);
+    assert.strictEqual(ctx.ui.isTabAllowed(ctx.config.tabs[0], ctx.state.user), true);
+    console.log("   ✓ 角色可見性驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/ui.js renderOverviewView 測試全數通過！\n");
 }
 
