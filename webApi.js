@@ -592,19 +592,53 @@ function buildTokenExchangeFailure_(statusCode, tokenData) {
   );
 }
 
+/**
+ * 在短臨界區內執行 OAuth 回呼寫入；取得失敗時回傳 lock_timeout，並在 finally 釋放鎖。
+ * deps.lockService 可供測試注入，正式環境使用全域 LockService。
+ */
+function runOAuthCallbackWriteLock_(fn, deps) {
+  const lockService =
+    deps && deps.lockService
+      ? deps.lockService
+      : typeof LockService !== "undefined" && LockService.getScriptLock
+        ? LockService
+        : null;
+  if (!lockService) return fn();
+
+  const lock = lockService.getScriptLock();
+  let acquired = false;
+  try {
+    acquired = lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
+  } catch (lockError) {
+    acquired = false;
+  }
+  if (!acquired) return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
+  try {
+    return fn();
+  } finally {
+    try {
+      lock.releaseLock();
+    } catch (releaseError) {
+      // 釋放失敗不影響已完成的寫入結果
+    }
+  }
+}
+
 function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss, stateContext) {
   const verifyFn =
     deps && typeof deps.verifyGoogleIdToken === "function" ? deps.verifyGoogleIdToken : verifyGoogleIdToken;
   const createSessionFn =
     deps && typeof deps.createSessionForEmail === "function" ? deps.createSessionForEmail : createSessionForEmail;
+  // ID Token 驗證可能為外部 HTTP tokeninfo 呼叫，必須在取得鎖之前完成。
   const verification = verifyFn(tokenData.id_token, clientId, settings.allowedLoginDomain);
   if (!verification.ok) return verification;
 
   const context = stateContext || {};
-  const stateValidation = validateOAuthCallbackState_(context.state, context.expectedRedirectUri, deps);
-  if (!stateValidation.ok) return stateValidation;
-
-  return createSessionFn(verification.email, verification.name, { spreadsheet: ss, allowBootstrap: true });
+  return runOAuthCallbackWriteLock_(function () {
+    const stateValidation = validateOAuthCallbackState_(context.state, context.expectedRedirectUri, deps);
+    if (!stateValidation.ok) return stateValidation;
+    return createSessionFn(verification.email, verification.name, { spreadsheet: ss, allowBootstrap: true });
+  }, deps);
 }
 
 function handleOAuthCodeCallback(code, e, deps) {

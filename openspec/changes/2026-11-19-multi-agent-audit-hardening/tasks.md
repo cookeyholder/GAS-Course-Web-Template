@@ -4,7 +4,7 @@
 - [x] 1.2 `getSystemSettings` 路由依角色遮蔽 `clientSecret`（僅 admin 可見），補測試驗證 viewer/staff 取得設定時不含機密欄位、admin 仍可取得。
 - [x] 1.3 調整 `createSessionForEmail` 流程：先讀白名單再判斷是否為空，僅在明確 bootstrap 情境呼叫 `bootstrapAdminIfNeeded`，寫入置於獨立短鎖臨界區並重複檢查，避免並發覆寫與首位登入者搶占 admin。
 - [x] 1.4 OAuth state nonce 一次性驗證：前端以 `sessionStorage` 保存 nonce 並随 state 送出；後端解析並驗證 nonce 與 `redirectUri` 綁定，失敗拒絕回呼；補 tests 驗證重放/不符 nonce 被拒。
-- [ ] 1.5 `doGet` 授權碼回呼寫入路徑補 `LockService` 保護（`tryLock`／`finally releaseLock`），覆蓋 `handleOAuthCodeCallback → createSessionForEmail → saveWhitelist` 鏈。
+- [x] 1.5 `doGet` 授權碼回呼寫入路徑補 `LockService` 保護（`tryLock`／`finally releaseLock`），覆蓋 `handleOAuthCodeCallback → createSessionForEmail → saveWhitelist` 鏈。
 - [ ] 1.6 前端 API 端點白名單：`config.js` 不再接受任意 `?api=`，僅允許同源或設定檔允許的 GAS 端點；補測試驗證惡意端點被拒且 token 不外送。
 - [ ] 1.7 SheetJS CDN 固定單一版本並補 `integrity`／`crossorigin`，移除 0.18.5 與 0.20.3 混用。
 - [ ] 1.8 正式建置產物停用 mock：`build-webapp.js` 排除 `mock.js` 或在 `index.html` 標記正式環境忽略 `?mock=true`，本機 `webapp/` 開發仍可使用；補建置測試。
