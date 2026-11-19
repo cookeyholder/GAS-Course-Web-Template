@@ -4,7 +4,7 @@
  * @file activityLogBuilders.js
  * @description 操作日誌詳情產生器，依 logDetailKey 分派彙總指標與變動明細。
  *
- * 詳情採版本化結構，且僅接收白名單投影後的 payload，
+ * 詳情採版本化結構；各產生器自行以欄位級白名單挑選可記錄欄位，
  * 不得寫入 token、原始上傳列或查詢回傳內容。
  */
 
@@ -279,17 +279,16 @@ function captureBefore(detailKey, ss) {
  * @param {string} detailKey - 詳情鍵
  * @param {*} before - 變動前快照
  * @param {*} after - 變動後快照（目前保留參數以供未來擴充）
- * @param {Object} payload - 請求 payload（內部僅取白名單欄位）
+ * @param {Object} payload - 原始請求 payload（由各產生器自行過濾敏感欄位）
  * @param {Object} result - handler 回傳結果
  * @returns {Object} 版本化詳情物件
  */
 function describe(detailKey, before, after, payload, result) {
   const builder = getBuilder(detailKey);
   const detail = builder.describe(before, after, payload, result) || {};
-  const safe = projectPayload_(payload);
   return {
     版本: ACTIVITY_DETAIL_VERSION,
-    動作: safe.action || detailKey,
+    動作: (payload && payload.action) || detailKey,
     指標: detail.指標 || {},
     變動: detail.變動 || []
   };
