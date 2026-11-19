@@ -7028,6 +7028,20 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   outline-offset: 2px;
 }
 
+/* 操作日誌詳情：版本化 JSON 以可捲動區塊呈現，避免長內容撐破表格。 */
+.activity-log-detail {
+  margin: 0;
+  padding: 12px 14px;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--fill-2);
+  color: var(--ink);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -7080,6 +7094,9 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
   /** 系統使用說明工作表名稱（前後端共用單一來源） */
   const SHEET_SYSTEM_INSTRUCTIONS = "系統使用說明";
+
+  /** 操作日誌工作表名稱（前後端共用單一來源） */
+  const SHEET_ACTIVITY_LOG = "操作日誌";
 
   /** Web API 版本號（所有後端回應共用單一來源） */
   const WEB_API_VERSION = "1.1.0";
@@ -7186,6 +7203,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     SHEET_COURSE_INDEX: SHEET_COURSE_INDEX,
     LEGACY_SHEET_COURSE_INDEX: LEGACY_SHEET_COURSE_INDEX,
     SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
+    SHEET_ACTIVITY_LOG: SHEET_ACTIVITY_LOG,
     WEB_API_VERSION: WEB_API_VERSION,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
     hasOwn: hasOwn,
@@ -7228,21 +7246,114 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
    * - write：寫入型 action（需 CSRF 驗證）
    * - locked：需全域 Script Lock 保護
    * - roles：允許呼叫的角色代碼（public action 不需填寫）
+   * - logCategory／logLabel／logDetailKey／logEnabled：操作日誌宣告式中繼資料
    */
   const ACTIONS = {
-    ping: { public: true },
-    getPublicConfig: { public: true },
-    login: { public: true },
-    loginWithActiveUser: { public: true },
-    getSession: { roles: ALL_ROLES },
-    logout: { write: true, roles: ALL_ROLES },
-    importCourseCodes: { write: true, locked: true, roles: ["admin", "staff"] },
-    getCourseIndex: { roles: ALL_ROLES },
-    getCourseIndexStats: { roles: ALL_ROLES },
-    getSystemSettings: { roles: ALL_ROLES },
-    saveSystemSettings: { write: true, locked: true, roles: ["admin"] },
-    getAccounts: { roles: ["admin"] },
-    saveWhitelist: { write: true, locked: true, roles: ["admin"] }
+    ping: {
+      public: true,
+      logCategory: "query",
+      logLabel: "心跳檢查",
+      logDetailKey: "none",
+      logEnabled: false
+    },
+    getPublicConfig: {
+      public: true,
+      logCategory: "query",
+      logLabel: "取得公開設定",
+      logDetailKey: "none",
+      logEnabled: false
+    },
+    login: {
+      public: true,
+      logCategory: "auth",
+      logLabel: "登入",
+      logDetailKey: "auth",
+      logEnabled: true
+    },
+    loginWithActiveUser: {
+      public: true,
+      logCategory: "auth",
+      logLabel: "使用現存帳號登入",
+      logDetailKey: "auth",
+      logEnabled: true
+    },
+    getSession: {
+      roles: ALL_ROLES,
+      logCategory: "auth",
+      logLabel: "取得工作階段",
+      logDetailKey: "auth",
+      logEnabled: true
+    },
+    logout: {
+      write: true,
+      roles: ALL_ROLES,
+      logCategory: "auth",
+      logLabel: "登出",
+      logDetailKey: "auth",
+      logEnabled: true
+    },
+    importCourseCodes: {
+      write: true,
+      locked: true,
+      roles: ["admin", "staff"],
+      logCategory: "write",
+      logLabel: "匯入課程代碼",
+      logDetailKey: "importCourseCodes",
+      logEnabled: true
+    },
+    getCourseIndex: {
+      roles: ALL_ROLES,
+      logCategory: "query",
+      logLabel: "查詢課程代碼",
+      logDetailKey: "query",
+      logEnabled: true
+    },
+    getCourseIndexStats: {
+      roles: ALL_ROLES,
+      logCategory: "query",
+      logLabel: "查詢課程統計",
+      logDetailKey: "query",
+      logEnabled: true
+    },
+    getSystemSettings: {
+      roles: ALL_ROLES,
+      logCategory: "query",
+      logLabel: "查詢系統設定",
+      logDetailKey: "query",
+      logEnabled: true
+    },
+    saveSystemSettings: {
+      write: true,
+      locked: true,
+      roles: ["admin"],
+      logCategory: "write",
+      logLabel: "儲存系統設定",
+      logDetailKey: "systemSettings",
+      logEnabled: true
+    },
+    getAccounts: {
+      roles: ["admin"],
+      logCategory: "query",
+      logLabel: "查詢授權成員",
+      logDetailKey: "query",
+      logEnabled: true
+    },
+    saveWhitelist: {
+      write: true,
+      locked: true,
+      roles: ["admin"],
+      logCategory: "write",
+      logLabel: "儲存授權名單",
+      logDetailKey: "whitelist",
+      logEnabled: true
+    },
+    getActivityLog: {
+      roles: ["admin"],
+      logCategory: "query",
+      logLabel: "查詢操作日誌",
+      logDetailKey: "none",
+      logEnabled: false
+    }
   };
 
   /** 快取由登錄表產生的清單，避免每次呼叫重新建立陣列 */
@@ -7334,6 +7445,27 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   /**
+   * 取得 action 的日誌中繼資料（供統一攔截器建立摘要與詳情）。
+   *
+   * @param {string} name - action 名稱
+   * @returns {Object|null} `{ category, label, detailKey, enabled }` 或 null
+   */
+  function getActionMeta(name) {
+    if (!hasAction(name)) return null;
+    if (!CACHED_LISTS.actionMeta) CACHED_LISTS.actionMeta = {};
+    if (!CACHED_LISTS.actionMeta[name]) {
+      const entry = ACTIONS[name];
+      CACHED_LISTS.actionMeta[name] = {
+        category: entry.logCategory || "query",
+        label: entry.logLabel || name,
+        detailKey: entry.logDetailKey || "default",
+        enabled: entry.logEnabled !== false
+      };
+    }
+    return Object.assign({}, CACHED_LISTS.actionMeta[name]);
+  }
+
+  /**
    * 判斷 action 是否為公開 action。
    *
    * @param {string} name - action 名稱
@@ -7359,16 +7491,18 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
   /**
    * 由登錄表產生角色權限矩陣。
-   * admin 維持單一通配規則，其餘角色明確列舉受保護 action。
+   * 所有角色皆明確列舉允許的 action，移除萬用字元，使權限邊界可稽核，
+   * 且前端取得的 perms 與後端驗證結果一致。
    *
    * @returns {Object} 角色權限矩陣
    */
   function buildRolePermissions() {
-    const permissions = { admin: ["*"] };
+    const permissions = {};
     ALL_ROLES.forEach(function (role) {
-      if (role === "admin") return;
       permissions[role] = listActions().filter(function (name) {
-        return !isPublicAction(name) && isRoleAllowed(role, name);
+        // 管理員列舉所有已登錄 action（含公開動作與 getActivityLog）；
+        // 其餘角色僅列舉自身被授權的受保護動作。
+        return isRoleAllowed(role, name) && (role === "admin" || !isPublicAction(name));
       });
     });
     return permissions;
@@ -7384,6 +7518,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     hasAction: hasAction,
     setHandler: setHandler,
     getHandler: getHandler,
+    getActionMeta: getActionMeta,
     isPublicAction: isPublicAction,
     isRoleAllowed: isRoleAllowed,
     buildRolePermissions: buildRolePermissions
@@ -7583,7 +7718,14 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
         { id: "overview", name: "概覽儀表板", icon: "📊", desc: "系統狀態與快速入口" },
         { id: "import", name: "課程代碼匯入", icon: "📥", desc: "上傳課程代碼 Excel 並執行 1NF 正規化" },
         { id: "courses", name: "正規化課程代碼", icon: "📚", desc: "檢視與檢索已展開之課程資料" },
-        { id: "settings", name: "系統設定與授權", icon: "⚙️", desc: "OAuth Client ID 與角色成員" }
+        { id: "settings", name: "系統設定與授權", icon: "⚙️", desc: "OAuth Client ID 與角色成員" },
+        {
+          id: "activityLog",
+          name: "操作日誌",
+          icon: "📜",
+          desc: "查詢操作日誌、篩選與稽核詳情",
+          adminOnly: true
+        }
       ],
       roleNames: Object.assign({}, gasRuntime.ROLE_DEFINITIONS)
     };
@@ -8246,6 +8388,95 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return { ok: true, accounts: mockAccounts.slice() };
     }
 
+    /** 將毫秒時間戳記格式化為 Asia/Taipei 的 yyyy-MM-dd HH:mm:ss */
+    function formatMockTimestamp(ms) {
+      const shifted = new Date(ms + 8 * 60 * 60 * 1000);
+      return shifted.toISOString().slice(0, 19).replace("T", " ");
+    }
+
+    /** 建立相對於目前時間的示範日誌列（最近六小時內） */
+    function buildMockActivityRows() {
+      const now = nowFn();
+      return [
+        {
+          timestamp: formatMockTimestamp(now - 5 * 60 * 1000),
+          requestId: "mock-req-3",
+          category: "write",
+          action: "儲存系統設定",
+          result: "success",
+          email: "admin@example.com",
+          name: "測試管理員",
+          role: "系統管理員",
+          summary: "儲存系統設定成功",
+          detail: '{"版本":1,"動作":"saveSystemSettings","指標":{},"變動":[]}',
+          durationMs: 18,
+          errorCode: ""
+        },
+        {
+          timestamp: formatMockTimestamp(now - 90 * 60 * 1000),
+          requestId: "mock-req-2",
+          category: "auth",
+          action: "登入",
+          result: "success",
+          email: "admin@example.com",
+          name: "測試管理員",
+          role: "系統管理員",
+          summary: "登入成功",
+          detail: '{"版本":1,"動作":"login","指標":{},"變動":[]}',
+          durationMs: 6,
+          errorCode: ""
+        },
+        {
+          timestamp: formatMockTimestamp(now - 6 * 60 * 60 * 1000),
+          requestId: "mock-req-1",
+          category: "query",
+          action: "查詢課程代碼",
+          result: "failure",
+          email: "teacher@example.com",
+          name: "測試教師",
+          role: "業務人員",
+          summary: "查詢課程代碼失敗：forbidden",
+          detail: '{"版本":1,"動作":"getCourseIndex","指標":{},"變動":[]}',
+          durationMs: 3,
+          errorCode: "forbidden"
+        }
+      ];
+    }
+
+    function getActivityLog(payload) {
+      const options = payload || {};
+      const page = Math.max(1, Number(options.page) || 1);
+      const pageSize = Math.min(500, Math.max(1, Number(options.pageSize) || 50));
+      const startDate = String(options.startDate || "");
+      const endDate = String(options.endDate || "");
+      const email = String(options.email || "")
+        .trim()
+        .toLowerCase();
+      const category = String(options.category || "").trim();
+      const rows = buildMockActivityRows().filter(function (row) {
+        const day = row.timestamp.slice(0, 10);
+        if (startDate && day < startDate) return false;
+        if (endDate && day > endDate) return false;
+        if (email && row.email.toLowerCase().indexOf(email) === -1) return false;
+        if (category && row.category !== category) return false;
+        return true;
+      });
+      rows.sort(function (a, b) {
+        if (a.timestamp < b.timestamp) return 1;
+        if (a.timestamp > b.timestamp) return -1;
+        return 0;
+      });
+      return {
+        ok: true,
+        rows: rows.slice((page - 1) * pageSize, page * pageSize),
+        total: rows.length,
+        page: page,
+        pageSize: pageSize,
+        startDate: startDate,
+        endDate: endDate
+      };
+    }
+
     function saveWhitelist(payload) {
       mockAccounts.length = 0;
       const incoming = payload && payload.accounts ? payload.accounts : [];
@@ -8272,7 +8503,8 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       getSystemSettings: createSystemSettings,
       saveSystemSettings: saveSystemSettings,
       getAccounts: createAccounts,
-      saveWhitelist: saveWhitelist
+      saveWhitelist: saveWhitelist,
+      getActivityLog: getActivityLog
     };
 
     function createUnknownActionResult(action) {
@@ -8728,12 +8960,23 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return callWithRetry(action, payload, callOptions);
     }
 
+    /**
+     * 查詢操作日誌：沿用共用的 call 通道，維持 text/plain;charset=utf-8 請求格式。
+     *
+     * @param {Object} [payload] - 查詢參數（日期區間、操作者、類別與分頁）
+     * @returns {Promise<Object>} 日誌查詢回應
+     */
+    function getActivityLog(payload) {
+      return call("getActivityLog", payload);
+    }
+
     return {
       getToken: getToken,
       setToken: setToken,
       getCsrfToken: getCsrfToken,
       setCsrfToken: setCsrfToken,
       call: call,
+      getActivityLog: getActivityLog,
       callWithRetry: callWithRetry,
       requestOnce: requestOnce,
       parseApiResponse: parseApiResponse
@@ -8801,7 +9044,7 @@ window.MEA = window.MEA || {};
 
   const initialState = {
     view: "loading", // "loading" | "login" | "app"
-    tab: "overview", // "overview" | "import" | "courses" | "settings"
+    tab: "overview", // "overview" | "import" | "courses" | "settings" | "activityLog"
     user: null,
     publicConfig: null,
     loginBusy: false,
@@ -8826,6 +9069,19 @@ window.MEA = window.MEA || {};
       saving: false,
       data: null,
       accounts: []
+    },
+    activityLog: {
+      list: [],
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+      startDate: "",
+      endDate: "",
+      email: "",
+      category: "",
+      loading: false,
+      expanded: {}
     }
   };
 
@@ -8916,6 +9172,19 @@ window.MEA = window.MEA || {};
   function number(value) {
     const n = Number(value);
     return isFinite(n) ? n.toLocaleString("zh-TW") : "0";
+  }
+
+  /**
+   * 依頁籤的管理員旗標與目前使用者角色判定頁籤是否可見。
+   * 未標記 adminOnly 的頁籤一律可見；標記者僅 admin 角色可見。
+   *
+   * @param {Object} tab - 頁籤定義
+   * @param {Object} user - 目前登入使用者（MEA.state.user）
+   * @returns {boolean} 是否允許存取
+   */
+  function isTabAllowed(tab, user) {
+    if (!tab || tab.adminOnly !== true) return true;
+    return !!(user && user.role === "admin");
   }
 
   /**
@@ -9336,10 +9605,12 @@ window.MEA = window.MEA || {};
     function renderNavbar() {
       const tabs = MEA.config.tabs || [];
       const currentTab = MEA.state.tab || "overview";
+      const user = MEA.state && MEA.state.user;
 
       let tabsHtml = "";
       for (let i = 0; i < tabs.length; i++) {
         const t = tabs[i];
+        if (!isTabAllowed(t, user)) continue;
         const active = t.id === currentTab ? " active" : "";
         const current = t.id === currentTab ? ' aria-current="page"' : "";
         tabsHtml +=
@@ -9578,6 +9849,7 @@ window.MEA = window.MEA || {};
     const api = {
       escapeHtml: escapeHtml,
       number: number,
+      isTabAllowed: isTabAllowed,
       roleName: function (role) {
         return roleName(role, MEA.config);
       },
@@ -12104,6 +12376,472 @@ window.MEA = window.MEA || {};
 });
   </script>
   <script>
+/* js/activityLog.js */
+/**
+ * @file activityLog.js
+ * @description 操作日誌清單、篩選、分頁與詳情展開（可測試工廠）。
+ *
+ * 瀏覽器環境組裝 window.MEA.activityLog；Node.js 環境匯出 createActivityLogModule 供單元測試注入依賴。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory();
+
+  if (typeof window !== "undefined") {
+    const MEA = (root.MEA = root.MEA || {});
+    MEA.activityLog = api.createActivityLogModule({
+      MEA: MEA,
+      document: window.document
+    });
+  }
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  /** 事件類別顯示名稱（與後端 logCategory 一致） */
+  const CATEGORY_LABELS = {
+    auth: "身份驗證",
+    write: "寫入操作",
+    query: "查詢操作"
+  };
+
+  /** 預設查詢天數與每頁筆數（與後端 getActivityLog 上限一致） */
+  const DEFAULT_DAYS = 7;
+  const DEFAULT_PAGE_SIZE = 50;
+  const MAX_PAGE_SIZE = 500;
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
+  /**
+   * 以 Asia/Taipei 時區格式化日期為 yyyy-MM-dd。
+   *
+   * @param {Date} date - 日期物件
+   * @returns {string} 日期字串
+   */
+  function formatTaipeiDate(date) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Taipei",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(date);
+      const values = {};
+      parts.forEach(function (part) {
+        values[part.type] = part.value;
+      });
+      return values.year + "-" + values.month + "-" + values.day;
+    } catch (error) {
+      return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    }
+  }
+
+  /**
+   * 取得預設日期區間（最近 7 天，含今日）。
+   *
+   * @returns {Object} `{ startDate, endDate }`
+   */
+  function defaultDateRange() {
+    const now = new Date();
+    return {
+      startDate: formatTaipeiDate(new Date(now.getTime() - (DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000)),
+      endDate: formatTaipeiDate(now)
+    };
+  }
+
+  /**
+   * 建立操作日誌模組控制器。
+   *
+   * @param {Object} [deps] - 依賴注入（MEA、document）
+   * @returns {Object} 公開方法集合（與 MEA.activityLog 一致）
+   */
+  function createActivityLogModule(deps) {
+    const options = deps || {};
+    const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
+    const doc = options.document || (typeof document !== "undefined" ? document : null);
+
+    /**
+     * 取得目前日誌狀態，缺損時回傳含預設值的物件。
+     *
+     * @returns {Object} 日誌狀態
+     */
+    function currentState() {
+      const state = MEA.state && MEA.state.activityLog ? MEA.state.activityLog : {};
+      const range = defaultDateRange();
+      return {
+        list: state.list || [],
+        total: state.total || 0,
+        page: state.page || 1,
+        pageSize: Math.min(MAX_PAGE_SIZE, state.pageSize || DEFAULT_PAGE_SIZE),
+        totalPages: state.totalPages || 1,
+        startDate: state.startDate || range.startDate,
+        endDate: state.endDate || range.endDate,
+        email: state.email || "",
+        category: state.category || "",
+        loading: state.loading === true,
+        expanded: state.expanded || {}
+      };
+    }
+
+    function getElementById(id) {
+      return doc && typeof doc.getElementById === "function" ? doc.getElementById(id) : null;
+    }
+
+    /**
+     * 由目前狀態與目標頁碼建立 API 查詢參數。
+     *
+     * @param {Object} state - 日誌狀態
+     * @param {number} targetPage - 目標頁碼
+     * @returns {Object} API payload
+     */
+    function buildQuery(state, targetPage) {
+      return {
+        startDate: state.startDate,
+        endDate: state.endDate,
+        email: state.email,
+        category: state.category,
+        page: targetPage,
+        pageSize: state.pageSize
+      };
+    }
+
+    /**
+     * 讀取篩選表單欄位值。
+     *
+     * @returns {Object} 表單值快照
+     */
+    function readFilterFormValues() {
+      const startInput = getElementById("activityLogStartDate");
+      const endInput = getElementById("activityLogEndDate");
+      const emailInput = getElementById("activityLogEmail");
+      const categorySelect = getElementById("activityLogCategory");
+      const range = defaultDateRange();
+      return {
+        startDate: startInput ? String(startInput.value || "").trim() : range.startDate,
+        endDate: endInput ? String(endInput.value || "").trim() : range.endDate,
+        email: emailInput ? String(emailInput.value || "").trim() : "",
+        category: categorySelect ? String(categorySelect.value || "").trim() : ""
+      };
+    }
+
+    /**
+     * 讀取操作日誌分頁資料。
+     *
+     * @param {number} [page] - 目標頁碼
+     * @returns {Promise<Object|null>} API 回應或失敗時的 null
+     */
+    function fetchList(page) {
+      const before = currentState();
+      const targetPage = page || before.page || 1;
+      const query = buildQuery(before, targetPage);
+      if (!MEA.api || typeof MEA.api.call !== "function") return Promise.resolve(null);
+
+      MEA.setState({
+        activityLog: Object.assign({}, before, { loading: true, page: targetPage })
+      });
+
+      return MEA.api
+        .call("getActivityLog", query)
+        .then(function (result) {
+          const cur = currentState();
+          if (!result || result.ok !== true) {
+            MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
+            MEA.ui.toast((result && result.message) || "讀取操作日誌失敗", "err");
+            return result || null;
+          }
+          const total = Number(result.total) || 0;
+          const pageSize = Math.min(MAX_PAGE_SIZE, Number(result.pageSize) || DEFAULT_PAGE_SIZE);
+          MEA.setState({
+            activityLog: Object.assign({}, cur, {
+              loading: false,
+              list: result.rows || [],
+              total: total,
+              page: Number(result.page) || targetPage,
+              pageSize: pageSize,
+              totalPages: Math.max(1, Math.ceil(total / pageSize))
+            })
+          });
+          return result;
+        })
+        .catch(function (error) {
+          const cur = currentState();
+          MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
+          MEA.ui.toast(resolveSafeMessage(error, "讀取操作日誌失敗，請稍後再試"), "err");
+          return null;
+        });
+    }
+
+    function handleSearch(event) {
+      if (event && event.preventDefault) event.preventDefault();
+      const cur = currentState();
+      MEA.setState({
+        activityLog: Object.assign({}, cur, readFilterFormValues(), { expanded: {} })
+      });
+      return fetchList(1);
+    }
+
+    function resetSearch() {
+      const range = defaultDateRange();
+      const cur = currentState();
+      MEA.setState({
+        activityLog: Object.assign({}, cur, {
+          startDate: range.startDate,
+          endDate: range.endDate,
+          email: "",
+          category: "",
+          expanded: {}
+        })
+      });
+      return fetchList(1);
+    }
+
+    /**
+     * 展開或收起單一列詳情。
+     *
+     * @param {string} requestId - 請求識別碼
+     */
+    function toggleDetail(requestId) {
+      const cur = currentState();
+      const expanded = Object.assign({}, cur.expanded);
+      const key = String(requestId || "");
+      expanded[key] = !expanded[key];
+      MEA.setState({ activityLog: Object.assign({}, cur, { expanded: expanded }) });
+    }
+
+    /**
+     * 產生事件類別下拉選項。
+     *
+     * @param {string} selected - 目前選中的類別
+     * @returns {string} HTML 字串
+     */
+    function renderCategoryOptionsHtml(selected) {
+      let html = '<option value="">所有類別</option>';
+      Object.keys(CATEGORY_LABELS).forEach(function (value) {
+        const chosen = selected === value ? " selected" : "";
+        html +=
+          '<option value="' +
+          MEA.ui.escapeHtml(value) +
+          '"' +
+          chosen +
+          ">" +
+          MEA.ui.escapeHtml(CATEGORY_LABELS[value]) +
+          "</option>";
+      });
+      return html;
+    }
+
+    /**
+     * 產生篩選表單。
+     *
+     * @param {Object} state - 日誌狀態
+     * @returns {string} HTML 字串
+     */
+    function renderFilterFormHtml(state) {
+      return (
+        '<div class="filter-bar">' +
+        '  <form class="filter-form" onsubmit="MEA.activityLog.handleSearch(event)">' +
+        '    <label class="sr-only" for="activityLogStartDate">開始日期</label>' +
+        '    <input type="date" id="activityLogStartDate" class="input" value="' +
+        MEA.ui.escapeHtml(state.startDate) +
+        '" />' +
+        '    <label class="sr-only" for="activityLogEndDate">結束日期</label>' +
+        '    <input type="date" id="activityLogEndDate" class="input" value="' +
+        MEA.ui.escapeHtml(state.endDate) +
+        '" />' +
+        '    <label class="sr-only" for="activityLogEmail">操作者</label>' +
+        '    <input type="text" id="activityLogEmail" class="input" placeholder="操作者 email" value="' +
+        MEA.ui.escapeHtml(state.email) +
+        '" />' +
+        '    <label class="sr-only" for="activityLogCategory">事件類別</label>' +
+        '    <select id="activityLogCategory" class="select">' +
+        renderCategoryOptionsHtml(state.category) +
+        "    </select>" +
+        '    <button type="submit" class="btn primary">搜尋</button>' +
+        '    <button type="button" class="btn secondary" onclick="MEA.activityLog.resetSearch()">重設</button>' +
+        "  </form>" +
+        "</div>"
+      );
+    }
+
+    /**
+     * 產生單一列日誌與其詳情列。
+     *
+     * @param {Object} item - 日誌紀錄
+     * @param {number} index - 資料索引（供 aria-controls 識別）
+     * @returns {string} HTML 字串
+     */
+    function renderRowHtml(item, index) {
+      const expanded = item.expanded === true;
+      const detailId = "activityLogDetail_" + index;
+      const requestId = String(item.requestId || "");
+      const resultClass = item.result === "success" ? "ok" : "err";
+      return (
+        "<tr>" +
+        "<td>" +
+        MEA.ui.escapeHtml(item.timestamp) +
+        "</td>" +
+        '<td><span class="pill muted">' +
+        MEA.ui.escapeHtml(item.category) +
+        "</span></td>" +
+        "<td>" +
+        MEA.ui.escapeHtml(item.action) +
+        "</td>" +
+        '<td><span class="pill ' +
+        resultClass +
+        '">' +
+        MEA.ui.escapeHtml(item.result === "success" ? "成功" : "失敗") +
+        "</span></td>" +
+        "<td>" +
+        MEA.ui.escapeHtml(item.email) +
+        "</td>" +
+        "<td>" +
+        MEA.ui.escapeHtml(item.summary) +
+        "</td>" +
+        "<td>" +
+        MEA.ui.number(item.durationMs) +
+        "</td>" +
+        '<td><button type="button" class="btn secondary compact" aria-expanded="' +
+        (expanded ? "true" : "false") +
+        '" aria-controls="' +
+        detailId +
+        '" onclick="MEA.activityLog.toggleDetail(\'' +
+        MEA.ui.escapeHtml(requestId) +
+        "')\">" +
+        (expanded ? "收起" : "展開") +
+        "</button></td>" +
+        "</tr>" +
+        "<tr" +
+        (expanded ? "" : " hidden") +
+        '><td colspan="8"><pre class="mono font-sm activity-log-detail" id="' +
+        detailId +
+        '">' +
+        MEA.ui.escapeHtml(item.detail) +
+        "</pre></td></tr>"
+      );
+    }
+
+    /**
+     * 產生表格內容列。
+     *
+     * @param {Object} state - 日誌狀態
+     * @returns {string} HTML 字串
+     */
+    function renderRowsHtml(state) {
+      if (state.loading) {
+        return '<tr><td colspan="8" class="text-center py-8 text-muted">正在載入操作日誌...</td></tr>';
+      }
+      if (state.list.length === 0) {
+        return '<tr><td colspan="8" class="text-center py-8 text-muted">目前沒有符合條件的操作日誌。</td></tr>';
+      }
+      let html = "";
+      state.list.forEach(function (row, index) {
+        const item = Object.assign({}, row, {
+          expanded: state.expanded[String(row.requestId || "")] === true
+        });
+        html += renderRowHtml(item, index);
+      });
+      return html;
+    }
+
+    /**
+     * 產生分頁列。
+     *
+     * @param {Object} state - 日誌狀態
+     * @returns {string} HTML 字串
+     */
+    function renderPaginationHtml(state) {
+      const totalPages = state.totalPages || 1;
+      const currentPage = state.page || 1;
+      return (
+        '<div class="pagination-bar">' +
+        '  <span class="pagination-info">共 ' +
+        MEA.ui.number(state.total) +
+        " 筆紀錄 · 第 " +
+        currentPage +
+        " / " +
+        totalPages +
+        " 頁</span>" +
+        '  <div class="pagination-buttons">' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.activityLog.fetchList(' +
+        (currentPage - 1) +
+        ')"' +
+        (currentPage <= 1 || state.loading ? " disabled" : "") +
+        ">上一頁</button>" +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.activityLog.fetchList(' +
+        (currentPage + 1) +
+        ')"' +
+        (currentPage >= totalPages || state.loading ? " disabled" : "") +
+        ">下一頁</button>" +
+        "  </div>" +
+        "</div>"
+      );
+    }
+
+    function renderView() {
+      const state = currentState();
+      return (
+        '<div class="panel">' +
+        '<div class="panel-header">' +
+        "  <div>" +
+        '    <h2 class="panel-title">操作日誌</h2>' +
+        '    <p class="panel-sub">查詢系統操作紀錄，僅系統管理員可見</p>' +
+        "  </div>" +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.activityLog.fetchList(' +
+        state.page +
+        ')">🔄 重新整理</button>' +
+        "</div>" +
+        renderFilterFormHtml(state) +
+        '<div class="table-responsive mt-3">' +
+        '  <table class="table">' +
+        "    <thead>" +
+        "      <tr>" +
+        '        <th scope="col">時間</th>' +
+        '        <th scope="col">事件類別</th>' +
+        '        <th scope="col">動作</th>' +
+        '        <th scope="col">結果</th>' +
+        '        <th scope="col">操作者</th>' +
+        '        <th scope="col">摘要</th>' +
+        '        <th scope="col">耗時（毫秒）</th>' +
+        '        <th scope="col">詳情</th>' +
+        "      </tr>" +
+        "    </thead>" +
+        "    <tbody>" +
+        renderRowsHtml(state) +
+        "    </tbody>" +
+        "  </table>" +
+        "</div>" +
+        renderPaginationHtml(state) +
+        "</div>"
+      );
+    }
+
+    return {
+      fetchList: fetchList,
+      handleSearch: handleSearch,
+      resetSearch: resetSearch,
+      toggleDetail: toggleDetail,
+      renderView: renderView
+    };
+  }
+
+  return {
+    createActivityLogModule: createActivityLogModule,
+    formatTaipeiDate: formatTaipeiDate,
+    defaultDateRange: defaultDateRange
+  };
+});
+  </script>
+  <script>
 /* js/app.js */
 /**
  * @file app.js
@@ -12154,6 +12892,34 @@ window.MEA = window.MEA || {};
     return module && typeof module[method] === "function" ? module[method]() : undefined;
   }
 
+  /**
+   * 依頁籤的管理員旗標與目前使用者角色判定頁籤是否可見。
+   * 與 webapp/js/ui.js 的守門邏輯一致，防止直接竄改 state 進入管理員頁籤。
+   *
+   * @param {Object} tab - 頁籤定義
+   * @param {Object} user - 目前登入使用者（MEA.state.user）
+   * @returns {boolean} 是否允許存取
+   */
+  function isTabAllowed(tab, user) {
+    if (!tab || tab.adminOnly !== true) return true;
+    return !!(user && user.role === "admin");
+  }
+
+  /**
+   * 依頁籤識別碼從設定中找出頁籤定義。
+   *
+   * @param {Object} MEA - 前端全域物件
+   * @param {string} tabId - 頁籤識別碼
+   * @returns {Object|null} 頁籤定義或 null
+   */
+  function findTab(MEA, tabId) {
+    const tabs = (MEA.config && MEA.config.tabs) || [];
+    for (let i = 0; i < tabs.length; i++) {
+      if (tabs[i].id === tabId) return tabs[i];
+    }
+    return null;
+  }
+
   function syncDocumentTitle(MEA, doc) {
     if (!doc) return;
     const systemName = ((MEA && MEA.state && MEA.state.publicConfig) || {}).systemName;
@@ -12202,13 +12968,17 @@ window.MEA = window.MEA || {};
   }
 
   function buildBodyHtml(MEA, tab) {
-    switch (tab) {
+    const allowed = isTabAllowed(findTab(MEA, tab), MEA.state && MEA.state.user);
+    const effectiveTab = allowed ? tab : "overview";
+    switch (effectiveTab) {
       case "import":
         return invoke(MEA.imports, "renderView") || "";
       case "courses":
         return invoke(MEA.courses, "renderView") || "";
       case "settings":
         return invoke(MEA.accounts, "renderView") || "";
+      case "activityLog":
+        return invoke(MEA.activityLog, "renderView") || "";
       case "overview":
       default:
         return invoke(MEA.ui, "renderOverviewView") || "";
@@ -12232,13 +13002,17 @@ window.MEA = window.MEA || {};
     }
 
     function setTab(tabId) {
+      const allowed = isTabAllowed(findTab(MEA, tabId), MEA.state && MEA.state.user);
+      const effectiveTab = allowed ? tabId : "overview";
       if (typeof MEA.setState === "function") {
-        MEA.setState({ tab: tabId });
+        MEA.setState({ tab: effectiveTab });
       }
-      if (tabId === "courses") {
+      if (effectiveTab === "courses") {
         invoke(MEA.courses, "fetchList");
-      } else if (tabId === "settings") {
+      } else if (effectiveTab === "settings") {
         invoke(MEA.accounts, "loadSettingsAndAccounts");
+      } else if (effectiveTab === "activityLog") {
+        invoke(MEA.activityLog, "fetchList");
       }
     }
 
