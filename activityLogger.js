@@ -31,7 +31,37 @@ const ACTIVITY_LOG_FIELDS = [
   "errorCode"
 ];
 
-/** 寫入失敗時使用的安全寬限值（日誌失敗不得中斷請求） */
+/** 單一欄位寫入上限（字元數），避免惡意超長內容撐爆工作表 */
+const MAX_FIELD_LENGTH = 500;
+
+/** 需要截斷的字串欄位（詳情 JSON 由產生器控制，不在此限制） */
+const TRUNCATED_FIELDS = [
+  "timestamp",
+  "requestId",
+  "category",
+  "action",
+  "result",
+  "email",
+  "name",
+  "role",
+  "summary",
+  "errorCode"
+];
+
+/** 即使出現在紀錄物件中也不得寫入的敏感欄位 */
+const SENSITIVE_RECORD_KEYS = [
+  "token",
+  "csrfToken",
+  "idToken",
+  "credential",
+  "rows",
+  "rawRows",
+  "payload",
+  "response",
+  "resultPayload"
+];
+
+/** 解析工作表名稱，優先使用 gasRuntime 單一來源。 */
 function resolveSheetName_() {
   if (GAS_RUNTIME && typeof GAS_RUNTIME.resolveDependency_ === "function") {
     return GAS_RUNTIME.resolveDependency_("SHEET_ACTIVITY_LOG", "./gasRuntime.js", "操作日誌");
@@ -61,18 +91,34 @@ function resolveSpreadsheet_(ss) {
 }
 
 /**
+ * 將值截斷至安全長度；非字串值維持原樣。
+ *
+ * @param {*} value - 原始值
+ * @returns {*} 截斷後的值
+ */
+function truncateField_(value) {
+  if (typeof value !== "string") return value;
+  return value.length > MAX_FIELD_LENGTH ? value.slice(0, MAX_FIELD_LENGTH) : value;
+}
+
+/**
  * 將日誌紀錄轉換為試算表列。
  * 接受完整 12 欄物件；缺少欄位時補上空字串。
+ * 僅讀取白名單欄位，故敏感欄位（token、原始 rows、回傳內容）不會寫入。
  *
  * @param {Object|Array} record - 日誌紀錄
  * @returns {Array} 12 欄資料列
  */
 function buildActivityLogRow_(record) {
-  if (Array.isArray(record)) return record.slice(0, ACTIVITY_LOG_FIELDS.length);
+  if (Array.isArray(record)) {
+    return record.slice(0, ACTIVITY_LOG_FIELDS.length).map(truncateField_);
+  }
   const source = record || {};
   return ACTIVITY_LOG_FIELDS.map(function (field) {
+    if (SENSITIVE_RECORD_KEYS.indexOf(field) !== -1) return "";
     const value = source[field];
-    return value === null || value === undefined ? "" : value;
+    const safeValue = value === null || value === undefined ? "" : value;
+    return TRUNCATED_FIELDS.indexOf(field) !== -1 ? truncateField_(safeValue) : safeValue;
   });
 }
 
@@ -102,6 +148,8 @@ function appendActivityLog_(record, ss, deps) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
+    MAX_FIELD_LENGTH: MAX_FIELD_LENGTH,
+    SENSITIVE_RECORD_KEYS: SENSITIVE_RECORD_KEYS,
     appendActivityLog: appendActivityLog_,
     appendActivityLog_: appendActivityLog_,
     buildActivityLogRow: buildActivityLogRow_

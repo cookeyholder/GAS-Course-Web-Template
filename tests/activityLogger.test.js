@@ -90,4 +90,65 @@ console.log("3. 缺少工作表或試算表時應安靜回報失敗...");
   console.log("   ✓ 缺漏情境驗證通過！\n");
 }
 
+console.log("4. 超長字串欄位應截斷至 500 字元...");
+{
+  const sheet = makeSheet();
+  logger.appendActivityLog_(
+    sampleRecord({
+      email: "a".repeat(620),
+      name: "n".repeat(510),
+      summary: "s".repeat(700),
+      action: "x".repeat(600)
+    }),
+    makeSpreadsheet(sheet)
+  );
+  const row = sheet.rows[0];
+  assert.strictEqual(row[3].length, logger.MAX_FIELD_LENGTH);
+  assert.strictEqual(row[3], "x".repeat(logger.MAX_FIELD_LENGTH));
+  assert.strictEqual(row[5].length, logger.MAX_FIELD_LENGTH);
+  assert.strictEqual(row[6].length, logger.MAX_FIELD_LENGTH);
+  assert.strictEqual(row[8].length, logger.MAX_FIELD_LENGTH);
+  console.log("   ✓ 字串截斷驗證通過！\n");
+}
+
+console.log("5. 敏感欄位與原始資料不得寫入...");
+{
+  const sheet = makeSheet();
+  const ok = logger.appendActivityLog_(
+    sampleRecord({
+      token: "SECRET-TOKEN",
+      csrfToken: "SECRET-CSRF",
+      idToken: "SECRET-ID-TOKEN",
+      credential: "SECRET-CREDENTIAL",
+      rows: [["RAW-ROW"]],
+      payload: { secret: "SECRET-PAYLOAD" },
+      resultPayload: "RESPONSE-CONTENT"
+    }),
+    makeSpreadsheet(sheet)
+  );
+  assert.strictEqual(ok, true);
+  const text = sheet.rows[0].join("|");
+  [
+    "SECRET-TOKEN",
+    "SECRET-CSRF",
+    "SECRET-ID-TOKEN",
+    "SECRET-CREDENTIAL",
+    "RAW-ROW",
+    "SECRET-PAYLOAD",
+    "RESPONSE-CONTENT"
+  ].forEach(function (needle) {
+    assert.strictEqual(text.indexOf(needle), -1, "不得寫入 " + needle);
+  });
+  console.log("   ✓ 敏感欄位排除驗證通過！\n");
+}
+
+console.log("6. 陣列形式的紀錄亦應套用截斷...");
+{
+  const row = Array(12).fill("");
+  row[8] = "z".repeat(530);
+  const result = logger.buildActivityLogRow(row);
+  assert.strictEqual(result[8].length, logger.MAX_FIELD_LENGTH);
+  console.log("   ✓ 陣列紀錄截斷驗證通過！\n");
+}
+
 console.log("✓ activityLogger.test.js 測試全數通過！\n");
