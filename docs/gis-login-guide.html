@@ -354,8 +354,9 @@
             <li>若要使用 GIS 憑證按鈕或授權碼回呼，需具備 Google Cloud 專案與 OAuth 2.0 用戶端憑證。</li>
           </ul>
           <div class="alert alert-warn">
-            <strong>首次登入防鎖：</strong>當授權白名單尚無任何啟用帳號時，第一位成功驗證的 Google
-            帳號會被自動建立為系統管理員，避免初始化後無法登入管理。
+            <strong>首次登入防鎖：</strong>登入入口預設不開通管理員；只有當呼叫鏈明確標記
+            <code>allowBootstrap</code>、且授權白名單確實為空時，第一位成功驗證的 Google
+            帳號才會建立為系統管理員。寫入集中在短鎖臨界區並再次檢查白名單，避免多位登入者並發搶占或覆寫既有設定。
           </div>
         </section>
 
@@ -398,6 +399,18 @@
             <strong>使用時機：</strong>此流程可作為需要伺服器端交換授權碼的備援路徑；實際可用性仍取決於 Google OAuth
             設定與 Web App 部署網址是否完全一致。
           </div>
+          <h3>3.4 OAuth state nonce 一次性驗證</h3>
+          <p>
+            發起授權碼流程時，前端產生不可預測的 nonce，連同重新導向 URI 存入
+            <code>sessionStorage</code>，並將兩者序列化為 <code>state</code> 參數送出。回呼時後端會解析
+            <code>state</code>，確認 nonce 存在且尚未使用（以 <code>CacheService</code> 一次性消耗，預設 10
+            分鐘有效），並比對 <code>redirectUri</code> 與設定值；重放、格式異常或導向 URI 不符即拒絕登入。
+          </p>
+          <p>
+            與寫入相關的外部 HTTP（授權碼交換權杖、ID Token 驗證）會在取得 <code>LockService</code> 之前完成，僅
+            <code>doGet</code> 回呼寫入鏈（state 驗證、建立
+            Session、必要時開通管理員）進入鎖定臨界區，縮短臨界區並降低逾時風險。
+          </p>
         </section>
 
         <section id="gcp">
@@ -499,24 +512,34 @@
           </ul>
           <div class="alert alert-ok">
             <strong>權限控管：</strong>後端以 RBAC 角色權限矩陣限制可呼叫的
-            action；前端僅負責介面呈現，實際授權仍以後端驗證為準。
+            action；前端僅負責介面呈現，實際授權仍以後端驗證為準。所有 action、公開／寫入／鎖定清單與角色權限皆由
+            <code>actionRegistry.js</code> 單一登錄來源產生，未登錄的 action 會被路由層直接拒絕。
+          </div>
+          <div class="alert alert-info">
+            <strong>API 端點白名單：</strong>前端僅接受同源、明確設定的 <code>GAS_WEBAPP_URL</code>、正規 GAS Web App
+            網址與本機開發端點；不受信任的 <code>?api=</code> 參數會被忽略，避免 Session／CSRF Token
+            外送至其他站台。允許登入網域會正規化為小寫後比對，大小寫不一致不會造成誤判。
           </div>
         </section>
 
         <section id="mock">
           <h2>7. 本機 Mock 測試</h2>
           <p>
-            在本機開啟打包後的 <code>index.html</code> 或開發環境網址並加上 <code>?mock=true</code>，即可啟用前端 Mock
-            模擬器：
+            在本機開啟<strong>開發原始檔</strong> <code>webapp/index.html</code> 並加上
+            <code>?mock=true</code>，即可啟用前端 Mock 模擬器：
           </p>
           <div class="code-box">
-            <pre><code>file:///.../index.html?mock=true
+            <pre><code>file:///.../webapp/index.html?mock=true
 # 或
-http://localhost:8080/index.html?mock=true</code></pre>
+http://localhost:8080/webapp/index.html?mock=true</code></pre>
           </div>
           <ul>
-            <li>可模擬公開設定、登入、Session 還原、課程索引與系統設定/白名單操作。</li>
+            <li>可模擬公開設定、登入、Session 還原、課程索引篩選／分頁與系統設定／白名單操作。</li>
             <li>Mock 僅存在於前端攔截層，不會在後端建立測試後門。</li>
+            <li>
+              正式建置產物（根目錄 <code>index.html</code>）會注入 <code>MEA_PRODUCTION_BUILD</code> 並忽略
+              <code>?mock=true</code>，避免部署後仍可切換假資料。
+            </li>
             <li>適合驗證介面流程、樣式與欄位互動；正式部署前仍需在 GAS 環境完成整合驗證。</li>
           </ul>
         </section>
@@ -557,14 +580,19 @@ http://localhost:8080/index.html?mock=true</code></pre>
               </tr>
               <tr>
                 <td>授權碼回呼失敗</td>
-                <td>未設定 Client Secret、重新導向 URI 不一致、或 Web App 網址無法解析</td>
-                <td>確認 Client ID/Secret 與重新導向 URI 完全一致；檢查部署網址（含網域路徑）並重新部署新版。</td>
+                <td>
+                  未設定 Client Secret、重新導向 URI 不一致、OAuth state nonce 已使用或過期、或 Web App 網址無法解析
+                </td>
+                <td>
+                  確認 Client ID/Secret 與重新導向 URI 完全一致；若顯示 nonce
+                  相關錯誤，請重新發起登入流程；檢查部署網址（含網域路徑）並重新部署新版。
+                </td>
               </tr>
               <tr>
                 <td>顯示未授權</td>
                 <td>白名單限制啟用但帳號未在清單中、或帳號已停用</td>
                 <td>
-                  請管理員檢查「授權白名單成員清單」與啟用狀態；首次無白名單時可由第一位成功登入者自動成為管理員。
+                  請管理員檢查「授權白名單成員清單」與啟用狀態；白名單為空且登入鏈明確允許開通時，第一位成功登入者才會成為管理員。
                 </td>
               </tr>
             </tbody>

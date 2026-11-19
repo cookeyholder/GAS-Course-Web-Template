@@ -243,7 +243,7 @@ function withGlobal(name, value, fn) {
             return { ok: true, count: 1 };
           },
           function () {
-            const rows = [{ a: 1 }];
+            const rows = [["114", "1", "1", "114", "C1", "科目1", "群", "科", "類", "式", "屬", "必", "2", "2"]];
             const r = api.routeWebApiAction("importCourseCodes", {
               csrfToken: "csrf-ok",
               rows: rows,
@@ -258,6 +258,52 @@ function withGlobal(name, value, fn) {
       }
     );
     console.log("   ✓ importCourseCodes 成功驗證通過！\n");
+  }
+
+  console.log("11.1 匯入列數上限與二維欄位結構驗證...");
+  {
+    const session = { role: "admin", csrfToken: "csrf-ok" };
+    let importCalls = 0;
+    withStubbed(
+      api,
+      "authorizeWebApiAction",
+      function () {
+        return { ok: true, session: session };
+      },
+      function () {
+        withGlobal(
+          "importNormalizedCourseCodes",
+          function () {
+            importCalls += 1;
+            return { ok: true, rows: 0 };
+          },
+          function () {
+            const normalizedRow = ["114", "1", "1", "114", "C1", "科目1", "群", "科", "類", "式", "屬", "必", "2", "2"];
+            const call = function (rows, preNormalized) {
+              return api.routeWebApiAction("importCourseCodes", {
+                csrfToken: "csrf-ok",
+                rows: rows,
+                preNormalized: preNormalized
+              });
+            };
+
+            assert.strictEqual(call([{ a: 1 }], true).error, "invalid_rows");
+            assert.strictEqual(call([["short"]], true).error, "invalid_columns");
+            assert.strictEqual(call([new Array(38).fill("")], false).error, "invalid_columns");
+
+            const tooMany = new Array(api.WEB_API_IMPORT_MAX_ROWS + 1);
+            for (let i = 0; i < tooMany.length; i++) tooMany[i] = normalizedRow;
+            assert.strictEqual(call(tooMany, true).error, "too_many_rows");
+            assert.strictEqual(importCalls, 0, "驗證失敗不得呼叫寫入");
+
+            const ok = call([normalizedRow], true);
+            assert.strictEqual(ok.ok, true);
+            assert.strictEqual(importCalls, 1);
+          }
+        );
+      }
+    );
+    console.log("   ✓ 匯入結構與上限驗證通過！\n");
   }
 
   console.log("12. getCourseIndex 應委派課程查詢...");
@@ -289,6 +335,34 @@ function withGlobal(name, value, fn) {
     console.log("   ✓ getCourseIndex 驗證通過！\n");
   }
 
+  console.log("12.1 getCourseIndexStats 應委派輕量統計且不讀取內容...");
+  {
+    const session = { role: "viewer", csrfToken: "c" };
+    let statsCalls = 0;
+    withStubbed(
+      api,
+      "authorizeWebApiAction",
+      function () {
+        return { ok: true, session: session };
+      },
+      function () {
+        withGlobal(
+          "getCourseIndexStats",
+          function () {
+            statsCalls += 1;
+            return { ok: true, total: 777 };
+          },
+          function () {
+            const r = api.routeWebApiAction("getCourseIndexStats", { token: "t" });
+            assert.deepStrictEqual(r, { ok: true, total: 777 });
+            assert.strictEqual(statsCalls, 1, "應只委派統計函式一次");
+          }
+        );
+      }
+    );
+    console.log("   ✓ getCourseIndexStats 驗證通過！\n");
+  }
+
   console.log("13. getSystemSettings 應回傳系統設定...");
   {
     const session = { role: "staff", csrfToken: "c" };
@@ -313,6 +387,81 @@ function withGlobal(name, value, fn) {
       }
     );
     console.log("   ✓ getSystemSettings 驗證通過！\n");
+  }
+
+  console.log("13.1 getSystemSettings 應依角色遮蔽 clientSecret...");
+  {
+    const settings = { schoolYear: "114", clientId: "CID", clientSecret: "TOP_SECRET" };
+    ["staff", "viewer"].forEach(function (role) {
+      withStubbed(
+        api,
+        "authorizeWebApiAction",
+        function () {
+          return { ok: true, session: { role: role } };
+        },
+        function () {
+          withGlobal(
+            "readSystemSettings",
+            function () {
+              return settings;
+            },
+            function () {
+              const r = api.routeWebApiAction("getSystemSettings", { token: "t" });
+              assert.strictEqual(r.ok, true);
+              assert.strictEqual(r.settings.clientSecret, undefined, role + " 不得取得 clientSecret");
+              assert.strictEqual(r.settings.clientId, "CID");
+              assert.strictEqual(settings.clientSecret, "TOP_SECRET", "不得修改原始設定物件");
+            }
+          );
+        }
+      );
+    });
+
+    withStubbed(
+      api,
+      "authorizeWebApiAction",
+      function () {
+        return { ok: true, session: { role: "admin" } };
+      },
+      function () {
+        withGlobal(
+          "readSystemSettings",
+          function () {
+            return settings;
+          },
+          function () {
+            const r = api.routeWebApiAction("getSystemSettings", { token: "t" });
+            assert.strictEqual(r.settings.clientSecret, "TOP_SECRET", "admin 應可取得 clientSecret");
+          }
+        );
+      }
+    );
+    console.log("   ✓ clientSecret 遮蔽驗證通過！\n");
+  }
+
+  console.log("13.2 系統設定與角色缺值時遮蔽仍應安全降級...");
+  {
+    withStubbed(
+      api,
+      "authorizeWebApiAction",
+      function () {
+        return { ok: true, session: {} };
+      },
+      function () {
+        withGlobal(
+          "readSystemSettings",
+          function () {
+            return undefined;
+          },
+          function () {
+            const r = api.routeWebApiAction("getSystemSettings", { token: "t" });
+            assert.strictEqual(r.ok, true);
+            assert.deepStrictEqual(r.settings, {});
+          }
+        );
+      }
+    );
+    console.log("   ✓ 遮蔽降級驗證通過！\n");
   }
 
   console.log("14. saveSystemSettings 權限與儲存行為...");

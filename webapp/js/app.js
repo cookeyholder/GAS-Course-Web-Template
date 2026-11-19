@@ -37,7 +37,7 @@
 
   const LOADING_VIEW_HTML =
     '<div class="login-container">' +
-    '<div class="login-card text-center py-12">' +
+    '<div class="login-card text-center py-12" role="status" aria-label="系統載入中" aria-busy="true">' +
     '  <div class="spinner mb-4"></div>' +
     '  <div class="text-muted">正在初始化系統連線與設定...</div>' +
     "</div>" +
@@ -52,6 +52,45 @@
     const systemName = ((MEA && MEA.state && MEA.state.publicConfig) || {}).systemName;
     if (systemName && doc.title !== systemName) {
       doc.title = systemName;
+    }
+  }
+
+  /**
+   * 在整塊 innerHTML 重建前記錄焦點元素與輸入選取範圍。
+   *
+   * @param {Object} doc - document 物件
+   * @param {Object} mount - 即將重建的掛載元素
+   * @returns {Object|null} 焦點快照
+   */
+  function captureFocusState(doc, mount) {
+    const active = doc && doc.activeElement;
+    if (!active || !active.id) return null;
+    if (mount && active !== mount && typeof mount.contains === "function" && !mount.contains(active)) return null;
+    const snapshot = { id: active.id };
+    if (typeof active.selectionStart === "number") {
+      snapshot.selectionStart = active.selectionStart;
+      snapshot.selectionEnd = typeof active.selectionEnd === "number" ? active.selectionEnd : active.selectionStart;
+    }
+    return snapshot;
+  }
+
+  /**
+   * 重建後還原先前記錄的焦點與選取範圍；元素不存在時安全略過。
+   *
+   * @param {Object} doc - document 物件
+   * @param {Object} snapshot - captureFocusState 產生的快照
+   */
+  function restoreFocusState(doc, snapshot) {
+    if (!snapshot || !doc || typeof doc.getElementById !== "function") return;
+    const element = doc.getElementById(snapshot.id);
+    if (!element || typeof element.focus !== "function") return;
+    element.focus();
+    if (typeof snapshot.selectionStart === "number" && typeof element.setSelectionRange === "function") {
+      try {
+        element.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd);
+      } catch (e) {
+        // 部分輸入類型不支援選取範圍，忽略即可
+      }
     }
   }
 
@@ -157,9 +196,11 @@
       const mount = doc.getElementById("app");
       if (!mount) return;
 
+      const focusSnapshot = captureFocusState(doc, mount);
       const state = MEA.state || {};
       if (state.view === "loading") {
         mount.innerHTML = LOADING_VIEW_HTML;
+        restoreFocusState(doc, focusSnapshot);
         return;
       }
 
@@ -168,6 +209,7 @@
         setTimeoutFn(function () {
           invoke(MEA.auth, "renderGoogleButton");
         }, 50);
+        restoreFocusState(doc, focusSnapshot);
         return;
       }
 
@@ -176,10 +218,11 @@
         '<div class="app-layout">' +
         (invoke(MEA.ui, "renderHeader") || "") +
         (invoke(MEA.ui, "renderNavbar") || "") +
-        '<main class="app-content">' +
+        '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +
         "</div>";
+      restoreFocusState(doc, focusSnapshot);
     }
 
     function finishAuth() {
@@ -219,13 +262,24 @@
       applyAccountSwitch: applyAccountSwitch,
       render: render,
       init: init,
-      syncDocumentTitle: syncTitle
+      syncDocumentTitle: syncTitle,
+      captureFocusState: function () {
+        return captureFocusState(
+          doc,
+          doc && typeof doc.getElementById === "function" ? doc.getElementById("app") : null
+        );
+      },
+      restoreFocusState: function (snapshot) {
+        return restoreFocusState(doc, snapshot);
+      }
     };
   }
 
   return {
     createAppController: createAppController,
     syncDocumentTitle: syncDocumentTitle,
-    buildBodyHtml: buildBodyHtml
+    buildBodyHtml: buildBodyHtml,
+    captureFocusState: captureFocusState,
+    restoreFocusState: restoreFocusState
   };
 });

@@ -27,8 +27,22 @@ console.log("開始執行 Web API 與權限驗證單元測試...\n");
   assert.strictEqual(api.hasPermission("staff", "saveSystemSettings"), false, "staff 不得修改系統設定");
 
   assert.strictEqual(api.hasPermission("viewer", "getCourseIndex"), true, "viewer 應具備查詢課程權限");
+  assert.strictEqual(api.hasPermission("staff", "getCourseIndexStats"), true, "staff 應可取得輕量統計");
+  assert.strictEqual(api.hasPermission("viewer", "getCourseIndexStats"), true, "viewer 應可取得輕量統計");
   assert.strictEqual(api.hasPermission("viewer", "importCourseCodes"), false, "viewer 不得匯入課程");
   assert.strictEqual(api.hasPermission("viewer", "saveSystemSettings"), false, "viewer 不得修改系統設定");
+
+  // 移除 getXxx 通配規則後，仍須明確保留 session 還原與登出權限
+  assert.strictEqual(api.hasPermission("staff", "getSession"), true, "staff 應可還原 session");
+  assert.strictEqual(api.hasPermission("staff", "logout"), true, "staff 應可登出");
+  assert.strictEqual(api.hasPermission("viewer", "getSession"), true, "viewer 應可還原 session");
+  assert.strictEqual(api.hasPermission("viewer", "logout"), true, "viewer 應可登出");
+
+  // 未明確列舉的 getXxx 動作不得因通配規則自動通過
+  assert.strictEqual(api.hasPermission("staff", "getAccounts"), false, "staff 不得檢視授權白名單");
+  assert.strictEqual(api.hasPermission("viewer", "getAccounts"), false, "viewer 不得檢視授權白名單");
+  assert.strictEqual(api.hasPermission("staff", "getSensitiveReport"), false, "未知 getXxx 動作不得自動授權");
+  assert.strictEqual(api.hasPermission("viewer", "getSensitiveReport"), false, "未知 getXxx 動作不得自動授權");
 }
 
 // 3. 測試 Session 建立與授權流程

@@ -8,18 +8,21 @@
  * 3. 系統使用說明 (SHEET_SYSTEM_INSTRUCTIONS)
  */
 
+const GAS_RUNTIME =
+  typeof globalThis !== "undefined" && globalThis.gasRuntime
+    ? globalThis.gasRuntime
+    : typeof require === "function"
+      ? require("./gasRuntime.js")
+      : null;
+
 // ============================================================================
 // 工作表名稱常數
 // ============================================================================
 
-/** 系統設定與授權工作表名稱 */
-const SHEET_SYSTEM_CONFIG = "系統設定與授權";
-
-/** 1NF 正規化課程索引工作表名稱 */
-const SHEET_COURSE_INDEX = "正規化課程索引";
-
-/** 系統使用說明工作表名稱 */
-const SHEET_SYSTEM_INSTRUCTIONS = "系統使用說明";
+/** 工作表名稱統一由 gasRuntime 提供（單一來源） */
+const SHEET_SYSTEM_CONFIG = GAS_RUNTIME.SHEET_SYSTEM_CONFIG;
+const SHEET_COURSE_INDEX = GAS_RUNTIME.SHEET_COURSE_INDEX;
+const SHEET_SYSTEM_INSTRUCTIONS = GAS_RUNTIME.SHEET_SYSTEM_INSTRUCTIONS;
 
 // ============================================================================
 // 預設參數與欄位定義
@@ -40,12 +43,8 @@ const DEFAULT_SYSTEM_PARAMS = [
 /** 授權白名單表頭（區塊 B，D1:G1） */
 const WHITELIST_HEADERS = ["Email", "姓名/職稱", "角色", "啟用狀態"];
 
-/** 授權角色定義 */
-const ROLE_DEFINITIONS = {
-  admin: "系統管理員",
-  staff: "業務人員",
-  viewer: "檢視人員"
-};
+/** 授權角色定義統一由 gasRuntime 提供（單一來源） */
+const ROLE_DEFINITIONS = GAS_RUNTIME.ROLE_DEFINITIONS;
 
 /** Node.js 單元測試用記憶體備援資料庫 */
 const MEMORY_SYSTEM_CONFIG = {
@@ -64,16 +63,16 @@ function normalizeRole(role) {
   const r = String(role || "")
     .trim()
     .toLowerCase();
-  if (r === "系統管理員" || r === "admin") return "admin";
-  if (r === "業務人員" || r === "staff") return "staff";
-  if (r === "檢視人員" || r === "viewer") return "viewer";
+  if (r === ROLE_DEFINITIONS.admin || r === "admin") return "admin";
+  if (r === ROLE_DEFINITIONS.staff || r === "staff") return "staff";
+  if (r === ROLE_DEFINITIONS.viewer || r === "viewer") return "viewer";
   return r || "viewer";
 }
 
 /** 代碼轉角色名稱對照 */
 function getRoleDisplayName(role) {
   const r = normalizeRole(role);
-  return ROLE_DEFINITIONS[r] || "檢視人員";
+  return ROLE_DEFINITIONS[r] || ROLE_DEFINITIONS.viewer;
 }
 
 // ============================================================================
@@ -81,26 +80,14 @@ function getRoleDisplayName(role) {
 // ============================================================================
 
 function resolveDbSpreadsheet_(options) {
+  if (GAS_RUNTIME) return GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
   const opts = options || {};
-  return (
-    opts.spreadsheet ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null)
-  );
+  return opts.spreadsheet || null;
 }
 
 function getNormalizedCourseHeaders_() {
-  if (typeof NORMALIZED_COURSE_HEADERS !== "undefined") return NORMALIZED_COURSE_HEADERS;
-  if (typeof globalThis !== "undefined" && globalThis.NORMALIZED_COURSE_HEADERS) {
-    return globalThis.NORMALIZED_COURSE_HEADERS;
-  }
-  if (typeof require !== "undefined") {
-    try {
-      return require("./subjectCodeTransformer.js").NORMALIZED_COURSE_HEADERS;
-    } catch (e) {
-      // ignore
-    }
+  if (GAS_RUNTIME) {
+    return GAS_RUNTIME.resolveDependency_("NORMALIZED_COURSE_HEADERS", "./subjectCodeTransformer.js", []);
   }
   return [];
 }
@@ -518,12 +505,6 @@ function buildWhitelistSheetRows_(list) {
   return rows;
 }
 
-function getRequiredSystemConfigSheet_(ss) {
-  const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
-  if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
-  return sheet;
-}
-
 function clearWhitelistSheetRange_(sheet) {
   const currentLastRow = Math.max(sheet.getLastRow(), 2);
   sheet.getRange(2, 4, currentLastRow, 4).clearContent();
@@ -536,7 +517,7 @@ function writeWhitelistSheetRows_(sheet, rows) {
 }
 
 function saveWhitelistToSheet_(ss, list) {
-  const sheet = getRequiredSystemConfigSheet_(ss);
+  const sheet = getSystemConfigSheet_(ss);
   const rows = buildWhitelistSheetRows_(list);
   clearWhitelistSheetRange_(sheet);
   writeWhitelistSheetRows_(sheet, rows);

@@ -99,7 +99,8 @@ async function run() {
       const r = api.doGet({ parameter: { action: "ping" } });
       assert.strictEqual(r.ok, false);
       assert.strictEqual(r.error, "server_error");
-      assert(r.message.indexOf("route fail") !== -1);
+      assert(r.message.indexOf("route fail") === -1, "不得回傳例外訊息原文");
+      assert(r.message.indexOf("請稍後再試") !== -1, "應回傳通用錯誤訊息");
     } finally {
       api.routeWebApiAction = prev;
     }
@@ -199,7 +200,7 @@ async function run() {
       const parsed = JSON.parse(template.initialAuthResult);
       assert.strictEqual(parsed.ok, false);
       assert.strictEqual(parsed.error, "oauth_callback_failed");
-      assert(parsed.message.indexOf("cb boom") !== -1);
+      assert(parsed.message.indexOf("cb boom") === -1, "不得回傳例外訊息原文");
     } finally {
       api.handleOAuthCodeCallback = prev;
     }

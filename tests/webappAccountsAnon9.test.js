@@ -56,7 +56,7 @@ async function run() {
   ctx = setup(new Error("連線中斷"), true);
   await flush();
   assert.strictEqual(ctx.state.settings.saving, false);
-  assert.deepStrictEqual(ctx.calls.toast, [{ message: "連線中斷", kind: "err" }]);
+  assert.deepStrictEqual(ctx.calls.toast, [{ message: "儲存授權成員失敗，請稍後再試", kind: "err" }]);
   console.log("5. 例外路徑結束儲存中並顯示錯誤 ✓\n");
 
   console.log("✓ webapp/js/accounts.js 匿名方法 9 測試全數通過！\n");

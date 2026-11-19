@@ -302,6 +302,18 @@ function createMock(overrides) {
     console.log("   ✓ 離線模式相容驗證通過！\n");
   }
 
+  console.log("16. getCourseIndexStats 應回傳輕量總筆數...");
+  {
+    const { mock } = createMock();
+    assert.deepStrictEqual(await mock.handle("getCourseIndexStats"), { ok: true, total: 4 });
+    await mock.handle("importCourseCodes", {
+      rows: [["114", "1", "1", "114", "C1", "科目", "群", "科", "類", "式", "屬", "必", "1", "1"]],
+      preNormalized: true
+    });
+    assert.deepStrictEqual(await mock.handle("getCourseIndexStats"), { ok: true, total: 1 });
+    console.log("   ✓ 輕量統計 Mock 驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/mock.js 測試全數通過！\n");
 })().catch(function (error) {
   console.error(error);

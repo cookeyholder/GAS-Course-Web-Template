@@ -28,6 +28,19 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
+  function createSafeError(message) {
+    return globalThis.MEA.safeErrors.createSafeError(message);
+  }
+
   const GIS_SRC = "https://accounts.google.com/gsi/client";
   const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
   const GOOGLE_ACCOUNT_CHOOSER_URL = "https://accounts.google.com/AccountChooser";
@@ -40,11 +53,13 @@
     "</svg>";
   const CLIENT_ID_HINT_HTML = '<div class="login-hint">尚未設定 OAuth Client ID；本機測試請於網址加上 ?mock=true</div>';
   const DEFAULT_LOGIN_ERROR = "登入失敗，請稍後再試";
+  const DEFAULT_LOGOUT_ERROR = "登出失敗，請稍後再試";
+  const SESSION_EXPIRED_ERROR = "工作階段已過期，請重新登入";
   const MISSING_CLIENT_ID_ERROR = "尚未設定 OAuth Client ID，請系統管理員先於「系統設定」完成設定";
   const MISSING_CLIENT_SECRET_ERROR = "尚未設定 OAuth Client Secret，請系統管理員先於「系統設定」完成設定";
   const MISSING_WEBAPP_URL_ERROR = "無法取得 Web App 網址，請確認部署狀態後重新整理頁面";
+  const OAUTH_STATE_STORAGE_KEY = "gas_tmpl_oauth_state";
   const MISSING_CHOOSER_URL_ERROR = "無法建立 Google 帳戶切換網址，請稍後再試";
-  const BOOTSTRAP_TOAST_MESSAGE = "初次登入已自動開通系統管理員權限！";
 
   // ---------------------------------------------------------------------------
   // 純函式：登入結果轉換
@@ -58,7 +73,7 @@
     return {
       view: "login",
       loginBusy: false,
-      loginError: (result && result.message) || DEFAULT_LOGIN_ERROR
+      loginError: resolveSafeMessage(result, DEFAULT_LOGIN_ERROR)
     };
   }
 
@@ -83,10 +98,7 @@
     };
   }
 
-  function getLoginToast(user, bootstrapped) {
-    if (bootstrapped) {
-      return { message: BOOTSTRAP_TOAST_MESSAGE, level: "warn" };
-    }
+  function getLoginToast(user) {
     return { message: "歡迎回來，" + user.name + "！", level: "ok" };
   }
 
@@ -94,9 +106,14 @@
     if (csrfToken) api.setCsrfToken(csrfToken);
   }
 
-  function invokeFetchCourses(MEA) {
-    if (MEA.courses && typeof MEA.courses.fetchList === "function") {
-      MEA.courses.fetchList(1);
+  /**
+   * 登入或還原後僅取得輕量統計，完整清單留待進入課程分頁時再載入。
+   *
+   * @param {Object} MEA - 前端全域命名空間
+   */
+  function invokeFetchStats(MEA) {
+    if (MEA.courses && typeof MEA.courses.fetchStats === "function") {
+      MEA.courses.fetchStats();
     }
   }
 
@@ -104,23 +121,82 @@
   // 純函式：網址建立與導向
   // ---------------------------------------------------------------------------
 
-  function encodeAuthState(redirectUri, options) {
-    const settings = options || {};
-    try {
-      if (typeof settings.btoa !== "function") return "";
-      const random =
-        typeof settings.random === "function"
-          ? settings.random
-          : function () {
-              return Math.random();
-            };
+  /** 產生不可預測的 nonce：注入的 random 優先，其次 Web Crypto，最後為時間亂數備援。 */
+  function buildAuthNonce_(settings) {
+    if (typeof settings.random === "function") {
       const now =
         typeof settings.now === "function"
           ? settings.now
           : function () {
               return Date.now();
             };
-      const nonce = random().toString(36).substring(2) + now().toString(36);
+      return settings.random().toString(36).substring(2) + now().toString(36);
+    }
+    const cryptoObj =
+      settings.crypto || (typeof globalThis !== "undefined" && globalThis.crypto ? globalThis.crypto : null);
+    if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
+      const bytes = new Uint8Array(16);
+      cryptoObj.getRandomValues(bytes);
+      let hex = "";
+      for (let i = 0; i < bytes.length; i++) {
+        hex += ("0" + bytes[i].toString(16)).slice(-2);
+      }
+      return hex;
+    }
+    return String(Date.now()) + Math.random().toString(36).substring(2);
+  }
+
+  function getAuthStateStorage_(settings) {
+    if (settings.sessionStorage) return settings.sessionStorage;
+    if (typeof globalThis !== "undefined" && globalThis.sessionStorage) return globalThis.sessionStorage;
+    return null;
+  }
+
+  /** 保存 nonce 與 redirectUri 供回呼比對。 */
+  function saveAuthState(nonce, redirectUri, options) {
+    const storage = getAuthStateStorage_(options || {});
+    if (!storage || typeof storage.setItem !== "function") return false;
+    try {
+      storage.setItem(OAUTH_STATE_STORAGE_KEY, JSON.stringify({ nonce: nonce, redirectUri: redirectUri }));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /** 讀取先前保存的 OAuth state。 */
+  function readAuthState(options) {
+    const storage = getAuthStateStorage_(options || {});
+    if (!storage || typeof storage.getItem !== "function") return null;
+    try {
+      const raw = storage.getItem(OAUTH_STATE_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.nonce !== "string" || typeof parsed.redirectUri !== "string") return null;
+      return { nonce: parsed.nonce, redirectUri: parsed.redirectUri };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /** 一次性清除已保存的 OAuth state。 */
+  function clearAuthState(options) {
+    const storage = getAuthStateStorage_(options || {});
+    if (!storage || typeof storage.removeItem !== "function") return false;
+    try {
+      storage.removeItem(OAUTH_STATE_STORAGE_KEY);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function encodeAuthState(redirectUri, options) {
+    const settings = options || {};
+    try {
+      if (typeof settings.btoa !== "function") return "";
+      const nonce = buildAuthNonce_(settings);
+      saveAuthState(nonce, redirectUri, settings);
       return settings.btoa(JSON.stringify({ nonce: nonce, redirectUri: redirectUri }));
     } catch (error) {
       return "";
@@ -154,7 +230,8 @@
   function normalizeAllowedDomain(allowedDomain) {
     return String(allowedDomain || "")
       .trim()
-      .replace(/^@/, "");
+      .replace(/^@/, "")
+      .toLowerCase();
   }
 
   function buildAccountChooserUrl(webAppUrl, allowedDomain) {
@@ -285,8 +362,21 @@
   }
 
   function getSessionErrorMessage(result) {
-    if (!result || result.error === "missing_token") return "";
-    return result.message || "";
+    if (!result) return SESSION_EXPIRED_ERROR;
+    if (result.error === "missing_token" || result.error === "session_expired" || result.error === "invalid_session") {
+      return SESSION_EXPIRED_ERROR;
+    }
+    return result.message || SESSION_EXPIRED_ERROR;
+  }
+
+  /**
+   * 正規化登出失敗訊息。
+   *
+   * @param {*} error - 例外或錯誤物件
+   * @returns {string} 顯示給使用者的訊息
+   */
+  function normalizeLogoutError(error) {
+    return resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
   }
 
   function buildSessionFailureState(result) {
@@ -311,6 +401,7 @@
 
     let gisPromise = null;
     let initializedClientId = "";
+    let logoutBusy = false;
 
     function getRoleNames() {
       return (MEA.config && MEA.config.roleNames) || {};
@@ -322,6 +413,11 @@
 
     function getPublicConfig() {
       return (MEA.state && MEA.state.publicConfig) || {};
+    }
+
+    /** 只有後端公開設定明確標記待開通時，才在登入請求附上 bootstrap 旗標。 */
+    function shouldRequestBootstrap() {
+      return getPublicConfig().needsBootstrap === true;
     }
 
     function isGasHosted() {
@@ -343,7 +439,7 @@
             resolve(host.google.accounts.id);
           });
           existing.addEventListener("error", function () {
-            reject(new Error("Google 登入服務載入失敗"));
+            reject(createSafeError("Google 登入服務載入失敗"));
           });
           return;
         }
@@ -356,11 +452,11 @@
           if (host.google && host.google.accounts && host.google.accounts.id) {
             resolve(host.google.accounts.id);
           } else {
-            reject(new Error("Google 登入服務載入失敗"));
+            reject(createSafeError("Google 登入服務載入失敗"));
           }
         };
         script.onerror = function () {
-          reject(new Error("Google 登入服務載入失敗，請檢查網路連線"));
+          reject(createSafeError("Google 登入服務載入失敗，請檢查網路連線"));
         };
         doc.head.appendChild(script);
       });
@@ -376,9 +472,9 @@
       applyCsrfToken(MEA.api, result.csrfToken);
       const user = buildLoginUser(result, getRoleNames());
       MEA.setState(buildLoginSuccessState(user));
-      const toast = getLoginToast(user, result.bootstrapped);
+      const toast = getLoginToast(user);
       MEA.ui.toast(toast.message, toast.level);
-      invokeFetchCourses(MEA);
+      invokeFetchStats(MEA);
       return Promise.resolve(user);
     }
 
@@ -389,7 +485,10 @@
         return;
       }
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("login", { credential: credential }).then(applyLoginSuccess);
+      MEA.api
+        .call("login", { credential: credential, bootstrap: shouldRequestBootstrap() })
+        .then(applyLoginSuccess)
+        .catch(handleAuthCallFailure);
     }
 
     function buildGoogleAuthUrl(clientId, redirectUri) {
@@ -427,7 +526,10 @@
 
     function loginActiveUser() {
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("loginWithActiveUser", {}).then(applyLoginSuccess);
+      MEA.api
+        .call("loginWithActiveUser", { bootstrap: shouldRequestBootstrap() })
+        .then(applyLoginSuccess)
+        .catch(handleAuthCallFailure);
     }
 
     function createGisReadyHandler(host, clientId) {
@@ -442,7 +544,18 @@
     }
 
     function handleGisFailure(error) {
-      MEA.setState({ loginError: String(error && error.message ? error.message : error) });
+      MEA.setState({ loginError: resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
+    }
+
+    /**
+     * 統一處理 API 呼叫拒絕，避免未捕獲的 Promise 例外並提供明確回饋。
+     *
+     * @param {*} error - 例外或錯誤物件
+     */
+    function handleAuthCallFailure(error) {
+      const message = resolveSafeMessage(error, DEFAULT_LOGIN_ERROR);
+      MEA.setState({ loginBusy: false, loginError: message });
+      MEA.ui.toast(message, "err");
     }
 
     function renderGoogleButton() {
@@ -463,7 +576,10 @@
 
     function loginMock() {
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("login", { mock: true }).then(applyLoginSuccess);
+      MEA.api
+        .call("login", { mock: true, bootstrap: shouldRequestBootstrap() })
+        .then(applyLoginSuccess)
+        .catch(handleAuthCallFailure);
     }
 
     function scheduleRenderGoogleButton() {
@@ -471,36 +587,53 @@
     }
 
     function logout() {
-      MEA.api.call("logout", {}).then(function () {
-        MEA.api.setToken("");
-        MEA.api.setCsrfToken("");
-        MEA.setState({
-          view: "login",
-          user: null,
-          loginError: "",
-          loginBusy: false
+      if (logoutBusy) return Promise.resolve(false);
+      logoutBusy = true;
+      MEA.setState({ logoutBusy: true, loginError: "" });
+      return MEA.api
+        .call("logout", {})
+        .then(function () {
+          MEA.api.setToken("");
+          MEA.api.setCsrfToken("");
+          MEA.setState({
+            view: "login",
+            user: null,
+            loginError: "",
+            loginBusy: false,
+            logoutBusy: false
+          });
+          logoutBusy = false;
+          scheduleRenderGoogleButton();
+          return true;
+        })
+        .catch(function (error) {
+          logoutBusy = false;
+          MEA.setState({ logoutBusy: false });
+          MEA.ui.toast(normalizeLogoutError(error), "err");
+          return false;
         });
-        scheduleRenderGoogleButton();
-      });
     }
 
     function applySessionSuccess(result) {
       if (!isOkResult(result)) return false;
       applyCsrfToken(MEA.api, result.csrfToken);
       MEA.setState(buildSessionSuccessState(result, getRoleNames()));
-      invokeFetchCourses(MEA);
+      invokeFetchStats(MEA);
       return true;
     }
 
     function restore() {
       const token = MEA.api.getToken();
       if (isMock()) {
-        MEA.api.call("getSession", {}).then(function (result) {
-          if (!applySessionSuccess(result)) {
-            MEA.setState({ view: "login" });
-            scheduleRenderGoogleButton();
-          }
-        });
+        MEA.api
+          .call("getSession", {})
+          .then(function (result) {
+            if (!applySessionSuccess(result)) {
+              MEA.setState(buildSessionFailureState(result));
+              scheduleRenderGoogleButton();
+            }
+          })
+          .catch(handleAuthCallFailure);
         return;
       }
       if (!token) {
@@ -508,14 +641,17 @@
         scheduleRenderGoogleButton();
         return;
       }
-      MEA.api.call("getSession", { token: token }).then(function (result) {
-        if (!applySessionSuccess(result)) {
-          MEA.api.setToken("");
-          MEA.api.setCsrfToken("");
-          MEA.setState(buildSessionFailureState(result));
-          scheduleRenderGoogleButton();
-        }
-      });
+      MEA.api
+        .call("getSession", { token: token })
+        .then(function (result) {
+          if (!applySessionSuccess(result)) {
+            MEA.api.setToken("");
+            MEA.api.setCsrfToken("");
+            MEA.setState(buildSessionFailureState(result));
+            scheduleRenderGoogleButton();
+          }
+        })
+        .catch(handleAuthCallFailure);
     }
 
     return {
@@ -543,8 +679,11 @@
     buildLoginSuccessState: buildLoginSuccessState,
     getLoginToast: getLoginToast,
     applyCsrfToken: applyCsrfToken,
-    invokeFetchCourses: invokeFetchCourses,
+    invokeFetchStats: invokeFetchStats,
     encodeAuthState: encodeAuthState,
+    saveAuthState: saveAuthState,
+    readAuthState: readAuthState,
+    clearAuthState: clearAuthState,
     buildGoogleAuthUrl: buildGoogleAuthUrlWithOptions,
     buildChooserContinueUrl: buildChooserContinueUrl,
     normalizeAllowedDomain: normalizeAllowedDomain,
@@ -561,12 +700,15 @@
     buildSessionSuccessState: buildSessionSuccessState,
     getSessionErrorMessage: getSessionErrorMessage,
     buildSessionFailureState: buildSessionFailureState,
+    normalizeLogoutError: normalizeLogoutError,
     constants: {
       GIS_SRC: GIS_SRC,
       GOOGLE_AUTH_URL: GOOGLE_AUTH_URL,
       GOOGLE_ACCOUNT_CHOOSER_URL: GOOGLE_ACCOUNT_CHOOSER_URL,
       CLIENT_ID_HINT_HTML: CLIENT_ID_HINT_HTML,
-      DEFAULT_LOGIN_ERROR: DEFAULT_LOGIN_ERROR
+      DEFAULT_LOGIN_ERROR: DEFAULT_LOGIN_ERROR,
+      DEFAULT_LOGOUT_ERROR: DEFAULT_LOGOUT_ERROR,
+      SESSION_EXPIRED_ERROR: SESSION_EXPIRED_ERROR
     }
   };
 });

@@ -23,6 +23,15 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
   /**
    * 建立帳號與系統設定模組控制器。
    *
@@ -48,10 +57,11 @@
      * 統一錯誤訊息轉譯。
      *
      * @param {*} error - 錯誤物件或字串
+     * @param {string} fallback - 原始例外不外顯時使用的文案
      * @returns {string} 可顯示的錯誤訊息
      */
-    function normalizeErrorMessage(error) {
-      return String(error && error.message ? error.message : error);
+    function normalizeErrorMessage(error, fallback) {
+      return resolveSafeMessage(error, fallback);
     }
 
     function loadSettingsAndAccounts() {
@@ -77,7 +87,7 @@
           MEA.setState({
             settings: Object.assign({}, MEA.state.settings || {}, { loading: false })
           });
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "讀取系統設定失敗，請稍後再試"), "err");
         });
     }
 
@@ -187,7 +197,7 @@
         })
         .catch(function (error) {
           finishSettingsSaving();
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "儲存系統設定失敗，請稍後再試"), "err");
         });
     }
 
@@ -242,18 +252,52 @@
     }
 
     /**
+     * 標記欄位驗證失敗，並以欄位層級錯誤訊息通知輔助科技。
+     *
+     * @param {string} fieldId - 表單控制項 id
+     * @param {string} message - 錯誤訊息
+     */
+    function setFieldError(fieldId, message) {
+      const field = getElementById(fieldId);
+      const error = getElementById(fieldId + "Error");
+      if (field && typeof field.setAttribute === "function") field.setAttribute("aria-invalid", "true");
+      if (error) {
+        error.textContent = message;
+        if (typeof error.removeAttribute === "function") error.removeAttribute("hidden");
+      }
+      MEA.ui.toast(message, "warn");
+    }
+
+    /**
+     * 清除欄位錯誤標記與訊息。
+     *
+     * @param {Object} field - 表單控制項
+     */
+    function clearFieldError(field) {
+      if (!field) return;
+      if (typeof field.removeAttribute === "function") field.removeAttribute("aria-invalid");
+      const id = typeof field.getAttribute === "function" ? field.getAttribute("id") : "";
+      const error = id ? getElementById(id + "Error") : null;
+      if (error) {
+        error.textContent = "";
+        if (typeof error.setAttribute === "function") error.setAttribute("hidden", "");
+      }
+    }
+
+    /**
      * 處理「新增」按鈕點擊（原 addAccountPrompt 的 onClick 回呼）。
      */
     function handleAddAccountClick() {
       const values = readNewAccountValues();
+      clearFieldError(getElementById("newAccountEmail"));
       if (!values.email || values.email.indexOf("@") === -1) {
-        MEA.ui.toast("請填寫有效的 Email", "warn");
+        setFieldError("newAccountEmail", "請填寫有效的 Email");
         return;
       }
 
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
       if (isDuplicateEmail(cur, values.email)) {
-        MEA.ui.toast("此 Email 已在白名單中", "warn");
+        setFieldError("newAccountEmail", "此 Email 已在白名單中");
         return;
       }
 
@@ -262,21 +306,42 @@
     }
 
     function addAccountPrompt() {
+      const roleNames = (MEA.config && MEA.config.roleNames) || {};
+      const escapeHtml =
+        MEA.ui && typeof MEA.ui.escapeHtml === "function"
+          ? MEA.ui.escapeHtml
+          : function (value) {
+              return String(value);
+            };
+      const roleOptions = Object.keys(roleNames)
+        .map(function (role) {
+          return (
+            '<option value="' +
+            escapeHtml(role) +
+            '">' +
+            escapeHtml(roleNames[role]) +
+            " (" +
+            escapeHtml(role) +
+            ")</option>"
+          );
+        })
+        .join("");
+
       const html =
         '<div class="form-group">' +
-        '  <label class="label">Google Email</label>' +
-        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" />' +
+        '  <label class="label" for="newAccountEmail">Google Email</label>' +
+        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" onchange="MEA.accounts.clearFieldError(this)" />' +
+        '  <span class="hint" id="newAccountEmailHint">請輸入完整的 Google 電子郵件地址。</span>' +
+        '  <span class="field-error" id="newAccountEmailError" role="alert" hidden></span>' +
         "</div>" +
         '<div class="form-group mt-2">' +
-        '  <label class="label">姓名或職稱</label>' +
+        '  <label class="label" for="newAccountName">姓名或職稱</label>' +
         '  <input type="text" id="newAccountName" class="input" placeholder="王小明" />' +
         "</div>" +
         '<div class="form-group mt-2">' +
-        '  <label class="label">指派角色</label>' +
+        '  <label class="label" for="newAccountRole">指派角色</label>' +
         '  <select id="newAccountRole" class="select">' +
-        '    <option value="viewer">檢視人員 (viewer)</option>' +
-        '    <option value="staff">業務人員 (staff)</option>' +
-        '    <option value="admin">系統管理員 (admin)</option>' +
+        roleOptions +
         "  </select>" +
         "</div>";
 
@@ -295,7 +360,23 @@
       const updated = cur.filter(function (a) {
         return a.email !== email;
       });
-      saveAccountsList(updated);
+      MEA.ui.modal(
+        "確認刪除授權成員",
+        '<p class="mb-2">確定要刪除 <strong>' +
+          MEA.ui.escapeHtml(email) +
+          "</strong> 嗎？刪除後該帳號將立即失去存取權。</p>",
+        [
+          { text: "取消", onClick: MEA.ui.closeModal },
+          {
+            text: "確認刪除",
+            primary: true,
+            onClick: function () {
+              MEA.ui.closeModal();
+              saveAccountsList(updated);
+            }
+          }
+        ]
+      );
     }
 
     function toggleAccount(email) {
@@ -347,7 +428,7 @@
         })
         .catch(function (error) {
           finishWhitelistSaving();
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "儲存授權成員失敗，請稍後再試"), "err");
         });
     }
 
@@ -372,9 +453,11 @@
      * 產生單筆授權成員表格列。
      *
      * @param {Object} a - 帳號紀錄
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderAccountRowHtml(a) {
+    function renderAccountRowHtml(a, saving) {
+      const disabled = saving ? " disabled" : "";
       return (
         "<tr>" +
         "<td><strong>" +
@@ -396,14 +479,18 @@
         "  </span>" +
         "</td>" +
         "<td>" +
-        '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
         encodeURIComponent(a.email) +
-        "'))\">" +
+        "'))\"" +
+        disabled +
+        ">" +
         (a.enabled ? "停用" : "啟用") +
         "</button>" +
-        '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
+        '  <button type="button" class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
         encodeURIComponent(a.email) +
-        "'))\">刪除</button>" +
+        "'))\"" +
+        disabled +
+        ">刪除</button>" +
         "</td>" +
         "</tr>"
       );
@@ -413,16 +500,17 @@
      * 產生授權成員表格內容。
      *
      * @param {Array<Object>} accounts - 帳號陣列
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderAccountsRowsHtml(accounts) {
+    function renderAccountsRowsHtml(accounts, saving) {
       if (accounts.length === 0) {
         return '<tr><td colspan="5" class="text-center py-4 text-muted">目前尚未設定任何授權帳號。</td></tr>';
       }
 
       let rowsHtml = "";
       for (let i = 0; i < accounts.length; i++) {
-        rowsHtml += renderAccountRowHtml(accounts[i]);
+        rowsHtml += renderAccountRowHtml(accounts[i], saving);
       }
       return rowsHtml;
     }
@@ -441,46 +529,46 @@
         '  <form class="mt-3" onsubmit="MEA.accounts.saveSettings(event)">' +
         '    <div class="row">' +
         '      <div class="col" style="flex:2;">' +
-        '        <label class="label">系統名稱</label>' +
-        '        <input type="text" id="cfgSystemName" class="input" value="' +
+        '        <label class="label" for="cfgSystemName">系統名稱</label>' +
+        '        <input type="text" id="cfgSystemName" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.systemName || "") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
-        '        <label class="label">目前學年度</label>' +
-        '        <input type="text" id="cfgSchoolYear" class="input" value="' +
+        '        <label class="label" for="cfgSchoolYear">目前學年度</label>' +
+        '        <input type="text" id="cfgSchoolYear" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.schoolYear || "114") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
-        '        <label class="label">目前學期</label>' +
-        '        <input type="text" id="cfgSemester" class="input" value="' +
+        '        <label class="label" for="cfgSemester">目前學期</label>' +
+        '        <input type="text" id="cfgSemester" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.semester || "1") +
         '" />' +
         "      </div>" +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
-        '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" value="' +
+        '      <label class="label" for="cfgClientId">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
+        '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" aria-describedby="cfgClientIdHint" value="' +
         MEA.ui.escapeHtml(data.clientId || "") +
         '" />' +
-        '      <span class="hint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
+        '      <span class="hint" id="cfgClientIdHint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
+        '      <label class="label" for="cfgClientSecret">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
         '      <input type="password" id="cfgClientSecret" class="input mono" value="' +
         MEA.ui.escapeHtml(data.clientSecret || "") +
         '" />' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google 登入允許網域（選填）</label>' +
-        '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" value="' +
+        '      <label class="label" for="cfgAllowedDomain">Google 登入允許網域（選填）</label>' +
+        '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" aria-describedby="cfgAllowedDomainHint" value="' +
         MEA.ui.escapeHtml(data.allowedLoginDomain || data["Google 登入允許網域"] || "") +
         '" />' +
-        '      <span class="hint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
+        '      <span class="hint" id="cfgAllowedDomainHint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="checkbox-label">' +
+        '      <label class="checkbox-label" for="cfgRestrictWhitelist">' +
         '        <input type="checkbox" id="cfgRestrictWhitelist"' +
         (data.restrictWhitelist ? " checked" : "") +
         " />" +
@@ -503,20 +591,25 @@
      * 產生授權白名單卡片。
      *
      * @param {string} accountsRowsHtml - 表格列 HTML
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderWhitelistCardHtml(accountsRowsHtml) {
+    function renderWhitelistCardHtml(accountsRowsHtml, saving) {
+      const loadingHint = saving ? '<span class="hint" role="status">正在更新授權白名單，請稍候...</span>' : "";
       return (
         '<div class="card mt-4">' +
         '  <div class="card-header">' +
         '    <h3 class="card-title">授權白名單成員清單</h3>' +
-        '    <button class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()">＋ 新增授權成員</button>' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()"' +
+        (saving ? " disabled" : "") +
+        ">＋ 新增授權成員</button>" +
         "  </div>" +
+        loadingHint +
         '  <div class="table-responsive mt-3">' +
         '    <table class="table">' +
         "      <thead>" +
         "        <tr>" +
-        "          <th>Email</th><th>姓名/職稱</th><th>角色</th><th>狀態</th><th>操作</th>" +
+        '          <th scope="col">Email</th><th scope="col">姓名/職稱</th><th scope="col">角色</th><th scope="col">狀態</th><th scope="col">操作</th>' +
         "        </tr>" +
         "      </thead>" +
         "      <tbody>" +
@@ -546,10 +639,14 @@
         '    <h2 class="panel-title">系統設定與授權 (RBAC)</h2>' +
         '    <p class="panel-sub">設定 Google OAuth、登入網域限制與存取成員角色清單</p>' +
         "  </div>" +
-        '  <button class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()">🔄 重新讀取</button>' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()"' +
+        (settings.loading ? " disabled" : "") +
+        ">" +
+        (settings.loading ? "讀取中..." : "🔄 重新讀取") +
+        "</button>" +
         "</div>" +
         renderSystemCoreCardHtml(data, settings.saving) +
-        renderWhitelistCardHtml(renderAccountsRowsHtml(accounts)) +
+        renderWhitelistCardHtml(renderAccountsRowsHtml(accounts, settings.saving), settings.saving) +
         "</div>"
       );
     }
@@ -558,6 +655,7 @@
       loadSettingsAndAccounts: loadSettingsAndAccounts,
       saveSettings: saveSettings,
       addAccountPrompt: addAccountPrompt,
+      clearFieldError: clearFieldError,
       removeAccount: removeAccount,
       toggleAccount: toggleAccount,
       renderView: renderView

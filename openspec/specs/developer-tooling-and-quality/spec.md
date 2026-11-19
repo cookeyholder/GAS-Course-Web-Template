@@ -34,3 +34,40 @@
 #### Scenario: 建置與部署流程可產生可用的 Web App 產物
 - **WHEN** 開發者執行建置與部署相關指令
 - **THEN** 產生的 `index.html` 與後端腳本可用於既有 clasp/GAS 部署流程，且不引入被忽略檔案的推送問題
+
+### Requirement: 建置與監看流程一致
+`npm run watch` MUST 在執行 `clasp push --watch` 之前先執行 `npm run build:webapp`，確保 `webapp/` 的原始碼變更已反映到根目錄 `index.html`。文件 MUST 說明 `push`、`watch` 與 `build:webapp` 的關係。
+
+#### Scenario: watch 推送前先建置
+- **WHEN** 開發者修改前端原始檔後執行 `npm run watch`
+- **THEN** 建置腳本先更新 `index.html`，再開始監看推送
+
+### Requirement: 品質閘門新增靜態檢查
+CI MUST 在既有格式、語言、測試、覆蓋率與複雜度閘門外，新增三項檢查：(1) 前端 JS 使用的 class 必須存在於 CSS 或有別名規則；(2) 淺色模式一般文字 ≥ 4.5:1 且焦點指標 ≥ 3:1；(3) 由原始檔重建的 `index.html` 必須與版本控制中的產物逐位元組一致。任一項失敗都 MUST 阻擋合併。
+
+#### Scenario: 新增未定義 class 被攔截
+- **WHEN** 開發者在 JS 加入一個 CSS 沒有的 class 且未設別名
+- **THEN** CI class 檢查失敗
+
+#### Scenario: 建置產物漂移被攔截
+- **WHEN** 開發者修改了 `webapp/js/` 但沒有重新建置 `index.html`
+- **THEN** CI 建置一致性檢查失敗
+
+### Requirement: 測試與複雜度工具改善
+`checkChangedCoverage.js` 的 `getDiff` MUST 拆分為較小的純函式，使 CRAP 低於 30，維持品質基準不回退。新增功能 MUST 同時新增對應測試，變更覆蓋率不得低於 Lines 80%、Branches 70% 的門檻。
+
+#### Scenario: CRAP 有緩衝空間
+- **WHEN** 執行 `npm run check:complexity`
+- **THEN** 所有納管函式的 CRAP 嚴格小於 30
+
+### Requirement: 前端無障礙稽核閘門
+
+專案 MUST 提供 `npm run check:a11y`，以 `axe-core` 搭配 `jsdom` 稽核前端主要畫面與關鍵狀態，並在 CI 中作為獨立步驟執行；同一稽核 MUST 由 `npm test` 自動涵蓋。`color-contrast` 規則因 jsdom 不計算設定樣式而 MUST 明確停用並由 CSS 對比檢查互補；其餘 WCAG 2.1 AA 規則違規 MUST 造成非零結束碼。新增前端模組 MUST 同步擴充稽核夾具。
+
+#### Scenario: CI 攔截無障礙回退
+- **WHEN** 開發者提交造成 axe 違規的前端變更
+- **THEN** CI 無障礙稽核步驟失敗並阻擋合併
+
+#### Scenario: 本機單獨稽核
+- **WHEN** 開發者執行 `npm run check:a11y`
+- **THEN** 輸出所有夾具的稽核結果且無違規時結束碼為 0

@@ -10,21 +10,37 @@ const api = require("../webApi.js");
 
 console.log("開始執行 verifyGoogleIdToken 測試...\n");
 
+function nowSeconds() {
+  return Math.floor(Date.now() / 1000);
+}
+
+function validInfo(overrides) {
+  return Object.assign(
+    {
+      email: "user@example.com",
+      iss: "https://accounts.google.com",
+      email_verified: "true",
+      aud: "client-id",
+      iat: nowSeconds() - 60,
+      exp: nowSeconds() + 3600
+    },
+    overrides || {}
+  );
+}
+
 function makeDeps(overrides) {
   return Object.assign(
     {
       fetch: function () {
         return {
           statusCode: 200,
-          text: JSON.stringify({
-            email: "user@example.com",
-            iss: "https://accounts.google.com",
-            email_verified: "true",
-            aud: "client-id",
-            name: "使用者",
-            sub: "sub-1",
-            picture: "https://img"
-          })
+          text: JSON.stringify(
+            validInfo({
+              name: "使用者",
+              sub: "sub-1",
+              picture: "https://img"
+            })
+          )
         };
       }
     },
@@ -201,15 +217,15 @@ console.log("11. 驗證成功應回傳正規化使用者資訊...");
       capturedUrl = url;
       return {
         statusCode: 200,
-        text: JSON.stringify({
-          email: "USER@Example.com",
-          iss: "https://accounts.google.com",
-          email_verified: true,
-          aud: "client-id",
-          name: "測試者",
-          sub: "sub-9",
-          picture: "https://pic"
-        })
+        text: JSON.stringify(
+          validInfo({
+            email: "USER@Example.com",
+            email_verified: true,
+            name: "測試者",
+            sub: "sub-9",
+            picture: "https://pic"
+          })
+        )
       };
     }
   });
@@ -232,12 +248,7 @@ console.log("12. 名稱缺失時應回退為 email...");
     fetch: function () {
       return {
         statusCode: 200,
-        text: JSON.stringify({
-          email: "user@example.com",
-          iss: "accounts.google.com",
-          email_verified: "true",
-          aud: "client-id"
-        })
+        text: JSON.stringify(validInfo({ iss: "accounts.google.com" }))
       };
     }
   });
@@ -257,8 +268,91 @@ console.log("13. fetch 拋出例外應回傳 token_verify_error...");
   const r = api.verifyGoogleIdToken("token", "client-id", "", deps);
   assert.strictEqual(r.ok, false);
   assert.strictEqual(r.error, "token_verify_error");
-  assert(r.message.indexOf("net err") !== -1);
+  assert(r.message.indexOf("net err") === -1, "不得回傳例外訊息原文");
+  assert(r.message.indexOf("請稍後再試或重新登入") !== -1, "應回傳通用錯誤訊息");
   console.log("   ✓ 例外處理驗證通過！\n");
+}
+
+console.log("14. 缺少 exp/iat 時間宣告應回傳 invalid_token_payload...");
+{
+  const makeTimeDeps = function (infoOverrides) {
+    return makeDeps({
+      fetch: function () {
+        return { statusCode: 200, text: JSON.stringify(validInfo(infoOverrides)) };
+      }
+    });
+  };
+  const now = nowSeconds();
+  assert.strictEqual(
+    api.verifyGoogleIdToken("token", "client-id", "", makeTimeDeps({ exp: undefined })).error,
+    "invalid_token_payload"
+  );
+  assert.strictEqual(
+    api.verifyGoogleIdToken("token", "client-id", "", makeTimeDeps({ iat: undefined })).error,
+    "invalid_token_payload"
+  );
+  assert.strictEqual(
+    api.verifyGoogleIdToken("token", "client-id", "", makeTimeDeps({ exp: "abc", iat: "0" })).error,
+    "invalid_token_payload"
+  );
+  assert.strictEqual(
+    api.verifyGoogleIdToken("token", "client-id", "", makeTimeDeps({ iat: now + 120, exp: now + 3600 })).error,
+    "token_issued_in_future"
+  );
+  assert.strictEqual(
+    api.verifyGoogleIdToken("token", "client-id", "", makeTimeDeps({ iat: now - 200, exp: now - 100 })).error,
+    "token_expired"
+  );
+  assert.strictEqual(
+    api.verifyGoogleIdToken("token", "client-id", "", makeTimeDeps({ iat: now - 10, exp: now - 10 })).error,
+    "invalid_token_payload"
+  );
+  console.log("   ✓ 時間宣告檢查通過！\n");
+}
+
+console.log("15. clock skew 容忍範圍與注入 now 驗證...");
+{
+  const now = 1_700_000_000;
+  const makeTimeDeps = function (iat, exp) {
+    return makeDeps({
+      now: function () {
+        return now;
+      },
+      fetch: function () {
+        return {
+          statusCode: 200,
+          text: JSON.stringify(validInfo({ iat: iat, exp: exp }))
+        };
+      }
+    });
+  };
+  const skewed = api.verifyGoogleIdToken("token", "client-id", "", makeTimeDeps(now - 30, now + 30));
+  assert.strictEqual(skewed.ok, true, "容許時鐘誤差範圍內應通過");
+  assert.strictEqual(
+    api.verifyGoogleIdToken("token", "client-id", "", makeTimeDeps(now - 91, now - 61)).error,
+    "token_expired"
+  );
+  const invalidNow = makeTimeDeps(now - 30, now + 30);
+  invalidNow.now = function () {
+    return "bad";
+  };
+  assert.strictEqual(api.verifyGoogleIdToken("token", "client-id", "", invalidNow).error, "invalid_token_payload");
+  console.log("   ✓ clock skew 與 now 注入驗證通過！\n");
+}
+
+console.log("16. validateTokenInfoClaims_ 可供獨立單元測試呼叫...");
+{
+  assert.strictEqual(typeof api.validateTokenInfoClaims, "function");
+  const now = nowSeconds();
+  assert.strictEqual(
+    api.validateTokenInfoClaims(validInfo(), "client-id", "", {
+      now: function () {
+        return now;
+      }
+    }),
+    null
+  );
+  console.log("   ✓ 匯出驗證通過！\n");
 }
 
 console.log("✓ verifyGoogleIdToken 測試全數通過！\n");

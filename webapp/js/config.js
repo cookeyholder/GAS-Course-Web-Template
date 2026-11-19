@@ -17,12 +17,69 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  /** 版本號與角色顯示名稱共用 gasRuntime 單一來源；瀏覽器由建置腳本先嵌入 gasRuntime。 */
+  const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
+
   function getSearchParams(search) {
     try {
       return new URLSearchParams(search || "");
     } catch (e) {
       return new URLSearchParams("");
     }
+  }
+
+  function isLocalHostname(hostname) {
+    const value = String(hostname || "").toLowerCase();
+    return value === "localhost" || value === "127.0.0.1";
+  }
+
+  /**
+   * 僅接受同源、明確設定的 GAS/代理端點、script.google.com Web App 網址，
+   * 以及本機開發頁面對應的本機端點；其餘 ?api= 值一律視為不可信。
+   */
+  function isTrustedApiEndpoint(candidate, env) {
+    const raw = String(candidate || "").trim();
+    if (!raw) return false;
+    // 僅接受絕對 URL 或根相對路徑，避免模糊字串被 URL 解析成同源路徑。
+    const hasScheme = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(raw);
+    if (!hasScheme && raw.charAt(0) !== "/") return false;
+    const source = env || {};
+    let target;
+    try {
+      target = source.href ? new URL(raw, source.href) : new URL(raw);
+    } catch (e) {
+      return false;
+    }
+    if (target.protocol !== "http:" && target.protocol !== "https:") return false;
+
+    const gasUrl = String(source.gasWebappUrl || "").trim();
+    if (gasUrl) {
+      try {
+        const gas = gasUrl.indexOf("://") === -1 ? new URL(gasUrl, source.href) : new URL(gasUrl);
+        if (target.origin === gas.origin && target.pathname.indexOf(gas.pathname) === 0) return true;
+      } catch (e) {
+        // 設定值異常時略過，改用下列規則判斷
+      }
+    }
+
+    if (/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:[/?#]|$)/.test(target.href)) {
+      return true;
+    }
+
+    if (source.href) {
+      try {
+        const page = new URL(source.href);
+        if (target.origin === page.origin) return true;
+      } catch (e) {
+        // 頁面網址異常時略過
+      }
+    }
+
+    if (source.protocol === "file:" || isLocalHostname(source.hostname)) {
+      if (isLocalHostname(target.hostname)) return true;
+    }
+
+    return false;
   }
 
   function resolveDefaultApiUrl(env) {
@@ -36,7 +93,10 @@
     const isGoogleUserContent = hostname.indexOf("googleusercontent.com") !== -1;
     const href = source.href || "";
 
-    if (apiParam) return apiParam;
+    if (apiParam) {
+      // 不受信任的 ?api= 直接忽略，避免 session/CSRF token 外送至惡意端點。
+      return isTrustedApiEndpoint(apiParam, source) ? apiParam : "";
+    }
     if (gasUrl) return gasUrl;
     if (!isFile && !isGoogleUserContent) {
       return href.split("#")[0].split("?")[0];
@@ -48,10 +108,12 @@
     const source = env || {};
     const params = getSearchParams(source.search);
     const switchFromParam = params.get("switch") === "1";
+    // 正式建置產物（build-webapp.js 注入 MEA_PRODUCTION_BUILD）忽略 ?mock=true。
+    const isProduction = source.production === true;
     return {
       title: "Google Apps Script 應用程式範本",
-      version: "1.0.0",
-      mock: params.has("mock"),
+      version: gasRuntime.WEB_API_VERSION,
+      mock: !isProduction && params.has("mock"),
       switchAccount: source.switchAccount === true || switchFromParam,
       apiUrl: resolveDefaultApiUrl(source),
       storageKey: "gas_tmpl.session.v1",
@@ -129,11 +191,7 @@
         { id: "courses", name: "正規化課程索引", icon: "📚", desc: "檢視與檢索已展開之課程資料" },
         { id: "settings", name: "系統設定與授權", icon: "⚙️", desc: "OAuth Client ID 與角色成員" }
       ],
-      roleNames: {
-        admin: "系統管理員",
-        staff: "業務人員",
-        viewer: "檢視人員"
-      }
+      roleNames: Object.assign({}, gasRuntime.ROLE_DEFINITIONS)
     };
   }
 
@@ -157,13 +215,15 @@
       hostname: location.hostname || "",
       href: location.href || "",
       gasWebappUrl: gasWebappUrl,
-      switchAccount: browser.SWITCH_ACCOUNT === true
+      switchAccount: browser.SWITCH_ACCOUNT === true,
+      production: browser.MEA_PRODUCTION_BUILD === true
     });
     MEA.config = config;
     return config;
   }
 
   return {
+    isTrustedApiEndpoint: isTrustedApiEndpoint,
     resolveDefaultApiUrl: resolveDefaultApiUrl,
     buildFrontendConfig: buildFrontendConfig,
     applyBrowserConfig: applyBrowserConfig

@@ -10,6 +10,22 @@ const api = require("../webApi.js");
 
 console.log("開始執行 handleOAuthCodeCallback 測試...\n");
 
+function buildState(nonce, redirectUri) {
+  return Buffer.from(JSON.stringify({ nonce: nonce, redirectUri: redirectUri }), "utf8").toString("base64");
+}
+
+function createMemoryNonceCache() {
+  const store = {};
+  return {
+    get: function (key) {
+      return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
+    },
+    put: function (key, value) {
+      store[key] = value;
+    }
+  };
+}
+
 function makeDeps(overrides) {
   return Object.assign(
     {
@@ -184,7 +200,14 @@ function makeDeps(overrides) {
         allowedLoginDomain: "example.com"
       }
     });
-    const e = { parameter: { state: "" } };
+    const state = Buffer.from(
+      JSON.stringify({
+        nonce: "nonce-success-10-abcdef",
+        redirectUri: "https://script.google.com/macros/s/DEPLOY_ID/exec"
+      }),
+      "utf8"
+    ).toString("base64");
+    const e = { parameter: { state: state } };
     const r = await api.handleOAuthCodeCallback("auth-code", e, deps);
     assert.strictEqual(r.ok, true);
     assert.strictEqual(r.token, "sess");
@@ -211,8 +234,79 @@ function makeDeps(overrides) {
     const r = await api.handleOAuthCodeCallback("code", {}, deps);
     assert.strictEqual(r.ok, false);
     assert.strictEqual(r.error, "token_exchange_error");
-    assert(r.message.indexOf("network down") !== -1);
+    assert(r.message.indexOf("network down") === -1, "不得回傳例外訊息原文");
+    assert(r.message.indexOf("請稍後再試") !== -1, "應回傳通用錯誤訊息");
     console.log("   ✓ 例外處理驗證通過！\n");
+  }
+
+  console.log("12. 重放 nonce 應被拒絕且不建立 session...");
+  {
+    let sessionCreated = 0;
+    const webAppUrl = "https://script.google.com/macros/s/DEPLOY_ID/exec";
+    const deps = makeDeps({
+      webAppUrl: webAppUrl,
+      nonceCache: createMemoryNonceCache(),
+      fetch: function () {
+        return { statusCode: 200, text: JSON.stringify({ id_token: "idtok" }) };
+      },
+      createSessionForEmail: function () {
+        sessionCreated += 1;
+        return { ok: true, token: "sess" };
+      }
+    });
+    const e = { parameter: { state: buildState("nonce-replay-12345678", webAppUrl) } };
+    const r1 = await api.handleOAuthCodeCallback("code-1", e, deps);
+    assert.strictEqual(r1.ok, true);
+    const r2 = await api.handleOAuthCodeCallback("code-2", e, deps);
+    assert.strictEqual(r2.ok, false);
+    assert.strictEqual(r2.error, "oauth_nonce_reused");
+    assert.strictEqual(sessionCreated, 1, "重放請求不得建立第二個 session");
+    console.log("   ✓ nonce 重放防護通過！\n");
+  }
+
+  console.log("13. redirectUri 與系統設定不符應拒絕...");
+  {
+    let sessionCreated = 0;
+    const deps = makeDeps({
+      webAppUrl: "https://script.google.com/macros/s/DEPLOY_ID/exec",
+      nonceCache: createMemoryNonceCache(),
+      fetch: function () {
+        return { statusCode: 200, text: JSON.stringify({ id_token: "idtok" }) };
+      },
+      createSessionForEmail: function () {
+        sessionCreated += 1;
+        return { ok: true, token: "sess" };
+      }
+    });
+    const e = { parameter: { state: buildState("nonce-mismatch-87654321", "http://localhost:8080/cb") } };
+    const r = await api.handleOAuthCodeCallback("code", e, deps);
+    assert.strictEqual(r.ok, false);
+    assert.strictEqual(r.error, "oauth_redirect_mismatch");
+    assert.strictEqual(sessionCreated, 0);
+    console.log("   ✓ redirectUri 綁定驗證通過！\n");
+  }
+
+  console.log("14. 缺少 nonce 應拒絕建立 session...");
+  {
+    let sessionCreated = 0;
+    const webAppUrl = "https://script.google.com/macros/s/DEPLOY_ID/exec";
+    const deps = makeDeps({
+      webAppUrl: webAppUrl,
+      nonceCache: createMemoryNonceCache(),
+      fetch: function () {
+        return { statusCode: 200, text: JSON.stringify({ id_token: "idtok" }) };
+      },
+      createSessionForEmail: function () {
+        sessionCreated += 1;
+        return { ok: true, token: "sess" };
+      }
+    });
+    const legacyState = Buffer.from(JSON.stringify({ redirectUri: webAppUrl }), "utf8").toString("base64");
+    const r = await api.handleOAuthCodeCallback("code", { parameter: { state: legacyState } }, deps);
+    assert.strictEqual(r.ok, false);
+    assert.strictEqual(r.error, "invalid_oauth_state");
+    assert.strictEqual(sessionCreated, 0);
+    console.log("   ✓ 舊格式 state 拒絕敏感寫入通過！\n");
   }
 
   console.log("✓ handleOAuthCodeCallback 測試全數通過！\n");

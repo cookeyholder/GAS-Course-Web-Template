@@ -309,4 +309,73 @@ console.log("9. filter 未提供或欄位為空/空白時應視為不篩選，�
   console.log("   ✓ 空篩選與字串轉換驗證通過！\n");
 }
 
+console.log("10. 大量資料分頁應僅映射該頁列，不對全部資料建立物件...");
+{
+  const rowCount = 20000;
+  const values = [header.slice()];
+  let mappedOnlyFieldReads = 0;
+  for (let i = 0; i < rowCount; i++) {
+    const dataRow = [
+      "114",
+      "1",
+      "1",
+      "114",
+      "C" + String(i).padStart(5, "0"),
+      "科目" + i,
+      "群",
+      "資訊科",
+      "類",
+      "式",
+      "屬",
+      "必",
+      "3",
+      ""
+    ];
+    // 此欄位僅由 mapCourseIndexRow_ 讀取；計數可驗證映射次數。
+    Object.defineProperty(dataRow, 13, {
+      get: function () {
+        mappedOnlyFieldReads += 1;
+        return "2";
+      },
+      enumerable: true
+    });
+    values.push(dataRow);
+  }
+  const ss = makeSs(makeSheet(values));
+  const result = transformer.getNormalizedCourses({ page: 2, pageSize: 10 }, ss);
+  assert.strictEqual(result.ok, true);
+  assert.strictEqual(result.total, rowCount);
+  assert.strictEqual(result.totalPages, 2000);
+  assert.strictEqual(result.page, 2);
+  assert.strictEqual(result.list.length, 10);
+  assert.strictEqual(result.list[0].courseCode, "C00010");
+  assert.strictEqual(result.list[9].courseCode, "C00019");
+  assert.strictEqual(result.list[0].hours, "2");
+  assert.strictEqual(mappedOnlyFieldReads, 10, "僅應映射該頁 10 列，實際映射 " + mappedOnlyFieldReads + " 列");
+
+  const filtered = transformer.getNormalizedCourses(
+    { page: 1, pageSize: 5, academicYear: "114", semester: "1", keyword: "c0000" },
+    ss
+  );
+  assert.strictEqual(filtered.total, 10);
+  assert.strictEqual(filtered.list.length, 5);
+  assert.strictEqual(filtered.list[0].courseCode, "C00000");
+  console.log("   ✓ 大量資料分頁與映射次數驗證通過！\n");
+}
+
+console.log("10. 原始列為 null 或欄位為空時，篩選應安全略過...");
+{
+  const values = [
+    header,
+    null,
+    [null, "1", "1", "114", "C-NULL", "空學年", "群", "科", "類", "式", "屬", "必", "1", "1"],
+    row({ courseCode: "C-OK", academicYear: "114" })
+  ];
+  const ss = makeSs(makeSheet(values));
+  const result = transformer.getNormalizedCourses({ academicYear: "114" }, ss);
+  assert.strictEqual(result.total, 1);
+  assert.strictEqual(result.list[0].courseCode, "C-OK");
+  console.log("   ✓ 空列與空欄位篩選驗證通過！\n");
+}
+
 console.log("✓ getNormalizedCourses 測試全數通過！\n");

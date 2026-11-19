@@ -19,6 +19,7 @@ const CSS_BLOCK = /<!-- BUILD:CSS -->([\s\S]*?)<!-- \/BUILD:CSS -->/;
 const JS_BLOCK = /<!-- BUILD:JS -->([\s\S]*?)<!-- \/BUILD:JS -->/;
 const SCRIPT_TAG = /<script\s+src="([^"]+)"\s*><\/script>/g;
 const BUILD_COMMENT = "<!-- 本檔由 scripts/build-webapp.js 自動產生，請勿直接編輯；請修改 webapp/ 後重新建置 -->";
+const PRODUCTION_FLAG = "<script>window.MEA_PRODUCTION_BUILD = true;</script>";
 
 /**
  * 跳脫腳本內容中的結尾標籤。
@@ -106,6 +107,11 @@ function createBuilder(options) {
     return html.replace("<head>", "<head>\n  " + BUILD_COMMENT);
   }
 
+  /** 標記此檔為正式建置產物；前端 config.js 據此忽略 ?mock=true。 */
+  function insertProductionFlag(html) {
+    return html.replace("<head>", "<head>\n  " + PRODUCTION_FLAG);
+  }
+
   function build() {
     let html = readTemplate();
     html = replaceCss(html);
@@ -116,7 +122,7 @@ function createBuilder(options) {
     }
 
     const jsResult = replaceJs(html, match);
-    html = insertBuildComment(jsResult.html);
+    html = insertProductionFlag(insertBuildComment(jsResult.html));
     fsApi.mkdirSync(path.dirname(outputPath), { recursive: true });
     fsApi.writeFileSync(outputPath, html, "utf8");
 

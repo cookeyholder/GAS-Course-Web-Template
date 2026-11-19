@@ -1,337 +1,65 @@
 /**
  * @file subjectCodeTransformer.js
- * @description 108 課綱課程代碼對照與 1NF 正規化處理模組
+ * @description 108 課綱課程代碼對照與 1NF 正規化處理模組（試算表寫入與檢索）
  *
- * 將教育部課程計畫平臺下載之 39 欄課程代碼寬表展開並正規化為 14 欄的第一正規化（1NF）課程索引：
- * 1. 全數匯入所有課程代碼，不剔除任何科目屬性（包含不分屬性 0 與特殊需求領域 6）
- * 2. 依六學期（一上、一下、二上、二下、三上、三下）開課學分與時數展開
- * 3. 代碼轉譯為可讀之群別、科別、課程類別、開課方式、科目屬性與必選修中文名稱
+ * 對照表與正規化純邏輯已抽至 courseNormalizationShared.js，前後端共用單一來源。
  */
-
-// ============================================================================
-// 課程代碼對照表常數（提升至頂層以達零物件建立開銷 O(1) 查找）
-// ============================================================================
-
-const NORMALIZED_COURSE_SHEET_NAME = "正規化課程索引";
-
-/**
- * 正規化課程索引標準表頭（共 14 欄）
- */
-const NORMALIZED_COURSE_HEADERS = [
-  "開課學年",
-  "開課學期",
-  "修課年級",
-  "學生入學年",
-  "課程代碼",
-  "科目名稱",
-  "群別",
-  "科別",
-  "課程類別",
-  "開課方式",
-  "科目屬性",
-  "必選修",
-  "學分數",
-  "開課時數"
-];
 
 /** 一次批次寫入正規化課程索引的最大列數 */
 const COURSE_INDEX_WRITE_CHUNK_SIZE = 5000;
 
-/** 科目屬性排除名單（本專案全數匯入，不剔除任何科目） */
-const EXCLUDED_SUBJECT_ATTRIBUTES = [];
-
-const GROUP_CODE_NAMES = {
-  11: "學術群",
-  21: "機械群",
-  22: "動力機械群",
-  23: "電機與電子群",
-  24: "化工群",
-  25: "土木與建築群",
-  26: "商業與管理群／商業群(綜高、實用技能學程)",
-  27: "外語群",
-  28: "設計群",
-  29: "農業群",
-  30: "食品群",
-  31: "家政群",
-  32: "餐旅群",
-  33: "水產群",
-  34: "海事群",
-  35: "藝術群",
-  36: "美容造型群(實用技能學程)",
-  40: "服務群(特殊教育類型)",
-  41: "其他(綜高)"
-};
-
-const DEPARTMENT_CODE_NAMES = {
-  301: "機械科",
-  303: "汽車科",
-  305: "資訊科",
-  306: "電子科",
-  308: "電機科",
-  309: "冷凍空調科",
-  311: "建築科",
-  315: "化工科",
-  321: "電機空調科",
-  373: "圖文傳播科",
-  374: "電腦機械製圖科"
-};
-
-const SUBJECT_TYPE_NAMES = {
-  1: "部定必修",
-  2: "校訂必修",
-  3: "選修-加深加廣選修",
-  4: "選修-補強性選修",
-  5: "選修-多元選修",
-  6: "選修-其他",
-  7: "校訂選修",
-  8: "團體活動時間",
-  9: "彈性學習時間",
-  A: "大學預修課程",
-  B: "基礎訓練",
-  C: "職前訓練",
-  D: "寒暑假課程",
-  E: "返校課程",
-  F: "職業技能訓練"
-};
-
-const OPEN_WAY_NAMES = {
-  0: "原班級",
-  1: "跨班選修(班群開課)",
-  2: "綜高跨年級選修",
-  A: "同科單班選修",
-  B: "同科跨班選修",
-  C: "同群跨科選修、跨學程選修",
-  D: "同校跨群選修",
-  E: "跨校選修"
-};
-
-const SUBJECT_ATTRIBUTION_NAMES = {
-  0: "不分屬性",
-  1: "一般科目",
-  2: "專業科目",
-  3: "實習科目",
-  4: "專精科目",
-  5: "專精科目(核心科目)",
-  6: "特殊需求領域",
-  A: "自主學習",
-  B: "選手培訓",
-  C: "充實(增廣)、補強性教學[全學期、不授予學分]",
-  D: "充實(增廣)、補強性教學[全學期、授予學分]",
-  E: "學校特色活動",
-  F: "專精(專業)科目",
-  G: "專精(實習)科目",
-  H: "專精(專業)科目(核心)",
-  I: "專精(實習)科目(核心)"
-};
-
-const REQUIRED_ELECTIVE_NAMES = {
-  1: "必修",
-  2: "選修"
-};
-
-// ============================================================================
-// 代碼查表與輔助轉譯函式
-// ============================================================================
-
-function getGroupName(code) {
-  const k = code === null || code === undefined ? "" : String(code).trim();
-  return GROUP_CODE_NAMES[k] || k;
-}
-
-function getDepartmentNameByCode(code) {
-  const k = code === null || code === undefined ? "" : String(code).trim();
-  return DEPARTMENT_CODE_NAMES[k] || k;
-}
-
-function getSubjectType(code) {
-  const k = code === null || code === undefined ? "" : String(code).trim();
-  return SUBJECT_TYPE_NAMES[k] || k;
-}
-
-function getOpenWay(code) {
-  const k = code === null || code === undefined ? "" : String(code).trim();
-  return OPEN_WAY_NAMES[k] || k;
-}
-
-function getSubjectAttribution(code) {
-  const k = code === null || code === undefined ? "" : String(code).trim();
-  return SUBJECT_ATTRIBUTION_NAMES[k] || k;
-}
-
-function isRequiredOrElective(code) {
-  const k = code === null || code === undefined ? "" : String(code).trim();
-  return REQUIRED_ELECTIVE_NAMES[k] || k;
-}
-
 /**
- * 判斷是否為巨耀匯出課程代碼之表頭列
+ * 解析共用正規化模組（Node.js / GAS 雙環境）。
  *
- * @param {Array} row - 單一資料列
- * @returns {boolean} 是否為表頭列
+ * @returns {Object} courseNormalizationShared API
  */
-function isCourseCodeHeaderRow(row) {
-  if (!Array.isArray(row) || row.length === 0) return false;
-  const first = row[0] === null || row[0] === undefined ? "" : String(row[0]).trim();
-  const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
-  return first === "課程代碼" || attr === "科目屬性";
-}
-
-/**
- * 判斷課程列是否應於匯入時剔除（本專案全數匯入，不剔除任何科目）
- *
- * @param {Array} row - 39 欄原始課程列
- * @returns {boolean} false 表示不剔除（全數保留）
- */
-function isExcludedCourseRow(row) {
-  if (!Array.isArray(row)) return false;
-  if (EXCLUDED_SUBJECT_ATTRIBUTES.length === 0) return false;
-  const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
-  return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(attr) !== -1;
-}
-
-/**
- * 將單一 39 欄課程列展開為 0~6 筆 14 欄 1NF 正規化紀錄
- *
- * 僅保留「開課學分 > 0 或開課時數 > 0」之學期：
- * - 開課學年：第 16 + floor(s / 2) 欄（一/二/三年級學年）
- * - 修課年級：floor(s / 2) + 1
- * - 開課學期：(s % 2) + 1
- * - 學生入學年：第 16 欄
- * - 開課方式：第 31 + s 欄，若為空則退回第 10 欄
- *
- * @param {Array} row - 39 欄原始課程列
- * @returns {Array<Array>} 14 欄正規化紀錄陣列
- */
-function expandCourseRow(row) {
-  const expanded = [];
-  if (!Array.isArray(row) || row.length < 31) return expanded;
-
-  const entryYear = row[16] === null || row[16] === undefined ? "" : String(row[16]).trim();
-  const fallbackOpenWay = row[10];
-
-  for (let s = 0; s < 6; s++) {
-    const credits = Number(row[19 + s] || 0);
-    const hours = Number(row[25 + s] || 0);
-
-    // 僅展開實際開課（學分或時數大於 0）之學期
-    if (!(credits > 0 || hours > 0)) continue;
-
-    const gradeIndex = Math.floor(s / 2);
-    const academicYear =
-      row[16 + gradeIndex] === null || row[16 + gradeIndex] === undefined ? "" : String(row[16 + gradeIndex]).trim();
-    const semester = String((s % 2) + 1);
-
-    const semesterOpenWay =
-      row[31 + s] === null || row[31 + s] === undefined || row[31 + s] === "" ? fallbackOpenWay : row[31 + s];
-
-    expanded.push([
-      academicYear,
-      semester,
-      String(gradeIndex + 1),
-      entryYear,
-      row[0] === null || row[0] === undefined ? "" : String(row[0]).trim(),
-      row[2] === null || row[2] === undefined ? "" : String(row[2]).trim(),
-      getGroupName(row[6]) || "",
-      getDepartmentNameByCode(row[7]) || "",
-      getSubjectType(row[9]) || "",
-      getOpenWay(semesterOpenWay) || "",
-      getSubjectAttribution(row[11]) || "",
-      isRequiredOrElective(row[15]) || "",
-      credits,
-      hours
-    ]);
+function resolveCourseNormalizationShared_() {
+  if (typeof globalThis !== "undefined" && globalThis.courseNormalizationShared) {
+    return globalThis.courseNormalizationShared;
   }
-
-  return expanded;
+  if (typeof require === "function") return require("./courseNormalizationShared.js");
+  throw new Error("找不到共用正規化模組 courseNormalizationShared");
 }
 
-/**
- * 將教育部課程計畫平臺下載之 39 欄課程代碼寬表正規化為 14 欄 1NF 課程索引
- *
- * @param {Array<Array>} rawData - 教育部課程計畫平臺下載之 39 欄課程代碼原始資料（可含表頭列）
- * @param {Object} [options] - 選項
- * @param {string|number} [options.academicYear] - 僅保留指定開課學年
- * @param {string|number} [options.semester] - 僅保留指定開課學期
- * @param {boolean} [options.withStats=false] - 為 true 時回傳 `{ rows, stats }`
- * @returns {Array<Array>|Object} 14 欄正規化資料列，或含統計資訊之物件
- */
-function normalizeCourseCodes(rawData, options) {
-  options = options || {};
-  const rows = Array.isArray(rawData) ? rawData : [];
-  const academicYear =
-    options.academicYear === null || options.academicYear === undefined ? "" : String(options.academicYear).trim();
-  const semester = options.semester === null || options.semester === undefined ? "" : String(options.semester).trim();
+const COURSE_NORMALIZATION_SHARED = resolveCourseNormalizationShared_();
+const GAS_RUNTIME =
+  typeof globalThis !== "undefined" && globalThis.gasRuntime
+    ? globalThis.gasRuntime
+    : typeof require === "function"
+      ? require("./gasRuntime.js")
+      : null;
+/** 正規化課程索引工作表名稱統一由 gasRuntime 提供（單一來源） */
+const NORMALIZED_COURSE_SHEET_NAME = GAS_RUNTIME.SHEET_COURSE_INDEX;
 
-  let sourceRows = 0;
-  let excludedRows = 0;
-  let keptCourseRows = 0;
-  let totalExpanded = 0;
+const NORMALIZED_COURSE_HEADERS = COURSE_NORMALIZATION_SHARED.NORMALIZED_COURSE_HEADERS;
+const EXCLUDED_SUBJECT_ATTRIBUTES = COURSE_NORMALIZATION_SHARED.EXCLUDED_SUBJECT_ATTRIBUTES;
+const GROUP_CODE_NAMES = COURSE_NORMALIZATION_SHARED.GROUP_CODE_NAMES;
+const DEPARTMENT_CODE_NAMES = COURSE_NORMALIZATION_SHARED.DEPARTMENT_CODE_NAMES;
+const SUBJECT_TYPE_NAMES = COURSE_NORMALIZATION_SHARED.SUBJECT_TYPE_NAMES;
+const OPEN_WAY_NAMES = COURSE_NORMALIZATION_SHARED.OPEN_WAY_NAMES;
+const SUBJECT_ATTRIBUTION_NAMES = COURSE_NORMALIZATION_SHARED.SUBJECT_ATTRIBUTION_NAMES;
+const REQUIRED_ELECTIVE_NAMES = COURSE_NORMALIZATION_SHARED.REQUIRED_ELECTIVE_NAMES;
 
-  const normalized = [];
+const getGroupName = COURSE_NORMALIZATION_SHARED.getGroupName;
+const getDepartmentNameByCode = COURSE_NORMALIZATION_SHARED.getDepartmentNameByCode;
+const getSubjectType = COURSE_NORMALIZATION_SHARED.getSubjectType;
+const getOpenWay = COURSE_NORMALIZATION_SHARED.getOpenWay;
+const getSubjectAttribution = COURSE_NORMALIZATION_SHARED.getSubjectAttribution;
+const isRequiredOrElective = COURSE_NORMALIZATION_SHARED.isRequiredOrElective;
+const isCourseCodeHeaderRow = COURSE_NORMALIZATION_SHARED.isCourseCodeHeaderRow;
+const isExcludedCourseRow = COURSE_NORMALIZATION_SHARED.isExcludedCourseRow;
+const expandCourseRow = COURSE_NORMALIZATION_SHARED.expandCourseRow;
+const normalizeCourseCodes = COURSE_NORMALIZATION_SHARED.normalizeCourseCodes;
 
-  for (let i = 0; i < rows.length; i++) {
-    const row = rows[i];
-    if (!Array.isArray(row) || row.length === 0) continue;
-    if (isCourseCodeHeaderRow(row)) continue;
-
-    sourceRows++;
-
-    if (isExcludedCourseRow(row)) {
-      excludedRows++;
-      continue;
-    }
-
-    keptCourseRows++;
-    const expanded = expandCourseRow(row);
-    totalExpanded += expanded.length;
-
-    for (let j = 0; j < expanded.length; j++) {
-      const record = expanded[j];
-      if (academicYear !== "" && record[0] !== academicYear) continue;
-      if (semester !== "" && record[1] !== semester) continue;
-      normalized.push(record);
-    }
-  }
-
-  if (options.withStats) {
-    return {
-      rows: normalized,
-      stats: {
-        sourceRows: sourceRows,
-        excludedRows: excludedRows,
-        keptCourseRows: keptCourseRows,
-        expandedRows: totalExpanded,
-        returnedRows: normalized.length
-      }
-    };
-  }
-
-  return normalized;
+function resolveRouteDependency_(name, modulePath, fallback) {
+  if (GAS_RUNTIME) return GAS_RUNTIME.resolveDependency_(name, modulePath, fallback);
+  return fallback;
 }
 
 function resolveImportCourseSpreadsheet_(options) {
+  if (GAS_RUNTIME) return GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
   const opts = options || {};
-  return (
-    opts.spreadsheet ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null)
-  );
-}
-
-function resolveNormalizeCourseCodesFn_() {
-  if (typeof globalThis !== "undefined" && typeof globalThis.normalizeCourseCodes === "function") {
-    return globalThis.normalizeCourseCodes;
-  }
-  return normalizeCourseCodes;
-}
-
-function resolveSafeApplySheetFontSizeFn_() {
-  if (typeof safeApplySheetFontSize === "function") return safeApplySheetFontSize;
-  if (typeof globalThis !== "undefined" && typeof globalThis.safeApplySheetFontSize === "function") {
-    return globalThis.safeApplySheetFontSize;
-  }
-  return function () {};
+  return opts.spreadsheet || null;
 }
 
 function buildPreNormalizedImportResult_(rawData) {
@@ -355,7 +83,7 @@ function prepareCourseImportResult_(rawData, options) {
   if (options.preNormalized === true) {
     return buildPreNormalizedImportResult_(rawData);
   }
-  return resolveNormalizeCourseCodesFn_()(rawData, { withStats: true });
+  return resolveRouteDependency_("normalizeCourseCodes", null, normalizeCourseCodes)(rawData, { withStats: true });
 }
 
 function getOrCreateCourseIndexSheet_(ss) {
@@ -377,24 +105,29 @@ function prepareCourseIndexSheet_(sheet, options) {
 
 function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
-  const rowCount = Math.max(sheet.getMaxRows(), totalDataRows + 1);
-  sheet.getRange(1, 1, 1, colCount).setValues([NORMALIZED_COURSE_HEADERS]);
-  sheet.getRange(1, 1, 1, colCount).setFontWeight("bold");
-  sheet.getRange(1, 1, rowCount, colCount).setNumberFormat("@");
+  const headerRange = sheet.getRange(1, 1, 1, colCount);
+  headerRange.setValues([NORMALIZED_COURSE_HEADERS]);
+  headerRange.setFontWeight("bold");
+  sheet.getRange(1, 1, totalDataRows + 1, colCount).setNumberFormat("@");
 }
 
 function writeCourseIndexRowsInChunks_(sheet, rows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
+  const sanitize = resolveRouteDependency_("sanitizeRowMatrix", "./utilities.js", function (matrix) {
+    return matrix;
+  });
   for (let start = 0; start < rows.length; start += COURSE_INDEX_WRITE_CHUNK_SIZE) {
     const chunk = rows.slice(start, start + COURSE_INDEX_WRITE_CHUNK_SIZE);
-    sheet.getRange(start + 2, 1, chunk.length, colCount).setValues(chunk);
+    sheet.getRange(start + 2, 1, chunk.length, colCount).setValues(sanitize(chunk));
   }
 }
 
 function finalizeCourseIndexSheet_(sheet, totalDataRows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
-  const rowCount = Math.max(sheet.getMaxRows(), totalDataRows + 1);
-  resolveSafeApplySheetFontSizeFn_()(sheet.getRange(1, 1, rowCount, colCount), 11);
+  resolveRouteDependency_("safeApplySheetFontSize", "./utilities.js", function () {})(
+    sheet.getRange(1, 1, totalDataRows + 1, colCount),
+    11
+  );
   if (sheet.getFrozenRows() < 1) {
     sheet.setFrozenRows(1);
   }
@@ -462,6 +195,23 @@ function getCourseIndexDataRows_(targetSs) {
   return values.slice(1);
 }
 
+/**
+ * 輕量取得課程索引總筆數：僅讀取最後一列索引，不下載整份工作表內容。
+ * 供概覽頁顯示統計使用，避免為了取得 total 而呼叫 getCourseIndex。
+ */
+function getCourseIndexStats(ss) {
+  const targetSs = resolveCourseIndexSpreadsheet_(ss);
+  const sheet = targetSs ? targetSs.getSheetByName(NORMALIZED_COURSE_SHEET_NAME) : null;
+  if (!sheet) return { ok: true, total: 0 };
+  if (typeof sheet.getLastRow === "function") {
+    const lastRow = Number(sheet.getLastRow()) || 0;
+    return { ok: true, total: Math.max(0, lastRow - 1) };
+  }
+  // 相容未提供 getLastRow 的測試替身或其他試算表實作。
+  const dataRows = getCourseIndexDataRows_(targetSs);
+  return { ok: true, total: dataRows ? dataRows.length : 0 };
+}
+
 function normalizeCourseQueryCriteria_(filter) {
   const source = filter || {};
   return {
@@ -492,31 +242,46 @@ function mapCourseIndexRow_(row) {
   };
 }
 
-function isCourseRowMatchedByFields_(item, criteria) {
-  if (criteria.year !== "" && item.academicYear !== criteria.year) return false;
-  if (criteria.semester !== "" && item.semester !== criteria.semester) return false;
-  if (criteria.department !== "" && item.department !== criteria.department) return false;
+/** 取得原始列欄位並轉為字串；與 mapCourseIndexRow_ 的取值規則保持一致。 */
+function getRawCourseField_(row, index) {
+  const value = row ? row[index] : null;
+  return String(value || "");
+}
+
+function isCourseRowMatchedByFields_(row, criteria) {
+  if (criteria.year !== "" && getRawCourseField_(row, 0) !== criteria.year) return false;
+  if (criteria.semester !== "" && getRawCourseField_(row, 1) !== criteria.semester) return false;
+  if (criteria.department !== "" && getRawCourseField_(row, 7) !== criteria.department) return false;
   return true;
 }
 
-function isCourseRowMatchedByKeyword_(item, keyword) {
+function isCourseRowMatchedByKeyword_(row, keyword) {
   if (keyword === "") return true;
-  const line = (item.courseCode + " " + item.subjectName + " " + item.department + " " + item.group).toLowerCase();
-  return line.indexOf(keyword) !== -1;
+  const line =
+    getRawCourseField_(row, 4) +
+    " " +
+    getRawCourseField_(row, 5) +
+    " " +
+    getRawCourseField_(row, 7) +
+    " " +
+    getRawCourseField_(row, 6);
+  return line.toLowerCase().indexOf(keyword) !== -1;
 }
 
-function isCourseIndexRowMatched_(item, criteria) {
-  return isCourseRowMatchedByFields_(item, criteria) && isCourseRowMatchedByKeyword_(item, criteria.keyword);
+function isCourseIndexRowMatched_(row, criteria) {
+  return isCourseRowMatchedByFields_(row, criteria) && isCourseRowMatchedByKeyword_(row, criteria.keyword);
 }
 
-function collectMatchedCourseRows_(dataRows, criteria) {
-  const matched = [];
+/**
+ * 先以原始列索引篩選，不建立完整物件；僅將該頁資料轉換為回傳物件。
+ * 此舉可避免對每一列建立 N 個物件，降低大量資料查詢的記憶體用量。
+ */
+function collectMatchedCourseRowIndexes_(dataRows, criteria) {
+  const matchedIndexes = [];
   for (let i = 0; i < dataRows.length; i++) {
-    const item = mapCourseIndexRow_(dataRows[i]);
-    if (!isCourseIndexRowMatched_(item, criteria)) continue;
-    matched.push(item);
+    if (isCourseIndexRowMatched_(dataRows[i], criteria)) matchedIndexes.push(i);
   }
-  return matched;
+  return matchedIndexes;
 }
 
 function normalizeCoursePageParams_(filter) {
@@ -526,14 +291,18 @@ function normalizeCoursePageParams_(filter) {
   return { page: page, pageSize: pageSize };
 }
 
-function buildPagedCourseResult_(matched, page, pageSize) {
-  const total = matched.length;
+function buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, page, pageSize) {
+  const total = matchedIndexes.length;
   const totalPages = Math.ceil(total / pageSize) || 1;
   const start = (page - 1) * pageSize;
-  const pageItems = matched.slice(start, start + pageSize);
+  const pageIndexes = matchedIndexes.slice(start, start + pageSize);
+  const list = [];
+  for (let i = 0; i < pageIndexes.length; i++) {
+    list.push(mapCourseIndexRow_(dataRows[pageIndexes[i]]));
+  }
   return {
     ok: true,
-    list: pageItems,
+    list: list,
     total: total,
     page: page,
     pageSize: pageSize,
@@ -560,9 +329,9 @@ function getNormalizedCourses(filter, ss) {
   if (!dataRows) return createEmptyCourseQueryResult_();
 
   const criteria = normalizeCourseQueryCriteria_(filter);
-  const matched = collectMatchedCourseRows_(dataRows, criteria);
+  const matchedIndexes = collectMatchedCourseRowIndexes_(dataRows, criteria);
   const paging = normalizeCoursePageParams_(filter);
-  return buildPagedCourseResult_(matched, paging.page, paging.pageSize);
+  return buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, paging.page, paging.pageSize);
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -575,6 +344,7 @@ if (typeof module !== "undefined" && module.exports) {
     OPEN_WAY_NAMES: OPEN_WAY_NAMES,
     SUBJECT_ATTRIBUTION_NAMES: SUBJECT_ATTRIBUTION_NAMES,
     REQUIRED_ELECTIVE_NAMES: REQUIRED_ELECTIVE_NAMES,
+    EXCLUDED_SUBJECT_ATTRIBUTES: EXCLUDED_SUBJECT_ATTRIBUTES,
     getGroupName: getGroupName,
     getDepartmentNameByCode: getDepartmentNameByCode,
     getSubjectType: getSubjectType,
@@ -586,6 +356,7 @@ if (typeof module !== "undefined" && module.exports) {
     expandCourseRow: expandCourseRow,
     normalizeCourseCodes: normalizeCourseCodes,
     importNormalizedCourseCodes: importNormalizedCourseCodes,
-    getNormalizedCourses: getNormalizedCourses
+    getNormalizedCourses: getNormalizedCourses,
+    getCourseIndexStats: getCourseIndexStats
   };
 }

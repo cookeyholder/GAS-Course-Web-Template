@@ -29,6 +29,18 @@ jobs:
       - name: Language check
         run: npm run check:lang
 
+      - name: UI class alignment check
+        run: npm run check:ui-classes
+
+      - name: WCAG contrast check
+        run: npm run check:contrast
+
+      - name: Accessibility audit
+        run: npm run check:a11y
+
+      - name: Build artifact consistency
+        run: npm run build:webapp && git diff --exit-code -- index.html
+
       - name: Tests
         run: npm test
 

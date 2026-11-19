@@ -295,10 +295,10 @@ console.log("7. 欄數不足時應補欄，並寫入表頭/格式/凍結列...")
   });
   assert.strictEqual(bold.value, "bold");
   const fmt = sheet.ops.find(function (o) {
-    return o.type === "setNumberFormat" && o.label === "1,1,2," + H.length;
+    return o.type === "setNumberFormat" && o.label === "1,1,1," + H.length;
   });
   assert.strictEqual(fmt.value, "@");
-  assert.deepStrictEqual(fontCall, { label: "1,1,2," + H.length, size: 11 });
+  assert.deepStrictEqual(fontCall, { label: "1,1,1," + H.length, size: 11 });
   assert(
     sheet.ops.some(function (o) {
       return o.type === "setFrozenRows" && o.value === 1;
@@ -348,6 +348,40 @@ console.log("9. 資料列應分批寫入（依 COURSE_INDEX_WRITE_CHUNK_SIZE）.
   assert.strictEqual(dataWrites[1].label, 2 + chunkSize + ",1,2," + H.length);
   assert.strictEqual(dataWrites[1].values.length, 2);
   console.log("   ✓ 分批寫入驗證通過！\n");
+}
+
+console.log("10. 格式化範圍應僅涵蓋表頭加實際寫入列，且表頭 Range 只取得一次...");
+{
+  const rows = [];
+  for (let i = 0; i < 10; i++) rows.push(new Array(H.length).fill("C" + i));
+  const sheet = makeSheet({ maxRows: 60000, frozenRows: 0 });
+  sheet.getMaxRows = function () {
+    throw new Error("格式化不得呼叫 getMaxRows");
+  };
+  const ss = makeSpreadsheet({ [transformer.NORMALIZED_COURSE_SHEET_NAME]: sheet });
+  let fontCall = null;
+  withGlobals(
+    {
+      SpreadsheetApp: undefined,
+      safeApplySheetFontSize: function (range, size) {
+        fontCall = { label: range._label, size: size };
+      }
+    },
+    function () {
+      return transformer.importNormalizedCourseCodes(rows, { spreadsheet: ss, preNormalized: true });
+    }
+  );
+  const expectedRange = "1,1,11," + H.length;
+  const fmt = sheet.ops.find(function (o) {
+    return o.type === "setNumberFormat";
+  });
+  assert.strictEqual(fmt.label, expectedRange);
+  assert.deepStrictEqual(fontCall, { label: expectedRange, size: 11 });
+  const headerRanges = sheet.ops.filter(function (o) {
+    return o.type === "getRange" && o.label === "1,1,1," + H.length;
+  });
+  assert.strictEqual(headerRanges.length, 1, "表頭寫入與粗體應共用同一個 Range");
+  console.log("   ✓ 格式化範圍限縮驗證通過！\n");
 }
 
 console.log("✓ importNormalizedCourseCodes 測試全數通過！\n");

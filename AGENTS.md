@@ -44,19 +44,22 @@ Always check `@/openspec/` or repository documentation when the request:
 ### 後端模組（根目錄 `*.js`）
 
 - **`main.js`**: Google 試算表工具列選單入口（`onOpen`），提供「初始化後端資料庫」與彈出視窗「開啟 Web App 網頁」功能。
-- **`databaseInitializer.js`**: 試算表資料庫純資料工作表初始化（`系統設定與授權`、`正規化課程索引`、`系統使用說明`），具安全冪等性；處理系統參數讀寫與授權白名單維護，內建首次登入管理員防鎖死機制。
+- **`gasRuntime.js`**: 後端與前端共用的常數與相依解析層，提供工作表名稱、Web API 版本號、角色顯示名稱，以及 `resolveDependency_`／`injectGlobals_` 雙環境相容工具。
+- **`actionRegistry.js`**: Web API action 單一登錄來源，統一產生公開／寫入／鎖定清單、RBAC 角色權限矩陣，並保存後端註冊的實際處理函式供路由派發。
+- **`databaseInitializer.js`**: 試算表資料庫純資料工作表初始化（`系統設定與授權`、`正規化課程索引`、`系統使用說明`），具安全冪等性；處理系統參數讀寫與授權白名單維護，首次登入管理員開通必須由請求明確標記。
 - **`subjectCodeTransformer.js`**: 108 課綱課程代碼對照字典（群別、科別、屬性、必選修）、39 欄寬表全數展開為 14 欄 1NF 紀錄演算法、5,000 筆分塊批次寫入（Chunking）與分頁檢索函式。
-- **`webApi.js`**: Web App HTTP 入口（`doGet`, `doPost`）、避開 CORS OPTIONS 預檢之通訊協議、Google ID Token 驗證、`CacheService` Session 管理（6 小時 TTL）、`LockService` 併發寫入排隊防鎖，以及 `ROLE_PERMISSIONS` 角色權限矩陣。
+- **`webApi.js`**: Web App HTTP 入口（`doGet`, `doPost`）、避開 CORS OPTIONS 預檢之通訊協議、Google ID Token 驗證、`CacheService` Session 管理（6 小時 TTL）、`LockService` 併發寫入排隊防鎖，以及由 `ACTION_REGISTRY` 派發之 action 處理函式與角色權限矩陣。
 - **`utilities.js`**: 試算表安全格式化（`safeSetNumberFormat`, `safeApplySheetFontSize`）、無 UI 環境防護（`safeUiAlert`）與通用純工具。
 
 ### 前端模組（`webapp/` 目錄）
 
 - **`webapp/index.html`**: 前端骨架樣板，定義 `BUILD:CSS` 與 `BUILD:JS` 注入標記。
 - **`webapp/styles.css`**: 多風格 CSS 設計系統（包含極簡曜藍 Modern Slate、圖紙風格 Blueprint、紙張風格 Paper、新粗獷主義 Neo-Brutalism、黏土擬物 Claymorphism、紅白機 NES、Happy Hues 色彩盤）與深淺色模式。
-- **`webapp/js/config.js`**: 前端全域參數、導覽頁籤清單（概覽、匯入、課程、設定）與樣式字典。
+- **`webapp/js/config.js`**: 前端全域參數、導覽頁籤清單（概覽、匯入、課程、設定）與樣式字典；版本號與角色顯示名稱取自 `gasRuntime` 單一來源。
 - **`webapp/js/courseData.js`**: 前端 1NF 正規化同構運算模組（與後端規則一致，供瀏覽器即時預覽統計）。
 - **`webapp/js/mock.js`**: 本地離線開發測試 Mock API 模擬器（支援 `?mock=true` 零設定測試）。
-- **`webapp/js/api.js`**: REST API 客戶端（統一以 `Content-Type: text/plain;charset=utf-8` 發送 JSON，杜絕 OPTIONS 預檢）。
+- **`webapp/js/errorMessages.js`**: 前端安全錯誤訊息轉譯層，遮蔽原始例外文字並統一顯示後端安全訊息或明確標記的文案。
+- **`webapp/js/api.js`**: REST API 客戶端（統一以 `Content-Type: text/plain;charset=utf-8` 發送 JSON，杜絕 OPTIONS 預檢），並由安全錯誤訊息層產生使用者可見的錯誤內容。
 - **`webapp/js/state.js`**: 響應式狀態容器（State Store）與變更訂閱機制。
 - **`webapp/js/ui.js`**: 共用 UI 元件渲染器（Header、Nav、LoginCard、Toast、Modal、主題切換）。
 - **`webapp/js/auth.js`**: Google Identity Services (GIS) 登入整合、Session 還原與登出。
@@ -67,9 +70,14 @@ Always check `@/openspec/` or repository documentation when the request:
 
 ### 建置與測試
 
-- **`scripts/build-webapp.js`**: 純原生 Node.js 打包腳本，將 `webapp/` 內嵌為根目錄單一 `index.html`。
+- **`scripts/build-webapp.js`**: 純原生 Node.js 打包腳本，將 `webapp/` 內嵌為根目錄單一 `index.html`；`gasRuntime.js` 與 `actionRegistry.js` 亦按樣板順序一併內嵌。
+- **`scripts/checkUiClasses.js`**: 檢查前端模板使用的 CSS 類別皆已定義於設計系統，避免樣式漂移。
+- **`scripts/checkContrast.js`**: 檢查主要文字與背景組合符合 WCAG 對比要求。
 - **`tests/courseCodeNormalization.test.js`**: 課綱 39 欄全數展開（不剔除任何科目）、前後端同構邏輯單元測試。
+- **`tests/actionRegistry.test.js`**: action 登錄表、後端處理函式註冊與路由派發一致性測試。
 - **`tests/api.test.js`**: API 路由派發、Session 生命週期與 RBAC 權限矩陣單元測試。
+- **`tests/webApiBootstrapExplicitFlag.test.js`**: 首次管理員開通明確旗標之前後端回歸測試。
+- **`tests/webappSafeErrorMessages.test.js`**: 前端安全錯誤訊息轉譯測試，確保原始例外文字不外顯。
 - **`docs/`**: 自包含、離線可用之詳細 HTML 技術手冊庫（架構、1NF 正規化、clasp 部署、GIS 設定、RBAC 教學）。
 
 ---
@@ -125,7 +133,12 @@ npm run format:check
 npm run format
 npm run check:lang
 
-# 10. 品質量測與閘門（覆蓋率、變更覆蓋率、CRAP/MI）
+# 10. 前端樣式與無障礙檢查
+npm run check:ui-classes
+npm run check:contrast
+npm run check:a11y
+
+# 11. 品質量測與閘門（覆蓋率、變更覆蓋率、CRAP/MI）
 npm run test:coverage
 npm run check:coverage
 npm run check:changed-coverage
@@ -156,7 +169,7 @@ npm run check:complexity
 任何程式碼或功能變更前與提交前，必須通過以下檢驗標準：
 
 1. **單元測試全數通過**：執行 `npm test`，確認課程代碼正規化與 API 路由權限無回退（Regression）。
-2. **品質閘門通過（視變更範圍）**：執行 `npm run format:check`、`npm run check:lang`，並依影響範圍執行 `npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`；確保符合門檻且**不得低於基準線（ratchet 不回退）**。
+2. **品質閘門通過（視變更範圍）**：執行 `npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`（jsdom + axe-core 無障礙稽核；`color-contrast` 因 jsdom 不計算配置樣式而停用，由 `check:contrast` 互補），並依影響範圍執行 `npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`；確保符合門檻且**不得低於基準線（ratchet 不回退）**。
 3. **Git Hook 與自動格式化**：`pre-commit`（Husky + lint-staged）會對暫存檔執行 Prettier 自動格式化（`prettier --write`）與語言規範檢查；提交前應確保 hook 可正常執行且變更已符合格式規範。
 4. **打包驗證無缺漏**：執行 `npm run build:webapp`，確認產生之 `index.html` 內嵌順序正常且無語法錯誤。
 5. **離線 Mock 模式相容**：若變更前端介面，需確保開啟 `index.html?mock=true` 能正常運作與渲染。
@@ -170,7 +183,7 @@ npm run check:complexity
 
 ### CI 品質閘門與相依套件
 
-- `.github/workflows/quality-gates.yml` 在每次推送與 Pull Request 時，以 Node 24 依序執行 `format:check`、`check:lang`、`npm test`、`check:coverage`、`check:complexity`、`check:changed-coverage`；任一步驟失敗即阻擋合併。
+- `.github/workflows/quality-gates.yml` 在每次推送與 Pull Request 時，以 Node 24 依序執行 `format:check`、`check:lang`、`npm test`、`check:contrast`、`check:a11y`、`check:coverage`、`check:complexity`、`check:changed-coverage`；任一步驟失敗即阻擋合併。
 - 相依套件由 `package-lock.json` 鎖定，CI 以 `npm ci --ignore-scripts`（失敗時回退 `npm install --ignore-scripts`）安裝；SheetJS 於前端由 CDN 動態載入，不列為 npm 相依。
 - 詳細指令、門檻說明與疑難排解見 `README.md`「開發與品質檢查」章節；量測快照與收斂紀錄見 `openspec/changes/archive/2026-11-19-2026-11-18-quality-gates-and-test-expansion/tasks.md`。
 

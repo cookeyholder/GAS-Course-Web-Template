@@ -25,11 +25,19 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const SHEETJS_CDN = [
-    "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js",
-    "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
-    "https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"
-  ];
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
+  // SheetJS 自 0.19 起僅於官方 CDN 發布；固定單一版本並以 SRI 驗證完整性。
+  const SHEETJS_VERSION = "0.20.3";
+  const SHEETJS_CDN = ["https://cdn.sheetjs.com/xlsx-" + SHEETJS_VERSION + "/package/dist/xlsx.full.min.js"];
+  const SHEETJS_SRI = "sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT";
 
   const SAMPLE_COLUMN_INDEXES = [0, 1, 2, 4, 5, 7, 10, 11, 12];
 
@@ -54,25 +62,8 @@
   }
 
   /**
-   * 以相同條件尋找第一個符合的工作表。
-   *
-   * @param {Array<string>} names - 工作表名稱清單
-   * @param {Function} readRows - 讀取單一工作表列的函式
-   * @param {Function|null} predicate - 額外篩選條件，傳入 null 表示僅要求有資料
-   * @returns {Object|null} 符合的工作表資訊
-   */
-  function findSheetWithRows(names, readRows, predicate) {
-    for (let i = 0; i < names.length; i++) {
-      const rows = readRows(names[i]) || [];
-      if (rows.length > 0 && (!predicate || predicate(rows))) {
-        return { sheetName: names[i], rows: rows };
-      }
-    }
-    return null;
-  }
-
-  /**
    * 挑選課程代碼工作表；找不到特色標頭時退回第一個有資料的工作表。
+   * 每個工作表最多解析一次，避免退回邏輯重複呼叫 SheetJS。
    *
    * @param {Object} workbook - 試算表活頁簿
    * @param {Function} readRows - 讀取單一工作表列的函式
@@ -86,10 +77,29 @@
         : function () {
             return [];
           };
-    const courseSheet = findSheetWithRows(names, reader, looksLikeCourseCodes);
-    if (courseSheet) return courseSheet;
-    const anySheet = findSheetWithRows(names, reader, null);
-    return anySheet || { sheetName: "", rows: [] };
+    const rowsBySheet = Object.create(null);
+    let firstSheetWithRows = null;
+
+    for (let i = 0; i < names.length; i++) {
+      const sheetName = names[i];
+      let rows;
+      if (Object.prototype.hasOwnProperty.call(rowsBySheet, sheetName)) {
+        rows = rowsBySheet[sheetName];
+      } else {
+        rows = reader(sheetName) || [];
+        rowsBySheet[sheetName] = rows;
+      }
+      if (rows.length === 0) continue;
+
+      if (!firstSheetWithRows) {
+        firstSheetWithRows = { sheetName: sheetName, rows: rows };
+      }
+      if (looksLikeCourseCodes(rows)) {
+        return { sheetName: sheetName, rows: rows };
+      }
+    }
+
+    return firstSheetWithRows || { sheetName: "", rows: [] };
   }
 
   /**
@@ -111,15 +121,19 @@
   function buildDropzoneHtml() {
     return (
       '<div class="upload-dropzone" id="uploadDropzone"' +
+      ' role="button"' +
+      ' tabindex="0"' +
+      ' aria-label="選擇或拖曳 108 課綱課程代碼 Excel 檔案"' +
       ' ondragover="MEA.imports.handleDragOver(event)"' +
       ' ondragleave="MEA.imports.handleDragLeave(event)"' +
       ' ondrop="MEA.imports.handleDrop(event)"' +
+      ' onkeydown="MEA.imports.handleDropzoneKey(event)"' +
       ' onclick="MEA.imports.pickFile()">' +
-      '  <div class="dropzone-icon">📁</div>' +
+      '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
       '  <div class="dropzone-title">點擊選擇或拖曳 108 課綱課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
-      '  <input type="file" id="fileInput" style="display:none;" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />' +
-      "</div>"
+      "</div>" +
+      '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />'
     );
   }
 
@@ -225,7 +239,7 @@
       '    <table class="table">' +
       "      <thead>" +
       "        <tr>" +
-      "          <th>開課學年</th><th>學期</th><th>年級</th><th>課程代碼</th><th>科目名稱</th><th>科別</th><th>科目屬性</th><th>必選修</th><th>學分</th>" +
+      '          <th scope="col">開課學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分</th>' +
       "        </tr>" +
       "      </thead>" +
       "      <tbody>" +
@@ -291,6 +305,8 @@
           const script = doc.createElement("script");
           script.src = SHEETJS_CDN[index++];
           script.async = true;
+          script.integrity = SHEETJS_SRI;
+          script.crossOrigin = "anonymous";
           script.onload = function () {
             if (win.XLSX) {
               resolve(win.XLSX);
@@ -387,7 +403,7 @@
         })
         .catch(function (error) {
           MEA.setState({ importBusy: false });
-          MEA.ui.toast(String(error && error.message ? error.message : error), "err");
+          MEA.ui.toast(resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
           return null;
         });
     }
@@ -395,6 +411,19 @@
     function pickFile() {
       const input = doc.getElementById("fileInput");
       if (input) input.click();
+    }
+
+    /**
+     * 讓鍵盤使用者以 Enter 或 Space 觸發檔案選擇。
+     *
+     * @param {Object} e - 鍵盤事件
+     */
+    function handleDropzoneKey(e) {
+      if (!e) return;
+      const key = e.key || (e.keyCode === 32 ? " " : "");
+      if (key !== "Enter" && key !== " " && key !== "Spacebar") return;
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      pickFile();
     }
 
     function handleFileSelect(input) {
@@ -445,7 +474,12 @@
         importLast: result
       });
 
-      MEA.ui.toast("課程代碼匯入完成！已儲存至「正規化課程索引」工作表", "ok");
+      MEA.ui.toast(
+        result.idempotent === true
+          ? "此匯入已處理完成，不重複寫入（冪等命中）"
+          : "課程代碼匯入完成！已儲存至「正規化課程索引」工作表",
+        "ok"
+      );
 
       if (MEA.courses && typeof MEA.courses.fetchList === "function") {
         MEA.courses.fetchList(1);
@@ -454,7 +488,8 @@
 
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
-      MEA.ui.toast(String(error && error.message ? error.message : error), "err");
+      const detail = resolveSafeMessage(error, "匯入失敗，請稍後再試");
+      MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 
     function doImport() {
@@ -464,14 +499,24 @@
         return;
       }
 
+      // 同一筆匯入重送時沿用 importId，讓後端可直接回傳前次結果。
+      if (!entry.importId) {
+        entry.importId = "imp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+      }
+
       MEA.setState({ importBusy: true });
       MEA.ui.toast("正在寫入 Google 試算表（共 " + entry.payload.length + " 筆）...", "info");
 
       MEA.api
-        .call("importCourseCodes", {
-          rows: entry.payload,
-          preNormalized: true
-        })
+        .call(
+          "importCourseCodes",
+          {
+            rows: entry.payload,
+            preNormalized: true,
+            importId: entry.importId
+          },
+          { retry: false }
+        )
         .then(function (result) {
           handleImportResult(entry, result);
         })
@@ -494,6 +539,7 @@
       loadSheetJs: loadSheetJs,
       previewFile: previewFile,
       pickFile: pickFile,
+      handleDropzoneKey: handleDropzoneKey,
       handleFileSelect: handleFileSelect,
       handleDragOver: handleDragOver,
       handleDragLeave: handleDragLeave,
@@ -529,6 +575,8 @@
   return {
     createImportsModule: createImportsModule,
     SHEETJS_CDN: SHEETJS_CDN,
+    SHEETJS_VERSION: SHEETJS_VERSION,
+    SHEETJS_SRI: SHEETJS_SRI,
     SAMPLE_COLUMN_INDEXES: SAMPLE_COLUMN_INDEXES,
     looksLikeCourseCodes: looksLikeCourseCodes,
     pickCourseSheetRows: pickCourseSheetRows,

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW" data-theme="light">
 <head>
+  <script>window.MEA_PRODUCTION_BUILD = true;</script>
   <!-- 本檔由 scripts/build-webapp.js 自動產生，請勿直接編輯；請修改 webapp/ 後重新建置 -->
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -26,13 +27,14 @@ html[data-style="blueprint"] {
   --paper: #ffffff;
   --ink: #16181d;
   --ink-2: #4b5260;
-  --ink-3: #7a8494;
+  --ink-3: #5f6a7a;
   --line: #1d2026;
   --line-2: #d6dae1;
   --fill: #f3f5f8;
   --fill-2: #e9edf3;
   --accent: #1d5fbf;
   --accent-bg: #e4ecf8;
+  --focus-ring: var(--accent);
   --ok: #1f7a4d;
   --ok-bg: #e3f3ea;
   --err: #c62828;
@@ -325,7 +327,7 @@ html[data-style="paper"] {
   --paper: #fdfbf6;
   --ink: #1f1c17;
   --ink-2: #57514a;
-  --ink-3: #8c867b;
+  --ink-3: #6b6459;
   --line: #cbc3b4;
   --line-2: #e5dfd3;
   --fill: #f3eee4;
@@ -350,7 +352,7 @@ html[data-style="paper"][data-theme="dark"] {
   --paper: #1c1a15;
   --ink: #ebe5d8;
   --ink-2: #b5ad9e;
-  --ink-3: #7b7467;
+  --ink-3: #948d80;
   --line: #4a443a;
   --line-2: #2d2a24;
   --fill: #242119;
@@ -379,7 +381,7 @@ html[data-style="claymorphism"] {
   --paper: #ffffff;
   --ink: #1e293b;
   --ink-2: #475569;
-  --ink-3: #94a3b8;
+  --ink-3: #5b6778;
   --line: rgba(226, 232, 240, 0.85);
   --line-2: rgba(241, 245, 249, 0.9);
   --fill: #f1f5fb;
@@ -406,7 +408,7 @@ html[data-style="claymorphism"][data-theme="dark"] {
   --paper: #1c1d29;
   --ink: #f8fafc;
   --ink-2: #cbd5e1;
-  --ink-3: #64748b;
+  --ink-3: #8294ad;
   --line: rgba(255, 255, 255, 0.08);
   --line-2: rgba(255, 255, 255, 0.05);
   --fill: #242636;
@@ -491,7 +493,7 @@ html[data-style="nes"] {
   --paper: #ffffff;
   --ink: #212529;
   --ink-2: #495057;
-  --ink-3: #868e96;
+  --ink-3: #565c63;
   --line: #212529;
   --line-2: #495057;
   --fill: #f8f9fa;
@@ -832,7 +834,7 @@ html[data-style="happyhues10"] {
   --paper: #fffffe;
   --ink: #001e1d;
   --ink-2: #0f3433;
-  --ink-3: #436663;
+  --ink-3: #2f4f4a;
   --line: #004643;
   --line-2: rgba(0, 70, 67, 0.2);
   --fill: #e8f4f1;
@@ -857,7 +859,7 @@ html[data-style="happyhues10"][data-theme="dark"] {
   --paper: #001e1d;
   --ink: #fffffe;
   --ink-2: #abd1c6;
-  --ink-3: #6d988d;
+  --ink-3: #8cbfae;
   --line: #abd1c6;
   --line-2: rgba(171, 209, 198, 0.25);
   --fill: #082d2c;
@@ -1075,7 +1077,7 @@ html[data-style="happyhues12"] {
   --paper: #fffffe;
   --ink: #232946;
   --ink-2: #3e4468;
-  --ink-3: #6b7299;
+  --ink-3: #4a5078;
   --line: #232946;
   --line-2: rgba(35, 41, 70, 0.2);
   --fill: #edeef9;
@@ -1202,7 +1204,7 @@ html[data-style="happyhues3"] {
   --paper: #fffffe;
   --ink: #094067;
   --ink-2: #24577f;
-  --ink-3: #5f6c7b;
+  --ink-3: #556170;
   --line: #094067;
   --line-subtle: #90b4ce;
   --primary: #3da9fc;
@@ -1900,8 +1902,16 @@ html {
   scrollbar-color: var(--ink-3) transparent;
 }
 
+/* 部分風格的 accent 為淺色裝飾色，對比不足 3:1，改用作為主要文字的 --ink 當焦點環。 */
+html[data-style="nes"],
+html[data-style="happyhues14"],
+html[data-style="happyhues10"],
+html[data-style="happyhues12"] {
+  --focus-ring: var(--ink);
+}
+
 :focus-visible {
-  outline: 2px solid var(--accent);
+  outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
 
@@ -2710,7 +2720,8 @@ a {
 }
 .input:focus,
 .select:focus {
-  outline: 2px solid var(--accent-bg);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
   border-color: var(--accent);
 }
 .checkbox-label {
@@ -6431,6 +6442,16 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   font-family: var(--mono);
   font-size: 12px;
 }
+.field-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--err);
+}
+.field-error[hidden] {
+  display: none;
+}
 .login-actions {
   display: flex;
   flex-direction: column;
@@ -6612,13 +6633,760 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     transform: rotate(360deg);
   }
 }
+
+/* ==========================================================================
+   UI class 對齊補充（task 3.1）
+   將前端元件實際產生的 class 映射到既有設計系統的等效樣式；全部僅使用
+   設計 token，因此 13 種風格與深淺色模式皆能一致套用。此區段同時提供
+   .table、.btn.secondary、分頁列與 768px 以下的行動版規則。
+   ========================================================================== */
+
+/* 版面容器別名（對應 .app-shell / .main-area） */
+.app-layout {
+  max-width: 1480px;
+  margin: 0 auto;
+  padding: 18px 20px 48px;
+}
+.app-content {
+  margin-top: 14px;
+}
+
+/* Header 別名（對應 .brand / .header-meta / .pill） */
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.brand-text {
+  min-width: 0;
+}
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.style-selector-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.gis-button-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+}
+.user-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--fill);
+  white-space: nowrap;
+}
+.user-avatar {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+.user-name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* 導覽別名 */
+.nav-tabs-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.nav-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+.nav-name {
+  white-space: nowrap;
+}
+
+/* 面板與卡片別名（對應 .panel-head / .card） */
+.panel-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--fill);
+}
+.overview-panel {
+  min-width: 0;
+}
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+/* 概覽功能網格 */
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+.feature-item {
+  cursor: pointer;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--paper);
+  padding: 18px;
+  box-shadow: var(--shadow);
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease;
+}
+.feature-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.feature-icon {
+  font-size: 26px;
+  line-height: 1;
+}
+.feature-text {
+  margin-top: 8px;
+}
+
+/* 上傳區別名（對應 .dropzone / .drop-copy） */
+.upload-dropzone {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 148px;
+  margin: 14px;
+  padding: 16px;
+  border: 1.5px dashed var(--line-2);
+  border-radius: var(--radius);
+  background: var(--fill);
+  color: var(--ink-2);
+  text-align: center;
+  cursor: pointer;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+.upload-dropzone:hover,
+.upload-dropzone.dragover,
+.dragover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+.dropzone-icon {
+  font-size: 32px;
+  line-height: 1;
+}
+.dropzone-title {
+  margin-top: 6px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--ink);
+}
+.dropzone-desc {
+  margin-top: 4px;
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+
+/* 表格（對應 .grid-table） */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.table th,
+.table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--line-2);
+  text-align: left;
+}
+.table th {
+  background: var(--fill-2);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+/* 次要按鈕 */
+.btn.secondary {
+  border-color: var(--line-2);
+  background: var(--fill);
+  color: var(--ink);
+}
+.btn.secondary:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* 篩選表單（對應 .filter-bar） */
+.filter-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* 分頁列 */
+.pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.pagination-info {
+  font-size: 13.5px;
+  color: var(--ink-2);
+}
+.pagination-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+/* 提示訊息（對應 .notice） */
+.alert {
+  margin-top: 10px;
+  padding: 11px 14px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--fill);
+  color: var(--ink);
+  font-size: 14.5px;
+}
+.alert.err {
+  border-color: var(--err);
+  background: var(--err-bg);
+  color: var(--err);
+}
+.alert-icon {
+  margin-right: 6px;
+}
+
+/* 登入頁別名（對應 .login-wrap / .login-foot） */
+.login-container {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.login-footer {
+  padding: 12px 24px;
+  border-top: 1px solid var(--line-2);
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--ink-3);
+}
+
+/* Modal 別名（對應 .modal-head / .modal-foot） */
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--line-2);
+  background: var(--fill);
+}
+.modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 12px 18px;
+  border-top: 1px solid var(--line-2);
+  background: var(--fill);
+}
+.modal-close {
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--ink-2);
+  font-size: 16px;
+}
+.modal-close:hover {
+  border-color: var(--err);
+  color: var(--err);
+}
+
+/* Toast 內容別名與顯示狀態 */
+.toast-icon {
+  flex: 0 0 auto;
+  font-size: 18px;
+  line-height: 1;
+}
+.toast-msg {
+  flex: 1 1 auto;
+}
+.toast.visible {
+  opacity: 1;
+}
+
+/* 工具類 */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.text-accent {
+  color: var(--accent);
+}
+.font-sm {
+  font-size: 13px;
+}
+.py-8 {
+  padding-top: 2rem;
+  padding-bottom: 2rem;
+}
+.mb-2 {
+  margin-bottom: 8px;
+}
+
+/* 新版 UI 行動版規則（768px 以下） */
+@media (max-width: 768px) {
+  .app-layout {
+    padding: 12px;
+  }
+  .header-tools {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+  }
+  .feature-grid {
+    grid-template-columns: 1fr;
+  }
+  .filter-form > * {
+    width: 100%;
+  }
+  .table-responsive {
+    overflow-x: auto;
+  }
+  .pagination-bar {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .modal-card {
+    max-height: 92vh;
+  }
+}
+
+/* ==========================================================================
+   無障礙：跳過連結、焦點可見性與減少動態效果（WCAG 2.1 AA）
+   ========================================================================== */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999;
+  padding: 8px 12px;
+  background: var(--paper);
+  color: var(--ink);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  text-decoration: none;
+}
+.skip-link:focus {
+  left: 8px;
+  top: 8px;
+}
+
+/* 部分元件以 outline: none 覆寫全域 :focus-visible，這裡確保鍵盤焦點環仍可見。 */
+.stage3-diff-summary:focus-visible,
+.stage4-pool-item:focus-visible,
+.stage4-instructions-editor:focus-visible,
+.modal-search-input:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+  .spinner {
+    animation: none !important;
+  }
+}
 </style>
 </head>
 <body>
+  <a class="skip-link" href="#main-content">跳至主要內容</a>
   <div id="app"></div>
   <div id="toastHost" class="toast-host" aria-live="polite"></div>
   <div id="modalHost" class="modal-host"></div>
     <script>
+/* ../gasRuntime.js */
+/**
+ * @file gasRuntime.js
+ * @description GAS / Node.js 雙環境共用的相依解析與安全試算表取得（task 4.3）
+ *
+ * 統一提供三項能力：
+ * - resolveDependency_：module.exports → globalThis → fallback（未提供 fallback 時 fail-fast）
+ * - getActiveSpreadsheetSafe_：options.spreadsheet → SpreadsheetApp → null
+ * - injectGlobals_：僅注入白名單匯出，避免 Object.assign 全域污染
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory();
+
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  if (root) root.gasRuntime = api;
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  /** 系統設定與授權工作表名稱（前後端共用單一來源） */
+  const SHEET_SYSTEM_CONFIG = "系統設定與授權";
+
+  /** 1NF 正規化課程索引工作表名稱（前後端共用單一來源） */
+  const SHEET_COURSE_INDEX = "正規化課程索引";
+
+  /** 系統使用說明工作表名稱（前後端共用單一來源） */
+  const SHEET_SYSTEM_INSTRUCTIONS = "系統使用說明";
+
+  /** Web API 版本號（所有後端回應共用單一來源） */
+  const WEB_API_VERSION = "1.1.0";
+
+  /** 授權角色定義（所有後端角色顯示名稱共用單一來源） */
+  const ROLE_DEFINITIONS = {
+    admin: "系統管理員",
+    staff: "業務人員",
+    viewer: "檢視人員"
+  };
+
+  /**
+   * 判斷物件是否自有指定屬性。
+   *
+   * @param {*} value - 待檢查物件
+   * @param {string} key - 屬性名稱
+   * @returns {boolean} 是否為自有屬性
+   */
+  function hasOwn(value, key) {
+    return value !== null && value !== undefined && Object.prototype.hasOwnProperty.call(value, key);
+  }
+
+  /**
+   * 取得目前環境的 gasRuntime（Node.js 首次載入時自動 require）。
+   *
+   * @returns {Object} gasRuntime API
+   */
+  function getRuntime_() {
+    if (typeof globalThis !== "undefined" && globalThis.gasRuntime) return globalThis.gasRuntime;
+    if (typeof require === "function") return require("./gasRuntime.js");
+    throw new Error("找不到 gasRuntime 共用模組");
+  }
+
+  /**
+   * 解析相依：優先 module.exports，其次 globalThis，最後 fallback。
+   * 未提供 fallback 時採 fail-fast，避免靜默取得 undefined。
+   *
+   * @param {string} name - 相依匯出名稱
+   * @param {string} modulePath - Node.js require 路徑
+   * @param {*} [fallback] - 選用備援值
+   * @returns {*} 解析後的相依
+   */
+  function resolveDependency_(name, modulePath, fallback) {
+    if (typeof globalThis !== "undefined" && hasOwn(globalThis, name)) return globalThis[name];
+    if (typeof require === "function" && modulePath) {
+      let moduleExports;
+      try {
+        moduleExports = require(modulePath);
+      } catch (error) {
+        if (arguments.length >= 3) return fallback;
+        throw new Error("找不到相依匯出：" + name + "（無法載入 " + modulePath + "：" + error.message + "）");
+      }
+      if (hasOwn(moduleExports, name)) return moduleExports[name];
+    }
+    if (arguments.length >= 3) return fallback;
+    throw new Error("找不到相依匯出：" + name);
+  }
+
+  /**
+   * 安全取得試算表：明確傳入 > SpreadsheetApp > null。
+   *
+   * @param {Object} [options] - 選項
+   * @param {*} [options.spreadsheet] - 明確指定的試算表
+   * @returns {*} 試算表實例或 null
+   */
+  function getActiveSpreadsheetSafe_(options) {
+    const opts = options || {};
+    if (opts.spreadsheet) return opts.spreadsheet;
+    if (
+      typeof SpreadsheetApp !== "undefined" &&
+      SpreadsheetApp &&
+      typeof SpreadsheetApp.getActiveSpreadsheet === "function"
+    ) {
+      return SpreadsheetApp.getActiveSpreadsheet();
+    }
+    return null;
+  }
+
+  /**
+   * 白名單注入全域（僅 Node.js 測試環境需要）。
+   * 任一要求的匯出不存在即 fail-fast，避免拼字錯誤被靜默忽略。
+   *
+   * @param {string} modulePath - Node.js require 路徑
+   * @param {Array<string>} whitelist - 允許注入的匯出名稱
+   * @returns {Object} 實際注入的名稱與值
+   */
+  function injectGlobals_(modulePath, whitelist) {
+    if (typeof require !== "function") return {};
+    const moduleExports = require(modulePath);
+    const names = Array.isArray(whitelist) ? whitelist : [];
+    const injected = {};
+    names.forEach(function (name) {
+      if (!hasOwn(moduleExports, name)) {
+        throw new Error("相依模組 " + modulePath + " 未匯出 " + name);
+      }
+      if (typeof globalThis !== "undefined") globalThis[name] = moduleExports[name];
+      injected[name] = moduleExports[name];
+    });
+    return injected;
+  }
+
+  return {
+    SHEET_SYSTEM_CONFIG: SHEET_SYSTEM_CONFIG,
+    SHEET_COURSE_INDEX: SHEET_COURSE_INDEX,
+    SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
+    WEB_API_VERSION: WEB_API_VERSION,
+    ROLE_DEFINITIONS: ROLE_DEFINITIONS,
+    hasOwn: hasOwn,
+    getRuntime_: getRuntime_,
+    resolveDependency_: resolveDependency_,
+    getActiveSpreadsheetSafe_: getActiveSpreadsheetSafe_,
+    injectGlobals_: injectGlobals_
+  };
+});
+  </script>
+  <script>
+/* ../actionRegistry.js */
+/**
+ * @file actionRegistry.js
+ * @description Web API action 單一登錄來源（task 4.5）
+ *
+ * 由同一份登錄產生公開／寫入／全域鎖 action 清單、RBAC 角色權限矩陣，
+ * 並供前端 mock 驗證 handler 完整性，避免多處清單漂移。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory();
+
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  if (root) {
+    root.actionRegistry = api;
+    root.MEA = root.MEA || {};
+    root.MEA.actionRegistry = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  /** 所有角色的代碼（與 gasRuntime.ROLE_DEFINITIONS 一致） */
+  const ALL_ROLES = ["admin", "staff", "viewer"];
+
+  /**
+   * action 登錄表。
+   * - public：免登入即可呼叫
+   * - write：寫入型 action（需 CSRF 驗證）
+   * - locked：需全域 Script Lock 保護
+   * - roles：允許呼叫的角色代碼（public action 不需填寫）
+   */
+  const ACTIONS = {
+    ping: { public: true },
+    getPublicConfig: { public: true },
+    login: { public: true },
+    loginWithActiveUser: { public: true },
+    getSession: { roles: ALL_ROLES },
+    logout: { write: true, roles: ALL_ROLES },
+    importCourseCodes: { write: true, locked: true, roles: ["admin", "staff"] },
+    getCourseIndex: { roles: ALL_ROLES },
+    getCourseIndexStats: { roles: ALL_ROLES },
+    getSystemSettings: { roles: ALL_ROLES },
+    saveSystemSettings: { write: true, locked: true, roles: ["admin"] },
+    getAccounts: { roles: ["admin"] },
+    saveWhitelist: { write: true, locked: true, roles: ["admin"] }
+  };
+
+  /** 快取由登錄表產生的清單，避免每次呼叫重新建立陣列 */
+  const CACHED_LISTS = {};
+
+  /**
+   * 取得符合條件的 action 名稱清單。
+   *
+   * @param {string} key - 登錄屬性名稱
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function filterActionsByFlag_(key) {
+    if (!CACHED_LISTS[key]) {
+      CACHED_LISTS[key] = Object.keys(ACTIONS).filter(function (name) {
+        return ACTIONS[name][key] === true;
+      });
+    }
+    return CACHED_LISTS[key].slice();
+  }
+
+  /**
+   * 列出所有已登錄的 action。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listActions() {
+    if (!CACHED_LISTS.all) CACHED_LISTS.all = Object.keys(ACTIONS);
+    return CACHED_LISTS.all.slice();
+  }
+
+  /**
+   * 列出免登入的公開 action。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listPublicActions() {
+    return filterActionsByFlag_("public");
+  }
+
+  /**
+   * 列出寫入型 action。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listWriteActions() {
+    return filterActionsByFlag_("write");
+  }
+
+  /**
+   * 列出需要全域 Script Lock 的 action。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listLockedActions() {
+    return filterActionsByFlag_("locked");
+  }
+
+  /**
+   * 判斷 action 是否已登錄。
+   *
+   * @param {string} name - action 名稱
+   * @returns {boolean} 是否已登錄
+   */
+  function hasAction(name) {
+    return Object.prototype.hasOwnProperty.call(ACTIONS, name);
+  }
+
+  /**
+   * 註冊 action 實際處理函式，使路由派發與清單共用同一份登錄資料。
+   *
+   * @param {string} name - action 名稱
+   * @param {Function} handler - 處理函式
+   * @returns {boolean} 是否註冊成功
+   */
+  function setHandler(name, handler) {
+    if (!hasAction(name) || typeof handler !== "function") return false;
+    ACTIONS[name].handler = handler;
+    return true;
+  }
+
+  /**
+   * 取得 action 已註冊的處理函式。
+   *
+   * @param {string} name - action 名稱
+   * @returns {Function|null} 處理函式或 null
+   */
+  function getHandler(name) {
+    return hasAction(name) ? ACTIONS[name].handler : null;
+  }
+
+  /**
+   * 判斷 action 是否為公開 action。
+   *
+   * @param {string} name - action 名稱
+   * @returns {boolean} 是否公開
+   */
+  function isPublicAction(name) {
+    return hasAction(name) && ACTIONS[name].public === true;
+  }
+
+  /**
+   * 判斷角色是否可呼叫指定 action。
+   *
+   * @param {string} role - 角色代碼
+   * @param {string} name - action 名稱
+   * @returns {boolean} 是否允許
+   */
+  function isRoleAllowed(role, name) {
+    if (!hasAction(name)) return false;
+    const entry = ACTIONS[name];
+    if (entry.public === true) return true;
+    return Array.isArray(entry.roles) && entry.roles.indexOf(role) !== -1;
+  }
+
+  /**
+   * 由登錄表產生角色權限矩陣。
+   * admin 維持單一通配規則，其餘角色明確列舉受保護 action。
+   *
+   * @returns {Object} 角色權限矩陣
+   */
+  function buildRolePermissions() {
+    const permissions = { admin: ["*"] };
+    ALL_ROLES.forEach(function (role) {
+      if (role === "admin") return;
+      permissions[role] = listActions().filter(function (name) {
+        return !isPublicAction(name) && isRoleAllowed(role, name);
+      });
+    });
+    return permissions;
+  }
+
+  return {
+    ACTIONS: ACTIONS,
+    ROLES: ALL_ROLES,
+    listActions: listActions,
+    listPublicActions: listPublicActions,
+    listWriteActions: listWriteActions,
+    listLockedActions: listLockedActions,
+    hasAction: hasAction,
+    setHandler: setHandler,
+    getHandler: getHandler,
+    isPublicAction: isPublicAction,
+    isRoleAllowed: isRoleAllowed,
+    buildRolePermissions: buildRolePermissions
+  };
+});
+  </script>
+  <script>
 /* js/config.js */
 /**
  * @file config.js
@@ -6639,12 +7407,69 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  /** 版本號與角色顯示名稱共用 gasRuntime 單一來源；瀏覽器由建置腳本先嵌入 gasRuntime。 */
+  const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
+
   function getSearchParams(search) {
     try {
       return new URLSearchParams(search || "");
     } catch (e) {
       return new URLSearchParams("");
     }
+  }
+
+  function isLocalHostname(hostname) {
+    const value = String(hostname || "").toLowerCase();
+    return value === "localhost" || value === "127.0.0.1";
+  }
+
+  /**
+   * 僅接受同源、明確設定的 GAS/代理端點、script.google.com Web App 網址，
+   * 以及本機開發頁面對應的本機端點；其餘 ?api= 值一律視為不可信。
+   */
+  function isTrustedApiEndpoint(candidate, env) {
+    const raw = String(candidate || "").trim();
+    if (!raw) return false;
+    // 僅接受絕對 URL 或根相對路徑，避免模糊字串被 URL 解析成同源路徑。
+    const hasScheme = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(raw);
+    if (!hasScheme && raw.charAt(0) !== "/") return false;
+    const source = env || {};
+    let target;
+    try {
+      target = source.href ? new URL(raw, source.href) : new URL(raw);
+    } catch (e) {
+      return false;
+    }
+    if (target.protocol !== "http:" && target.protocol !== "https:") return false;
+
+    const gasUrl = String(source.gasWebappUrl || "").trim();
+    if (gasUrl) {
+      try {
+        const gas = gasUrl.indexOf("://") === -1 ? new URL(gasUrl, source.href) : new URL(gasUrl);
+        if (target.origin === gas.origin && target.pathname.indexOf(gas.pathname) === 0) return true;
+      } catch (e) {
+        // 設定值異常時略過，改用下列規則判斷
+      }
+    }
+
+    if (/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec(?:[/?#]|$)/.test(target.href)) {
+      return true;
+    }
+
+    if (source.href) {
+      try {
+        const page = new URL(source.href);
+        if (target.origin === page.origin) return true;
+      } catch (e) {
+        // 頁面網址異常時略過
+      }
+    }
+
+    if (source.protocol === "file:" || isLocalHostname(source.hostname)) {
+      if (isLocalHostname(target.hostname)) return true;
+    }
+
+    return false;
   }
 
   function resolveDefaultApiUrl(env) {
@@ -6658,7 +7483,10 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     const isGoogleUserContent = hostname.indexOf("googleusercontent.com") !== -1;
     const href = source.href || "";
 
-    if (apiParam) return apiParam;
+    if (apiParam) {
+      // 不受信任的 ?api= 直接忽略，避免 session/CSRF token 外送至惡意端點。
+      return isTrustedApiEndpoint(apiParam, source) ? apiParam : "";
+    }
     if (gasUrl) return gasUrl;
     if (!isFile && !isGoogleUserContent) {
       return href.split("#")[0].split("?")[0];
@@ -6670,10 +7498,12 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     const source = env || {};
     const params = getSearchParams(source.search);
     const switchFromParam = params.get("switch") === "1";
+    // 正式建置產物（build-webapp.js 注入 MEA_PRODUCTION_BUILD）忽略 ?mock=true。
+    const isProduction = source.production === true;
     return {
       title: "Google Apps Script 應用程式範本",
-      version: "1.0.0",
-      mock: params.has("mock"),
+      version: gasRuntime.WEB_API_VERSION,
+      mock: !isProduction && params.has("mock"),
       switchAccount: source.switchAccount === true || switchFromParam,
       apiUrl: resolveDefaultApiUrl(source),
       storageKey: "gas_tmpl.session.v1",
@@ -6751,11 +7581,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
         { id: "courses", name: "正規化課程索引", icon: "📚", desc: "檢視與檢索已展開之課程資料" },
         { id: "settings", name: "系統設定與授權", icon: "⚙️", desc: "OAuth Client ID 與角色成員" }
       ],
-      roleNames: {
-        admin: "系統管理員",
-        staff: "業務人員",
-        viewer: "檢視人員"
-      }
+      roleNames: Object.assign({}, gasRuntime.ROLE_DEFINITIONS)
     };
   }
 
@@ -6779,13 +7605,15 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       hostname: location.hostname || "",
       href: location.href || "",
       gasWebappUrl: gasWebappUrl,
-      switchAccount: browser.SWITCH_ACCOUNT === true
+      switchAccount: browser.SWITCH_ACCOUNT === true,
+      production: browser.MEA_PRODUCTION_BUILD === true
     });
     MEA.config = config;
     return config;
   }
 
   return {
+    isTrustedApiEndpoint: isTrustedApiEndpoint,
     resolveDefaultApiUrl: resolveDefaultApiUrl,
     buildFrontendConfig: buildFrontendConfig,
     applyBrowserConfig: applyBrowserConfig
@@ -6793,23 +7621,50 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 });
   </script>
   <script>
-/* js/courseData.js */
+/* ../courseNormalizationShared.js */
 /**
- * @file courseData.js
- * @description 前端課程代碼 1NF 正規化處理模組
+ * @file courseNormalizationShared.js
+ * @description 108 課綱課程代碼對照表與 1NF 正規化純邏輯（前後端共用單一來源）
  *
- * 與後端 `subjectCodeTransformer.js` 保持相同規則，
- * 讓瀏覽器在上傳前即可即時預覽統計，並僅傳送正規化後的有效資料。
+ * 同時支援三種環境：
+ * - Node.js：module.exports
+ * - Google Apps Script：globalThis.courseNormalizationShared
+ * - 瀏覽器：window.MEA.courseNormalizationShared
  */
 (function (root, factory) {
-  const api = factory();
-  if (typeof module !== "undefined" && module.exports) {
-    module.exports = api;
-  }
-  root.MEA = root.MEA || {};
-  root.MEA.courseData = api;
-})(typeof window !== "undefined" ? window : globalThis, function () {
   "use strict";
+
+  const api = factory();
+
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  if (root) {
+    root.courseNormalizationShared = api;
+    root.MEA = root.MEA || {};
+    root.MEA.courseNormalizationShared = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  /** 正規化課程索引標準表頭（共 14 欄） */
+  const NORMALIZED_COURSE_HEADERS = [
+    "開課學年",
+    "開課學期",
+    "修課年級",
+    "學生入學年",
+    "課程代碼",
+    "科目名稱",
+    "群別",
+    "科別",
+    "課程類別",
+    "開課方式",
+    "科目屬性",
+    "必選修",
+    "學分數",
+    "開課時數"
+  ];
+
+  /** 科目屬性排除名單（本專案全數匯入，不剔除任何科目） */
+  const EXCLUDED_SUBJECT_ATTRIBUTES = [];
 
   const GROUP_CODE_NAMES = {
     11: "學術群",
@@ -6900,103 +7755,92 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     2: "選修"
   };
 
-  const EXCLUDED_SUBJECT_ATTRIBUTES = [];
-
-  const NORMALIZED_COURSE_HEADERS = [
-    "開課學年",
-    "開課學期",
-    "修課年級",
-    "學生入學年",
-    "課程代碼",
-    "科目名稱",
-    "群別",
-    "科別",
-    "課程類別",
-    "開課方式",
-    "科目屬性",
-    "必選修",
-    "學分數",
-    "開課時數"
-  ];
+  function normalizeCodeKey(code) {
+    return code === null || code === undefined ? "" : String(code).trim();
+  }
 
   function getGroupName(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return GROUP_CODE_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return GROUP_CODE_NAMES[key] || key;
   }
 
   function getDepartmentNameByCode(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return DEPARTMENT_CODE_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return DEPARTMENT_CODE_NAMES[key] || key;
   }
 
   function getSubjectType(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return SUBJECT_TYPE_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return SUBJECT_TYPE_NAMES[key] || key;
   }
 
   function getOpenWay(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return OPEN_WAY_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return OPEN_WAY_NAMES[key] || key;
   }
 
   function getSubjectAttribution(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return SUBJECT_ATTRIBUTION_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return SUBJECT_ATTRIBUTION_NAMES[key] || key;
   }
 
   function isRequiredOrElective(code) {
-    const k = code === null || code === undefined ? "" : String(code).trim();
-    return REQUIRED_ELECTIVE_NAMES[k] || k;
+    const key = normalizeCodeKey(code);
+    return REQUIRED_ELECTIVE_NAMES[key] || key;
   }
 
   function isCourseCodeHeaderRow(row) {
     if (!Array.isArray(row) || row.length === 0) return false;
-    const first = row[0] === null || row[0] === undefined ? "" : String(row[0]).trim();
-    const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
+    const first = normalizeCodeKey(row[0]);
+    const attr = normalizeCodeKey(row[11]);
     return first === "課程代碼" || attr === "科目屬性";
   }
 
   function isExcludedCourseRow(row) {
     if (!Array.isArray(row)) return false;
     if (EXCLUDED_SUBJECT_ATTRIBUTES.length === 0) return false;
-    const attr = row[11] === null || row[11] === undefined ? "" : String(row[11]).trim();
-    return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(attr) !== -1;
+    return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(normalizeCodeKey(row[11])) !== -1;
   }
 
   function expandCourseRow(row) {
     const expanded = [];
     if (!Array.isArray(row) || row.length < 31) return expanded;
 
-    const entryYear = row[16] === null || row[16] === undefined ? "" : String(row[16]).trim();
+    const entryYear = normalizeCodeKey(row[16]);
     const fallbackOpenWay = row[10];
+    const courseCode = normalizeCodeKey(row[0]);
+    const subjectName = normalizeCodeKey(row[2]);
+    const groupName = getGroupName(row[6]) || "";
+    const departmentName = getDepartmentNameByCode(row[7]) || "";
+    const subjectType = getSubjectType(row[9]) || "";
+    const subjectAttribution = getSubjectAttribution(row[11]) || "";
+    const requiredOrElective = isRequiredOrElective(row[15]) || "";
 
     for (let s = 0; s < 6; s++) {
       const credits = Number(row[19 + s] || 0);
       const hours = Number(row[25 + s] || 0);
-
       if (!(credits > 0 || hours > 0)) continue;
 
       const gradeIndex = Math.floor(s / 2);
-      const academicYear =
-        row[16 + gradeIndex] === null || row[16 + gradeIndex] === undefined ? "" : String(row[16 + gradeIndex]).trim();
+      const academicYear = normalizeCodeKey(row[16 + gradeIndex]);
       const semester = String((s % 2) + 1);
-
+      const semesterValue = row[31 + s];
       const semesterOpenWay =
-        row[31 + s] === null || row[31 + s] === undefined || row[31 + s] === "" ? fallbackOpenWay : row[31 + s];
+        semesterValue === null || semesterValue === undefined || semesterValue === "" ? fallbackOpenWay : semesterValue;
 
       expanded.push([
         academicYear,
         semester,
         String(gradeIndex + 1),
         entryYear,
-        row[0] === null || row[0] === undefined ? "" : String(row[0]).trim(),
-        row[2] === null || row[2] === undefined ? "" : String(row[2]).trim(),
-        getGroupName(row[6]) || "",
-        getDepartmentNameByCode(row[7]) || "",
-        getSubjectType(row[9]) || "",
+        courseCode,
+        subjectName,
+        groupName,
+        departmentName,
+        subjectType,
         getOpenWay(semesterOpenWay) || "",
-        getSubjectAttribution(row[11]) || "",
-        isRequiredOrElective(row[15]) || "",
+        subjectAttribution,
+        requiredOrElective,
         credits,
         hours
       ]);
@@ -7006,17 +7850,15 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   function normalizeCourseCodes(rawData, options) {
-    options = options || {};
+    const opts = options || {};
     const rows = Array.isArray(rawData) ? rawData : [];
-    const academicYear =
-      options.academicYear === null || options.academicYear === undefined ? "" : String(options.academicYear).trim();
-    const semester = options.semester === null || options.semester === undefined ? "" : String(options.semester).trim();
+    const academicYear = normalizeCodeKey(opts.academicYear);
+    const semester = normalizeCodeKey(opts.semester);
 
     let sourceRows = 0;
     let excludedRows = 0;
     let keptCourseRows = 0;
     let totalExpanded = 0;
-
     const normalized = [];
 
     for (let i = 0; i < rows.length; i++) {
@@ -7025,7 +7867,6 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       if (isCourseCodeHeaderRow(row)) continue;
 
       sourceRows++;
-
       if (isExcludedCourseRow(row)) {
         excludedRows++;
         continue;
@@ -7043,7 +7884,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       }
     }
 
-    if (options.withStats) {
+    if (opts.withStats) {
       return {
         rows: normalized,
         stats: {
@@ -7060,14 +7901,14 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   return {
+    NORMALIZED_COURSE_HEADERS: NORMALIZED_COURSE_HEADERS,
+    EXCLUDED_SUBJECT_ATTRIBUTES: EXCLUDED_SUBJECT_ATTRIBUTES,
     GROUP_CODE_NAMES: GROUP_CODE_NAMES,
     DEPARTMENT_CODE_NAMES: DEPARTMENT_CODE_NAMES,
     SUBJECT_TYPE_NAMES: SUBJECT_TYPE_NAMES,
     OPEN_WAY_NAMES: OPEN_WAY_NAMES,
     SUBJECT_ATTRIBUTION_NAMES: SUBJECT_ATTRIBUTION_NAMES,
     REQUIRED_ELECTIVE_NAMES: REQUIRED_ELECTIVE_NAMES,
-    EXCLUDED_SUBJECT_ATTRIBUTES: EXCLUDED_SUBJECT_ATTRIBUTES,
-    NORMALIZED_COURSE_HEADERS: NORMALIZED_COURSE_HEADERS,
     getGroupName: getGroupName,
     getDepartmentNameByCode: getDepartmentNameByCode,
     getSubjectType: getSubjectType,
@@ -7078,6 +7919,58 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     isExcludedCourseRow: isExcludedCourseRow,
     expandCourseRow: expandCourseRow,
     normalizeCourseCodes: normalizeCourseCodes
+  };
+});
+  </script>
+  <script>
+/* js/courseData.js */
+/**
+ * @file courseData.js
+ * @description 前端課程代碼 1NF 正規化處理模組
+ *
+ * 共用對照表與正規化邏輯已抽至 courseNormalizationShared.js，
+ * 此檔僅負責將其掛載為 MEA.courseData 並維持既有呼叫契約。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory(root);
+
+  if (typeof module !== "undefined" && module.exports) module.exports = api;
+  root.MEA = root.MEA || {};
+  root.MEA.courseData = api;
+})(typeof window !== "undefined" ? window : globalThis, function (root) {
+  "use strict";
+
+  function resolveShared_() {
+    const host = root || {};
+    if (host.MEA && host.MEA.courseNormalizationShared) return host.MEA.courseNormalizationShared;
+    if (host.courseNormalizationShared) return host.courseNormalizationShared;
+    if (typeof require === "function") return require("../../courseNormalizationShared.js");
+    throw new Error("找不到共用正規化模組 courseNormalizationShared");
+  }
+
+  const shared = resolveShared_();
+
+  return {
+    GROUP_CODE_NAMES: shared.GROUP_CODE_NAMES,
+    DEPARTMENT_CODE_NAMES: shared.DEPARTMENT_CODE_NAMES,
+    SUBJECT_TYPE_NAMES: shared.SUBJECT_TYPE_NAMES,
+    OPEN_WAY_NAMES: shared.OPEN_WAY_NAMES,
+    SUBJECT_ATTRIBUTION_NAMES: shared.SUBJECT_ATTRIBUTION_NAMES,
+    REQUIRED_ELECTIVE_NAMES: shared.REQUIRED_ELECTIVE_NAMES,
+    EXCLUDED_SUBJECT_ATTRIBUTES: shared.EXCLUDED_SUBJECT_ATTRIBUTES,
+    NORMALIZED_COURSE_HEADERS: shared.NORMALIZED_COURSE_HEADERS,
+    getGroupName: shared.getGroupName,
+    getDepartmentNameByCode: shared.getDepartmentNameByCode,
+    getSubjectType: shared.getSubjectType,
+    getOpenWay: shared.getOpenWay,
+    getSubjectAttribution: shared.getSubjectAttribution,
+    isRequiredOrElective: shared.isRequiredOrElective,
+    isCourseCodeHeaderRow: shared.isCourseCodeHeaderRow,
+    isExcludedCourseRow: shared.isExcludedCourseRow,
+    expandCourseRow: shared.expandCourseRow,
+    normalizeCourseCodes: shared.normalizeCourseCodes
   };
 });
   </script>
@@ -7285,15 +8178,50 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return { ok: true, rows: mockCoursesList.length };
     }
 
-    function createCourseIndex() {
+    /**
+     * 以與後端 getNormalizedCourses 相同的篩選與分頁規則查詢 mock 課程索引。
+     *
+     * @param {Object} [payload] - 查詢條件
+     * @returns {Object} `{ ok, list, total, page, pageSize, totalPages }`
+     */
+    function createCourseIndex(payload) {
+      const source = payload || {};
+      const keyword = String(source.keyword || "")
+        .trim()
+        .toLowerCase();
+      const academicYear = String(source.academicYear || "").trim();
+      const semester = String(source.semester || "").trim();
+      const department = String(source.department || "").trim();
+      const matched = mockCoursesList.filter(function (course) {
+        if (academicYear !== "" && String(course.academicYear || "") !== academicYear) return false;
+        if (semester !== "" && String(course.semester || "") !== semester) return false;
+        if (department !== "" && String(course.department || "") !== department) return false;
+        if (keyword === "") return true;
+        const line = [course.courseCode, course.subjectName, course.department, course.group]
+          .map(function (value) {
+            return String(value || "");
+          })
+          .join(" ")
+          .toLowerCase();
+        return line.indexOf(keyword) !== -1;
+      });
+      const page = Math.max(1, parseInt(source.page, 10) || 1);
+      const pageSize = Math.max(1, Math.min(200, parseInt(source.pageSize, 10) || 50));
+      const total = matched.length;
+      const totalPages = Math.ceil(total / pageSize) || 1;
+      const start = (page - 1) * pageSize;
       return {
         ok: true,
-        list: mockCoursesList,
-        total: mockCoursesList.length,
-        page: 1,
-        pageSize: 50,
-        totalPages: 1
+        list: matched.slice(start, start + pageSize),
+        total: total,
+        page: page,
+        pageSize: pageSize,
+        totalPages: totalPages
       };
+    }
+
+    function createCourseIndexStats() {
+      return { ok: true, total: mockCoursesList.length };
     }
 
     function createSystemSettings() {
@@ -7336,6 +8264,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       },
       importCourseCodes: importCourseCodes,
       getCourseIndex: createCourseIndex,
+      getCourseIndexStats: createCourseIndexStats,
       getSystemSettings: createSystemSettings,
       saveSystemSettings: saveSystemSettings,
       getAccounts: createAccounts,
@@ -7346,7 +8275,16 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return { ok: false, error: "unknown_mock_action", message: "Mock 未支援 action：" + action };
     }
 
+    const actionRegistry =
+      options.actionRegistry ||
+      (typeof globalThis !== "undefined" && globalThis.MEA && globalThis.MEA.actionRegistry) ||
+      (typeof globalThis !== "undefined" && globalThis.actionRegistry) ||
+      null;
+
     function resolveAction(action, payload) {
+      if (actionRegistry && !actionRegistry.hasAction(action)) {
+        return createUnknownActionResult(action);
+      }
       if (!Object.prototype.hasOwnProperty.call(actionHandlers, action)) {
         return createUnknownActionResult(action);
       }
@@ -7365,6 +8303,65 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   return { createMockApi: createMockApi };
+});
+  </script>
+  <script>
+/* js/errorMessages.js */
+/**
+ * @file errorMessages.js
+ * @description 前端安全錯誤訊息轉譯：原始例外文字不外顯，僅顯示明確安全文案。
+ *
+ * 瀏覽器環境組裝 MEA.safeErrors；Node.js 環境直接匯出同一組純函式供測試使用。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory();
+
+  const MEA = (root.MEA = root.MEA || {});
+  MEA.safeErrors = api;
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  const DEFAULT_MESSAGE = "作業失敗，請稍後再試";
+
+  /**
+   * 建立附帶安全文案的例外，供內部明確預期顯示的錯誤使用。
+   *
+   * @param {string} message - 可安全顯示給使用者的訊息
+   * @returns {Error} 附帶 safeMessage 屬性的例外
+   */
+  function createSafeError(message) {
+    const error = new Error(message);
+    error.safeMessage = typeof message === "string" && message ? message : DEFAULT_MESSAGE;
+    return error;
+  }
+
+  /**
+   * 將任意錯誤值轉譯為可安全顯示的訊息。
+   *
+   * @param {*} value - 例外、API 結果或未知值
+   * @param {string} [fallback] - 無法安全顯示時使用的文案
+   * @returns {string} 可顯示的錯誤訊息
+   */
+  function resolveUserMessage(value, fallback) {
+    const safeFallback = typeof fallback === "string" && fallback ? fallback : DEFAULT_MESSAGE;
+    if (!value || typeof value !== "object") return safeFallback;
+    if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
+    if (value instanceof Error) return safeFallback;
+    if (typeof value.message === "string" && value.message) return value.message;
+    return safeFallback;
+  }
+
+  return {
+    DEFAULT_MESSAGE: DEFAULT_MESSAGE,
+    createSafeError: createSafeError,
+    resolveUserMessage: resolveUserMessage
+  };
 });
   </script>
   <script>
@@ -7393,7 +8390,27 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
+  function createSafeError(message) {
+    return globalThis.MEA.safeErrors.createSafeError(message);
+  }
+
   const CSRF_STORAGE_KEY = "gas_tmpl.csrf.v1";
+
+  /** 重試策略常數：指數退避 + jitter + 總時間上限 */
+  const DEFAULT_RETRY_DELAYS = [1000, 2000, 4000];
+  const DEFAULT_TOTAL_RETRY_MS = 10000;
+  const RETRY_JITTER_RATIO = 0.2;
+  /** 大型匯入（大於或等於 GAS 分批寫入大小）停用自動重試，避免重複寫入 */
+  const LARGE_IMPORT_ROW_THRESHOLD = 5000;
 
   function parseApiResponse(text) {
     const invalid = {
@@ -7442,6 +8459,12 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
         ? options.setTimeoutFn
         : function (fn, ms) {
             return setTimeout(fn, ms);
+          };
+    const randomFn =
+      typeof options.randomFn === "function"
+        ? options.randomFn
+        : function () {
+            return Math.random();
           };
 
     let currentToken = "";
@@ -7546,7 +8569,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return {
         ok: false,
         error: "server_error",
-        message: "後端執行失敗：" + String(error && error.message ? error.message : error)
+        message: resolveSafeMessage(error, "後端執行失敗，請稍後再試")
       };
     }
 
@@ -7579,7 +8602,9 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
     function handleFetchResponse(response) {
       if (response.ok === false) {
-        throw new Error("HTTP " + response.status);
+        const error = createSafeError("伺服器回應 HTTP " + response.status + "，請稍後再試");
+        error.status = response.status;
+        throw error;
       }
       if (typeof response.text === "function") {
         return response.text().then(parseApiResponse);
@@ -7591,10 +8616,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return {
         ok: false,
         error: "network_error",
-        message:
-          "無法連線至 Google Apps Script 伺服器（" +
-          String(error && error.message ? error.message : error) +
-          "），請確認網路連線或稍後再試"
+        message: resolveSafeMessage(error, "無法連線至 Google Apps Script 伺服器，請確認網路連線或稍後再試")
       };
     }
 
@@ -7604,7 +8626,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
         return createMissingApiUrlError();
       }
       if (typeof fetchFn !== "function") {
-        return Promise.resolve(createNetworkError(new Error("fetch_unavailable")));
+        return Promise.resolve(createNetworkError(createSafeError("尚未取得瀏覽器連線功能，請稍後再試")));
       }
       return fetchFn(apiUrl, {
         method: "POST",
@@ -7639,16 +8661,50 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       );
     }
 
+    /** 大型匯入不自動重送，避免 response 遺失時重複清除與寫入 */
+    function isLargeImportPayload(action, payload) {
+      if (action !== "importCourseCodes") return false;
+      const rows = payload && payload.rows;
+      return Array.isArray(rows) && rows.length >= LARGE_IMPORT_ROW_THRESHOLD;
+    }
+
+    function shouldAutoRetry(action, payload, opts) {
+      if (opts.retry === false) return false;
+      return !isLargeImportPayload(action, payload);
+    }
+
+    /** 在基準延遲上加入正負 20% jitter，避免並行請求同時重試 */
+    function computeRetryDelay(baseDelay, opts) {
+      const jitter = 1 + (randomFn() * 2 - 1) * RETRY_JITTER_RATIO;
+      const jittered = Math.max(0, Math.round(baseDelay * jitter));
+      return typeof opts.maxSingleDelayMs === "number"
+        ? Math.min(jittered, Math.max(0, opts.maxSingleDelayMs))
+        : jittered;
+    }
+
     function callWithRetry(action, payload, callOptions) {
       const opts = callOptions || {};
-      const delays = Array.isArray(opts.delays) ? opts.delays : [1000, 2000, 4000];
+      const delays = Array.isArray(opts.delays) ? opts.delays : DEFAULT_RETRY_DELAYS;
+      const totalRetryMs =
+        typeof opts.totalRetryMs === "number" ? Math.max(0, opts.totalRetryMs) : DEFAULT_TOTAL_RETRY_MS;
+      const allowRetry = shouldAutoRetry(action, payload, opts);
       let attempt = 0;
+      let elapsed = 0;
 
       function execute() {
         return requestOnce(action, payload).then(function (result) {
-          if (result && result.ok !== true && isRetryableResult(result) && attempt < delays.length) {
-            const delay = delays[attempt];
+          const canRetry =
+            result &&
+            result.ok !== true &&
+            isRetryableResult(result) &&
+            allowRetry &&
+            attempt < delays.length &&
+            elapsed < totalRetryMs;
+          if (canRetry) {
+            const remaining = totalRetryMs - elapsed;
+            const delay = Math.min(computeRetryDelay(delays[attempt], opts), remaining);
             attempt++;
+            elapsed += delay;
             return new Promise(function (resolve) {
               setTimeoutFn(resolve, delay);
             }).then(execute);
@@ -7664,8 +8720,8 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return execute();
     }
 
-    function call(action, payload) {
-      return callWithRetry(action, payload);
+    function call(action, payload, callOptions) {
+      return callWithRetry(action, payload, callOptions);
     }
 
     return {
@@ -7718,7 +8774,11 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     createApiClient: createApiClient,
     parseApiResponse: parseApiResponse,
     applyBrowserConfig: applyBrowserConfig,
-    CSRF_STORAGE_KEY: CSRF_STORAGE_KEY
+    CSRF_STORAGE_KEY: CSRF_STORAGE_KEY,
+    DEFAULT_RETRY_DELAYS: DEFAULT_RETRY_DELAYS,
+    DEFAULT_TOTAL_RETRY_MS: DEFAULT_TOTAL_RETRY_MS,
+    RETRY_JITTER_RATIO: RETRY_JITTER_RATIO,
+    LARGE_IMPORT_ROW_THRESHOLD: LARGE_IMPORT_ROW_THRESHOLD
   };
 });
   </script>
@@ -7826,6 +8886,7 @@ window.MEA = window.MEA || {};
   "use strict";
 
   const DEFAULT_STYLE = "modern-slate";
+  const MODAL_TITLE_ID = "meaModalTitle";
 
   /**
    * 跳脫 HTML 特殊字元。
@@ -7915,6 +8976,16 @@ window.MEA = window.MEA || {};
   }
 
   /**
+   * 取得 Toast 的無障礙角色；錯誤與警告使用 alert 以即時宣告。
+   *
+   * @param {string} kind - 正規化後種類
+   * @returns {string|null} 角色名稱或 null
+   */
+  function resolveToastRole(kind) {
+    return kind === "err" || kind === "warn" ? "alert" : null;
+  }
+
+  /**
    * 建立 Toast 元素。
    *
    * @param {Object} doc - document 依賴
@@ -7926,9 +8997,13 @@ window.MEA = window.MEA || {};
     const t = doc.createElement("div");
     t.className = "toast " + kind;
 
+    const role = resolveToastRole(kind);
+    if (role && typeof t.setAttribute === "function") t.setAttribute("role", role);
+
     const iconSpan = doc.createElement("span");
     iconSpan.className = "toast-icon";
     iconSpan.textContent = resolveToastIcon(kind);
+    if (typeof iconSpan.setAttribute === "function") iconSpan.setAttribute("aria-hidden", "true");
 
     const textSpan = doc.createElement("span");
     textSpan.className = "toast-msg";
@@ -7972,6 +9047,8 @@ window.MEA = window.MEA || {};
         : function (fn, ms) {
             return setTimeout(fn, ms);
           };
+
+    let modalRestoreFocus = null;
 
     function applyTheme(theme) {
       const value = theme === "dark" ? "dark" : "light";
@@ -8050,13 +9127,55 @@ window.MEA = window.MEA || {};
       scheduleToastRemoval(t, resolveToastDuration(kind, duration), setTimeoutFn);
     }
 
+    /**
+     * 收集容器內可聚焦元素，供初始焦點與 Tab 焦點陷阱使用。
+     *
+     * @param {Object} root - 查詢根元素
+     * @returns {Array} 可聚焦元素清單
+     */
+    function collectFocusableElements(root) {
+      if (!root || typeof root.querySelectorAll !== "function") return [];
+      const found = root.querySelectorAll("button, input, select, textarea, a[href], [tabindex]");
+      const nodes = [];
+      for (let i = 0; i < found.length; i++) {
+        const node = found[i];
+        const tabIndex = typeof node.getAttribute === "function" ? node.getAttribute("tabindex") : null;
+        if (node.disabled === true || tabIndex === "-1") continue;
+        nodes.push(node);
+      }
+      return nodes;
+    }
+
+    /**
+     * 對話框開啟時標記背景地標為 inert，關閉時還原，避免焦點與點擊穿透。
+     *
+     * @param {boolean} enabled - 是否啟用 inert
+     */
+    function setBackgroundInert(enabled) {
+      if (!doc || typeof doc.querySelectorAll !== "function") return;
+      const nodes = doc.querySelectorAll(".app-nav, .app-content");
+      for (let i = 0; i < nodes.length; i++) {
+        if (enabled) {
+          if (typeof nodes[i].setAttribute === "function") nodes[i].setAttribute("inert", "");
+        } else if (typeof nodes[i].removeAttribute === "function") {
+          nodes[i].removeAttribute("inert");
+        }
+      }
+    }
+
     function modal(title, contentHtml, buttons) {
       const host = doc.getElementById("modalHost");
       if (!host) return;
 
+      const previousFocus = doc.activeElement || null;
       host.innerHTML = "";
       const overlay = doc.createElement("div");
       overlay.className = "modal-overlay";
+      if (typeof overlay.setAttribute === "function") {
+        overlay.setAttribute("role", "dialog");
+        overlay.setAttribute("aria-modal", "true");
+        overlay.setAttribute("aria-labelledby", MODAL_TITLE_ID);
+      }
 
       const card = doc.createElement("div");
       card.className = "modal-card";
@@ -8064,9 +9183,11 @@ window.MEA = window.MEA || {};
       const head = doc.createElement("div");
       head.className = "modal-header";
       head.innerHTML =
-        '<h3 class="modal-title">' +
+        '<h3 class="modal-title" id="' +
+        MODAL_TITLE_ID +
+        '">' +
         escapeHtml(title) +
-        '</h3><button class="modal-close" id="modalCloseBtn">✕</button>';
+        '</h3><button type="button" class="modal-close" id="modalCloseBtn" aria-label="關閉對話框">✕</button>';
 
       const body = doc.createElement("div");
       body.className = "modal-body";
@@ -8075,10 +9196,12 @@ window.MEA = window.MEA || {};
       const foot = doc.createElement("div");
       foot.className = "modal-footer";
 
+      const footButtons = [];
       const btns = buttons || [{ text: "關閉", primary: true, onClick: closeModal }];
       btns.forEach(function (btn) {
         const b = doc.createElement("button");
         b.className = "btn " + (btn.primary ? "primary" : "secondary");
+        if (typeof b.setAttribute === "function") b.setAttribute("type", "button");
         b.textContent = btn.text;
         b.onclick = function () {
           if (typeof btn.onClick === "function") {
@@ -8088,6 +9211,7 @@ window.MEA = window.MEA || {};
           }
         };
         foot.appendChild(b);
+        footButtons.push(b);
       });
 
       card.appendChild(head);
@@ -8095,22 +9219,63 @@ window.MEA = window.MEA || {};
       card.appendChild(foot);
       overlay.appendChild(card);
       host.appendChild(overlay);
+      setBackgroundInert(true);
 
-      doc.getElementById("modalCloseBtn").onclick = closeModal;
+      modalRestoreFocus = previousFocus;
+
+      const closeBtn = doc.getElementById("modalCloseBtn");
+      if (closeBtn) closeBtn.onclick = closeModal;
       overlay.onclick = function (e) {
         if (e.target === overlay) closeModal();
+      };
+
+      function collectFocusables() {
+        const closeNodes = closeBtn ? [closeBtn] : [];
+        return closeNodes.concat(collectFocusableElements(body), footButtons);
+      }
+
+      const focusables = collectFocusables();
+      if (focusables.length > 0 && typeof focusables[0].focus === "function") {
+        focusables[0].focus();
+      }
+
+      overlay.onkeydown = function (e) {
+        if (!e) return;
+        const key = e.key || "";
+        if (key === "Escape" || key === "Esc" || e.keyCode === 27) {
+          if (typeof e.preventDefault === "function") e.preventDefault();
+          closeModal();
+          return;
+        }
+        if (key !== "Tab" && e.keyCode !== 9) return;
+        const nodes = collectFocusables();
+        if (nodes.length === 0) return;
+        const index = nodes.indexOf(doc.activeElement);
+        if (e.shiftKey) {
+          if (index <= 0) {
+            if (typeof e.preventDefault === "function") e.preventDefault();
+            nodes[nodes.length - 1].focus();
+          }
+        } else if (index === -1 || index === nodes.length - 1) {
+          if (typeof e.preventDefault === "function") e.preventDefault();
+          nodes[0].focus();
+        }
       };
     }
 
     function closeModal() {
       const host = doc.getElementById("modalHost");
       if (host) host.innerHTML = "";
+      setBackgroundInert(false);
+      const restoreTarget = modalRestoreFocus;
+      modalRestoreFocus = null;
+      if (restoreTarget && typeof restoreTarget.focus === "function") restoreTarget.focus();
     }
 
     function renderUserPill(user) {
       return (
         '  <div class="user-pill">' +
-        '    <span class="user-avatar">👤</span>' +
+        '    <span class="user-avatar" aria-hidden="true">👤</span>' +
         '    <span class="user-name">' +
         escapeHtml(user.name || user.email) +
         "</span>" +
@@ -8125,6 +9290,7 @@ window.MEA = window.MEA || {};
 
     function renderHeader() {
       const user = MEA.state.user || {};
+      const logoutBusy = !!(MEA.state && MEA.state.logoutBusy);
       const styles = getStyleList();
       const curStyle = currentStyle();
       const systemName = (MEA.state.publicConfig && MEA.state.publicConfig.systemName) || MEA.config.title;
@@ -8132,7 +9298,7 @@ window.MEA = window.MEA || {};
       return (
         '<header class="app-header">' +
         '<div class="header-brand">' +
-        '  <div class="brand-mark">📋</div>' +
+        '  <div class="brand-mark" aria-hidden="true">📋</div>' +
         '  <div class="brand-text">' +
         '    <h1 class="brand-title">' +
         escapeHtml(systemName) +
@@ -8145,14 +9311,19 @@ window.MEA = window.MEA || {};
         '<div class="header-tools">' +
         renderUserPill(user) +
         '  <div class="style-selector-wrap">' +
+        '    <label class="sr-only" for="styleSelect">介面風格</label>' +
         '    <select id="styleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         renderStyleOptions(styles, curStyle) +
         "    </select>" +
         "  </div>" +
-        '  <button id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
         (currentTheme() === "dark" ? "◑ 淺色模式" : "◐ 深色模式") +
         "  </button>" +
-        '  <button class="btn secondary compact" onclick="MEA.auth.logout()">登出</button>' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.auth.logout()"' +
+        (logoutBusy ? " disabled" : "") +
+        ">" +
+        (logoutBusy ? "登出中..." : "登出") +
+        "</button>" +
         "</div>" +
         "</header>"
       );
@@ -8166,13 +9337,16 @@ window.MEA = window.MEA || {};
       for (let i = 0; i < tabs.length; i++) {
         const t = tabs[i];
         const active = t.id === currentTab ? " active" : "";
+        const current = t.id === currentTab ? ' aria-current="page"' : "";
         tabsHtml +=
-          '<button class="nav-tab' +
+          '<button type="button" class="nav-tab' +
           active +
-          '" onclick="MEA.setTab(\'' +
+          '"' +
+          current +
+          " onclick=\"MEA.setTab('" +
           t.id +
           "')\">" +
-          '<span class="nav-icon">' +
+          '<span class="nav-icon" aria-hidden="true">' +
           t.icon +
           "</span>" +
           '<span class="nav-name">' +
@@ -8181,13 +9355,19 @@ window.MEA = window.MEA || {};
           "</button>";
       }
 
-      return '<nav class="app-nav">' + '<div class="nav-tabs-container">' + tabsHtml + "</div>" + "</nav>";
+      return (
+        '<nav class="app-nav" aria-label="主要導覽">' +
+        '<div class="nav-tabs-container">' +
+        tabsHtml +
+        "</div>" +
+        "</nav>"
+      );
     }
 
     function renderLoginErrorHtml(loginError) {
       if (!loginError) return "";
       return (
-        '<div class="login-alert err"><span class="alert-icon">⚠</span><span>' +
+        '<div class="login-alert err" role="alert"><span class="alert-icon" aria-hidden="true">⚠</span><span>' +
         escapeHtml(loginError) +
         "</span></div>"
       );
@@ -8212,7 +9392,7 @@ window.MEA = window.MEA || {};
     function renderLoginActions(isMock, loginBusy) {
       const mockHtml = isMock
         ? '<div class="login-divider"><span>或</span></div>' +
-          '<button class="btn secondary block" onclick="MEA.auth.loginMock()"' +
+          '<button type="button" class="btn secondary block" onclick="MEA.auth.loginMock()"' +
           (loginBusy ? " disabled" : "") +
           ">" +
           "  🧪 本地測試身分登入 (Mock Mode)" +
@@ -8243,16 +9423,17 @@ window.MEA = window.MEA || {};
       return (
         '<div class="login-container">' +
         '<div class="login-header-tools">' +
+        '  <label class="sr-only" for="loginStyleSelect">介面風格</label>' +
         '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         styleOptionsHtml +
         "  </select>" +
-        '  <button id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
         (currentTheme() === "dark" ? "◑ 淺色" : "◐ 深色") +
         "  </button>" +
         "</div>" +
         '<div class="login-card">' +
         '  <div class="login-brand">' +
-        '    <div class="login-logo">✨</div>' +
+        '    <div class="login-logo" aria-hidden="true">✨</div>' +
         '    <h2 class="login-title">' +
         escapeHtml(config.systemName || MEA.config.title) +
         "</h2>" +
@@ -8322,27 +9503,27 @@ window.MEA = window.MEA || {};
         '<div class="card mt-4">' +
         '  <h3 class="card-title">🚀 範本功能快速導覽</h3>' +
         '  <div class="feature-grid mt-3">' +
-        '    <div class="feature-item" onclick="MEA.setTab(\'import\')">' +
-        '      <div class="feature-icon">📥</div>' +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'import\')">' +
+        '      <div class="feature-icon" aria-hidden="true">📥</div>' +
         '      <div class="feature-text">' +
         "        <h4>課程代碼匯入與 1NF 正規化</h4>" +
         "        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程索引。</p>" +
         "      </div>" +
-        "    </div>" +
-        '    <div class="feature-item" onclick="MEA.setTab(\'courses\')">' +
-        '      <div class="feature-icon">📚</div>' +
+        "    </button>" +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'courses\')">' +
+        '      <div class="feature-icon" aria-hidden="true">📚</div>' +
         '      <div class="feature-text">' +
         "        <h4>正規化課程檢索與分頁</h4>" +
         "        <p>提供多維度關鍵字、學年、學期、科別篩選機制，支援大批量課程資料快速檢索。</p>" +
         "      </div>" +
-        "    </div>" +
-        '    <div class="feature-item" onclick="MEA.setTab(\'settings\')">' +
-        '      <div class="feature-icon">⚙️</div>' +
+        "    </button>" +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'settings\')">' +
+        '      <div class="feature-icon" aria-hidden="true">⚙️</div>' +
         '      <div class="feature-text">' +
         "        <h4>系統設定與授權管理 (RBAC)</h4>" +
         "        <p>維護 Google OAuth 設定、登入網域限制、學期參數與系統存取授權白名單。</p>" +
         "      </div>" +
-        "    </div>" +
+        "    </button>" +
         "  </div>" +
         "</div>"
       );
@@ -8415,8 +9596,10 @@ window.MEA = window.MEA || {};
 
     if (options.exposeInternals) {
       Object.assign(api, {
+        collectFocusableElements: collectFocusableElements,
         renderStyleOptions: renderStyleOptions,
         resolveToastKind: resolveToastKind,
+        resolveToastRole: resolveToastRole,
         resolveToastIcon: resolveToastIcon,
         resolveToastDuration: resolveToastDuration,
         createToastElement: createToastElement,
@@ -8428,6 +9611,7 @@ window.MEA = window.MEA || {};
         getLoginMode: getLoginMode,
         renderOverviewMetrics: renderOverviewMetrics,
         renderFeatureGrid: renderFeatureGrid,
+        setBackgroundInert: setBackgroundInert,
         updateThemeToggleLabels: updateThemeToggleLabels
       });
     }
@@ -8443,6 +9627,7 @@ window.MEA = window.MEA || {};
     roleName: roleName,
     renderStyleOptions: renderStyleOptions,
     resolveToastKind: resolveToastKind,
+    resolveToastRole: resolveToastRole,
     resolveToastIcon: resolveToastIcon,
     resolveToastDuration: resolveToastDuration,
     createToastElement: createToastElement,
@@ -8482,6 +9667,19 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
+  function createSafeError(message) {
+    return globalThis.MEA.safeErrors.createSafeError(message);
+  }
+
   const GIS_SRC = "https://accounts.google.com/gsi/client";
   const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
   const GOOGLE_ACCOUNT_CHOOSER_URL = "https://accounts.google.com/AccountChooser";
@@ -8494,11 +9692,13 @@ window.MEA = window.MEA || {};
     "</svg>";
   const CLIENT_ID_HINT_HTML = '<div class="login-hint">尚未設定 OAuth Client ID；本機測試請於網址加上 ?mock=true</div>';
   const DEFAULT_LOGIN_ERROR = "登入失敗，請稍後再試";
+  const DEFAULT_LOGOUT_ERROR = "登出失敗，請稍後再試";
+  const SESSION_EXPIRED_ERROR = "工作階段已過期，請重新登入";
   const MISSING_CLIENT_ID_ERROR = "尚未設定 OAuth Client ID，請系統管理員先於「系統設定」完成設定";
   const MISSING_CLIENT_SECRET_ERROR = "尚未設定 OAuth Client Secret，請系統管理員先於「系統設定」完成設定";
   const MISSING_WEBAPP_URL_ERROR = "無法取得 Web App 網址，請確認部署狀態後重新整理頁面";
+  const OAUTH_STATE_STORAGE_KEY = "gas_tmpl_oauth_state";
   const MISSING_CHOOSER_URL_ERROR = "無法建立 Google 帳戶切換網址，請稍後再試";
-  const BOOTSTRAP_TOAST_MESSAGE = "初次登入已自動開通系統管理員權限！";
 
   // ---------------------------------------------------------------------------
   // 純函式：登入結果轉換
@@ -8512,7 +9712,7 @@ window.MEA = window.MEA || {};
     return {
       view: "login",
       loginBusy: false,
-      loginError: (result && result.message) || DEFAULT_LOGIN_ERROR
+      loginError: resolveSafeMessage(result, DEFAULT_LOGIN_ERROR)
     };
   }
 
@@ -8537,10 +9737,7 @@ window.MEA = window.MEA || {};
     };
   }
 
-  function getLoginToast(user, bootstrapped) {
-    if (bootstrapped) {
-      return { message: BOOTSTRAP_TOAST_MESSAGE, level: "warn" };
-    }
+  function getLoginToast(user) {
     return { message: "歡迎回來，" + user.name + "！", level: "ok" };
   }
 
@@ -8548,9 +9745,14 @@ window.MEA = window.MEA || {};
     if (csrfToken) api.setCsrfToken(csrfToken);
   }
 
-  function invokeFetchCourses(MEA) {
-    if (MEA.courses && typeof MEA.courses.fetchList === "function") {
-      MEA.courses.fetchList(1);
+  /**
+   * 登入或還原後僅取得輕量統計，完整清單留待進入課程分頁時再載入。
+   *
+   * @param {Object} MEA - 前端全域命名空間
+   */
+  function invokeFetchStats(MEA) {
+    if (MEA.courses && typeof MEA.courses.fetchStats === "function") {
+      MEA.courses.fetchStats();
     }
   }
 
@@ -8558,23 +9760,82 @@ window.MEA = window.MEA || {};
   // 純函式：網址建立與導向
   // ---------------------------------------------------------------------------
 
-  function encodeAuthState(redirectUri, options) {
-    const settings = options || {};
-    try {
-      if (typeof settings.btoa !== "function") return "";
-      const random =
-        typeof settings.random === "function"
-          ? settings.random
-          : function () {
-              return Math.random();
-            };
+  /** 產生不可預測的 nonce：注入的 random 優先，其次 Web Crypto，最後為時間亂數備援。 */
+  function buildAuthNonce_(settings) {
+    if (typeof settings.random === "function") {
       const now =
         typeof settings.now === "function"
           ? settings.now
           : function () {
               return Date.now();
             };
-      const nonce = random().toString(36).substring(2) + now().toString(36);
+      return settings.random().toString(36).substring(2) + now().toString(36);
+    }
+    const cryptoObj =
+      settings.crypto || (typeof globalThis !== "undefined" && globalThis.crypto ? globalThis.crypto : null);
+    if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
+      const bytes = new Uint8Array(16);
+      cryptoObj.getRandomValues(bytes);
+      let hex = "";
+      for (let i = 0; i < bytes.length; i++) {
+        hex += ("0" + bytes[i].toString(16)).slice(-2);
+      }
+      return hex;
+    }
+    return String(Date.now()) + Math.random().toString(36).substring(2);
+  }
+
+  function getAuthStateStorage_(settings) {
+    if (settings.sessionStorage) return settings.sessionStorage;
+    if (typeof globalThis !== "undefined" && globalThis.sessionStorage) return globalThis.sessionStorage;
+    return null;
+  }
+
+  /** 保存 nonce 與 redirectUri 供回呼比對。 */
+  function saveAuthState(nonce, redirectUri, options) {
+    const storage = getAuthStateStorage_(options || {});
+    if (!storage || typeof storage.setItem !== "function") return false;
+    try {
+      storage.setItem(OAUTH_STATE_STORAGE_KEY, JSON.stringify({ nonce: nonce, redirectUri: redirectUri }));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /** 讀取先前保存的 OAuth state。 */
+  function readAuthState(options) {
+    const storage = getAuthStateStorage_(options || {});
+    if (!storage || typeof storage.getItem !== "function") return null;
+    try {
+      const raw = storage.getItem(OAUTH_STATE_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.nonce !== "string" || typeof parsed.redirectUri !== "string") return null;
+      return { nonce: parsed.nonce, redirectUri: parsed.redirectUri };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /** 一次性清除已保存的 OAuth state。 */
+  function clearAuthState(options) {
+    const storage = getAuthStateStorage_(options || {});
+    if (!storage || typeof storage.removeItem !== "function") return false;
+    try {
+      storage.removeItem(OAUTH_STATE_STORAGE_KEY);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function encodeAuthState(redirectUri, options) {
+    const settings = options || {};
+    try {
+      if (typeof settings.btoa !== "function") return "";
+      const nonce = buildAuthNonce_(settings);
+      saveAuthState(nonce, redirectUri, settings);
       return settings.btoa(JSON.stringify({ nonce: nonce, redirectUri: redirectUri }));
     } catch (error) {
       return "";
@@ -8608,7 +9869,8 @@ window.MEA = window.MEA || {};
   function normalizeAllowedDomain(allowedDomain) {
     return String(allowedDomain || "")
       .trim()
-      .replace(/^@/, "");
+      .replace(/^@/, "")
+      .toLowerCase();
   }
 
   function buildAccountChooserUrl(webAppUrl, allowedDomain) {
@@ -8739,8 +10001,21 @@ window.MEA = window.MEA || {};
   }
 
   function getSessionErrorMessage(result) {
-    if (!result || result.error === "missing_token") return "";
-    return result.message || "";
+    if (!result) return SESSION_EXPIRED_ERROR;
+    if (result.error === "missing_token" || result.error === "session_expired" || result.error === "invalid_session") {
+      return SESSION_EXPIRED_ERROR;
+    }
+    return result.message || SESSION_EXPIRED_ERROR;
+  }
+
+  /**
+   * 正規化登出失敗訊息。
+   *
+   * @param {*} error - 例外或錯誤物件
+   * @returns {string} 顯示給使用者的訊息
+   */
+  function normalizeLogoutError(error) {
+    return resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
   }
 
   function buildSessionFailureState(result) {
@@ -8765,6 +10040,7 @@ window.MEA = window.MEA || {};
 
     let gisPromise = null;
     let initializedClientId = "";
+    let logoutBusy = false;
 
     function getRoleNames() {
       return (MEA.config && MEA.config.roleNames) || {};
@@ -8776,6 +10052,11 @@ window.MEA = window.MEA || {};
 
     function getPublicConfig() {
       return (MEA.state && MEA.state.publicConfig) || {};
+    }
+
+    /** 只有後端公開設定明確標記待開通時，才在登入請求附上 bootstrap 旗標。 */
+    function shouldRequestBootstrap() {
+      return getPublicConfig().needsBootstrap === true;
     }
 
     function isGasHosted() {
@@ -8797,7 +10078,7 @@ window.MEA = window.MEA || {};
             resolve(host.google.accounts.id);
           });
           existing.addEventListener("error", function () {
-            reject(new Error("Google 登入服務載入失敗"));
+            reject(createSafeError("Google 登入服務載入失敗"));
           });
           return;
         }
@@ -8810,11 +10091,11 @@ window.MEA = window.MEA || {};
           if (host.google && host.google.accounts && host.google.accounts.id) {
             resolve(host.google.accounts.id);
           } else {
-            reject(new Error("Google 登入服務載入失敗"));
+            reject(createSafeError("Google 登入服務載入失敗"));
           }
         };
         script.onerror = function () {
-          reject(new Error("Google 登入服務載入失敗，請檢查網路連線"));
+          reject(createSafeError("Google 登入服務載入失敗，請檢查網路連線"));
         };
         doc.head.appendChild(script);
       });
@@ -8830,9 +10111,9 @@ window.MEA = window.MEA || {};
       applyCsrfToken(MEA.api, result.csrfToken);
       const user = buildLoginUser(result, getRoleNames());
       MEA.setState(buildLoginSuccessState(user));
-      const toast = getLoginToast(user, result.bootstrapped);
+      const toast = getLoginToast(user);
       MEA.ui.toast(toast.message, toast.level);
-      invokeFetchCourses(MEA);
+      invokeFetchStats(MEA);
       return Promise.resolve(user);
     }
 
@@ -8843,7 +10124,10 @@ window.MEA = window.MEA || {};
         return;
       }
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("login", { credential: credential }).then(applyLoginSuccess);
+      MEA.api
+        .call("login", { credential: credential, bootstrap: shouldRequestBootstrap() })
+        .then(applyLoginSuccess)
+        .catch(handleAuthCallFailure);
     }
 
     function buildGoogleAuthUrl(clientId, redirectUri) {
@@ -8881,7 +10165,10 @@ window.MEA = window.MEA || {};
 
     function loginActiveUser() {
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("loginWithActiveUser", {}).then(applyLoginSuccess);
+      MEA.api
+        .call("loginWithActiveUser", { bootstrap: shouldRequestBootstrap() })
+        .then(applyLoginSuccess)
+        .catch(handleAuthCallFailure);
     }
 
     function createGisReadyHandler(host, clientId) {
@@ -8896,7 +10183,18 @@ window.MEA = window.MEA || {};
     }
 
     function handleGisFailure(error) {
-      MEA.setState({ loginError: String(error && error.message ? error.message : error) });
+      MEA.setState({ loginError: resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
+    }
+
+    /**
+     * 統一處理 API 呼叫拒絕，避免未捕獲的 Promise 例外並提供明確回饋。
+     *
+     * @param {*} error - 例外或錯誤物件
+     */
+    function handleAuthCallFailure(error) {
+      const message = resolveSafeMessage(error, DEFAULT_LOGIN_ERROR);
+      MEA.setState({ loginBusy: false, loginError: message });
+      MEA.ui.toast(message, "err");
     }
 
     function renderGoogleButton() {
@@ -8917,7 +10215,10 @@ window.MEA = window.MEA || {};
 
     function loginMock() {
       MEA.setState({ loginBusy: true, loginError: "" });
-      MEA.api.call("login", { mock: true }).then(applyLoginSuccess);
+      MEA.api
+        .call("login", { mock: true, bootstrap: shouldRequestBootstrap() })
+        .then(applyLoginSuccess)
+        .catch(handleAuthCallFailure);
     }
 
     function scheduleRenderGoogleButton() {
@@ -8925,36 +10226,53 @@ window.MEA = window.MEA || {};
     }
 
     function logout() {
-      MEA.api.call("logout", {}).then(function () {
-        MEA.api.setToken("");
-        MEA.api.setCsrfToken("");
-        MEA.setState({
-          view: "login",
-          user: null,
-          loginError: "",
-          loginBusy: false
+      if (logoutBusy) return Promise.resolve(false);
+      logoutBusy = true;
+      MEA.setState({ logoutBusy: true, loginError: "" });
+      return MEA.api
+        .call("logout", {})
+        .then(function () {
+          MEA.api.setToken("");
+          MEA.api.setCsrfToken("");
+          MEA.setState({
+            view: "login",
+            user: null,
+            loginError: "",
+            loginBusy: false,
+            logoutBusy: false
+          });
+          logoutBusy = false;
+          scheduleRenderGoogleButton();
+          return true;
+        })
+        .catch(function (error) {
+          logoutBusy = false;
+          MEA.setState({ logoutBusy: false });
+          MEA.ui.toast(normalizeLogoutError(error), "err");
+          return false;
         });
-        scheduleRenderGoogleButton();
-      });
     }
 
     function applySessionSuccess(result) {
       if (!isOkResult(result)) return false;
       applyCsrfToken(MEA.api, result.csrfToken);
       MEA.setState(buildSessionSuccessState(result, getRoleNames()));
-      invokeFetchCourses(MEA);
+      invokeFetchStats(MEA);
       return true;
     }
 
     function restore() {
       const token = MEA.api.getToken();
       if (isMock()) {
-        MEA.api.call("getSession", {}).then(function (result) {
-          if (!applySessionSuccess(result)) {
-            MEA.setState({ view: "login" });
-            scheduleRenderGoogleButton();
-          }
-        });
+        MEA.api
+          .call("getSession", {})
+          .then(function (result) {
+            if (!applySessionSuccess(result)) {
+              MEA.setState(buildSessionFailureState(result));
+              scheduleRenderGoogleButton();
+            }
+          })
+          .catch(handleAuthCallFailure);
         return;
       }
       if (!token) {
@@ -8962,14 +10280,17 @@ window.MEA = window.MEA || {};
         scheduleRenderGoogleButton();
         return;
       }
-      MEA.api.call("getSession", { token: token }).then(function (result) {
-        if (!applySessionSuccess(result)) {
-          MEA.api.setToken("");
-          MEA.api.setCsrfToken("");
-          MEA.setState(buildSessionFailureState(result));
-          scheduleRenderGoogleButton();
-        }
-      });
+      MEA.api
+        .call("getSession", { token: token })
+        .then(function (result) {
+          if (!applySessionSuccess(result)) {
+            MEA.api.setToken("");
+            MEA.api.setCsrfToken("");
+            MEA.setState(buildSessionFailureState(result));
+            scheduleRenderGoogleButton();
+          }
+        })
+        .catch(handleAuthCallFailure);
     }
 
     return {
@@ -8997,8 +10318,11 @@ window.MEA = window.MEA || {};
     buildLoginSuccessState: buildLoginSuccessState,
     getLoginToast: getLoginToast,
     applyCsrfToken: applyCsrfToken,
-    invokeFetchCourses: invokeFetchCourses,
+    invokeFetchStats: invokeFetchStats,
     encodeAuthState: encodeAuthState,
+    saveAuthState: saveAuthState,
+    readAuthState: readAuthState,
+    clearAuthState: clearAuthState,
     buildGoogleAuthUrl: buildGoogleAuthUrlWithOptions,
     buildChooserContinueUrl: buildChooserContinueUrl,
     normalizeAllowedDomain: normalizeAllowedDomain,
@@ -9015,12 +10339,15 @@ window.MEA = window.MEA || {};
     buildSessionSuccessState: buildSessionSuccessState,
     getSessionErrorMessage: getSessionErrorMessage,
     buildSessionFailureState: buildSessionFailureState,
+    normalizeLogoutError: normalizeLogoutError,
     constants: {
       GIS_SRC: GIS_SRC,
       GOOGLE_AUTH_URL: GOOGLE_AUTH_URL,
       GOOGLE_ACCOUNT_CHOOSER_URL: GOOGLE_ACCOUNT_CHOOSER_URL,
       CLIENT_ID_HINT_HTML: CLIENT_ID_HINT_HTML,
-      DEFAULT_LOGIN_ERROR: DEFAULT_LOGIN_ERROR
+      DEFAULT_LOGIN_ERROR: DEFAULT_LOGIN_ERROR,
+      DEFAULT_LOGOUT_ERROR: DEFAULT_LOGOUT_ERROR,
+      SESSION_EXPIRED_ERROR: SESSION_EXPIRED_ERROR
     }
   };
 });
@@ -9054,11 +10381,19 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const SHEETJS_CDN = [
-    "https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js",
-    "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js",
-    "https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"
-  ];
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
+  // SheetJS 自 0.19 起僅於官方 CDN 發布；固定單一版本並以 SRI 驗證完整性。
+  const SHEETJS_VERSION = "0.20.3";
+  const SHEETJS_CDN = ["https://cdn.sheetjs.com/xlsx-" + SHEETJS_VERSION + "/package/dist/xlsx.full.min.js"];
+  const SHEETJS_SRI = "sha384-EnyY0/GSHQGSxSgMwaIPzSESbqoOLSexfnSMN2AP+39Ckmn92stwABZynq1JyzdT";
 
   const SAMPLE_COLUMN_INDEXES = [0, 1, 2, 4, 5, 7, 10, 11, 12];
 
@@ -9083,25 +10418,8 @@ window.MEA = window.MEA || {};
   }
 
   /**
-   * 以相同條件尋找第一個符合的工作表。
-   *
-   * @param {Array<string>} names - 工作表名稱清單
-   * @param {Function} readRows - 讀取單一工作表列的函式
-   * @param {Function|null} predicate - 額外篩選條件，傳入 null 表示僅要求有資料
-   * @returns {Object|null} 符合的工作表資訊
-   */
-  function findSheetWithRows(names, readRows, predicate) {
-    for (let i = 0; i < names.length; i++) {
-      const rows = readRows(names[i]) || [];
-      if (rows.length > 0 && (!predicate || predicate(rows))) {
-        return { sheetName: names[i], rows: rows };
-      }
-    }
-    return null;
-  }
-
-  /**
    * 挑選課程代碼工作表；找不到特色標頭時退回第一個有資料的工作表。
+   * 每個工作表最多解析一次，避免退回邏輯重複呼叫 SheetJS。
    *
    * @param {Object} workbook - 試算表活頁簿
    * @param {Function} readRows - 讀取單一工作表列的函式
@@ -9115,10 +10433,29 @@ window.MEA = window.MEA || {};
         : function () {
             return [];
           };
-    const courseSheet = findSheetWithRows(names, reader, looksLikeCourseCodes);
-    if (courseSheet) return courseSheet;
-    const anySheet = findSheetWithRows(names, reader, null);
-    return anySheet || { sheetName: "", rows: [] };
+    const rowsBySheet = Object.create(null);
+    let firstSheetWithRows = null;
+
+    for (let i = 0; i < names.length; i++) {
+      const sheetName = names[i];
+      let rows;
+      if (Object.prototype.hasOwnProperty.call(rowsBySheet, sheetName)) {
+        rows = rowsBySheet[sheetName];
+      } else {
+        rows = reader(sheetName) || [];
+        rowsBySheet[sheetName] = rows;
+      }
+      if (rows.length === 0) continue;
+
+      if (!firstSheetWithRows) {
+        firstSheetWithRows = { sheetName: sheetName, rows: rows };
+      }
+      if (looksLikeCourseCodes(rows)) {
+        return { sheetName: sheetName, rows: rows };
+      }
+    }
+
+    return firstSheetWithRows || { sheetName: "", rows: [] };
   }
 
   /**
@@ -9140,15 +10477,19 @@ window.MEA = window.MEA || {};
   function buildDropzoneHtml() {
     return (
       '<div class="upload-dropzone" id="uploadDropzone"' +
+      ' role="button"' +
+      ' tabindex="0"' +
+      ' aria-label="選擇或拖曳 108 課綱課程代碼 Excel 檔案"' +
       ' ondragover="MEA.imports.handleDragOver(event)"' +
       ' ondragleave="MEA.imports.handleDragLeave(event)"' +
       ' ondrop="MEA.imports.handleDrop(event)"' +
+      ' onkeydown="MEA.imports.handleDropzoneKey(event)"' +
       ' onclick="MEA.imports.pickFile()">' +
-      '  <div class="dropzone-icon">📁</div>' +
+      '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
       '  <div class="dropzone-title">點擊選擇或拖曳 108 課綱課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
-      '  <input type="file" id="fileInput" style="display:none;" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />' +
-      "</div>"
+      "</div>" +
+      '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />'
     );
   }
 
@@ -9254,7 +10595,7 @@ window.MEA = window.MEA || {};
       '    <table class="table">' +
       "      <thead>" +
       "        <tr>" +
-      "          <th>開課學年</th><th>學期</th><th>年級</th><th>課程代碼</th><th>科目名稱</th><th>科別</th><th>科目屬性</th><th>必選修</th><th>學分</th>" +
+      '          <th scope="col">開課學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分</th>' +
       "        </tr>" +
       "      </thead>" +
       "      <tbody>" +
@@ -9320,6 +10661,8 @@ window.MEA = window.MEA || {};
           const script = doc.createElement("script");
           script.src = SHEETJS_CDN[index++];
           script.async = true;
+          script.integrity = SHEETJS_SRI;
+          script.crossOrigin = "anonymous";
           script.onload = function () {
             if (win.XLSX) {
               resolve(win.XLSX);
@@ -9416,7 +10759,7 @@ window.MEA = window.MEA || {};
         })
         .catch(function (error) {
           MEA.setState({ importBusy: false });
-          MEA.ui.toast(String(error && error.message ? error.message : error), "err");
+          MEA.ui.toast(resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
           return null;
         });
     }
@@ -9424,6 +10767,19 @@ window.MEA = window.MEA || {};
     function pickFile() {
       const input = doc.getElementById("fileInput");
       if (input) input.click();
+    }
+
+    /**
+     * 讓鍵盤使用者以 Enter 或 Space 觸發檔案選擇。
+     *
+     * @param {Object} e - 鍵盤事件
+     */
+    function handleDropzoneKey(e) {
+      if (!e) return;
+      const key = e.key || (e.keyCode === 32 ? " " : "");
+      if (key !== "Enter" && key !== " " && key !== "Spacebar") return;
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      pickFile();
     }
 
     function handleFileSelect(input) {
@@ -9474,7 +10830,12 @@ window.MEA = window.MEA || {};
         importLast: result
       });
 
-      MEA.ui.toast("課程代碼匯入完成！已儲存至「正規化課程索引」工作表", "ok");
+      MEA.ui.toast(
+        result.idempotent === true
+          ? "此匯入已處理完成，不重複寫入（冪等命中）"
+          : "課程代碼匯入完成！已儲存至「正規化課程索引」工作表",
+        "ok"
+      );
 
       if (MEA.courses && typeof MEA.courses.fetchList === "function") {
         MEA.courses.fetchList(1);
@@ -9483,7 +10844,8 @@ window.MEA = window.MEA || {};
 
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
-      MEA.ui.toast(String(error && error.message ? error.message : error), "err");
+      const detail = resolveSafeMessage(error, "匯入失敗，請稍後再試");
+      MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 
     function doImport() {
@@ -9493,14 +10855,24 @@ window.MEA = window.MEA || {};
         return;
       }
 
+      // 同一筆匯入重送時沿用 importId，讓後端可直接回傳前次結果。
+      if (!entry.importId) {
+        entry.importId = "imp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+      }
+
       MEA.setState({ importBusy: true });
       MEA.ui.toast("正在寫入 Google 試算表（共 " + entry.payload.length + " 筆）...", "info");
 
       MEA.api
-        .call("importCourseCodes", {
-          rows: entry.payload,
-          preNormalized: true
-        })
+        .call(
+          "importCourseCodes",
+          {
+            rows: entry.payload,
+            preNormalized: true,
+            importId: entry.importId
+          },
+          { retry: false }
+        )
         .then(function (result) {
           handleImportResult(entry, result);
         })
@@ -9523,6 +10895,7 @@ window.MEA = window.MEA || {};
       loadSheetJs: loadSheetJs,
       previewFile: previewFile,
       pickFile: pickFile,
+      handleDropzoneKey: handleDropzoneKey,
       handleFileSelect: handleFileSelect,
       handleDragOver: handleDragOver,
       handleDragLeave: handleDragLeave,
@@ -9558,6 +10931,8 @@ window.MEA = window.MEA || {};
   return {
     createImportsModule: createImportsModule,
     SHEETJS_CDN: SHEETJS_CDN,
+    SHEETJS_VERSION: SHEETJS_VERSION,
+    SHEETJS_SRI: SHEETJS_SRI,
     SAMPLE_COLUMN_INDEXES: SAMPLE_COLUMN_INDEXES,
     looksLikeCourseCodes: looksLikeCourseCodes,
     pickCourseSheetRows: pickCourseSheetRows,
@@ -9597,6 +10972,15 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
   /**
    * 建立課程索引模組控制器。
    *
@@ -9622,10 +11006,11 @@ window.MEA = window.MEA || {};
      * 統一錯誤訊息轉譯。
      *
      * @param {*} error - 錯誤物件或字串
+     * @param {string} fallback - 原始例外不外顯時使用的文案
      * @returns {string} 可顯示的錯誤訊息
      */
-    function normalizeErrorMessage(error) {
-      return String(error && error.message ? error.message : error);
+    function normalizeErrorMessage(error, fallback) {
+      return resolveSafeMessage(error, fallback);
     }
 
     /**
@@ -9644,6 +11029,23 @@ window.MEA = window.MEA || {};
         page: targetPage,
         pageSize: cur.pageSize || 30
       };
+    }
+
+    /**
+     * 由查詢參數建立 in-flight Promise 避免重複鍵。
+     *
+     * @param {Object} query - API 查詢參數
+     * @returns {string} 避免重複鍵
+     */
+    function buildCourseFetchKey(query) {
+      return JSON.stringify([
+        query.keyword || "",
+        query.department || "",
+        query.academicYear || "",
+        query.semester || "",
+        query.page || 1,
+        query.pageSize || 30
+      ]);
     }
 
     /**
@@ -9685,24 +11087,84 @@ window.MEA = window.MEA || {};
       });
     }
 
+    const inflightListFetches = {};
+    let listRequestSeq = 0;
+
+    /** 只接受最新一次清單請求的回應，避免過期回應覆蓋新篩選結果。 */
+    function isCurrentListRequest(seq) {
+      return seq === listRequestSeq;
+    }
+
     function fetchList(page) {
       const targetPage = page || (MEA.state.courses && MEA.state.courses.page) || 1;
       const cur = MEA.state.courses || {};
+      const query = buildCourseQuery(cur, targetPage);
+      const fetchKey = buildCourseFetchKey(query);
+      if (Object.prototype.hasOwnProperty.call(inflightListFetches, fetchKey)) {
+        return inflightListFetches[fetchKey];
+      }
 
+      const requestSeq = ++listRequestSeq;
       MEA.setState({
         courses: Object.assign({}, cur, { loading: true, page: targetPage })
       });
 
-      MEA.api
-        .call("getCourseIndex", buildCourseQuery(cur, targetPage))
+      const pending = MEA.api
+        .call("getCourseIndex", query)
         .then(function (result) {
+          if (!isCurrentListRequest(requestSeq)) return;
           handleFetchListSuccess(cur, result, targetPage);
         })
         .catch(function (error) {
+          if (!isCurrentListRequest(requestSeq)) return;
           MEA.setState({
             courses: Object.assign({}, cur, { loading: false })
           });
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "讀取課程資料失敗，請稍後再試"), "err");
+        });
+
+      const tracked = pending.then(
+        function (value) {
+          delete inflightListFetches[fetchKey];
+          return value;
+        },
+        function (error) {
+          delete inflightListFetches[fetchKey];
+          throw error;
+        }
+      );
+      inflightListFetches[fetchKey] = tracked;
+      return tracked;
+    }
+
+    /**
+     * 處理輕量統計回應：僅更新概覽頁所需的總筆數。
+     *
+     * @param {Object} result - API 回應
+     */
+    function handleFetchStatsSuccess(result) {
+      if (!result || result.ok !== true) return;
+      const cur = MEA.state.courses || {};
+      MEA.setState({
+        courses: Object.assign({}, cur, { total: result.total || 0 })
+      });
+    }
+
+    /**
+     * 僅取得課程索引總筆數，不下載完整清單；供概覽頁使用。
+     *
+     * @returns {Promise<Object|null>} API 回應或失敗時的 null
+     */
+    function fetchStats() {
+      if (!MEA.api || typeof MEA.api.call !== "function") return Promise.resolve(null);
+      return MEA.api
+        .call("getCourseIndexStats", {})
+        .then(function (result) {
+          handleFetchStatsSuccess(result);
+          return result;
+        })
+        .catch(function () {
+          return null;
         });
     }
 
@@ -9734,13 +11196,6 @@ window.MEA = window.MEA || {};
 
       fetchList(1);
     }
-
-    const onKeywordInput =
-      MEA.ui && typeof MEA.ui.debounce === "function"
-        ? MEA.ui.debounce(function () {
-            handleSearch();
-          }, 300)
-        : function () {};
 
     function resetSearch() {
       const cur = MEA.state.courses || {};
@@ -9864,12 +11319,12 @@ window.MEA = window.MEA || {};
         totalPages +
         " 頁</span>" +
         '  <div class="pagination-buttons">' +
-        '    <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         (currentPage - 1) +
         ')"' +
         (currentPage <= 1 || loading ? " disabled" : "") +
         ">上一頁</button>" +
-        '    <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         (currentPage + 1) +
         ')"' +
         (currentPage >= totalPages || loading ? " disabled" : "") +
@@ -9890,15 +11345,19 @@ window.MEA = window.MEA || {};
       return (
         '<div class="filter-bar">' +
         '  <form class="filter-form" onsubmit="MEA.courses.handleSearch(event)">' +
-        '    <input type="text" id="courseSearchKeyword" class="input" oninput="MEA.courses.onKeywordInput()" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
+        '    <label class="sr-only" for="courseSearchKeyword">搜尋關鍵字</label>' +
+        '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
         MEA.ui.escapeHtml(courses.keyword || "") +
         '" />' +
+        '    <label class="sr-only" for="courseSearchDept">科別篩選</label>' +
         '    <select id="courseSearchDept" class="select">' +
         deptOptionsHtml +
         "</select>" +
+        '    <label class="sr-only" for="courseSearchYear">開課學年</label>' +
         '    <input type="text" id="courseSearchYear" class="input compact" style="width:100px;" placeholder="學年 (如 114)" value="' +
         MEA.ui.escapeHtml(courses.academicYear || "") +
         '" />' +
+        '    <label class="sr-only" for="courseSearchSem">學期篩選</label>' +
         '    <select id="courseSearchSem" class="select compact" style="width:100px;">' +
         '      <option value="">學期</option>' +
         '      <option value="1"' +
@@ -9933,7 +11392,7 @@ window.MEA = window.MEA || {};
         '    <h2 class="panel-title">正規化課程索引清單</h2>' +
         '    <p class="panel-sub">檢視自 39 欄課綱寬表展開後之 1NF 課程紀錄</p>' +
         "  </div>" +
-        '  <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         currentPage +
         ')">🔄 重新整理</button>' +
         "</div>" +
@@ -9942,7 +11401,7 @@ window.MEA = window.MEA || {};
         '  <table class="table">' +
         "    <thead>" +
         "      <tr>" +
-        "        <th>學年</th><th>學期</th><th>年級</th><th>課程代碼</th><th>科目名稱</th><th>科別</th><th>課程類別</th><th>科目屬性</th><th>必選修</th><th>學分/時數</th>" +
+        '        <th scope="col">學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">課程類別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分/時數</th>' +
         "      </tr>" +
         "    </thead>" +
         "    <tbody>" +
@@ -9957,8 +11416,8 @@ window.MEA = window.MEA || {};
 
     return {
       fetchList: fetchList,
+      fetchStats: fetchStats,
       handleSearch: handleSearch,
-      onKeywordInput: onKeywordInput,
       resetSearch: resetSearch,
       renderView: renderView
     };
@@ -9996,6 +11455,15 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
   /**
    * 建立帳號與系統設定模組控制器。
    *
@@ -10021,10 +11489,11 @@ window.MEA = window.MEA || {};
      * 統一錯誤訊息轉譯。
      *
      * @param {*} error - 錯誤物件或字串
+     * @param {string} fallback - 原始例外不外顯時使用的文案
      * @returns {string} 可顯示的錯誤訊息
      */
-    function normalizeErrorMessage(error) {
-      return String(error && error.message ? error.message : error);
+    function normalizeErrorMessage(error, fallback) {
+      return resolveSafeMessage(error, fallback);
     }
 
     function loadSettingsAndAccounts() {
@@ -10050,7 +11519,7 @@ window.MEA = window.MEA || {};
           MEA.setState({
             settings: Object.assign({}, MEA.state.settings || {}, { loading: false })
           });
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "讀取系統設定失敗，請稍後再試"), "err");
         });
     }
 
@@ -10160,7 +11629,7 @@ window.MEA = window.MEA || {};
         })
         .catch(function (error) {
           finishSettingsSaving();
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "儲存系統設定失敗，請稍後再試"), "err");
         });
     }
 
@@ -10215,18 +11684,52 @@ window.MEA = window.MEA || {};
     }
 
     /**
+     * 標記欄位驗證失敗，並以欄位層級錯誤訊息通知輔助科技。
+     *
+     * @param {string} fieldId - 表單控制項 id
+     * @param {string} message - 錯誤訊息
+     */
+    function setFieldError(fieldId, message) {
+      const field = getElementById(fieldId);
+      const error = getElementById(fieldId + "Error");
+      if (field && typeof field.setAttribute === "function") field.setAttribute("aria-invalid", "true");
+      if (error) {
+        error.textContent = message;
+        if (typeof error.removeAttribute === "function") error.removeAttribute("hidden");
+      }
+      MEA.ui.toast(message, "warn");
+    }
+
+    /**
+     * 清除欄位錯誤標記與訊息。
+     *
+     * @param {Object} field - 表單控制項
+     */
+    function clearFieldError(field) {
+      if (!field) return;
+      if (typeof field.removeAttribute === "function") field.removeAttribute("aria-invalid");
+      const id = typeof field.getAttribute === "function" ? field.getAttribute("id") : "";
+      const error = id ? getElementById(id + "Error") : null;
+      if (error) {
+        error.textContent = "";
+        if (typeof error.setAttribute === "function") error.setAttribute("hidden", "");
+      }
+    }
+
+    /**
      * 處理「新增」按鈕點擊（原 addAccountPrompt 的 onClick 回呼）。
      */
     function handleAddAccountClick() {
       const values = readNewAccountValues();
+      clearFieldError(getElementById("newAccountEmail"));
       if (!values.email || values.email.indexOf("@") === -1) {
-        MEA.ui.toast("請填寫有效的 Email", "warn");
+        setFieldError("newAccountEmail", "請填寫有效的 Email");
         return;
       }
 
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
       if (isDuplicateEmail(cur, values.email)) {
-        MEA.ui.toast("此 Email 已在白名單中", "warn");
+        setFieldError("newAccountEmail", "此 Email 已在白名單中");
         return;
       }
 
@@ -10235,21 +11738,42 @@ window.MEA = window.MEA || {};
     }
 
     function addAccountPrompt() {
+      const roleNames = (MEA.config && MEA.config.roleNames) || {};
+      const escapeHtml =
+        MEA.ui && typeof MEA.ui.escapeHtml === "function"
+          ? MEA.ui.escapeHtml
+          : function (value) {
+              return String(value);
+            };
+      const roleOptions = Object.keys(roleNames)
+        .map(function (role) {
+          return (
+            '<option value="' +
+            escapeHtml(role) +
+            '">' +
+            escapeHtml(roleNames[role]) +
+            " (" +
+            escapeHtml(role) +
+            ")</option>"
+          );
+        })
+        .join("");
+
       const html =
         '<div class="form-group">' +
-        '  <label class="label">Google Email</label>' +
-        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" />' +
+        '  <label class="label" for="newAccountEmail">Google Email</label>' +
+        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" onchange="MEA.accounts.clearFieldError(this)" />' +
+        '  <span class="hint" id="newAccountEmailHint">請輸入完整的 Google 電子郵件地址。</span>' +
+        '  <span class="field-error" id="newAccountEmailError" role="alert" hidden></span>' +
         "</div>" +
         '<div class="form-group mt-2">' +
-        '  <label class="label">姓名或職稱</label>' +
+        '  <label class="label" for="newAccountName">姓名或職稱</label>' +
         '  <input type="text" id="newAccountName" class="input" placeholder="王小明" />' +
         "</div>" +
         '<div class="form-group mt-2">' +
-        '  <label class="label">指派角色</label>' +
+        '  <label class="label" for="newAccountRole">指派角色</label>' +
         '  <select id="newAccountRole" class="select">' +
-        '    <option value="viewer">檢視人員 (viewer)</option>' +
-        '    <option value="staff">業務人員 (staff)</option>' +
-        '    <option value="admin">系統管理員 (admin)</option>' +
+        roleOptions +
         "  </select>" +
         "</div>";
 
@@ -10268,7 +11792,23 @@ window.MEA = window.MEA || {};
       const updated = cur.filter(function (a) {
         return a.email !== email;
       });
-      saveAccountsList(updated);
+      MEA.ui.modal(
+        "確認刪除授權成員",
+        '<p class="mb-2">確定要刪除 <strong>' +
+          MEA.ui.escapeHtml(email) +
+          "</strong> 嗎？刪除後該帳號將立即失去存取權。</p>",
+        [
+          { text: "取消", onClick: MEA.ui.closeModal },
+          {
+            text: "確認刪除",
+            primary: true,
+            onClick: function () {
+              MEA.ui.closeModal();
+              saveAccountsList(updated);
+            }
+          }
+        ]
+      );
     }
 
     function toggleAccount(email) {
@@ -10320,7 +11860,7 @@ window.MEA = window.MEA || {};
         })
         .catch(function (error) {
           finishWhitelistSaving();
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "儲存授權成員失敗，請稍後再試"), "err");
         });
     }
 
@@ -10345,9 +11885,11 @@ window.MEA = window.MEA || {};
      * 產生單筆授權成員表格列。
      *
      * @param {Object} a - 帳號紀錄
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderAccountRowHtml(a) {
+    function renderAccountRowHtml(a, saving) {
+      const disabled = saving ? " disabled" : "";
       return (
         "<tr>" +
         "<td><strong>" +
@@ -10369,14 +11911,18 @@ window.MEA = window.MEA || {};
         "  </span>" +
         "</td>" +
         "<td>" +
-        '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
         encodeURIComponent(a.email) +
-        "'))\">" +
+        "'))\"" +
+        disabled +
+        ">" +
         (a.enabled ? "停用" : "啟用") +
         "</button>" +
-        '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
+        '  <button type="button" class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
         encodeURIComponent(a.email) +
-        "'))\">刪除</button>" +
+        "'))\"" +
+        disabled +
+        ">刪除</button>" +
         "</td>" +
         "</tr>"
       );
@@ -10386,16 +11932,17 @@ window.MEA = window.MEA || {};
      * 產生授權成員表格內容。
      *
      * @param {Array<Object>} accounts - 帳號陣列
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderAccountsRowsHtml(accounts) {
+    function renderAccountsRowsHtml(accounts, saving) {
       if (accounts.length === 0) {
         return '<tr><td colspan="5" class="text-center py-4 text-muted">目前尚未設定任何授權帳號。</td></tr>';
       }
 
       let rowsHtml = "";
       for (let i = 0; i < accounts.length; i++) {
-        rowsHtml += renderAccountRowHtml(accounts[i]);
+        rowsHtml += renderAccountRowHtml(accounts[i], saving);
       }
       return rowsHtml;
     }
@@ -10414,46 +11961,46 @@ window.MEA = window.MEA || {};
         '  <form class="mt-3" onsubmit="MEA.accounts.saveSettings(event)">' +
         '    <div class="row">' +
         '      <div class="col" style="flex:2;">' +
-        '        <label class="label">系統名稱</label>' +
-        '        <input type="text" id="cfgSystemName" class="input" value="' +
+        '        <label class="label" for="cfgSystemName">系統名稱</label>' +
+        '        <input type="text" id="cfgSystemName" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.systemName || "") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
-        '        <label class="label">目前學年度</label>' +
-        '        <input type="text" id="cfgSchoolYear" class="input" value="' +
+        '        <label class="label" for="cfgSchoolYear">目前學年度</label>' +
+        '        <input type="text" id="cfgSchoolYear" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.schoolYear || "114") +
         '" />' +
         "      </div>" +
         '      <div class="col">' +
-        '        <label class="label">目前學期</label>' +
-        '        <input type="text" id="cfgSemester" class="input" value="' +
+        '        <label class="label" for="cfgSemester">目前學期</label>' +
+        '        <input type="text" id="cfgSemester" class="input" required aria-required="true" value="' +
         MEA.ui.escapeHtml(data.semester || "1") +
         '" />' +
         "      </div>" +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
-        '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" value="' +
+        '      <label class="label" for="cfgClientId">Google OAuth 2.0 Client ID (GIS 登入用)</label>' +
+        '      <input type="text" id="cfgClientId" class="input mono" placeholder="xxxxxxxxxxxx-xxxxxxxxxxxxxxxx.apps.googleusercontent.com" aria-describedby="cfgClientIdHint" value="' +
         MEA.ui.escapeHtml(data.clientId || "") +
         '" />' +
-        '      <span class="hint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
+        '      <span class="hint" id="cfgClientIdHint">可於 Google Cloud Console 憑證管理中取得；於 GAS 容器內仍可搭配 ActiveUser / AccountChooser 流程使用。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
+        '      <label class="label" for="cfgClientSecret">Google OAuth 2.0 Client Secret（授權碼回呼備援時需要）</label>' +
         '      <input type="password" id="cfgClientSecret" class="input mono" value="' +
         MEA.ui.escapeHtml(data.clientSecret || "") +
         '" />' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="label">Google 登入允許網域（選填）</label>' +
-        '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" value="' +
+        '      <label class="label" for="cfgAllowedDomain">Google 登入允許網域（選填）</label>' +
+        '      <input type="text" id="cfgAllowedDomain" class="input mono" placeholder="example.edu.tw" aria-describedby="cfgAllowedDomainHint" value="' +
         MEA.ui.escapeHtml(data.allowedLoginDomain || data["Google 登入允許網域"] || "") +
         '" />' +
-        '      <span class="hint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
+        '      <span class="hint" id="cfgAllowedDomainHint">填寫網域後僅允許該網域帳號登入（例如 <code>example.edu.tw</code>）。</span>' +
         "    </div>" +
         '    <div class="form-group mt-3">' +
-        '      <label class="checkbox-label">' +
+        '      <label class="checkbox-label" for="cfgRestrictWhitelist">' +
         '        <input type="checkbox" id="cfgRestrictWhitelist"' +
         (data.restrictWhitelist ? " checked" : "") +
         " />" +
@@ -10476,20 +12023,25 @@ window.MEA = window.MEA || {};
      * 產生授權白名單卡片。
      *
      * @param {string} accountsRowsHtml - 表格列 HTML
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderWhitelistCardHtml(accountsRowsHtml) {
+    function renderWhitelistCardHtml(accountsRowsHtml, saving) {
+      const loadingHint = saving ? '<span class="hint" role="status">正在更新授權白名單，請稍候...</span>' : "";
       return (
         '<div class="card mt-4">' +
         '  <div class="card-header">' +
         '    <h3 class="card-title">授權白名單成員清單</h3>' +
-        '    <button class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()">＋ 新增授權成員</button>' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()"' +
+        (saving ? " disabled" : "") +
+        ">＋ 新增授權成員</button>" +
         "  </div>" +
+        loadingHint +
         '  <div class="table-responsive mt-3">' +
         '    <table class="table">' +
         "      <thead>" +
         "        <tr>" +
-        "          <th>Email</th><th>姓名/職稱</th><th>角色</th><th>狀態</th><th>操作</th>" +
+        '          <th scope="col">Email</th><th scope="col">姓名/職稱</th><th scope="col">角色</th><th scope="col">狀態</th><th scope="col">操作</th>' +
         "        </tr>" +
         "      </thead>" +
         "      <tbody>" +
@@ -10519,10 +12071,14 @@ window.MEA = window.MEA || {};
         '    <h2 class="panel-title">系統設定與授權 (RBAC)</h2>' +
         '    <p class="panel-sub">設定 Google OAuth、登入網域限制與存取成員角色清單</p>' +
         "  </div>" +
-        '  <button class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()">🔄 重新讀取</button>' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()"' +
+        (settings.loading ? " disabled" : "") +
+        ">" +
+        (settings.loading ? "讀取中..." : "🔄 重新讀取") +
+        "</button>" +
         "</div>" +
         renderSystemCoreCardHtml(data, settings.saving) +
-        renderWhitelistCardHtml(renderAccountsRowsHtml(accounts)) +
+        renderWhitelistCardHtml(renderAccountsRowsHtml(accounts, settings.saving), settings.saving) +
         "</div>"
       );
     }
@@ -10531,6 +12087,7 @@ window.MEA = window.MEA || {};
       loadSettingsAndAccounts: loadSettingsAndAccounts,
       saveSettings: saveSettings,
       addAccountPrompt: addAccountPrompt,
+      clearFieldError: clearFieldError,
       removeAccount: removeAccount,
       toggleAccount: toggleAccount,
       renderView: renderView
@@ -10583,7 +12140,7 @@ window.MEA = window.MEA || {};
 
   const LOADING_VIEW_HTML =
     '<div class="login-container">' +
-    '<div class="login-card text-center py-12">' +
+    '<div class="login-card text-center py-12" role="status" aria-label="系統載入中" aria-busy="true">' +
     '  <div class="spinner mb-4"></div>' +
     '  <div class="text-muted">正在初始化系統連線與設定...</div>' +
     "</div>" +
@@ -10598,6 +12155,45 @@ window.MEA = window.MEA || {};
     const systemName = ((MEA && MEA.state && MEA.state.publicConfig) || {}).systemName;
     if (systemName && doc.title !== systemName) {
       doc.title = systemName;
+    }
+  }
+
+  /**
+   * 在整塊 innerHTML 重建前記錄焦點元素與輸入選取範圍。
+   *
+   * @param {Object} doc - document 物件
+   * @param {Object} mount - 即將重建的掛載元素
+   * @returns {Object|null} 焦點快照
+   */
+  function captureFocusState(doc, mount) {
+    const active = doc && doc.activeElement;
+    if (!active || !active.id) return null;
+    if (mount && active !== mount && typeof mount.contains === "function" && !mount.contains(active)) return null;
+    const snapshot = { id: active.id };
+    if (typeof active.selectionStart === "number") {
+      snapshot.selectionStart = active.selectionStart;
+      snapshot.selectionEnd = typeof active.selectionEnd === "number" ? active.selectionEnd : active.selectionStart;
+    }
+    return snapshot;
+  }
+
+  /**
+   * 重建後還原先前記錄的焦點與選取範圍；元素不存在時安全略過。
+   *
+   * @param {Object} doc - document 物件
+   * @param {Object} snapshot - captureFocusState 產生的快照
+   */
+  function restoreFocusState(doc, snapshot) {
+    if (!snapshot || !doc || typeof doc.getElementById !== "function") return;
+    const element = doc.getElementById(snapshot.id);
+    if (!element || typeof element.focus !== "function") return;
+    element.focus();
+    if (typeof snapshot.selectionStart === "number" && typeof element.setSelectionRange === "function") {
+      try {
+        element.setSelectionRange(snapshot.selectionStart, snapshot.selectionEnd);
+      } catch (e) {
+        // 部分輸入類型不支援選取範圍，忽略即可
+      }
     }
   }
 
@@ -10703,9 +12299,11 @@ window.MEA = window.MEA || {};
       const mount = doc.getElementById("app");
       if (!mount) return;
 
+      const focusSnapshot = captureFocusState(doc, mount);
       const state = MEA.state || {};
       if (state.view === "loading") {
         mount.innerHTML = LOADING_VIEW_HTML;
+        restoreFocusState(doc, focusSnapshot);
         return;
       }
 
@@ -10714,6 +12312,7 @@ window.MEA = window.MEA || {};
         setTimeoutFn(function () {
           invoke(MEA.auth, "renderGoogleButton");
         }, 50);
+        restoreFocusState(doc, focusSnapshot);
         return;
       }
 
@@ -10722,10 +12321,11 @@ window.MEA = window.MEA || {};
         '<div class="app-layout">' +
         (invoke(MEA.ui, "renderHeader") || "") +
         (invoke(MEA.ui, "renderNavbar") || "") +
-        '<main class="app-content">' +
+        '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +
         "</div>";
+      restoreFocusState(doc, focusSnapshot);
     }
 
     function finishAuth() {
@@ -10765,14 +12365,25 @@ window.MEA = window.MEA || {};
       applyAccountSwitch: applyAccountSwitch,
       render: render,
       init: init,
-      syncDocumentTitle: syncTitle
+      syncDocumentTitle: syncTitle,
+      captureFocusState: function () {
+        return captureFocusState(
+          doc,
+          doc && typeof doc.getElementById === "function" ? doc.getElementById("app") : null
+        );
+      },
+      restoreFocusState: function (snapshot) {
+        return restoreFocusState(doc, snapshot);
+      }
     };
   }
 
   return {
     createAppController: createAppController,
     syncDocumentTitle: syncDocumentTitle,
-    buildBodyHtml: buildBodyHtml
+    buildBodyHtml: buildBodyHtml,
+    captureFocusState: captureFocusState,
+    restoreFocusState: restoreFocusState
   };
 });
   </script>

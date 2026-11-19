@@ -55,6 +55,13 @@ function createElement(tag) {
     children: [],
     parentNode: null,
     onclick: null,
+    attributes: {},
+    setAttribute: function (name, value) {
+      this.attributes[name] = String(value);
+    },
+    getAttribute: function (name) {
+      return Object.prototype.hasOwnProperty.call(this.attributes, name) ? this.attributes[name] : null;
+    },
     classList: {
       add: function (name) {
         classes.add(name);

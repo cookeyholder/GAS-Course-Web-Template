@@ -23,6 +23,15 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
   /**
    * 建立課程索引模組控制器。
    *
@@ -48,10 +57,11 @@
      * 統一錯誤訊息轉譯。
      *
      * @param {*} error - 錯誤物件或字串
+     * @param {string} fallback - 原始例外不外顯時使用的文案
      * @returns {string} 可顯示的錯誤訊息
      */
-    function normalizeErrorMessage(error) {
-      return String(error && error.message ? error.message : error);
+    function normalizeErrorMessage(error, fallback) {
+      return resolveSafeMessage(error, fallback);
     }
 
     /**
@@ -70,6 +80,23 @@
         page: targetPage,
         pageSize: cur.pageSize || 30
       };
+    }
+
+    /**
+     * 由查詢參數建立 in-flight Promise 避免重複鍵。
+     *
+     * @param {Object} query - API 查詢參數
+     * @returns {string} 避免重複鍵
+     */
+    function buildCourseFetchKey(query) {
+      return JSON.stringify([
+        query.keyword || "",
+        query.department || "",
+        query.academicYear || "",
+        query.semester || "",
+        query.page || 1,
+        query.pageSize || 30
+      ]);
     }
 
     /**
@@ -111,24 +138,84 @@
       });
     }
 
+    const inflightListFetches = {};
+    let listRequestSeq = 0;
+
+    /** 只接受最新一次清單請求的回應，避免過期回應覆蓋新篩選結果。 */
+    function isCurrentListRequest(seq) {
+      return seq === listRequestSeq;
+    }
+
     function fetchList(page) {
       const targetPage = page || (MEA.state.courses && MEA.state.courses.page) || 1;
       const cur = MEA.state.courses || {};
+      const query = buildCourseQuery(cur, targetPage);
+      const fetchKey = buildCourseFetchKey(query);
+      if (Object.prototype.hasOwnProperty.call(inflightListFetches, fetchKey)) {
+        return inflightListFetches[fetchKey];
+      }
 
+      const requestSeq = ++listRequestSeq;
       MEA.setState({
         courses: Object.assign({}, cur, { loading: true, page: targetPage })
       });
 
-      MEA.api
-        .call("getCourseIndex", buildCourseQuery(cur, targetPage))
+      const pending = MEA.api
+        .call("getCourseIndex", query)
         .then(function (result) {
+          if (!isCurrentListRequest(requestSeq)) return;
           handleFetchListSuccess(cur, result, targetPage);
         })
         .catch(function (error) {
+          if (!isCurrentListRequest(requestSeq)) return;
           MEA.setState({
             courses: Object.assign({}, cur, { loading: false })
           });
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "讀取課程資料失敗，請稍後再試"), "err");
+        });
+
+      const tracked = pending.then(
+        function (value) {
+          delete inflightListFetches[fetchKey];
+          return value;
+        },
+        function (error) {
+          delete inflightListFetches[fetchKey];
+          throw error;
+        }
+      );
+      inflightListFetches[fetchKey] = tracked;
+      return tracked;
+    }
+
+    /**
+     * 處理輕量統計回應：僅更新概覽頁所需的總筆數。
+     *
+     * @param {Object} result - API 回應
+     */
+    function handleFetchStatsSuccess(result) {
+      if (!result || result.ok !== true) return;
+      const cur = MEA.state.courses || {};
+      MEA.setState({
+        courses: Object.assign({}, cur, { total: result.total || 0 })
+      });
+    }
+
+    /**
+     * 僅取得課程索引總筆數，不下載完整清單；供概覽頁使用。
+     *
+     * @returns {Promise<Object|null>} API 回應或失敗時的 null
+     */
+    function fetchStats() {
+      if (!MEA.api || typeof MEA.api.call !== "function") return Promise.resolve(null);
+      return MEA.api
+        .call("getCourseIndexStats", {})
+        .then(function (result) {
+          handleFetchStatsSuccess(result);
+          return result;
+        })
+        .catch(function () {
+          return null;
         });
     }
 
@@ -160,13 +247,6 @@
 
       fetchList(1);
     }
-
-    const onKeywordInput =
-      MEA.ui && typeof MEA.ui.debounce === "function"
-        ? MEA.ui.debounce(function () {
-            handleSearch();
-          }, 300)
-        : function () {};
 
     function resetSearch() {
       const cur = MEA.state.courses || {};
@@ -290,12 +370,12 @@
         totalPages +
         " 頁</span>" +
         '  <div class="pagination-buttons">' +
-        '    <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         (currentPage - 1) +
         ')"' +
         (currentPage <= 1 || loading ? " disabled" : "") +
         ">上一頁</button>" +
-        '    <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         (currentPage + 1) +
         ')"' +
         (currentPage >= totalPages || loading ? " disabled" : "") +
@@ -316,15 +396,19 @@
       return (
         '<div class="filter-bar">' +
         '  <form class="filter-form" onsubmit="MEA.courses.handleSearch(event)">' +
-        '    <input type="text" id="courseSearchKeyword" class="input" oninput="MEA.courses.onKeywordInput()" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
+        '    <label class="sr-only" for="courseSearchKeyword">搜尋關鍵字</label>' +
+        '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
         MEA.ui.escapeHtml(courses.keyword || "") +
         '" />' +
+        '    <label class="sr-only" for="courseSearchDept">科別篩選</label>' +
         '    <select id="courseSearchDept" class="select">' +
         deptOptionsHtml +
         "</select>" +
+        '    <label class="sr-only" for="courseSearchYear">開課學年</label>' +
         '    <input type="text" id="courseSearchYear" class="input compact" style="width:100px;" placeholder="學年 (如 114)" value="' +
         MEA.ui.escapeHtml(courses.academicYear || "") +
         '" />' +
+        '    <label class="sr-only" for="courseSearchSem">學期篩選</label>' +
         '    <select id="courseSearchSem" class="select compact" style="width:100px;">' +
         '      <option value="">學期</option>' +
         '      <option value="1"' +
@@ -359,7 +443,7 @@
         '    <h2 class="panel-title">正規化課程索引清單</h2>' +
         '    <p class="panel-sub">檢視自 39 欄課綱寬表展開後之 1NF 課程紀錄</p>' +
         "  </div>" +
-        '  <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         currentPage +
         ')">🔄 重新整理</button>' +
         "</div>" +
@@ -368,7 +452,7 @@
         '  <table class="table">' +
         "    <thead>" +
         "      <tr>" +
-        "        <th>學年</th><th>學期</th><th>年級</th><th>課程代碼</th><th>科目名稱</th><th>科別</th><th>課程類別</th><th>科目屬性</th><th>必選修</th><th>學分/時數</th>" +
+        '        <th scope="col">學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">課程類別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分/時數</th>' +
         "      </tr>" +
         "    </thead>" +
         "    <tbody>" +
@@ -383,8 +467,8 @@
 
     return {
       fetchList: fetchList,
+      fetchStats: fetchStats,
       handleSearch: handleSearch,
-      onKeywordInput: onKeywordInput,
       resetSearch: resetSearch,
       renderView: renderView
     };

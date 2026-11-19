@@ -229,7 +229,7 @@ function run() {
       return flush();
     })
     .then(function () {
-      assert.deepStrictEqual(mockLoginCtx.calls.apiCalls[0].payload, { mock: true });
+      assert.deepStrictEqual(mockLoginCtx.calls.apiCalls[0].payload, { mock: true, bootstrap: false });
       assert.deepStrictEqual(mockLoginCtx.calls.setToken, ["mock-login"]);
       console.log("15. 目前帳號登入與模擬登入流程 ✓\n");
       console.log("✓ webapp/js/auth.js 啟動與登入流程測試全數通過！\n");

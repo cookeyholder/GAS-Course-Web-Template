@@ -222,7 +222,7 @@ async function run() {
   ctx.app.render();
   assert(ctx.elements.app.innerHTML.indexOf('id="uploadDropzone"') !== -1);
   assert(ctx.elements.app.innerHTML.indexOf('<header class="app-header">') !== -1);
-  assert(ctx.elements.app.innerHTML.indexOf('<nav class="app-nav">') !== -1);
+  assert(ctx.elements.app.innerHTML.indexOf('<nav class="app-nav" aria-label="主要導覽">') !== -1);
   console.log("4. 匯入頁籤與頁首、導覽列外殼可渲染 ✓\n");
 
   const preventDefaultCalls = { count: 0 };
@@ -263,18 +263,27 @@ async function run() {
   assert(ctx.elements.app.innerHTML.indexOf("確認匯入至試算表") !== -1);
   console.log("6. 檔案解析、1NF 預覽與頁籤重新渲染 ✓\n");
 
+  const originalApiCall = ctx.MEA.api.call;
+  let capturedCallOptions = null;
+  ctx.MEA.api.call = function (action, payload, callOptions) {
+    capturedCallOptions = callOptions;
+    return originalApiCall(action, payload, callOptions);
+  };
   await ctx.MEA.imports.doImport();
   await flush();
+  ctx.MEA.api.call = originalApiCall;
   assert.strictEqual(ctx.state.importBusy, false);
   assert.strictEqual(ctx.state.imports.courseCodes.imported, true);
   assert.strictEqual(ctx.state.importLast.saved, true);
   assert.deepStrictEqual(ctx.calls.fetchList, [1]);
-  assert(
-    ctx.calls.mockActions.some(function (item) {
-      return item.action === "importCourseCodes" && item.body.preNormalized === true;
-    })
-  );
-  console.log("7. 匯入寫入走 Mock API 並觸發課程清單重載 ✓\n");
+  assert.deepStrictEqual(capturedCallOptions, { retry: false }, "匯入應明確停用自動重試");
+  const importAction = ctx.calls.mockActions.find(function (item) {
+    return item.action === "importCourseCodes";
+  });
+  assert.strictEqual(importAction.body.preNormalized, true);
+  assert(importAction.body.importId && importAction.body.importId.indexOf("imp-") === 0, "應夾帶 importId");
+  assert.strictEqual(ctx.state.imports.courseCodes.importId, importAction.body.importId);
+  console.log("7. 匯入寫入走 Mock API、夾帶 importId 且停用自動重試 ✓\n");
 
   ctx.app.render();
   assert(ctx.elements.app.innerHTML.indexOf("✓ 已匯入完成") !== -1);

@@ -29,6 +29,7 @@
   "use strict";
 
   const DEFAULT_STYLE = "modern-slate";
+  const MODAL_TITLE_ID = "meaModalTitle";
 
   /**
    * 跳脫 HTML 特殊字元。
@@ -118,6 +119,16 @@
   }
 
   /**
+   * 取得 Toast 的無障礙角色；錯誤與警告使用 alert 以即時宣告。
+   *
+   * @param {string} kind - 正規化後種類
+   * @returns {string|null} 角色名稱或 null
+   */
+  function resolveToastRole(kind) {
+    return kind === "err" || kind === "warn" ? "alert" : null;
+  }
+
+  /**
    * 建立 Toast 元素。
    *
    * @param {Object} doc - document 依賴
@@ -129,9 +140,13 @@
     const t = doc.createElement("div");
     t.className = "toast " + kind;
 
+    const role = resolveToastRole(kind);
+    if (role && typeof t.setAttribute === "function") t.setAttribute("role", role);
+
     const iconSpan = doc.createElement("span");
     iconSpan.className = "toast-icon";
     iconSpan.textContent = resolveToastIcon(kind);
+    if (typeof iconSpan.setAttribute === "function") iconSpan.setAttribute("aria-hidden", "true");
 
     const textSpan = doc.createElement("span");
     textSpan.className = "toast-msg";
@@ -175,6 +190,8 @@
         : function (fn, ms) {
             return setTimeout(fn, ms);
           };
+
+    let modalRestoreFocus = null;
 
     function applyTheme(theme) {
       const value = theme === "dark" ? "dark" : "light";
@@ -253,13 +270,55 @@
       scheduleToastRemoval(t, resolveToastDuration(kind, duration), setTimeoutFn);
     }
 
+    /**
+     * 收集容器內可聚焦元素，供初始焦點與 Tab 焦點陷阱使用。
+     *
+     * @param {Object} root - 查詢根元素
+     * @returns {Array} 可聚焦元素清單
+     */
+    function collectFocusableElements(root) {
+      if (!root || typeof root.querySelectorAll !== "function") return [];
+      const found = root.querySelectorAll("button, input, select, textarea, a[href], [tabindex]");
+      const nodes = [];
+      for (let i = 0; i < found.length; i++) {
+        const node = found[i];
+        const tabIndex = typeof node.getAttribute === "function" ? node.getAttribute("tabindex") : null;
+        if (node.disabled === true || tabIndex === "-1") continue;
+        nodes.push(node);
+      }
+      return nodes;
+    }
+
+    /**
+     * 對話框開啟時標記背景地標為 inert，關閉時還原，避免焦點與點擊穿透。
+     *
+     * @param {boolean} enabled - 是否啟用 inert
+     */
+    function setBackgroundInert(enabled) {
+      if (!doc || typeof doc.querySelectorAll !== "function") return;
+      const nodes = doc.querySelectorAll(".app-nav, .app-content");
+      for (let i = 0; i < nodes.length; i++) {
+        if (enabled) {
+          if (typeof nodes[i].setAttribute === "function") nodes[i].setAttribute("inert", "");
+        } else if (typeof nodes[i].removeAttribute === "function") {
+          nodes[i].removeAttribute("inert");
+        }
+      }
+    }
+
     function modal(title, contentHtml, buttons) {
       const host = doc.getElementById("modalHost");
       if (!host) return;
 
+      const previousFocus = doc.activeElement || null;
       host.innerHTML = "";
       const overlay = doc.createElement("div");
       overlay.className = "modal-overlay";
+      if (typeof overlay.setAttribute === "function") {
+        overlay.setAttribute("role", "dialog");
+        overlay.setAttribute("aria-modal", "true");
+        overlay.setAttribute("aria-labelledby", MODAL_TITLE_ID);
+      }
 
       const card = doc.createElement("div");
       card.className = "modal-card";
@@ -267,9 +326,11 @@
       const head = doc.createElement("div");
       head.className = "modal-header";
       head.innerHTML =
-        '<h3 class="modal-title">' +
+        '<h3 class="modal-title" id="' +
+        MODAL_TITLE_ID +
+        '">' +
         escapeHtml(title) +
-        '</h3><button class="modal-close" id="modalCloseBtn">✕</button>';
+        '</h3><button type="button" class="modal-close" id="modalCloseBtn" aria-label="關閉對話框">✕</button>';
 
       const body = doc.createElement("div");
       body.className = "modal-body";
@@ -278,10 +339,12 @@
       const foot = doc.createElement("div");
       foot.className = "modal-footer";
 
+      const footButtons = [];
       const btns = buttons || [{ text: "關閉", primary: true, onClick: closeModal }];
       btns.forEach(function (btn) {
         const b = doc.createElement("button");
         b.className = "btn " + (btn.primary ? "primary" : "secondary");
+        if (typeof b.setAttribute === "function") b.setAttribute("type", "button");
         b.textContent = btn.text;
         b.onclick = function () {
           if (typeof btn.onClick === "function") {
@@ -291,6 +354,7 @@
           }
         };
         foot.appendChild(b);
+        footButtons.push(b);
       });
 
       card.appendChild(head);
@@ -298,22 +362,63 @@
       card.appendChild(foot);
       overlay.appendChild(card);
       host.appendChild(overlay);
+      setBackgroundInert(true);
 
-      doc.getElementById("modalCloseBtn").onclick = closeModal;
+      modalRestoreFocus = previousFocus;
+
+      const closeBtn = doc.getElementById("modalCloseBtn");
+      if (closeBtn) closeBtn.onclick = closeModal;
       overlay.onclick = function (e) {
         if (e.target === overlay) closeModal();
+      };
+
+      function collectFocusables() {
+        const closeNodes = closeBtn ? [closeBtn] : [];
+        return closeNodes.concat(collectFocusableElements(body), footButtons);
+      }
+
+      const focusables = collectFocusables();
+      if (focusables.length > 0 && typeof focusables[0].focus === "function") {
+        focusables[0].focus();
+      }
+
+      overlay.onkeydown = function (e) {
+        if (!e) return;
+        const key = e.key || "";
+        if (key === "Escape" || key === "Esc" || e.keyCode === 27) {
+          if (typeof e.preventDefault === "function") e.preventDefault();
+          closeModal();
+          return;
+        }
+        if (key !== "Tab" && e.keyCode !== 9) return;
+        const nodes = collectFocusables();
+        if (nodes.length === 0) return;
+        const index = nodes.indexOf(doc.activeElement);
+        if (e.shiftKey) {
+          if (index <= 0) {
+            if (typeof e.preventDefault === "function") e.preventDefault();
+            nodes[nodes.length - 1].focus();
+          }
+        } else if (index === -1 || index === nodes.length - 1) {
+          if (typeof e.preventDefault === "function") e.preventDefault();
+          nodes[0].focus();
+        }
       };
     }
 
     function closeModal() {
       const host = doc.getElementById("modalHost");
       if (host) host.innerHTML = "";
+      setBackgroundInert(false);
+      const restoreTarget = modalRestoreFocus;
+      modalRestoreFocus = null;
+      if (restoreTarget && typeof restoreTarget.focus === "function") restoreTarget.focus();
     }
 
     function renderUserPill(user) {
       return (
         '  <div class="user-pill">' +
-        '    <span class="user-avatar">👤</span>' +
+        '    <span class="user-avatar" aria-hidden="true">👤</span>' +
         '    <span class="user-name">' +
         escapeHtml(user.name || user.email) +
         "</span>" +
@@ -328,6 +433,7 @@
 
     function renderHeader() {
       const user = MEA.state.user || {};
+      const logoutBusy = !!(MEA.state && MEA.state.logoutBusy);
       const styles = getStyleList();
       const curStyle = currentStyle();
       const systemName = (MEA.state.publicConfig && MEA.state.publicConfig.systemName) || MEA.config.title;
@@ -335,7 +441,7 @@
       return (
         '<header class="app-header">' +
         '<div class="header-brand">' +
-        '  <div class="brand-mark">📋</div>' +
+        '  <div class="brand-mark" aria-hidden="true">📋</div>' +
         '  <div class="brand-text">' +
         '    <h1 class="brand-title">' +
         escapeHtml(systemName) +
@@ -348,14 +454,19 @@
         '<div class="header-tools">' +
         renderUserPill(user) +
         '  <div class="style-selector-wrap">' +
+        '    <label class="sr-only" for="styleSelect">介面風格</label>' +
         '    <select id="styleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         renderStyleOptions(styles, curStyle) +
         "    </select>" +
         "  </div>" +
-        '  <button id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
         (currentTheme() === "dark" ? "◑ 淺色模式" : "◐ 深色模式") +
         "  </button>" +
-        '  <button class="btn secondary compact" onclick="MEA.auth.logout()">登出</button>' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.auth.logout()"' +
+        (logoutBusy ? " disabled" : "") +
+        ">" +
+        (logoutBusy ? "登出中..." : "登出") +
+        "</button>" +
         "</div>" +
         "</header>"
       );
@@ -369,13 +480,16 @@
       for (let i = 0; i < tabs.length; i++) {
         const t = tabs[i];
         const active = t.id === currentTab ? " active" : "";
+        const current = t.id === currentTab ? ' aria-current="page"' : "";
         tabsHtml +=
-          '<button class="nav-tab' +
+          '<button type="button" class="nav-tab' +
           active +
-          '" onclick="MEA.setTab(\'' +
+          '"' +
+          current +
+          " onclick=\"MEA.setTab('" +
           t.id +
           "')\">" +
-          '<span class="nav-icon">' +
+          '<span class="nav-icon" aria-hidden="true">' +
           t.icon +
           "</span>" +
           '<span class="nav-name">' +
@@ -384,13 +498,19 @@
           "</button>";
       }
 
-      return '<nav class="app-nav">' + '<div class="nav-tabs-container">' + tabsHtml + "</div>" + "</nav>";
+      return (
+        '<nav class="app-nav" aria-label="主要導覽">' +
+        '<div class="nav-tabs-container">' +
+        tabsHtml +
+        "</div>" +
+        "</nav>"
+      );
     }
 
     function renderLoginErrorHtml(loginError) {
       if (!loginError) return "";
       return (
-        '<div class="login-alert err"><span class="alert-icon">⚠</span><span>' +
+        '<div class="login-alert err" role="alert"><span class="alert-icon" aria-hidden="true">⚠</span><span>' +
         escapeHtml(loginError) +
         "</span></div>"
       );
@@ -415,7 +535,7 @@
     function renderLoginActions(isMock, loginBusy) {
       const mockHtml = isMock
         ? '<div class="login-divider"><span>或</span></div>' +
-          '<button class="btn secondary block" onclick="MEA.auth.loginMock()"' +
+          '<button type="button" class="btn secondary block" onclick="MEA.auth.loginMock()"' +
           (loginBusy ? " disabled" : "") +
           ">" +
           "  🧪 本地測試身分登入 (Mock Mode)" +
@@ -446,16 +566,17 @@
       return (
         '<div class="login-container">' +
         '<div class="login-header-tools">' +
+        '  <label class="sr-only" for="loginStyleSelect">介面風格</label>' +
         '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         styleOptionsHtml +
         "  </select>" +
-        '  <button id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
         (currentTheme() === "dark" ? "◑ 淺色" : "◐ 深色") +
         "  </button>" +
         "</div>" +
         '<div class="login-card">' +
         '  <div class="login-brand">' +
-        '    <div class="login-logo">✨</div>' +
+        '    <div class="login-logo" aria-hidden="true">✨</div>' +
         '    <h2 class="login-title">' +
         escapeHtml(config.systemName || MEA.config.title) +
         "</h2>" +
@@ -525,27 +646,27 @@
         '<div class="card mt-4">' +
         '  <h3 class="card-title">🚀 範本功能快速導覽</h3>' +
         '  <div class="feature-grid mt-3">' +
-        '    <div class="feature-item" onclick="MEA.setTab(\'import\')">' +
-        '      <div class="feature-icon">📥</div>' +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'import\')">' +
+        '      <div class="feature-icon" aria-hidden="true">📥</div>' +
         '      <div class="feature-text">' +
         "        <h4>課程代碼匯入與 1NF 正規化</h4>" +
         "        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程索引。</p>" +
         "      </div>" +
-        "    </div>" +
-        '    <div class="feature-item" onclick="MEA.setTab(\'courses\')">' +
-        '      <div class="feature-icon">📚</div>' +
+        "    </button>" +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'courses\')">' +
+        '      <div class="feature-icon" aria-hidden="true">📚</div>' +
         '      <div class="feature-text">' +
         "        <h4>正規化課程檢索與分頁</h4>" +
         "        <p>提供多維度關鍵字、學年、學期、科別篩選機制，支援大批量課程資料快速檢索。</p>" +
         "      </div>" +
-        "    </div>" +
-        '    <div class="feature-item" onclick="MEA.setTab(\'settings\')">' +
-        '      <div class="feature-icon">⚙️</div>' +
+        "    </button>" +
+        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'settings\')">' +
+        '      <div class="feature-icon" aria-hidden="true">⚙️</div>' +
         '      <div class="feature-text">' +
         "        <h4>系統設定與授權管理 (RBAC)</h4>" +
         "        <p>維護 Google OAuth 設定、登入網域限制、學期參數與系統存取授權白名單。</p>" +
         "      </div>" +
-        "    </div>" +
+        "    </button>" +
         "  </div>" +
         "</div>"
       );
@@ -618,8 +739,10 @@
 
     if (options.exposeInternals) {
       Object.assign(api, {
+        collectFocusableElements: collectFocusableElements,
         renderStyleOptions: renderStyleOptions,
         resolveToastKind: resolveToastKind,
+        resolveToastRole: resolveToastRole,
         resolveToastIcon: resolveToastIcon,
         resolveToastDuration: resolveToastDuration,
         createToastElement: createToastElement,
@@ -631,6 +754,7 @@
         getLoginMode: getLoginMode,
         renderOverviewMetrics: renderOverviewMetrics,
         renderFeatureGrid: renderFeatureGrid,
+        setBackgroundInert: setBackgroundInert,
         updateThemeToggleLabels: updateThemeToggleLabels
       });
     }
@@ -646,6 +770,7 @@
     roleName: roleName,
     renderStyleOptions: renderStyleOptions,
     resolveToastKind: resolveToastKind,
+    resolveToastRole: resolveToastRole,
     resolveToastIcon: resolveToastIcon,
     resolveToastDuration: resolveToastDuration,
     createToastElement: createToastElement,

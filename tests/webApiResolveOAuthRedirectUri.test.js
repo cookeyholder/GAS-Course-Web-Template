@@ -133,4 +133,77 @@ console.log("8. 解碼流程拋出例外時應回傳 fallback...");
   console.log("   ✓ 例外 fallback 驗證通過！\n");
 }
 
+console.log("9. parseOAuthState 應解析 nonce 與 redirectUri...");
+{
+  const uri = "https://script.google.com/macros/s/DEPLOY/exec";
+  assert.deepStrictEqual(api.parseOAuthState(encodeState({ nonce: "abcdefgh12345678", redirectUri: uri })), {
+    nonce: "abcdefgh12345678",
+    redirectUri: uri
+  });
+  assert.strictEqual(api.parseOAuthState(""), null);
+  assert.strictEqual(api.parseOAuthState(Buffer.from("hello", "utf8").toString("base64")), null);
+  assert.strictEqual(api.parseOAuthState(encodeState({ redirectUri: uri })).nonce, "");
+  console.log("   ✓ state 解析驗證通過！\n");
+}
+
+console.log("10. consumeOAuthNonce 應一次性消耗並拒絕異常長度...");
+{
+  const store = {};
+  const deps = {
+    nonceCache: {
+      get: function (key) {
+        return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
+      },
+      put: function (key, value) {
+        store[key] = value;
+      }
+    }
+  };
+  assert.strictEqual(api.consumeOAuthNonce("short", deps), false);
+  assert.strictEqual(api.consumeOAuthNonce("abcdefgh12345678", deps), true);
+  assert.strictEqual(api.consumeOAuthNonce("abcdefgh12345678", deps), false);
+  console.log("   ✓ nonce 消耗驗證通過！\n");
+}
+
+console.log("11. validateOAuthCallbackState 應驗證 nonce 與 redirectUri 綁定...");
+{
+  const uri = "https://script.google.com/macros/s/DEPLOY/exec";
+  const store = {};
+  const deps = {
+    nonceCache: {
+      get: function (key) {
+        return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
+      },
+      put: function (key, value) {
+        store[key] = value;
+      }
+    }
+  };
+  const valid = api.validateOAuthCallbackState(
+    encodeState({ nonce: "nonce-abcdefgh1234", redirectUri: uri }),
+    uri,
+    deps
+  );
+  assert.strictEqual(valid.ok, true);
+  assert.strictEqual(valid.redirectUri, uri);
+
+  const mismatch = api.validateOAuthCallbackState(
+    encodeState({ nonce: "nonce-abcdefgh5678", redirectUri: "http://localhost:3000/cb" }),
+    uri,
+    deps
+  );
+  assert.strictEqual(mismatch.error, "oauth_redirect_mismatch");
+
+  const noNonce = api.validateOAuthCallbackState(encodeState({ redirectUri: uri }), uri, deps);
+  assert.strictEqual(noNonce.error, "invalid_oauth_state");
+
+  const badUri = api.validateOAuthCallbackState(
+    encodeState({ nonce: "nonce-abcdefgh9999", redirectUri: "https://evil.example/cb" }),
+    "",
+    deps
+  );
+  assert.strictEqual(badUri.error, "invalid_oauth_state");
+  console.log("   ✓ state 驗證通過！\n");
+}
+
 console.log("✓ resolveOAuthRedirectUri 測試全數通過！\n");

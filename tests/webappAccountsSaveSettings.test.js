@@ -92,7 +92,7 @@ async function run() {
   assert.strictEqual(ctx.state.settings.saving, true);
   await flush();
   assert.strictEqual(ctx.state.settings.saving, false);
-  assert.deepStrictEqual(ctx.calls.toast, [{ message: "伺服器忙碌", kind: "err" }]);
+  assert.deepStrictEqual(ctx.calls.toast, [{ message: "儲存系統設定失敗，請稍後再試", kind: "err" }]);
   console.log("5. 例外路徑結束儲存中並顯示錯誤 ✓\n");
 
   console.log("✓ webapp/js/accounts.js saveSettings 測試全數通過！\n");
