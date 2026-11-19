@@ -29,7 +29,7 @@
 
 - **為什麼不用各 handler 自行呼叫**：易漏記、格式不一致、新增動作需要記得補程式碼。
 - **為什麼不用模組層級全域變數存放 session**：GAS 可能並發執行不同請求，全域狀態有交叉污染風險；明確傳遞 context 較安全。
-- **角色顯示名稱**：session 无 `roleName` 欄位，統一由 `getRoleDisplayName(session.role)` 取得（後端單一來源 `ROLE_DEFINITIONS`）。
+- **角色顯示名稱**：session 無 `roleName` 欄位，統一由 `getRoleDisplayName(session.role)` 取得（後端單一來源 `ROLE_DEFINITIONS`）。
 - **公開登入動作**：`login`／`loginWithActiveUser` 的授權回傳 `session: null`，攔截器須於 handler 成功後自回傳結果讀取 `email`／`name`／`role` 寫回 context；失敗或未取得時才標記未驗證。
 - **情境**：`routeWebApiAction` 維持原有 `(action, payload, event)` 簽章，context 以第 4 個選擇性參數傳入；既有 handler 與測試替身忽略多餘參數即可，向後相容。
 

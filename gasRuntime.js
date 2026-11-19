@@ -29,6 +29,9 @@
   /** 系統使用說明工作表名稱（前後端共用單一來源） */
   const SHEET_SYSTEM_INSTRUCTIONS = "系統使用說明";
 
+  /** 操作日誌工作表名稱（前後端共用單一來源） */
+  const SHEET_ACTIVITY_LOG = "操作日誌";
+
   /** Web API 版本號（所有後端回應共用單一來源） */
   const WEB_API_VERSION = "1.1.0";
 
@@ -134,6 +137,7 @@
     SHEET_COURSE_INDEX: SHEET_COURSE_INDEX,
     LEGACY_SHEET_COURSE_INDEX: LEGACY_SHEET_COURSE_INDEX,
     SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
+    SHEET_ACTIVITY_LOG: SHEET_ACTIVITY_LOG,
     WEB_API_VERSION: WEB_API_VERSION,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
     hasOwn: hasOwn,
