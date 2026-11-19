@@ -11,7 +11,7 @@ window.MEA = window.MEA || {};
 
   const initialState = {
     view: "loading", // "loading" | "login" | "app"
-    tab: "overview", // "overview" | "import" | "courses" | "settings"
+    tab: "overview", // "overview" | "import" | "courses" | "settings" | "activityLog"
     user: null,
     publicConfig: null,
     loginBusy: false,
@@ -36,6 +36,19 @@ window.MEA = window.MEA || {};
       saving: false,
       data: null,
       accounts: []
+    },
+    activityLog: {
+      list: [],
+      total: 0,
+      page: 1,
+      pageSize: 50,
+      totalPages: 1,
+      startDate: "",
+      endDate: "",
+      email: "",
+      category: "",
+      loading: false,
+      expanded: {}
     }
   };
 

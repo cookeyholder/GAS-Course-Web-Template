@@ -1,0 +1,465 @@
+/**
+ * @file activityLog.js
+ * @description 操作日誌清單、篩選、分頁與詳情展開（可測試工廠）。
+ *
+ * 瀏覽器環境組裝 window.MEA.activityLog；Node.js 環境匯出 createActivityLogModule 供單元測試注入依賴。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory();
+
+  if (typeof window !== "undefined") {
+    const MEA = (root.MEA = root.MEA || {});
+    MEA.activityLog = api.createActivityLogModule({
+      MEA: MEA,
+      document: window.document
+    });
+  }
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
+  }
+
+  /** 事件類別顯示名稱（與後端 logCategory 一致） */
+  const CATEGORY_LABELS = {
+    auth: "身份驗證",
+    write: "寫入操作",
+    query: "查詢操作"
+  };
+
+  /** 預設查詢天數與每頁筆數（與後端 getActivityLog 上限一致） */
+  const DEFAULT_DAYS = 7;
+  const DEFAULT_PAGE_SIZE = 50;
+  const MAX_PAGE_SIZE = 500;
+
+  function resolveSafeMessage(value, fallback) {
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
+  }
+
+  /**
+   * 以 Asia/Taipei 時區格式化日期為 yyyy-MM-dd。
+   *
+   * @param {Date} date - 日期物件
+   * @returns {string} 日期字串
+   */
+  function formatTaipeiDate(date) {
+    try {
+      const parts = new Intl.DateTimeFormat("en-US", {
+        timeZone: "Asia/Taipei",
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit"
+      }).formatToParts(date);
+      const values = {};
+      parts.forEach(function (part) {
+        values[part.type] = part.value;
+      });
+      return values.year + "-" + values.month + "-" + values.day;
+    } catch (error) {
+      return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    }
+  }
+
+  /**
+   * 取得預設日期區間（最近 7 天，含今日）。
+   *
+   * @returns {Object} `{ startDate, endDate }`
+   */
+  function defaultDateRange() {
+    const now = new Date();
+    return {
+      startDate: formatTaipeiDate(new Date(now.getTime() - (DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000)),
+      endDate: formatTaipeiDate(now)
+    };
+  }
+
+  /**
+   * 建立操作日誌模組控制器。
+   *
+   * @param {Object} [deps] - 依賴注入（MEA、document）
+   * @returns {Object} 公開方法集合（與 MEA.activityLog 一致）
+   */
+  function createActivityLogModule(deps) {
+    const options = deps || {};
+    const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
+    const doc = options.document || (typeof document !== "undefined" ? document : null);
+
+    /**
+     * 取得目前日誌狀態，缺損時回傳含預設值的物件。
+     *
+     * @returns {Object} 日誌狀態
+     */
+    function currentState() {
+      const state = MEA.state && MEA.state.activityLog ? MEA.state.activityLog : {};
+      const range = defaultDateRange();
+      return {
+        list: state.list || [],
+        total: state.total || 0,
+        page: state.page || 1,
+        pageSize: Math.min(MAX_PAGE_SIZE, state.pageSize || DEFAULT_PAGE_SIZE),
+        totalPages: state.totalPages || 1,
+        startDate: state.startDate || range.startDate,
+        endDate: state.endDate || range.endDate,
+        email: state.email || "",
+        category: state.category || "",
+        loading: state.loading === true,
+        expanded: state.expanded || {}
+      };
+    }
+
+    function getElementById(id) {
+      return doc && typeof doc.getElementById === "function" ? doc.getElementById(id) : null;
+    }
+
+    /**
+     * 由目前狀態與目標頁碼建立 API 查詢參數。
+     *
+     * @param {Object} state - 日誌狀態
+     * @param {number} targetPage - 目標頁碼
+     * @returns {Object} API payload
+     */
+    function buildQuery(state, targetPage) {
+      return {
+        startDate: state.startDate,
+        endDate: state.endDate,
+        email: state.email,
+        category: state.category,
+        page: targetPage,
+        pageSize: state.pageSize
+      };
+    }
+
+    /**
+     * 讀取篩選表單欄位值。
+     *
+     * @returns {Object} 表單值快照
+     */
+    function readFilterFormValues() {
+      const startInput = getElementById("activityLogStartDate");
+      const endInput = getElementById("activityLogEndDate");
+      const emailInput = getElementById("activityLogEmail");
+      const categorySelect = getElementById("activityLogCategory");
+      const range = defaultDateRange();
+      return {
+        startDate: startInput ? String(startInput.value || "").trim() : range.startDate,
+        endDate: endInput ? String(endInput.value || "").trim() : range.endDate,
+        email: emailInput ? String(emailInput.value || "").trim() : "",
+        category: categorySelect ? String(categorySelect.value || "").trim() : ""
+      };
+    }
+
+    /**
+     * 讀取操作日誌分頁資料。
+     *
+     * @param {number} [page] - 目標頁碼
+     * @returns {Promise<Object|null>} API 回應或失敗時的 null
+     */
+    function fetchList(page) {
+      const before = currentState();
+      const targetPage = page || before.page || 1;
+      const query = buildQuery(before, targetPage);
+      if (!MEA.api || typeof MEA.api.call !== "function") return Promise.resolve(null);
+
+      MEA.setState({
+        activityLog: Object.assign({}, before, { loading: true, page: targetPage })
+      });
+
+      return MEA.api
+        .call("getActivityLog", query)
+        .then(function (result) {
+          const cur = currentState();
+          if (!result || result.ok !== true) {
+            MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
+            MEA.ui.toast((result && result.message) || "讀取操作日誌失敗", "err");
+            return result || null;
+          }
+          const total = Number(result.total) || 0;
+          const pageSize = Math.min(MAX_PAGE_SIZE, Number(result.pageSize) || DEFAULT_PAGE_SIZE);
+          MEA.setState({
+            activityLog: Object.assign({}, cur, {
+              loading: false,
+              list: result.rows || [],
+              total: total,
+              page: Number(result.page) || targetPage,
+              pageSize: pageSize,
+              totalPages: Math.max(1, Math.ceil(total / pageSize))
+            })
+          });
+          return result;
+        })
+        .catch(function (error) {
+          const cur = currentState();
+          MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
+          MEA.ui.toast(resolveSafeMessage(error, "讀取操作日誌失敗，請稍後再試"), "err");
+          return null;
+        });
+    }
+
+    function handleSearch(event) {
+      if (event && event.preventDefault) event.preventDefault();
+      const cur = currentState();
+      MEA.setState({
+        activityLog: Object.assign({}, cur, readFilterFormValues(), { expanded: {} })
+      });
+      return fetchList(1);
+    }
+
+    function resetSearch() {
+      const range = defaultDateRange();
+      const cur = currentState();
+      MEA.setState({
+        activityLog: Object.assign({}, cur, {
+          startDate: range.startDate,
+          endDate: range.endDate,
+          email: "",
+          category: "",
+          expanded: {}
+        })
+      });
+      return fetchList(1);
+    }
+
+    /**
+     * 展開或收起單一列詳情。
+     *
+     * @param {string} requestId - 請求識別碼
+     */
+    function toggleDetail(requestId) {
+      const cur = currentState();
+      const expanded = Object.assign({}, cur.expanded);
+      const key = String(requestId || "");
+      expanded[key] = !expanded[key];
+      MEA.setState({ activityLog: Object.assign({}, cur, { expanded: expanded }) });
+    }
+
+    /**
+     * 產生事件類別下拉選項。
+     *
+     * @param {string} selected - 目前選中的類別
+     * @returns {string} HTML 字串
+     */
+    function renderCategoryOptionsHtml(selected) {
+      let html = '<option value="">所有類別</option>';
+      Object.keys(CATEGORY_LABELS).forEach(function (value) {
+        const chosen = selected === value ? " selected" : "";
+        html +=
+          '<option value="' +
+          MEA.ui.escapeHtml(value) +
+          '"' +
+          chosen +
+          ">" +
+          MEA.ui.escapeHtml(CATEGORY_LABELS[value]) +
+          "</option>";
+      });
+      return html;
+    }
+
+    /**
+     * 產生篩選表單。
+     *
+     * @param {Object} state - 日誌狀態
+     * @returns {string} HTML 字串
+     */
+    function renderFilterFormHtml(state) {
+      return (
+        '<div class="filter-bar">' +
+        '  <form class="filter-form" onsubmit="MEA.activityLog.handleSearch(event)">' +
+        '    <label class="sr-only" for="activityLogStartDate">開始日期</label>' +
+        '    <input type="date" id="activityLogStartDate" class="input" value="' +
+        MEA.ui.escapeHtml(state.startDate) +
+        '" />' +
+        '    <label class="sr-only" for="activityLogEndDate">結束日期</label>' +
+        '    <input type="date" id="activityLogEndDate" class="input" value="' +
+        MEA.ui.escapeHtml(state.endDate) +
+        '" />' +
+        '    <label class="sr-only" for="activityLogEmail">操作者</label>' +
+        '    <input type="text" id="activityLogEmail" class="input" placeholder="操作者 email" value="' +
+        MEA.ui.escapeHtml(state.email) +
+        '" />' +
+        '    <label class="sr-only" for="activityLogCategory">事件類別</label>' +
+        '    <select id="activityLogCategory" class="select">' +
+        renderCategoryOptionsHtml(state.category) +
+        "    </select>" +
+        '    <button type="submit" class="btn primary">搜尋</button>' +
+        '    <button type="button" class="btn secondary" onclick="MEA.activityLog.resetSearch()">重設</button>' +
+        "  </form>" +
+        "</div>"
+      );
+    }
+
+    /**
+     * 產生單一列日誌與其詳情列。
+     *
+     * @param {Object} item - 日誌紀錄
+     * @param {number} index - 資料索引（供 aria-controls 識別）
+     * @returns {string} HTML 字串
+     */
+    function renderRowHtml(item, index) {
+      const expanded = item.expanded === true;
+      const detailId = "activityLogDetail_" + index;
+      const requestId = String(item.requestId || "");
+      const resultClass = item.result === "success" ? "ok" : "err";
+      return (
+        "<tr>" +
+        "<td>" +
+        MEA.ui.escapeHtml(item.timestamp) +
+        "</td>" +
+        '<td><span class="pill muted">' +
+        MEA.ui.escapeHtml(item.category) +
+        "</span></td>" +
+        "<td>" +
+        MEA.ui.escapeHtml(item.action) +
+        "</td>" +
+        '<td><span class="pill ' +
+        resultClass +
+        '">' +
+        MEA.ui.escapeHtml(item.result === "success" ? "成功" : "失敗") +
+        "</span></td>" +
+        "<td>" +
+        MEA.ui.escapeHtml(item.email) +
+        "</td>" +
+        "<td>" +
+        MEA.ui.escapeHtml(item.summary) +
+        "</td>" +
+        "<td>" +
+        MEA.ui.number(item.durationMs) +
+        "</td>" +
+        '<td><button type="button" class="btn secondary compact" aria-expanded="' +
+        (expanded ? "true" : "false") +
+        '" aria-controls="' +
+        detailId +
+        '" onclick="MEA.activityLog.toggleDetail(\'' +
+        MEA.ui.escapeHtml(requestId) +
+        '\')">' +
+        (expanded ? "收起" : "展開") +
+        "</button></td>" +
+        "</tr>" +
+        "<tr" +
+        (expanded ? "" : " hidden") +
+        '><td colspan="8"><pre class="mono font-sm" id="' +
+        detailId +
+        '">' +
+        MEA.ui.escapeHtml(item.detail) +
+        "</pre></td></tr>"
+      );
+    }
+
+    /**
+     * 產生表格內容列。
+     *
+     * @param {Object} state - 日誌狀態
+     * @returns {string} HTML 字串
+     */
+    function renderRowsHtml(state) {
+      if (state.loading) {
+        return '<tr><td colspan="8" class="text-center py-8 text-muted">正在載入操作日誌...</td></tr>';
+      }
+      if (state.list.length === 0) {
+        return (
+          '<tr><td colspan="8" class="text-center py-8 text-muted">目前沒有符合條件的操作日誌。</td></tr>'
+        );
+      }
+      let html = "";
+      state.list.forEach(function (row, index) {
+        const item = Object.assign({}, row, {
+          expanded: state.expanded[String(row.requestId || "")] === true
+        });
+        html += renderRowHtml(item, index);
+      });
+      return html;
+    }
+
+    /**
+     * 產生分頁列。
+     *
+     * @param {Object} state - 日誌狀態
+     * @returns {string} HTML 字串
+     */
+    function renderPaginationHtml(state) {
+      const totalPages = state.totalPages || 1;
+      const currentPage = state.page || 1;
+      return (
+        '<div class="pagination-bar">' +
+        '  <span class="pagination-info">共 ' +
+        MEA.ui.number(state.total) +
+        " 筆紀錄 · 第 " +
+        currentPage +
+        " / " +
+        totalPages +
+        " 頁</span>" +
+        '  <div class="pagination-buttons">' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.activityLog.fetchList(' +
+        (currentPage - 1) +
+        ')"' +
+        (currentPage <= 1 || state.loading ? " disabled" : "") +
+        ">上一頁</button>" +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.activityLog.fetchList(' +
+        (currentPage + 1) +
+        ')"' +
+        (currentPage >= totalPages || state.loading ? " disabled" : "") +
+        ">下一頁</button>" +
+        "  </div>" +
+        "</div>"
+      );
+    }
+
+    function renderView() {
+      const state = currentState();
+      return (
+        '<div class="panel">' +
+        '<div class="panel-header">' +
+        "  <div>" +
+        '    <h2 class="panel-title">操作日誌</h2>' +
+        '    <p class="panel-sub">查詢系統操作紀錄，僅系統管理員可見</p>' +
+        "  </div>" +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.activityLog.fetchList(' +
+        state.page +
+        ')">🔄 重新整理</button>' +
+        "</div>" +
+        renderFilterFormHtml(state) +
+        '<div class="table-responsive mt-3">' +
+        '  <table class="table">' +
+        "    <thead>" +
+        "      <tr>" +
+        '        <th scope="col">時間</th>' +
+        '        <th scope="col">事件類別</th>' +
+        '        <th scope="col">動作</th>' +
+        '        <th scope="col">結果</th>' +
+        '        <th scope="col">操作者</th>' +
+        '        <th scope="col">摘要</th>' +
+        '        <th scope="col">耗時（毫秒）</th>' +
+        '        <th scope="col">詳情</th>' +
+        "      </tr>" +
+        "    </thead>" +
+        "    <tbody>" +
+        renderRowsHtml(state) +
+        "    </tbody>" +
+        "  </table>" +
+        "</div>" +
+        renderPaginationHtml(state) +
+        "</div>"
+      );
+    }
+
+    return {
+      fetchList: fetchList,
+      handleSearch: handleSearch,
+      resetSearch: resetSearch,
+      toggleDetail: toggleDetail,
+      renderView: renderView
+    };
+  }
+
+  return {
+    createActivityLogModule: createActivityLogModule,
+    formatTaipeiDate: formatTaipeiDate,
+    defaultDateRange: defaultDateRange
+  };
+});
