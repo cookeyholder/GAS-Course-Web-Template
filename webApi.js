@@ -680,6 +680,17 @@ function validateRouteCsrf_(name, payload, session) {
   return null;
 }
 
+/**
+ * 依角色遮蔽系統設定中的敏感欄位；clientSecret 僅管理員可見。
+ */
+function sanitizeSystemSettingsForRole_(settings, role) {
+  const source = settings || {};
+  if (String(role || "") === "admin") return source;
+  const safe = Object.assign({}, source);
+  delete safe.clientSecret;
+  return safe;
+}
+
 function routeProtectedWebApiAction_(name, payload, session, ss) {
   switch (name) {
     case "getSession":
@@ -702,7 +713,10 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
     case "getSystemSettings":
       return {
         ok: true,
-        settings: resolveRouteDependency_("readSystemSettings", readSystemSettings)(ss)
+        settings: sanitizeSystemSettingsForRole_(
+          resolveRouteDependency_("readSystemSettings", readSystemSettings)(ss),
+          session.role
+        )
       };
 
     case "saveSystemSettings":

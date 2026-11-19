@@ -315,6 +315,56 @@ function withGlobal(name, value, fn) {
     console.log("   ✓ getSystemSettings 驗證通過！\n");
   }
 
+  console.log("13.1 getSystemSettings 應依角色遮蔽 clientSecret...");
+  {
+    const settings = { schoolYear: "114", clientId: "CID", clientSecret: "TOP_SECRET" };
+    ["staff", "viewer"].forEach(function (role) {
+      withStubbed(
+        api,
+        "authorizeWebApiAction",
+        function () {
+          return { ok: true, session: { role: role } };
+        },
+        function () {
+          withGlobal(
+            "readSystemSettings",
+            function () {
+              return settings;
+            },
+            function () {
+              const r = api.routeWebApiAction("getSystemSettings", { token: "t" });
+              assert.strictEqual(r.ok, true);
+              assert.strictEqual(r.settings.clientSecret, undefined, role + " 不得取得 clientSecret");
+              assert.strictEqual(r.settings.clientId, "CID");
+              assert.strictEqual(settings.clientSecret, "TOP_SECRET", "不得修改原始設定物件");
+            }
+          );
+        }
+      );
+    });
+
+    withStubbed(
+      api,
+      "authorizeWebApiAction",
+      function () {
+        return { ok: true, session: { role: "admin" } };
+      },
+      function () {
+        withGlobal(
+          "readSystemSettings",
+          function () {
+            return settings;
+          },
+          function () {
+            const r = api.routeWebApiAction("getSystemSettings", { token: "t" });
+            assert.strictEqual(r.settings.clientSecret, "TOP_SECRET", "admin 應可取得 clientSecret");
+          }
+        );
+      }
+    );
+    console.log("   ✓ clientSecret 遮蔽驗證通過！\n");
+  }
+
   console.log("14. saveSystemSettings 權限與儲存行為...");
   {
     const staffSession = { role: "staff", csrfToken: "csrf-ok" };
