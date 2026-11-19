@@ -192,6 +192,10 @@ function makeGenericSheet(options) {
     setFrozenRows: function (n) {
       ops.push(["setFrozenRows", n]);
     },
+    setName: function (name) {
+      ops.push(["setName", name]);
+      return sheet;
+    },
     getRange: function (r, c, numRows, numCols) {
       return {
         setValues: function (v) {
@@ -320,7 +324,7 @@ console.log("2. 全部工作表不存在時應建立三張工作表並回傳建�
     created.course.ops.some(function (o) {
       return o[0] === "insertColumnsAfter" && o[2] === transformer.NORMALIZED_COURSE_HEADERS.length - 1;
     }),
-    "應補齊課程索引欄數"
+    "應補齊課程代碼欄數"
   );
   assert(
     created.course.ops.some(function (o) {
@@ -332,13 +336,13 @@ console.log("2. 全部工作表不存在時應建立三張工作表並回傳建�
         o[4] === transformer.NORMALIZED_COURSE_HEADERS.length
       );
     }),
-    "應寫入課程索引表頭"
+    "應寫入課程代碼表頭"
   );
   assert(
     created.course.ops.some(function (o) {
       return o[0] === "setFrozenRows" && o[1] === 1;
     }),
-    "課程索引應凍結首列"
+    "課程代碼應凍結首列"
   );
   // instructions 初始化
   assert(
@@ -386,7 +390,7 @@ console.log("3. 工作表皆已存在且結構完整時應具冪等性且不建�
       return o[0] === "setValues";
     }).length,
     0,
-    "既有課程索引不應重寫"
+    "既有課程代碼不應重寫"
   );
   assert.strictEqual(
     instruct.ops.filter(function (o) {
@@ -529,6 +533,59 @@ console.log("5. 應優先使用 options.spreadsheet，否則使用 SpreadsheetAp
   );
   assert(ss2._inserted.length > 0, "未指定時應使用 SpreadsheetApp.getActiveSpreadsheet");
   console.log("   ✓ 試算表來源解析驗證通過！\n");
+}
+
+console.log("6. 舊工作表應一次性更名為新名稱並保留既有資料...");
+{
+  const cells = { "1,1": db.DEFAULT_SYSTEM_PARAMS[0][0], "1,4": db.WHITELIST_HEADERS[0] };
+  db.DEFAULT_SYSTEM_PARAMS.forEach(function (row, i) {
+    cells[i + 1 + ",1"] = row[0];
+    cells[i + 1 + ",2"] = row[1];
+  });
+  const config = makeConfigSheet({ lastRow: db.DEFAULT_SYSTEM_PARAMS.length, maxCols: 8, cells: cells });
+  const legacyCourse = makeGenericSheet({ maxCols: transformer.NORMALIZED_COURSE_HEADERS.length });
+  const instruct = makeGenericSheet({ maxCols: 1 });
+  const ss = makeSpreadsheet({
+    [db.SHEET_SYSTEM_CONFIG]: config,
+    [db.LEGACY_SHEET_COURSE_INDEX]: legacyCourse,
+    [db.SHEET_SYSTEM_INSTRUCTIONS]: instruct
+  });
+  const runInit = function () {
+    return withGlobals(
+      { SpreadsheetApp: undefined, NORMALIZED_COURSE_HEADERS: transformer.NORMALIZED_COURSE_HEADERS },
+      function () {
+        return db.initializeDatabaseSheets({ spreadsheet: ss, silent: true });
+      }
+    );
+  };
+  const result = runInit();
+  assert.strictEqual(result.ok, true);
+  assert.deepStrictEqual(ss._inserted, [], "遷移不應建立重複工作表");
+  assert.deepStrictEqual(result.createdSheets, [], "遷移不應列入建立清單");
+  assert(
+    legacyCourse.ops.some(function (o) {
+      return o[0] === "setName" && o[1] === db.SHEET_COURSE_INDEX;
+    }),
+    "舊工作表應更名為正規化課程代碼"
+  );
+  assert.strictEqual(
+    legacyCourse.ops.filter(function (o) {
+      return o[0] === "setValues";
+    }).length,
+    0,
+    "遷移不應重寫既有資料"
+  );
+
+  ss._store[db.SHEET_COURSE_INDEX] = legacyCourse;
+  runInit();
+  assert.strictEqual(
+    legacyCourse.ops.filter(function (o) {
+      return o[0] === "setName";
+    }).length,
+    1,
+    "重複初始化不應再次更名"
+  );
+  console.log("   ✓ 工作表更名遷移與冪等性驗證通過！\n");
 }
 
 console.log("✓ initializeDatabaseSheets 測試全數通過！\n");

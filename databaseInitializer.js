@@ -4,7 +4,7 @@
  *
  * 負責自動建立與格式化純資料工作表：
  * 1. 系統設定與授權 (SHEET_SYSTEM_CONFIG)
- * 2. 正規化課程索引 (SHEET_COURSE_INDEX)
+ * 2. 正規化課程代碼 (SHEET_COURSE_INDEX)
  * 3. 系統使用說明 (SHEET_SYSTEM_INSTRUCTIONS)
  */
 
@@ -22,6 +22,7 @@ const GAS_RUNTIME =
 /** 工作表名稱統一由 gasRuntime 提供（單一來源） */
 const SHEET_SYSTEM_CONFIG = GAS_RUNTIME.SHEET_SYSTEM_CONFIG;
 const SHEET_COURSE_INDEX = GAS_RUNTIME.SHEET_COURSE_INDEX;
+const LEGACY_SHEET_COURSE_INDEX = GAS_RUNTIME.LEGACY_SHEET_COURSE_INDEX;
 const SHEET_SYSTEM_INSTRUCTIONS = GAS_RUNTIME.SHEET_SYSTEM_INSTRUCTIONS;
 
 // ============================================================================
@@ -156,6 +157,11 @@ function createCourseIndexSheet_(ss) {
 
 function ensureCourseIndexSheet_(ss, createdSheets) {
   if (ss.getSheetByName(SHEET_COURSE_INDEX)) return;
+  const legacySheet = ss.getSheetByName(LEGACY_SHEET_COURSE_INDEX);
+  if (legacySheet) {
+    legacySheet.setName(SHEET_COURSE_INDEX);
+    return;
+  }
   createCourseIndexSheet_(ss);
   createdSheets.push(SHEET_COURSE_INDEX);
 }
@@ -167,7 +173,7 @@ function getSystemInstructionRows_() {
     ["一、功能架構："],
     ["1. 系統設定與授權：包含系統運作基本參數（學年度、學期、OAuth Client ID）與使用者權限白名單。"],
     [
-      "2. 正規化課程索引：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"
+      "2. 正規化課程代碼：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"
     ],
     ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
     [""],
@@ -179,7 +185,7 @@ function getSystemInstructionRows_() {
     [""],
     ["三、角色權限（RBAC）："],
     ["- admin（系統管理員）：完整讀寫系統參數、管理使用者名單與課程代碼匯入。"],
-    ["- staff（業務人員）：可匯入課程代碼並檢視課程索引。"],
+    ["- staff（業務人員）：可匯入並檢視課程代碼。"],
     ["- viewer（檢視人員）：僅能檢視課程代碼與公開設定。"]
   ];
 }
@@ -608,6 +614,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     SHEET_SYSTEM_CONFIG: SHEET_SYSTEM_CONFIG,
     SHEET_COURSE_INDEX: SHEET_COURSE_INDEX,
+    LEGACY_SHEET_COURSE_INDEX: LEGACY_SHEET_COURSE_INDEX,
     SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
     DEFAULT_SYSTEM_PARAMS: DEFAULT_SYSTEM_PARAMS,
     WHITELIST_HEADERS: WHITELIST_HEADERS,

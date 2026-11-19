@@ -201,7 +201,7 @@
     }
 
     /**
-     * 以與後端 getNormalizedCourses 相同的篩選與分頁規則查詢 mock 課程索引。
+     * 以與後端 getNormalizedCourses 相同的篩選與分頁規則查詢 mock 課程代碼。
      *
      * @param {Object} [payload] - 查詢條件
      * @returns {Object} `{ ok, list, total, page, pageSize, totalPages }`

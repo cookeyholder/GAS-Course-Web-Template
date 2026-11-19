@@ -31,7 +31,7 @@
 未被呼叫的 `webApiSuccess`、`DEPARTMENT_CODES`、`DEPARTMENT_NAMES`、`safeTrim`、`generateUniqueId` MUST 移除或改為由既有對照表衍生；`getSystemConfigSheet_` 與 `getRequiredSystemConfigSheet_` MUST 合併為單一函式。角色名稱、工作表名稱與版本號 MUST 有單一來源，前端角色下拉選項 MUST 由設定產生而非硬編碼，版本號 MUST 由 `package.json` 注入。
 
 #### Scenario: 工作表名稱只有一個定義來源
-- **WHEN** 開發者修改正規化課程索引的工作表名稱
+- **WHEN** 開發者修改正規化課程代碼的工作表名稱
 - **THEN** 初始化與匯入模組同時使用新名稱，不需兩處修改
 
 #### Scenario: 版本號一致
@@ -70,3 +70,22 @@ Mock `getCourseIndex` MUST 接收並套用與後端相同的篩選與分頁參�
 #### Scenario: 網域大小寫一致
 - **WHEN** 管理者設定 `@Example.EDU.TW`
 - **THEN** 前後端正規化結果皆為 `example.edu.tw`
+
+### Requirement: 工作表名稱更名遷移與既有資料保留
+
+當 1NF 正規化工作表名稱由舊值更名為新值時，資料庫初始化流程 MUST 在舊名稱工作表存在且新名稱工作表不存在時，將舊工作表更名為新名稱；MUST NOT 建立重複工作表，也 MUST NOT 重寫既有資料。更名完成後重複執行初始化 MUST 保持冪等，不再執行更名。新舊名稱 MUST 由共用執行環境模組單一提供，舊名稱僅供遷移使用，不得作為讀寫目的地。
+
+#### Scenario: 既有試算表自動更名並保留資料
+
+- **WHEN** 試算表僅存在舊名稱「正規化課程索引」工作表且執行初始化
+- **THEN** 該工作表更名為「正規化課程代碼」，既有資料不被重寫，且不建立新工作表
+
+#### Scenario: 更名後重複初始化保持冪等
+
+- **WHEN** 已完成更名後再次執行初始化
+- **THEN** 不再執行更名，也不建立重複工作表
+
+#### Scenario: 全新試算表直接使用新名稱
+
+- **WHEN** 試算表沒有任何新舊名稱工作表且執行初始化
+- **THEN** 直接建立「正規化課程代碼」工作表並寫入表頭

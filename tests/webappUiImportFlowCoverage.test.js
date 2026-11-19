@@ -163,7 +163,7 @@ function buildContext() {
       });
     },
     renderView: function () {
-      return '<div id="courses-view">課程索引</div>';
+      return '<div id="courses-view">課程代碼</div>';
     }
   };
   MEA.accounts = {
@@ -297,7 +297,7 @@ async function run() {
   assert(ctx.elements.app.innerHTML.indexOf("整合測試系統") !== -1);
   assert(ctx.elements.app.innerHTML.indexOf("42") !== -1);
   assert.strictEqual(ctx.doc.title, "整合測試系統");
-  console.log("8. 匯入完成、課程索引與概覽統計可回歸 ✓\n");
+  console.log("8. 匯入完成、課程代碼與概覽統計可回歸 ✓\n");
 
   console.log("✓ 前端頁面與匯入流程整合測試全數通過！\n");
 }

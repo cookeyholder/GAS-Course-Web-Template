@@ -24,7 +24,7 @@ function initializeDatabaseSheetsMenu() {
   const ui = SpreadsheetApp.getUi();
   const res = ui.alert(
     "系統初始化確認",
-    "即將初始化／檢查 Web App 後端資料庫工作表（包含「系統設定與授權」、「正規化課程索引」、「系統使用說明」等）。\n\n此操作具安全冪等性，不會覆蓋既有自訂設定。是否繼續？",
+    "即將初始化／檢查 Web App 後端資料庫工作表（包含「系統設定與授權」、「正規化課程代碼」、「系統使用說明」等）。\n\n此操作具安全冪等性，不會覆蓋既有自訂設定。是否繼續？",
     ui.ButtonSet.YES_NO
   );
   if (res !== ui.Button.YES) return;

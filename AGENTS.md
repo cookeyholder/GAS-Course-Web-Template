@@ -46,7 +46,7 @@ Always check `@/openspec/` or repository documentation when the request:
 - **`main.js`**: Google 試算表工具列選單入口（`onOpen`），提供「初始化後端資料庫」與彈出視窗「開啟 Web App 網頁」功能。
 - **`gasRuntime.js`**: 後端與前端共用的常數與相依解析層，提供工作表名稱、Web API 版本號、角色顯示名稱，以及 `resolveDependency_`／`injectGlobals_` 雙環境相容工具。
 - **`actionRegistry.js`**: Web API action 單一登錄來源，統一產生公開／寫入／鎖定清單、RBAC 角色權限矩陣，並保存後端註冊的實際處理函式供路由派發。
-- **`databaseInitializer.js`**: 試算表資料庫純資料工作表初始化（`系統設定與授權`、`正規化課程索引`、`系統使用說明`），具安全冪等性；處理系統參數讀寫與授權白名單維護，首次登入管理員開通必須由請求明確標記。
+- **`databaseInitializer.js`**: 試算表資料庫純資料工作表初始化（`系統設定與授權`、`正規化課程代碼`、`系統使用說明`），具安全冪等性；處理系統參數讀寫與授權白名單維護，首次登入管理員開通必須由請求明確標記。
 - **`subjectCodeTransformer.js`**: 108 課綱課程代碼對照字典（群別、科別、屬性、必選修）、39 欄寬表全數展開為 14 欄 1NF 紀錄演算法、5,000 筆分塊批次寫入（Chunking）與分頁檢索函式。
 - **`webApi.js`**: Web App HTTP 入口（`doGet`, `doPost`）、避開 CORS OPTIONS 預檢之通訊協議、Google ID Token 驗證、`CacheService` Session 管理（6 小時 TTL）、`LockService` 併發寫入排隊防鎖，以及由 `ACTION_REGISTRY` 派發之 action 處理函式與角色權限矩陣。
 - **`utilities.js`**: 試算表安全格式化（`safeSetNumberFormat`, `safeApplySheetFontSize`）、無 UI 環境防護（`safeUiAlert`）與通用純工具。
@@ -64,7 +64,7 @@ Always check `@/openspec/` or repository documentation when the request:
 - **`webapp/js/ui.js`**: 共用 UI 元件渲染器（Header、Nav、LoginCard、Toast、Modal、主題切換）。
 - **`webapp/js/auth.js`**: Google Identity Services (GIS) 登入整合、Session 還原與登出。
 - **`webapp/js/imports.js`**: SheetJS Excel 檔案拖曳解析、1NF 展開即時預覽與匯入動作。
-- **`webapp/js/courses.js`**: 正規化課程索引清單檢索、多條件篩選與分頁控制。
+- **`webapp/js/courses.js`**: 正規化課程代碼清單檢索、多條件篩選與分頁控制。
 - **`webapp/js/accounts.js`**: 系統參數設定與授權成員管理介面（RBAC）。
 - **`webapp/js/app.js`**: 前端進入點與應用程式生命週期管理。
 

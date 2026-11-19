@@ -123,14 +123,14 @@
       '<div class="upload-dropzone" id="uploadDropzone"' +
       ' role="button"' +
       ' tabindex="0"' +
-      ' aria-label="選擇或拖曳 108 課綱課程代碼 Excel 檔案"' +
+      ' aria-label="選擇或拖曳課程代碼 Excel 檔案"' +
       ' ondragover="MEA.imports.handleDragOver(event)"' +
       ' ondragleave="MEA.imports.handleDragLeave(event)"' +
       ' ondrop="MEA.imports.handleDrop(event)"' +
       ' onkeydown="MEA.imports.handleDropzoneKey(event)"' +
       ' onclick="MEA.imports.pickFile()">' +
       '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
-      '  <div class="dropzone-title">點擊選擇或拖曳 108 課綱課程代碼 Excel 檔案至此</div>' +
+      '  <div class="dropzone-title">點擊選擇或拖曳課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
       "</div>" +
       '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />'
@@ -262,7 +262,7 @@
       '<div class="panel">' +
       '<div class="panel-header">' +
       "  <div>" +
-      '    <h2 class="panel-title">108 課綱課程代碼匯入與 1NF 正規化</h2>' +
+      '    <h2 class="panel-title">課程代碼匯入與 1NF 正規化</h2>' +
       '    <p class="panel-sub">自動展開三年六學期學分時數，轉譯代碼並儲存為第一正規化索引表</p>' +
       "  </div>" +
       "</div>" +
@@ -477,7 +477,7 @@
       MEA.ui.toast(
         result.idempotent === true
           ? "此匯入已處理完成，不重複寫入（冪等命中）"
-          : "課程代碼匯入完成！已儲存至「正規化課程索引」工作表",
+          : "課程代碼匯入完成！已儲存至「正規化課程代碼」工作表",
         "ok"
       );
 

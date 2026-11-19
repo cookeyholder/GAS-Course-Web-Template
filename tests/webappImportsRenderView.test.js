@@ -45,7 +45,7 @@ function run() {
   assert(emptyHtml.indexOf("MEA.imports.pickFile()") !== -1);
   assert(emptyHtml.indexOf('id="fileInput"') !== -1);
   assert(emptyHtml.indexOf("metrics-grid") === -1);
-  assert(emptyHtml.indexOf("108 課綱課程代碼匯入與 1NF 正規化") !== -1);
+  assert(emptyHtml.indexOf("課程代碼匯入與 1NF 正規化") !== -1);
   console.log("2. 無匯入項目時應顯示拖曳上傳區 ✓\n");
 
   const ctx = createDeps();

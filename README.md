@@ -3,7 +3,7 @@
 本專案為 **Google Apps Script (GAS) 網頁應用程式全端範本**，具備四大核心架構：
 
 1. **雙軌身分驗證與 Session 安全機制**：支援一般網頁環境之 Google Identity Services（GIS）憑證登入，以及 GAS HtmlService 容器內的 ActiveUser / AccountChooser 帳號切換流程；並可依部署條件處理 OAuth 授權碼回呼與 `INITIAL_AUTH` 還原。後端驗證 Google ID Token（`iss`、`email_verified`、`aud`）、支援可選登入網域限制，登入後核發 Session 與 CSRF Token（寫入型 API 強制驗證），並提供 `?mock=true` 本機離線測試模式。
-2. **108 課綱課程代碼匯入與 1NF 正規化模組**：依據教育部國民及學前教育署政策與[全國高級中等學校課程計畫平臺](https://course.k12ea.gov.tw/courseinformation/course.asp)規範，自動解析自該平臺下載之 39 欄課綱寬表 Excel，完整匯入全數課程代碼（包含不分屬性 0 與特殊需求領域 6 等所有科目），展開為三年六學期實質開課之 14 欄標準第一正規化（1NF）課程索引表，並提供前端拖曳上傳、即時預覽統計與分頁檢索清單。
+2. **課程代碼匯入與 1NF 正規化模組**：依據教育部國民及學前教育署政策與[全國高級中等學校課程計畫平臺](https://course.k12ea.gov.tw/courseinformation/course.asp)規範，自動解析自該平臺下載之 39 欄課綱寬表 Excel，完整匯入全數課程代碼（包含不分屬性 0 與特殊需求領域 6 等所有科目），展開為三年六學期實質開課之 14 欄標準第一正規化（1NF）課程代碼表，並提供前端拖曳上傳、即時預覽統計與分頁檢索清單。
 3. **多風格現代前端設計系統**：內建極簡曜藍（Modern Slate）、圖紙風格（Blueprint）、典雅紙張（Paper）、新粗獷主義（Neo-Brutalism）、黏土擬物（Claymorphism）、紅白機像素（NES）、Happy Hues 等 13 款視覺風格切換與深淺色模式；全面支援通用卡片元件（`.card`）、頁籤導覽列（`.app-nav`、`.nav-tab`）、統計指標網格（`.metrics-grid`、`.metric-card`）、響應式表格（`.table-responsive`）、搜尋防抖（`debounce`）、列印防斷頁（`.print-signatures`），以及完整的 Toast 通知與 Modal 對話框。
 4. **全方位資訊安全與通訊強化機制**：前端 API 客戶端採 GAS `google.script.run.executeWebApi` RPC 優先、`fetch` 備援與暫時性錯誤指數退避；後端統一 `executeWebApi` 路由入口與錯誤格式，實作 RBAC、CSRF、HTTP GET 端點白名單、試算表公式注入防護、UUID Session 與 `LockService` 寫入保護，並強化登入授權與公開設定欄位控管。
 
@@ -22,7 +22,7 @@ GAS-Course-Web-Template/
 ├── gasRuntime.js               # GAS/Node 單一相依解析、白名單注入、工作表名稱／角色定義／API 版本號來源
 ├── actionRegistry.js           # Web API action 單一登錄來源（公開／寫入／鎖定清單與 RBAC 矩陣）
 ├── courseNormalizationShared.js # 前後端共用之 108 課綱常數與 1NF 正規化純函式
-├── databaseInitializer.js      # 資料庫純資料工作表初始化（系統設定與授權、課程索引、說明；含登入網域等設定欄位）
+├── databaseInitializer.js      # 資料庫純資料工作表初始化（系統設定與授權、課程代碼、說明；含登入網域等設定欄位）
 ├── subjectCodeTransformer.js   # 108 課綱 1NF 正規化展開、分頁查詢與試算表寫入（共用模組由 courseNormalizationShared.js 提供）
 ├── webApi.js                   # API 路由總管與 executeWebApi 共用入口（RPC/doPost）、雙軌登入、OAuth 回呼、Session/CSRF、RBAC、LockService
 ├── utilities.js                # 儲存格安全格式化、公式注入防護 (sanitizeFormulaValue)、通用工具
@@ -135,7 +135,7 @@ npm run deploy
 
 1. 開啟綁定此 Apps Script 之 Google 試算表。
 2. 重新整理試算表頁面，工具列將自動出現 **課程系統管理** 選單。
-3. 點選 **初始化資料庫工作表**，系統將自動建立「系統設定與授權」、「正規化課程索引」與「系統使用說明」三張工作表，並設定保護與格式。
+3. 點選 **初始化資料庫工作表**，系統將自動建立「系統設定與授權」、「正規化課程代碼」與「系統使用說明」三張工作表，並設定保護與格式。
 4. 點選 **開啟 Web App 網頁** 即可取得網頁應用程式開啟連結！
 
 ---
@@ -149,7 +149,7 @@ npm run deploy
    file:///path/to/GAS-Course-Web-Template/webapp/index.html?mock=true
    ```
    若使用本機伺服器，可改以 `http://localhost:8080/webapp/index.html?mock=true` 開啟。
-2. 系統將自動啟用 `webapp/js/mock.js` 模擬器，提供完整的模擬登入、課程索引篩選與分頁、檔案上傳預覽與設定儲存操作。所有的 Mock 身分驗證均由前端模擬器攔截，後端不留任何測試後門。
+2. 系統將自動啟用 `webapp/js/mock.js` 模擬器，提供完整的模擬登入、課程代碼篩選與分頁、檔案上傳預覽與設定儲存操作。所有的 Mock 身分驗證均由前端模擬器攔截，後端不留任何測試後門。
 3. **正式建置產物根目錄 `index.html` 會忽略 `?mock=true`**：`scripts/build-webapp.js` 注入 `MEA_PRODUCTION_BUILD` 標記，`config.js` 據此停用 Mock 模式，避免部署後仍可切換假資料。若要在打包產物上驗證 Mock，請使用開發原始檔（上述步驟 1）。
 
 > **提醒**：Mock 已與後端 API 回應形狀對齊（`getCourseIndex` 支援 `keyword`、`academicYear`、`semester`、`department`、`page`、`pageSize`），適合驗證介面流程；正式功能仍需在 GAS 環境完成整合驗證。

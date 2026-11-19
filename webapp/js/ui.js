@@ -631,7 +631,7 @@
         "</div>" +
         "  </div>" +
         '  <div class="metric-card">' +
-        '    <div class="metric-label">課程索引筆數</div>' +
+        '    <div class="metric-label">課程代碼筆數</div>' +
         '    <div class="metric-value">' +
         number(courses.total || 0) +
         "</div>" +
@@ -650,7 +650,7 @@
         '      <div class="feature-icon" aria-hidden="true">📥</div>' +
         '      <div class="feature-text">' +
         "        <h4>課程代碼匯入與 1NF 正規化</h4>" +
-        "        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程索引。</p>" +
+        "        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程代碼。</p>" +
         "      </div>" +
         "    </button>" +
         '    <button type="button" class="feature-item" onclick="MEA.setTab(\'courses\')">' +

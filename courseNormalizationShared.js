@@ -21,7 +21,7 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  /** 正規化課程索引標準表頭（共 14 欄） */
+  /** 正規化課程代碼標準表頭（共 14 欄） */
   const NORMALIZED_COURSE_HEADERS = [
     "開課學年",
     "開課學期",
