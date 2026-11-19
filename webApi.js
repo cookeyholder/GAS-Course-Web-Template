@@ -51,11 +51,11 @@ const WEB_API_LOCKED_ACTIONS = [
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const WEB_API_SESSION_PREFIX = "gas_tmpl_session_";
 
-/** 角色權限矩陣（RBAC） */
+/** 角色權限矩陣（RBAC）：所有受保護 action 必須明確列舉，不使用 getXxx 通配規則 */
 const ROLE_PERMISSIONS = {
   admin: ["*"],
-  staff: ["read", "importCourseCodes", "getCourseIndex", "getSystemSettings"],
-  viewer: ["read", "getCourseIndex"]
+  staff: ["getSession", "logout", "getCourseIndex", "getSystemSettings", "importCourseCodes"],
+  viewer: ["getSession", "logout", "getCourseIndex", "getSystemSettings"]
 };
 
 /** Node.js 沙盒測試用之記憶體 Session 儲存 */
@@ -107,9 +107,7 @@ function hasPermission(role, action) {
   const normRole = normalizeRole(role);
   const permissions = ROLE_PERMISSIONS[normRole] || [];
   if (permissions.indexOf("*") !== -1) return true;
-  if (permissions.indexOf(action) !== -1) return true;
-  if (/^get[A-Z]/.test(action) && permissions.indexOf("read") !== -1) return true;
-  return false;
+  return permissions.indexOf(action) !== -1;
 }
 
 function getCacheStore() {

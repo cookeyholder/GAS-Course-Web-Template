@@ -1,6 +1,6 @@
 ## 1. 安全與 RBAC 強化
 
-- [ ] 1.1 移除 `webApi.js` `hasPermission` 的 `/^get[A-Z]/` 通配授權，於 `ROLE_PERMISSIONS` 明確列舉 `getSession`、`getCourseIndex`、`getSystemSettings`、`getAccounts`、`logout` 等動作，並補回 staff/viewer 所需的 session 還原與登出權限；新增權限矩陣回歸測試。
+- [x] 1.1 移除 `webApi.js` `hasPermission` 的 `/^get[A-Z]/` 通配授權，於 `ROLE_PERMISSIONS` 明確列舉 `getSession`、`getCourseIndex`、`getSystemSettings`、`getAccounts`、`logout` 等動作，並補回 staff/viewer 所需的 session 還原與登出權限；新增權限矩陣回歸測試。
 - [ ] 1.2 `getSystemSettings` 路由依角色遮蔽 `clientSecret`（僅 admin 可見），補測試驗證 viewer/staff 取得設定時不含機密欄位、admin 仍可取得。
 - [ ] 1.3 調整 `createSessionForEmail` 流程：先讀白名單再判斷是否為空，僅在明確 bootstrap 情境呼叫 `bootstrapAdminIfNeeded`，寫入置於獨立短鎖臨界區並重複檢查，避免並發覆寫與首位登入者搶占 admin。
 - [ ] 1.4 OAuth state nonce 一次性驗證：前端以 `sessionStorage` 保存 nonce 並随 state 送出；後端解析並驗證 nonce 與 `redirectUri` 綁定，失敗拒絕回呼；補 tests 驗證重放/不符 nonce 被拒。
