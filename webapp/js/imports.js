@@ -448,7 +448,12 @@
         importLast: result
       });
 
-      MEA.ui.toast("課程代碼匯入完成！已儲存至「正規化課程索引」工作表", "ok");
+      MEA.ui.toast(
+        result.idempotent === true
+          ? "此匯入已處理完成，不重複寫入（冪等命中）"
+          : "課程代碼匯入完成！已儲存至「正規化課程索引」工作表",
+        "ok"
+      );
 
       if (MEA.courses && typeof MEA.courses.fetchList === "function") {
         MEA.courses.fetchList(1);
@@ -457,7 +462,8 @@
 
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
-      MEA.ui.toast(String(error && error.message ? error.message : error), "err");
+      const detail = String(error && error.message ? error.message : error);
+      MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 
     function doImport() {
@@ -467,14 +473,24 @@
         return;
       }
 
+      // 同一筆匯入重送時沿用 importId，讓後端可直接回傳前次結果。
+      if (!entry.importId) {
+        entry.importId = "imp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+      }
+
       MEA.setState({ importBusy: true });
       MEA.ui.toast("正在寫入 Google 試算表（共 " + entry.payload.length + " 筆）...", "info");
 
       MEA.api
-        .call("importCourseCodes", {
-          rows: entry.payload,
-          preNormalized: true
-        })
+        .call(
+          "importCourseCodes",
+          {
+            rows: entry.payload,
+            preNormalized: true,
+            importId: entry.importId
+          },
+          { retry: false }
+        )
         .then(function (result) {
           handleImportResult(entry, result);
         })

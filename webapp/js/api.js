@@ -24,6 +24,13 @@
 
   const CSRF_STORAGE_KEY = "gas_tmpl.csrf.v1";
 
+  /** 重試策略常數：指數退避 + jitter + 總時間上限 */
+  const DEFAULT_RETRY_DELAYS = [1000, 2000, 4000];
+  const DEFAULT_TOTAL_RETRY_MS = 10000;
+  const RETRY_JITTER_RATIO = 0.2;
+  /** 大型匯入（大於或等於 GAS 分批寫入大小）停用自動重試，避免重複寫入 */
+  const LARGE_IMPORT_ROW_THRESHOLD = 5000;
+
   function parseApiResponse(text) {
     const invalid = {
       ok: false,
@@ -71,6 +78,12 @@
         ? options.setTimeoutFn
         : function (fn, ms) {
             return setTimeout(fn, ms);
+          };
+    const randomFn =
+      typeof options.randomFn === "function"
+        ? options.randomFn
+        : function () {
+            return Math.random();
           };
 
     let currentToken = "";
@@ -268,16 +281,50 @@
       );
     }
 
+    /** 大型匯入不自動重送，避免 response 遺失時重複清除與寫入 */
+    function isLargeImportPayload(action, payload) {
+      if (action !== "importCourseCodes") return false;
+      const rows = payload && payload.rows;
+      return Array.isArray(rows) && rows.length >= LARGE_IMPORT_ROW_THRESHOLD;
+    }
+
+    function shouldAutoRetry(action, payload, opts) {
+      if (opts.retry === false) return false;
+      return !isLargeImportPayload(action, payload);
+    }
+
+    /** 在基準延遲上加入正負 20% jitter，避免並行請求同時重試 */
+    function computeRetryDelay(baseDelay, opts) {
+      const jitter = 1 + (randomFn() * 2 - 1) * RETRY_JITTER_RATIO;
+      const jittered = Math.max(0, Math.round(baseDelay * jitter));
+      return typeof opts.maxSingleDelayMs === "number"
+        ? Math.min(jittered, Math.max(0, opts.maxSingleDelayMs))
+        : jittered;
+    }
+
     function callWithRetry(action, payload, callOptions) {
       const opts = callOptions || {};
-      const delays = Array.isArray(opts.delays) ? opts.delays : [1000, 2000, 4000];
+      const delays = Array.isArray(opts.delays) ? opts.delays : DEFAULT_RETRY_DELAYS;
+      const totalRetryMs =
+        typeof opts.totalRetryMs === "number" ? Math.max(0, opts.totalRetryMs) : DEFAULT_TOTAL_RETRY_MS;
+      const allowRetry = shouldAutoRetry(action, payload, opts);
       let attempt = 0;
+      let elapsed = 0;
 
       function execute() {
         return requestOnce(action, payload).then(function (result) {
-          if (result && result.ok !== true && isRetryableResult(result) && attempt < delays.length) {
-            const delay = delays[attempt];
+          const canRetry =
+            result &&
+            result.ok !== true &&
+            isRetryableResult(result) &&
+            allowRetry &&
+            attempt < delays.length &&
+            elapsed < totalRetryMs;
+          if (canRetry) {
+            const remaining = totalRetryMs - elapsed;
+            const delay = Math.min(computeRetryDelay(delays[attempt], opts), remaining);
             attempt++;
+            elapsed += delay;
             return new Promise(function (resolve) {
               setTimeoutFn(resolve, delay);
             }).then(execute);
@@ -293,8 +340,8 @@
       return execute();
     }
 
-    function call(action, payload) {
-      return callWithRetry(action, payload);
+    function call(action, payload, callOptions) {
+      return callWithRetry(action, payload, callOptions);
     }
 
     return {
@@ -347,6 +394,10 @@
     createApiClient: createApiClient,
     parseApiResponse: parseApiResponse,
     applyBrowserConfig: applyBrowserConfig,
-    CSRF_STORAGE_KEY: CSRF_STORAGE_KEY
+    CSRF_STORAGE_KEY: CSRF_STORAGE_KEY,
+    DEFAULT_RETRY_DELAYS: DEFAULT_RETRY_DELAYS,
+    DEFAULT_TOTAL_RETRY_MS: DEFAULT_TOTAL_RETRY_MS,
+    RETRY_JITTER_RATIO: RETRY_JITTER_RATIO,
+    LARGE_IMPORT_ROW_THRESHOLD: LARGE_IMPORT_ROW_THRESHOLD
   };
 });

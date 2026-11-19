@@ -104,13 +104,12 @@ console.log("7. 需鎖定 action 在 LockService 可用時應取得並釋放鎖.
       }
     },
     function () {
-      return api.executeWebApi({ action: "loginWithActiveUser" }, {});
+      return api.executeWebApi({ action: "saveSystemSettings" }, {});
     }
   );
   assert.strictEqual(tryLockCalls, 1, "應嘗試取得鎖");
   assert.strictEqual(releaseCalls, 1, "應釋放鎖");
-  assert.strictEqual(r.ok, false);
-  assert.strictEqual(r.error, "no_active_user", "Node 環境無活動使用者應走原路由結果");
+  assert.strictEqual(r.ok, false, "Node 環境無有效 session 應走原路由結果");
   console.log("   ✓ 鎖定取得與釋放驗證通過！\n");
 }
 
@@ -134,7 +133,7 @@ console.log("8. 鎖定逾時應回傳 lock_timeout 且不執行路由副作用..
       }
     },
     function () {
-      return api.executeWebApi({ action: "loginWithActiveUser" }, {});
+      return api.executeWebApi({ action: "saveSystemSettings" }, {});
     }
   );
   assert.strictEqual(r.ok, false);
@@ -160,7 +159,7 @@ console.log("9. tryLock 拋出例外應視為逾時...");
       }
     },
     function () {
-      return api.executeWebApi({ action: "loginWithActiveUser" }, {});
+      return api.executeWebApi({ action: "saveSystemSettings" }, {});
     }
   );
   assert.strictEqual(r.ok, false);
@@ -194,6 +193,32 @@ console.log("10. 非鎖定 action 不應取得鎖...");
   console.log("   ✓ 非鎖定 action 驗證通過！\n");
 }
 
+console.log("10.1 登入 action 不得取得全域鎖（外部 HTTP 須在鎖外執行）...");
+{
+  let called = 0;
+  const lockService = {
+    getScriptLock: function () {
+      called += 1;
+      return {
+        tryLock: function () {
+          return true;
+        },
+        releaseLock: function () {}
+      };
+    }
+  };
+  ["login", "loginWithActiveUser"].forEach(function (action) {
+    const r = withGlobals({ LockService: lockService }, function () {
+      return api.executeWebApi({ action: action, idToken: "fake-token" }, {});
+    });
+    assert.strictEqual(called, 0, action + " 不應取得全域 Script Lock");
+    assert.strictEqual(r.ok, false, "Node 環境缺少外部驗證依賴應走原路由結果");
+  });
+  assert.strictEqual(api.WEB_API_LOCKED_ACTIONS.indexOf("login"), -1);
+  assert.strictEqual(api.WEB_API_LOCKED_ACTIONS.indexOf("loginWithActiveUser"), -1);
+  console.log("   ✓ 登入鎖粒度驗證通過！\n");
+}
+
 console.log("11. 路由拋出例外應回傳 server_error...");
 {
   const prev = api.routeWebApiAction;
@@ -219,7 +244,7 @@ console.log("11. 路由拋出例外應回傳 server_error...");
         }
       },
       function () {
-        return api.executeWebApi({ action: "loginWithActiveUser" }, {});
+        return api.executeWebApi({ action: "saveSystemSettings" }, {});
       }
     );
     assert.strictEqual(r.ok, false);

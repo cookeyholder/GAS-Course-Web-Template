@@ -332,6 +332,9 @@ function baseDeps(overrides) {
     const api = apiModule.createApiClient(
       baseDeps({
         fetch: fetchFn,
+        randomFn: function () {
+          return 0.5;
+        },
         setTimeoutFn: function (fn, ms) {
           delaysSeen.push(ms);
           fn();
@@ -465,7 +468,7 @@ function baseDeps(overrides) {
     const retry = await client.callWithRetry("ping", {}, { delays: [7] });
     assert.strictEqual(retry.ok, true);
     assert.strictEqual(retry.from, "browser");
-    assert.strictEqual(timerArg, 7, "重試應使用瀏覽器 setTimeout");
+    assert(timerArg >= 6 && timerArg <= 8, "重試應使用瀏覽器 setTimeout 並帶正負 20% jitter");
 
     const fallback = apiModule.applyBrowserConfig({}, {});
     assert.strictEqual(typeof fallback.call, "function");

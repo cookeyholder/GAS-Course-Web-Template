@@ -37,7 +37,11 @@ async function run() {
   await flush();
   assert.strictEqual(success.calls.apiCalls.length, 1);
   assert.strictEqual(success.calls.apiCalls[0].action, "importCourseCodes");
-  assert.deepStrictEqual(success.calls.apiCalls[0].payload, { rows: entry.payload, preNormalized: true });
+  const apiCall = success.calls.apiCalls[0];
+  assert.strictEqual(apiCall.payload.rows, entry.payload);
+  assert.strictEqual(apiCall.payload.preNormalized, true);
+  assert(apiCall.payload.importId && apiCall.payload.importId.indexOf("imp-") === 0, "應夾帶 importId");
+  assert.strictEqual(entry.importId, apiCall.payload.importId);
   assert.strictEqual(success.state.importBusy, false);
   assert.strictEqual(success.state.imports.courseCodes.imported, true);
   assert.strictEqual(success.state.importLast.ok, true);
@@ -48,6 +52,16 @@ async function run() {
     })
   );
   console.log("3. 成功回應應標記匯入完成並重新整理課程清單 ✓\n");
+
+  success.imports.doImport();
+  await flush();
+  assert.strictEqual(success.calls.apiCalls.length, 2);
+  assert.strictEqual(
+    success.calls.apiCalls[1].payload.importId,
+    apiCall.payload.importId,
+    "手動重送應沿用相同 importId"
+  );
+  console.log("3.1 手動重送沿用相同 importId ✓\n");
 
   const rejected = createDeps();
   rejected.state.imports = { courseCodes: { payload: [["A"]] } };
@@ -60,7 +74,7 @@ async function run() {
   assert.deepStrictEqual(rejected.calls.fetchList, []);
   assert(
     rejected.calls.toasts.some(function (item) {
-      return item.type === "err" && item.message === "請先初始化工作表";
+      return item.type === "err" && item.message.indexOf("請先初始化工作表") === 0;
     })
   );
   console.log("4. 失敗回應應顯示後端訊息且不標記完成 ✓\n");
@@ -72,7 +86,7 @@ async function run() {
   await flush();
   assert(
     emptyResult.calls.toasts.some(function (item) {
-      return item.type === "err" && item.message === "匯入失敗";
+      return item.type === "err" && item.message.indexOf("匯入失敗") === 0;
     })
   );
 
@@ -84,7 +98,7 @@ async function run() {
   assert.strictEqual(thrown.state.importBusy, false);
   assert(
     thrown.calls.toasts.some(function (item) {
-      return item.type === "err" && item.message === "連線中斷";
+      return item.type === "err" && item.message.indexOf("連線中斷") === 0;
     })
   );
   console.log("5. 空回應與例外應各自顯示錯誤提示 ✓\n");
@@ -96,13 +110,13 @@ async function run() {
   direct.imports.handleImportResult(directEntry, { ok: false });
   assert(
     direct.calls.toasts.some(function (item) {
-      return item.type === "err" && item.message === "匯入失敗";
+      return item.type === "err" && item.message.indexOf("匯入失敗") === 0;
     })
   );
   direct.imports.handleImportError("字串錯誤");
   assert(
     direct.calls.toasts.some(function (item) {
-      return item.message === "字串錯誤";
+      return item.message.indexOf("字串錯誤") === 0;
     })
   );
   console.log("6. 直接呼叫結果與錯誤處理函式行為一致 ✓\n");

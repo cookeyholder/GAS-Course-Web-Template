@@ -43,13 +43,12 @@ const WEB_API_PUBLIC_ACTIONS = ["getPublicConfig", "ping", "login", "loginWithAc
 /** 寫入型 action（需 LockService 保護與 CSRF 驗證） */
 const WEB_API_WRITE_ACTIONS = ["importCourseCodes", "saveSystemSettings", "saveWhitelist", "logout"];
 
-const WEB_API_LOCKED_ACTIONS = [
-  "importCourseCodes",
-  "saveSystemSettings",
-  "saveWhitelist",
-  "login",
-  "loginWithActiveUser"
-];
+/**
+ * 寫入型 action 中，需要全域 Script Lock 保護的項目。
+ * login／loginWithActiveUser 的外部 HTTP（ID Token 驗證）必須在鎖外完成，
+ * 其白名單寫入已由 createSessionForEmail 內的短臨界區保護，故不列於此。
+ */
+const WEB_API_LOCKED_ACTIONS = ["importCourseCodes", "saveSystemSettings", "saveWhitelist"];
 
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const WEB_API_SESSION_PREFIX = "gas_tmpl_session_";
@@ -58,6 +57,10 @@ const WEB_API_SESSION_PREFIX = "gas_tmpl_session_";
 const WEB_API_IMPORT_MAX_ROWS = 100000;
 const WEB_API_IMPORT_RAW_COLUMNS = 39;
 const WEB_API_IMPORT_NORMALIZED_COLUMNS = 14;
+
+/** 匯入冪等結果快取前綴與保存時間（6 小時，與 Session TTL 一致） */
+const WEB_API_IMPORT_RESULT_PREFIX = "gas_tmpl_import_";
+const WEB_API_IMPORT_RESULT_TTL_SECONDS = WEB_API_SESSION_TTL_SECONDS;
 
 /** 角色權限矩陣（RBAC）：所有受保護 action 必須明確列舉，不使用 getXxx 通配規則 */
 const ROLE_PERMISSIONS = {
@@ -910,6 +913,31 @@ function validateImportRowsPayload_(payload) {
   return null;
 }
 
+/** 讀取匯入冪等結果；無 importId、格式異常或快取不存在時回傳 null。 */
+function getCachedImportResult_(importId) {
+  const id = String(importId || "").trim();
+  if (!id || id.length > 200) return null;
+  try {
+    const raw = getCacheStore().get(WEB_API_IMPORT_RESULT_PREFIX + id);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return parsed && parsed.ok === true ? parsed : null;
+  } catch (error) {
+    return null;
+  }
+}
+
+/** 保存成功的匯入結果供相同 importId 重送時直接回傳。 */
+function cacheImportResult_(importId, result) {
+  const id = String(importId || "").trim();
+  if (!id || id.length > 200 || !result || result.ok !== true) return;
+  try {
+    getCacheStore().put(WEB_API_IMPORT_RESULT_PREFIX + id, JSON.stringify(result), WEB_API_IMPORT_RESULT_TTL_SECONDS);
+  } catch (error) {
+    // 快取寫入失敗不影響已完成的匯入
+  }
+}
+
 function routeProtectedWebApiAction_(name, payload, session, ss) {
   switch (name) {
     case "getSession":
@@ -920,10 +948,14 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
     case "importCourseCodes": {
       const validation = validateImportRowsPayload_(payload);
       if (validation) return validation;
-      return resolveRouteDependency_("importNormalizedCourseCodes", importNormalizedCourseCodes)(payload.rows, {
+      const cached = getCachedImportResult_(payload.importId);
+      if (cached) return Object.assign({}, cached, { idempotent: true });
+      const result = resolveRouteDependency_("importNormalizedCourseCodes", importNormalizedCourseCodes)(payload.rows, {
         spreadsheet: ss,
         preNormalized: payload.preNormalized === true
       });
+      cacheImportResult_(payload.importId, result);
+      return result;
     }
 
     case "getCourseIndex":
@@ -1145,6 +1177,7 @@ if (typeof module !== "undefined" && module.exports) {
     WEB_API_IMPORT_MAX_ROWS: WEB_API_IMPORT_MAX_ROWS,
     WEB_API_IMPORT_RAW_COLUMNS: WEB_API_IMPORT_RAW_COLUMNS,
     WEB_API_IMPORT_NORMALIZED_COLUMNS: WEB_API_IMPORT_NORMALIZED_COLUMNS,
+    WEB_API_IMPORT_RESULT_PREFIX: WEB_API_IMPORT_RESULT_PREFIX,
     ROLE_PERMISSIONS: ROLE_PERMISSIONS,
     jsonResponse: jsonResponse,
     webApiSuccess: webApiSuccess,
@@ -1162,6 +1195,8 @@ if (typeof module !== "undefined" && module.exports) {
     consumeOAuthNonce: consumeOAuthNonce_,
     validateOAuthCallbackState: validateOAuthCallbackState_,
     validateImportRowsPayload: validateImportRowsPayload_,
+    getCachedImportResult: getCachedImportResult_,
+    cacheImportResult: cacheImportResult_,
     createSessionForEmail: createSessionForEmail,
     verifyGoogleIdToken: verifyGoogleIdToken,
     loginWithGoogleIdToken: loginWithGoogleIdToken,
