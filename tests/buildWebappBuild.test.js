@@ -215,4 +215,13 @@ console.log("10. 自訂樣板與樣式路徑時應使用注入的檔案...");
   console.log("   ✓ 自訂路徑驗證通過！\n");
 }
 
+console.log("11. 正式建置應注入 MEA_PRODUCTION_BUILD 標記，本機樣板則無...");
+{
+  const project = createProject();
+  const built = buildProject(project);
+  assert(built.output.indexOf("window.MEA_PRODUCTION_BUILD = true;") !== -1, "正式產物應標記為正式建置");
+  assert(TEMPLATE.indexOf("MEA_PRODUCTION_BUILD") === -1, "本機開發樣板不應含正式建置標記");
+  console.log("   ✓ 正式建置標記驗證通過！\n");
+}
+
 console.log("✓ scripts/build-webapp.js::build 測試全數通過！\n");

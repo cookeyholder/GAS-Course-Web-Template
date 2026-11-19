@@ -138,6 +138,9 @@ console.log("6. buildFrontendConfig 應正確解析 mock 與 switchAccount...");
   const c4 = configModule.buildFrontendConfig(baseEnv({ search: "?mock" }));
   assert.strictEqual(c4.mock, true);
 
+  const c5 = configModule.buildFrontendConfig(baseEnv({ search: "?mock=true", production: true }));
+  assert.strictEqual(c5.mock, false, "正式建置不得啟用 mock");
+
   console.log("   ✓ mock/switchAccount 驗證通過！\n");
 }
 
@@ -227,6 +230,13 @@ console.log("10. applyBrowserConfig 應將瀏覽器參數組裝為 MEA.config...
   assert.strictEqual(config.switchAccount, true);
   assert.strictEqual(config.apiUrl, "https://script.google.com/macros/s/DEPLOY/exec");
   assert.strictEqual(config.hostname === undefined, true);
+
+  const productionWin = {
+    location: { search: "?mock=true", protocol: "https:", hostname: "example.com", href: "https://example.com/app" },
+    MEA_PRODUCTION_BUILD: true
+  };
+  const productionConfig = configModule.applyBrowserConfig({}, productionWin);
+  assert.strictEqual(productionConfig.mock, false, "正式建置忽略 ?mock=true");
 
   const malicious = configModule.applyBrowserConfig(
     {},

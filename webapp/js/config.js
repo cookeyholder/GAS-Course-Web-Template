@@ -105,10 +105,12 @@
     const source = env || {};
     const params = getSearchParams(source.search);
     const switchFromParam = params.get("switch") === "1";
+    // 正式建置產物（build-webapp.js 注入 MEA_PRODUCTION_BUILD）忽略 ?mock=true。
+    const isProduction = source.production === true;
     return {
       title: "Google Apps Script 應用程式範本",
       version: "1.0.0",
-      mock: params.has("mock"),
+      mock: !isProduction && params.has("mock"),
       switchAccount: source.switchAccount === true || switchFromParam,
       apiUrl: resolveDefaultApiUrl(source),
       storageKey: "gas_tmpl.session.v1",
@@ -214,7 +216,8 @@
       hostname: location.hostname || "",
       href: location.href || "",
       gasWebappUrl: gasWebappUrl,
-      switchAccount: browser.SWITCH_ACCOUNT === true
+      switchAccount: browser.SWITCH_ACCOUNT === true,
+      production: browser.MEA_PRODUCTION_BUILD === true
     });
     MEA.config = config;
     return config;
