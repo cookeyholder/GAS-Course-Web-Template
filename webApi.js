@@ -878,27 +878,135 @@ function getRouteSpreadsheet_() {
   return GAS_RUNTIME ? GAS_RUNTIME.getActiveSpreadsheetSafe_() : null;
 }
 
-function routePublicWebApiAction_(name, payload) {
-  switch (name) {
-    case "ping":
-      return { ok: true, pong: Date.now(), version: WEB_API_VERSION };
-    case "getPublicConfig":
-      return getOverridableApiFn_("getPublicConfig", getPublicConfig)();
-    case "login":
-      return getOverridableApiFn_("loginWithGoogleIdToken", loginWithGoogleIdToken)(
-        payload ? payload.idToken || payload.credential : "",
-        { allowBootstrap: !!(payload && payload.bootstrap === true) }
-      );
-    case "loginWithActiveUser":
-      return getOverridableApiFn_(
-        "loginWithActiveUser",
-        loginWithActiveUser
-      )({
-        allowBootstrap: !!(payload && payload.bootstrap === true)
-      });
-    default:
-      return null;
+/** 公開 action：ping */
+function handlePingWebApiAction_() {
+  return { ok: true, pong: Date.now(), version: WEB_API_VERSION };
+}
+
+/** 公開 action：getPublicConfig */
+function handleGetPublicConfigWebApiAction_() {
+  return getOverridableApiFn_("getPublicConfig", getPublicConfig)();
+}
+
+/** 公開 action：login */
+function handleLoginWebApiAction_(payload) {
+  return getOverridableApiFn_("loginWithGoogleIdToken", loginWithGoogleIdToken)(
+    payload ? payload.idToken || payload.credential : "",
+    { allowBootstrap: !!(payload && payload.bootstrap === true) }
+  );
+}
+
+/** 公開 action：loginWithActiveUser */
+function handleLoginWithActiveUserWebApiAction_(payload) {
+  return getOverridableApiFn_(
+    "loginWithActiveUser",
+    loginWithActiveUser
+  )({
+    allowBootstrap: !!(payload && payload.bootstrap === true)
+  });
+}
+
+/** 受保護 action：getSession */
+function handleGetSessionWebApiAction_(payload) {
+  return getOverridableApiFn_("getSessionState", getSessionState)(payload.token);
+}
+
+/** 受保護 action：logout */
+function handleLogoutWebApiAction_(payload) {
+  return getOverridableApiFn_("logoutSession", logoutSession)(payload.token);
+}
+
+/** 受保護 action：importCourseCodes */
+function handleImportCourseCodesWebApiAction_(payload, session, ss) {
+  const validation = validateImportRowsPayload_(payload);
+  if (validation) return validation;
+  const cached = getCachedImportResult_(payload.importId);
+  if (cached) return Object.assign({}, cached, { idempotent: true });
+  const result = resolveRouteDependency_("importNormalizedCourseCodes", importNormalizedCourseCodes)(payload.rows, {
+    spreadsheet: ss,
+    preNormalized: payload.preNormalized === true
+  });
+  cacheImportResult_(payload.importId, result);
+  return result;
+}
+
+/** 受保護 action：getCourseIndex */
+function handleGetCourseIndexWebApiAction_(payload, session, ss) {
+  return resolveRouteDependency_("getNormalizedCourses", getNormalizedCourses)(payload, ss);
+}
+
+/** 受保護 action：getCourseIndexStats */
+function handleGetCourseIndexStatsWebApiAction_(payload, session, ss) {
+  return resolveRouteDependency_("getCourseIndexStats", getCourseIndexStats)(ss);
+}
+
+/** 受保護 action：getSystemSettings */
+function handleGetSystemSettingsWebApiAction_(payload, session, ss) {
+  return {
+    ok: true,
+    settings: sanitizeSystemSettingsForRole_(
+      resolveRouteDependency_("readSystemSettings", readSystemSettings)(ss),
+      session.role
+    )
+  };
+}
+
+/** 受保護 action：saveSystemSettings */
+function handleSaveSystemSettingsWebApiAction_(payload, session, ss) {
+  if (session.role !== "admin") {
+    return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可修改系統參數");
   }
+  resolveRouteDependency_("saveSystemSettings", saveSystemSettings)(payload.settings || {}, ss);
+  return { ok: true };
+}
+
+/** 受保護 action：getAccounts */
+function handleGetAccountsWebApiAction_(payload, session, ss) {
+  if (session.role !== "admin") {
+    return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可檢視授權白名單");
+  }
+  return {
+    ok: true,
+    accounts: resolveRouteDependency_("readWhitelist", readWhitelist)(ss)
+  };
+}
+
+/** 受保護 action：saveWhitelist */
+function handleSaveWhitelistWebApiAction_(payload, session, ss) {
+  if (session.role !== "admin") {
+    return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可修改授權白名單");
+  }
+  return resolveRouteDependency_("saveWhitelist", saveWhitelist)(payload.accounts || [], ss);
+}
+
+/** 將所有 action 的處理函式註冊至 ACTION_REGISTRY，消除獨立 switch 造成的漂移。 */
+function registerWebApiActionHandlers_() {
+  const handlers = {
+    ping: handlePingWebApiAction_,
+    getPublicConfig: handleGetPublicConfigWebApiAction_,
+    login: handleLoginWebApiAction_,
+    loginWithActiveUser: handleLoginWithActiveUserWebApiAction_,
+    getSession: handleGetSessionWebApiAction_,
+    logout: handleLogoutWebApiAction_,
+    importCourseCodes: handleImportCourseCodesWebApiAction_,
+    getCourseIndex: handleGetCourseIndexWebApiAction_,
+    getCourseIndexStats: handleGetCourseIndexStatsWebApiAction_,
+    getSystemSettings: handleGetSystemSettingsWebApiAction_,
+    saveSystemSettings: handleSaveSystemSettingsWebApiAction_,
+    getAccounts: handleGetAccountsWebApiAction_,
+    saveWhitelist: handleSaveWhitelistWebApiAction_
+  };
+  Object.keys(handlers).forEach(function (name) {
+    ACTION_REGISTRY.setHandler(name, handlers[name]);
+  });
+}
+
+registerWebApiActionHandlers_();
+
+function routePublicWebApiAction_(name, payload) {
+  const handler = ACTION_REGISTRY.getHandler(name);
+  if (!handler || !ACTION_REGISTRY.isPublicAction(name)) return null;
+  return handler(payload);
 }
 
 function validateRouteCsrf_(name, payload, session) {
@@ -972,65 +1080,9 @@ function cacheImportResult_(importId, result) {
 }
 
 function routeProtectedWebApiAction_(name, payload, session, ss) {
-  switch (name) {
-    case "getSession":
-      return getOverridableApiFn_("getSessionState", getSessionState)(payload.token);
-    case "logout":
-      return getOverridableApiFn_("logoutSession", logoutSession)(payload.token);
-
-    case "importCourseCodes": {
-      const validation = validateImportRowsPayload_(payload);
-      if (validation) return validation;
-      const cached = getCachedImportResult_(payload.importId);
-      if (cached) return Object.assign({}, cached, { idempotent: true });
-      const result = resolveRouteDependency_("importNormalizedCourseCodes", importNormalizedCourseCodes)(payload.rows, {
-        spreadsheet: ss,
-        preNormalized: payload.preNormalized === true
-      });
-      cacheImportResult_(payload.importId, result);
-      return result;
-    }
-
-    case "getCourseIndex":
-      return resolveRouteDependency_("getNormalizedCourses", getNormalizedCourses)(payload, ss);
-
-    case "getCourseIndexStats":
-      return resolveRouteDependency_("getCourseIndexStats", getCourseIndexStats)(ss);
-
-    case "getSystemSettings":
-      return {
-        ok: true,
-        settings: sanitizeSystemSettingsForRole_(
-          resolveRouteDependency_("readSystemSettings", readSystemSettings)(ss),
-          session.role
-        )
-      };
-
-    case "saveSystemSettings":
-      if (session.role !== "admin") {
-        return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可修改系統參數");
-      }
-      resolveRouteDependency_("saveSystemSettings", saveSystemSettings)(payload.settings || {}, ss);
-      return { ok: true };
-
-    case "getAccounts":
-      if (session.role !== "admin") {
-        return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可檢視授權白名單");
-      }
-      return {
-        ok: true,
-        accounts: resolveRouteDependency_("readWhitelist", readWhitelist)(ss)
-      };
-
-    case "saveWhitelist":
-      if (session.role !== "admin") {
-        return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可修改授權白名單");
-      }
-      return resolveRouteDependency_("saveWhitelist", saveWhitelist)(payload.accounts || [], ss);
-
-    default:
-      return webApiError("unknown_action", "未支援的 action：" + name);
-  }
+  const handler = ACTION_REGISTRY.getHandler(name);
+  if (!handler) return webApiError("unknown_action", "未支援的 action：" + name);
+  return handler(payload, session, ss);
 }
 
 function routeWebApiAction(action, payload, event) {

@@ -7109,6 +7109,30 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   /**
+   * 註冊 action 實際處理函式，使路由派發與清單共用同一份登錄資料。
+   *
+   * @param {string} name - action 名稱
+   * @param {Function} handler - 處理函式
+   * @returns {boolean} 是否註冊成功
+   */
+  function setHandler(name, handler) {
+    if (!hasAction(name) || typeof handler !== "function") return false;
+    ACTIONS[name].handler = handler;
+    return true;
+  }
+
+  /**
+   * 取得 action 已註冊的處理函式。
+   *
+   * @param {string} name - action 名稱
+   * @returns {Function|null} 處理函式或 null
+   */
+  function getHandler(name) {
+    if (!hasAction(name)) return null;
+    return typeof ACTIONS[name].handler === "function" ? ACTIONS[name].handler : null;
+  }
+
+  /**
    * 判斷 action 是否為公開 action。
    *
    * @param {string} name - action 名稱
@@ -7157,6 +7181,8 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     listWriteActions: listWriteActions,
     listLockedActions: listLockedActions,
     hasAction: hasAction,
+    setHandler: setHandler,
+    getHandler: getHandler,
     isPublicAction: isPublicAction,
     isRoleAllowed: isRoleAllowed,
     buildRolePermissions: buildRolePermissions
