@@ -30,7 +30,7 @@
 
 ## 5. 前端操作日誌頁籤
 
-- [ ] 5.1 在 `webapp/js/config.js` 新增操作日誌頁籤定義（名稱、圖示、僅管理員可見旗標），並同步更新 `tests/webappConfig.test.js` 中 `tabs.length === 4` 的既有斷言為 5；以新增 `tests/webappConfigTabs.test.js` 與既有 `tests/webappConfig.test.js` 驗證頁籤存在、權限旗標正確且無回退。
+- [x] 5.1 在 `webapp/js/config.js` 新增操作日誌頁籤定義（名稱、圖示、僅管理員可見旗標），並同步更新 `tests/webappConfig.test.js` 中 `tabs.length === 4` 的既有斷言為 5；以新增 `tests/webappConfigTabs.test.js` 與既有 `tests/webappConfig.test.js` 驗證頁籤存在、權限旗標正確且無回退。
 - [ ] 5.2 新增 `webapp/js/activityLog.js`，實作清單渲染、時間區間（Asia/Taipei 日期區間）／操作者／事件類別篩選、分頁控制與詳情 JSON 展開；表格標頭具 `scope="col"`、展開按鈕具 `aria-expanded`、篩選控制項具標籤；以新增 `tests/webappActivityLogRenderView.test.js` 驗證渲染與無障礙屬性。
 - [ ] 5.3 在 `webapp/js/api.js` 新增 `getActivityLog` 呼叫（沿用 `text/plain;charset=utf-8` 避開 OPTIONS 預檢）；在 `webapp/js/mock.js` 補模擬日誌資料與 action 處理（遵循既有 `actionHandlers` 的 6 空格縮排格式以通過完整性檢查）；以 `tests/webappMockHandle.test.js` 驗證 mock 回傳格式。
 - [ ] 5.4 在 `webapp/js/ui.js` 的 `renderNavbar()` 依頁籤權限旗標與 `MEA.state.user.role` 過濾頁籤，並在 `webapp/js/app.js` 的 `setTab()`／`buildBodyHtml()` 加入同一守門，防止直接竄改 state 進入管理員頁籤；以 `tests/webappUiRenderOverviewView.test.js` 與新增測試驗證角色可見性與直接竄改防護。
