@@ -15,7 +15,6 @@ window.MEA = window.MEA || {};
     user: null,
     publicConfig: null,
     loginBusy: false,
-    logoutBusy: false,
     loginError: "",
     importBusy: false,
     imports: {},

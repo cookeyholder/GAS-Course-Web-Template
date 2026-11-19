@@ -92,22 +92,43 @@ function createSampleRow(opts) {
   assert.strictEqual(normalized.stats.keptCourseRows, 1, "保留科目數應為 1");
 }
 
-// 4. 測試前端與後端正規化行為一致性
+// 4. 測試前後端對照表與表頭完全一致（內容漂移立即失敗）
+{
+  const tableNames = [
+    "GROUP_CODE_NAMES",
+    "DEPARTMENT_CODE_NAMES",
+    "SUBJECT_TYPE_NAMES",
+    "OPEN_WAY_NAMES",
+    "SUBJECT_ATTRIBUTION_NAMES",
+    "REQUIRED_ELECTIVE_NAMES",
+    "EXCLUDED_SUBJECT_ATTRIBUTES"
+  ];
+  tableNames.forEach(function (name) {
+    assert.deepStrictEqual(frontend[name], backend[name], "前後端 " + name + " 對照表應完全一致");
+  });
+  assert.deepStrictEqual(
+    frontend.NORMALIZED_COURSE_HEADERS,
+    backend.NORMALIZED_COURSE_HEADERS,
+    "前後端 NORMALIZED_COURSE_HEADERS 應完全一致"
+  );
+}
+
+// 5. 測試前端與後端正規化行為一致性（逐列深度比對）
 {
   const sampleData = [
     createSampleRow({ code: "305101A", name: "程式設計實習", attr: "3" }),
     createSampleRow({ code: "000000X", name: "每週彈性學習", attr: "0" }),
-    createSampleRow({ code: "308102B", name: "基本電學", attr: "2", creditsSem2: 0, hoursSem2: 0 })
+    createSampleRow({ code: "308102B", name: "基本電學", attr: "2", creditsSem2: 0, hoursSem2: 0 }),
+    createSampleRow({ code: "999999Z", name: "特殊需求課程", attr: "6", group: "99", dept: "999" })
   ];
 
   const backendResult = backend.normalizeCourseCodes(sampleData, { withStats: true });
   const frontendResult = frontend.normalizeCourseCodes(sampleData, { withStats: true });
 
-  assert.strictEqual(backendResult.rows.length, frontendResult.rows.length, "前後端展開筆數一致");
+  assert.deepStrictEqual(backendResult.rows, frontendResult.rows, "前後端正規化結果應逐列完全一致");
+  assert.deepStrictEqual(backendResult.stats, frontendResult.stats, "前後端正規化統計應完全一致");
   assert.strictEqual(backendResult.stats.excludedRows, 0, "排除筆數應為 0");
-  assert.strictEqual(frontendResult.stats.excludedRows, 0, "前端排除筆數應為 0");
-  assert.strictEqual(backendResult.stats.sourceRows, frontendResult.stats.sourceRows, "前後端原始筆數統計一致");
-  assert.strictEqual(backendResult.rows.length, 5, "展開筆數應為 2+2+1=5 筆");
+  assert.strictEqual(backendResult.rows.length, 7, "展開筆數應為 2+2+1+2=7 筆");
 }
 
 console.log("✓ 108 課綱課程代碼正規化單元測試全數通過！");

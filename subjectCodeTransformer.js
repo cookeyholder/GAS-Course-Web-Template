@@ -630,6 +630,7 @@ if (typeof module !== "undefined" && module.exports) {
     OPEN_WAY_NAMES: OPEN_WAY_NAMES,
     SUBJECT_ATTRIBUTION_NAMES: SUBJECT_ATTRIBUTION_NAMES,
     REQUIRED_ELECTIVE_NAMES: REQUIRED_ELECTIVE_NAMES,
+    EXCLUDED_SUBJECT_ATTRIBUTES: EXCLUDED_SUBJECT_ATTRIBUTES,
     getGroupName: getGroupName,
     getDepartmentNameByCode: getDepartmentNameByCode,
     getSubjectType: getSubjectType,
