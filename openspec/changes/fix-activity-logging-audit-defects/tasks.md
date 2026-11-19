@@ -2,7 +2,7 @@
 
 - [x] 1.1 移除 `webApi.js` 中 `routeWebApiAction` 的 `authorizationOverride` 第 4 參數，改為函式內自行呼叫授權注入點；確認 `executeWebApi` 不再傳入授權結果，並以 `node -e` 重現「偽造 admin 授權呼叫 `getActivityLog` 與 `saveSystemSettings` 皆被拒絕」後通過
 - [x] 1.2 新增安全回歸測試：以 GAS RPC 角度直接呼叫三參數路由並傳入自訂 session／CSRF，斷言回傳 `missing_token` 或 `forbidden` 且未寫入任何資料，並確認 `npm test` 通過
-- [ ] 1.3 修正 `tests/webApiActivityLog.test.js:141–160` 中對路由第 4 參數的直接斷言（`seen[0].authorization.ok`、`session === null`），改為統計 `authorizeWebApiAction` stub 被呼叫兩次且引數一致；並確認 `tests/webApiRouteWebApiAction.test.js` 等以注入方式驗證授權的測試全數通過
+- [x] 1.3 修正 `tests/webApiActivityLog.test.js:141–160` 中對路由第 4 參數的直接斷言（`seen[0].authorization.ok`、`session === null`），改為統計 `authorizeWebApiAction` stub 被呼叫兩次且引數一致；並確認 `tests/webApiRouteWebApiAction.test.js` 等以注入方式驗證授權的測試全數通過
 
 ## 2. 稽核明細與寫入正確性
 

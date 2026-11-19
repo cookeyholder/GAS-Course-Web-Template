@@ -138,25 +138,25 @@ console.log("5. 缺少 action 仍應建立 context...");
   console.log("   ✓ 缺少 action context 驗證通過！\n");
 }
 
-console.log("6. 被置換的 routeWebApiAction 只應收到三個參數...");
+console.log("6. 受保護動作的授權注入點應被呼叫兩次且引數一致...");
 {
-  const seen = [];
+  const calls = [];
   withOverrides(
     {
-      routeWebApiAction: function () {
-        seen.push(Array.prototype.slice.call(arguments));
-        return { ok: true, replaced: true };
+      authorizeWebApiAction: function (action, payload) {
+        calls.push({ action: action, payload: payload });
+        return { ok: true, session: { role: "viewer", email: "viewer@example.com" } };
       }
     },
     function () {
-      const result = api.executeWebApi({ action: "ping" }, {});
-      assert.strictEqual(result.replaced, true);
+      api.executeWebApi({ action: "getSystemSettings" }, {});
     }
   );
-  assert.strictEqual(seen.length, 1);
-  assert.strictEqual(seen[0].length, 3);
-  assert.strictEqual(seen[0][0], "ping");
-  console.log("   ✓ 路由置換情境驗證通過！\n");
+  assert.strictEqual(calls.length, 2, "應呼叫授權兩次：日誌 context 一次、路由自行驗證一次");
+  assert.strictEqual(calls[0].action, "getSystemSettings");
+  assert.strictEqual(calls[1].action, "getSystemSettings");
+  assert.deepStrictEqual(calls[0].payload, calls[1].payload, "兩次授權應收到相同的 payload");
+  console.log("   ✓ 雙次授權注入驗證通過！\n");
 }
 
 console.log("7. executeWebApi 應在登入成功後寫回 context 身分...");
