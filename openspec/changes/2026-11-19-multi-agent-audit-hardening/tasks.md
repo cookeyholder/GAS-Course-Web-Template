@@ -20,7 +20,7 @@
 - [x] 2.4 格式化範圍限縮至實際寫入資料列（不使用 `getMaxRows()` 墊高），合併表頭 Range 呼叫，並同步調整 `tests/subjectCodeTransformerImportNormalizedCourseCodes.test.js:298` 的範圍斷言。
 - [x] 2.5 `pickCourseSheetRows` 改為單次遍歷工作表並快取 `sheet_to_json` 結果，找不到特色表頭時不重複解析；補測試。
 - [x] 2.6 鎖粒度調整：將 `login`/`loginWithActiveUser` 移出 `WEB_API_LOCKED_ACTIONS`，外部 HTTP 在鎖外完成；前端 `lock_timeout` 重試加入 jitter 與總時間上限，大型匯入停用自動重試；補併發/重試測試。
-- [ ] 2.7 前端差異渲染第一步：重建前記錄並還原 `activeElement.id`／`selectionStart`，搜尋改為明確觸發（Enter/按搜尋）並以請求序號捨棄過期回應；補焦點與請求去重測試。
+- [x] 2.7 前端差異渲染第一步：重建前記錄並還原 `activeElement.id`／`selectionStart`，搜尋改為明確觸發（Enter/按搜尋）並以請求序號捨棄過期回應；補焦點與請求去重測試。
 
 ## 3. UI/UX 與無障礙
 

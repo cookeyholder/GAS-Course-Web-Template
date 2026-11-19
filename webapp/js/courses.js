@@ -129,6 +129,12 @@
     }
 
     const inflightListFetches = {};
+    let listRequestSeq = 0;
+
+    /** 只接受最新一次清單請求的回應，避免過期回應覆蓋新篩選結果。 */
+    function isCurrentListRequest(seq) {
+      return seq === listRequestSeq;
+    }
 
     function fetchList(page) {
       const targetPage = page || (MEA.state.courses && MEA.state.courses.page) || 1;
@@ -139,6 +145,7 @@
         return inflightListFetches[fetchKey];
       }
 
+      const requestSeq = ++listRequestSeq;
       MEA.setState({
         courses: Object.assign({}, cur, { loading: true, page: targetPage })
       });
@@ -146,9 +153,11 @@
       const pending = MEA.api
         .call("getCourseIndex", query)
         .then(function (result) {
+          if (!isCurrentListRequest(requestSeq)) return;
           handleFetchListSuccess(cur, result, targetPage);
         })
         .catch(function (error) {
+          if (!isCurrentListRequest(requestSeq)) return;
           MEA.setState({
             courses: Object.assign({}, cur, { loading: false })
           });
@@ -228,13 +237,6 @@
 
       fetchList(1);
     }
-
-    const onKeywordInput =
-      MEA.ui && typeof MEA.ui.debounce === "function"
-        ? MEA.ui.debounce(function () {
-            handleSearch();
-          }, 300)
-        : function () {};
 
     function resetSearch() {
       const cur = MEA.state.courses || {};
@@ -384,7 +386,7 @@
       return (
         '<div class="filter-bar">' +
         '  <form class="filter-form" onsubmit="MEA.courses.handleSearch(event)">' +
-        '    <input type="text" id="courseSearchKeyword" class="input" oninput="MEA.courses.onKeywordInput()" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
+        '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
         MEA.ui.escapeHtml(courses.keyword || "") +
         '" />' +
         '    <select id="courseSearchDept" class="select">' +
@@ -453,7 +455,6 @@
       fetchList: fetchList,
       fetchStats: fetchStats,
       handleSearch: handleSearch,
-      onKeywordInput: onKeywordInput,
       resetSearch: resetSearch,
       renderView: renderView
     };

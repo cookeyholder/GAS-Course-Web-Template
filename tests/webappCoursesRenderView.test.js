@@ -28,7 +28,8 @@ function run() {
   assert(html.indexOf("MEA.courses.fetchList(0)") !== -1);
   assert(html.indexOf("MEA.courses.fetchList(2)") !== -1);
   assert(html.indexOf("MEA.courses.handleSearch(event)") !== -1);
-  assert(html.indexOf("MEA.courses.onKeywordInput()") !== -1);
+  assert(html.indexOf("oninput=") === -1, "搜尋應由 Enter／搜尋按鈕明確觸發，不應隨輸入自動送出");
+  assert(html.indexOf('type="submit" class="btn primary">搜尋') !== -1);
   assert(html.indexOf("MEA.courses.resetSearch()") !== -1);
   assert(html.indexOf("MEA.courses.fetchList(1)") !== -1, "重新整理按鈕應使用目前頁碼");
   console.log("2. 空清單、選項與事件掛載 ✓\n");
