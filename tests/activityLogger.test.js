@@ -289,4 +289,35 @@ console.log("12. 清理失敗應回報失敗而非拋出...");
   console.log("   ✓ 清理失敗處理驗證通過！\n");
 }
 
+console.log("13. 詳情欄最後防線應降級為可解析 JSON，不得直接 slice...");
+{
+  const detailIndex = logger.ACTIVITY_LOG_FIELDS.indexOf("detail");
+  assert.strictEqual(detailIndex, 9, "詳情應為第 10 欄");
+
+  // 超長且不可解析的內容：直接 slice 會得到不可解析的 JSON
+  const brokenRow = logger.buildActivityLogRow({ detail: "x".repeat(900) });
+  const broken = brokenRow[detailIndex];
+  assert.strictEqual(typeof broken, "string");
+  assert.strictEqual(JSON.parse(broken).截斷, true, "應回退至最小合法 JSON 並標註截斷");
+
+  // 超長但可解析的詳情：應呼叫共用降級函式，而非粗暴截斷
+  const oversized = JSON.stringify({
+    版本: 1,
+    動作: "getActivityLog",
+    指標: { 篩選: "c".repeat(900) },
+    變動: []
+  });
+  const degradedRow = logger.buildActivityLogRow({ detail: oversized });
+  const degraded = degradedRow[detailIndex];
+  assert(degraded.length <= logger.MAX_FIELD_LENGTH, "降級後長度應 ≤ " + logger.MAX_FIELD_LENGTH);
+  const parsed = JSON.parse(degraded, null);
+  assert.strictEqual(parsed.指標.篩選, "已省略", "應由共用降級函式處理字串型指標");
+  assert.notStrictEqual(degraded, oversized.slice(0, logger.MAX_FIELD_LENGTH), "不得直接 slice");
+
+  // 正常詳情應原樣保留
+  const normal = JSON.stringify({ 版本: 1, 動作: "login", 指標: {} });
+  assert.strictEqual(logger.buildActivityLogRow({ detail: normal })[detailIndex], normal);
+  console.log("   ✓ 詳情最後防線驗證通過！\n");
+}
+
 console.log("✓ activityLogger.test.js 測試全數通過！\n");

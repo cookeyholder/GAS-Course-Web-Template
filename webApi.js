@@ -1397,6 +1397,32 @@ function buildActivityLogSummary_(context, meta, result) {
   return label + "成功";
 }
 
+/** 詳情序列化失敗或降級模組不可用時的最小合法 JSON */
+const MINIMAL_ACTIVITY_DETAIL_JSON = '{"版本":1,"動作":"","指標":{},"截斷":true}';
+
+/** 詳情欄位字元上限（與 activityLogBuilders 一致） */
+const ACTIVITY_DETAIL_MAX_LENGTH = 500;
+
+/**
+ * 序列化詳情並在必要時呼叫共用降級函式，保證寫入的 JSON 可解析且長度合規。
+ *
+ * @param {Object} detail - 版本化詳情物件
+ * @param {Object|null} builders - 詳情模組 API
+ * @returns {string} 合格的詳情 JSON 字串
+ */
+function serializeActivityLogDetail_(detail, builders) {
+  let text;
+  try {
+    text = JSON.stringify(detail);
+  } catch (error) {
+    return MINIMAL_ACTIVITY_DETAIL_JSON;
+  }
+  if (builders && typeof builders.truncateDetailToLimit === "function") {
+    return builders.truncateDetailToLimit(text, ACTIVITY_DETAIL_MAX_LENGTH);
+  }
+  return text.length <= ACTIVITY_DETAIL_MAX_LENGTH ? text : MINIMAL_ACTIVITY_DETAIL_JSON;
+}
+
 /**
  * 建立操作日誌寫入紀錄。
  *
@@ -1437,7 +1463,7 @@ function buildActivityLogRecord_(context, meta, payload, result, before, after) 
     name: context.name,
     role: context.role,
     summary: buildActivityLogSummary_(context, meta, result),
-    detail: JSON.stringify(detail),
+    detail: serializeActivityLogDetail_(detail, builders),
     durationMs: Date.now() - context.startTime,
     errorCode: context.errorCode || ""
   };

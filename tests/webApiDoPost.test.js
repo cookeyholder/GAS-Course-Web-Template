@@ -177,12 +177,18 @@ console.log("8. 解析失敗與缺少 action 兩條路徑應各寫入一列失�
     }
   );
   assert.strictEqual(written.length, 3, "三條失敗路徑應各寫入一列日誌");
-  assert(written.some(function (record) {
-    return record.errorCode === "invalid_json";
-  }), "應記錄 invalid_json 錯誤代碼");
-  assert(written.some(function (record) {
-    return record.errorCode === "missing_action";
-  }), "應記錄 missing_action 錯誤代碼");
+  assert(
+    written.some(function (record) {
+      return record.errorCode === "invalid_json";
+    }),
+    "應記錄 invalid_json 錯誤代碼"
+  );
+  assert(
+    written.some(function (record) {
+      return record.errorCode === "missing_action";
+    }),
+    "應記錄 missing_action 錯誤代碼"
+  );
   console.log("   ✓ 失敗路徑寫入日誌驗證通過！\n");
 }
 

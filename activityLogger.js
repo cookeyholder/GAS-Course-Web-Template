@@ -173,6 +173,55 @@ function truncateField_(value) {
   return value.length > MAX_FIELD_LENGTH ? value.slice(0, MAX_FIELD_LENGTH) : value;
 }
 
+/** 詳情欄降級失敗時使用的最小合法 JSON */
+const MINIMAL_DETAIL_JSON = '{"版本":1,"動作":"","指標":{},"截斷":true}';
+
+/**
+ * 解析共用的詳情降級函式（GAS 全域命名空間優先，Node 再 require）。
+ *
+ * @returns {Function|null} 降級函式或 null
+ */
+function resolveDetailTruncator_() {
+  if (
+    typeof globalThis !== "undefined" &&
+    globalThis.activityLogBuilders &&
+    typeof globalThis.activityLogBuilders.truncateDetailToLimit === "function"
+  ) {
+    return globalThis.activityLogBuilders.truncateDetailToLimit;
+  }
+  if (typeof require === "function") {
+    try {
+      const builders = require("./activityLogBuilders.js");
+      if (builders && typeof builders.truncateDetailToLimit === "function") {
+        return builders.truncateDetailToLimit;
+      }
+    } catch (error) {
+      // 無法載入時改走最小合法 JSON 防線
+    }
+  }
+  return null;
+}
+
+/**
+ * 詳情欄最後防線：呼叫共用降級函式，嚴禁直接 slice 造成不可解析 JSON。
+ *
+ * @param {*} value - 原始詳情值
+ * @returns {string} 可解析且長度合規的 JSON 字串
+ */
+function normalizeDetailField_(value) {
+  if (value === null || value === undefined || value === "") return "";
+  const raw = String(value);
+  const truncator = resolveDetailTruncator_();
+  if (truncator) return truncator(raw);
+  if (raw.length > MAX_FIELD_LENGTH) return MINIMAL_DETAIL_JSON;
+  try {
+    JSON.parse(raw);
+    return raw;
+  } catch (error) {
+    return MINIMAL_DETAIL_JSON;
+  }
+}
+
 /**
  * 將日誌紀錄轉換為試算表列。
  * 接受完整 12 欄物件；缺少欄位時補上空字串。
@@ -182,14 +231,19 @@ function truncateField_(value) {
  * @returns {Array} 12 欄資料列
  */
 function buildActivityLogRow_(record) {
+  const detailIndex = ACTIVITY_LOG_FIELDS.indexOf("detail");
   if (Array.isArray(record)) {
-    return record.slice(0, ACTIVITY_LOG_FIELDS.length).map(truncateField_);
+    return record.slice(0, ACTIVITY_LOG_FIELDS.length).map(function (value, index) {
+      const safeValue = value === null || value === undefined ? "" : value;
+      return index === detailIndex ? normalizeDetailField_(safeValue) : truncateField_(safeValue);
+    });
   }
   const source = record || {};
-  return ACTIVITY_LOG_FIELDS.map(function (field) {
+  return ACTIVITY_LOG_FIELDS.map(function (field, index) {
     if (SENSITIVE_RECORD_KEYS.indexOf(field) !== -1) return "";
     const value = source[field];
     const safeValue = value === null || value === undefined ? "" : value;
+    if (index === detailIndex) return normalizeDetailField_(safeValue);
     return TRUNCATED_FIELDS.indexOf(field) !== -1 ? truncateField_(safeValue) : safeValue;
   });
 }

@@ -12,7 +12,7 @@
 - [x] 2.4 在 `databaseInitializer.js` 建立日誌工作表時，對第 1 欄與第 10 欄套用 `setNumberFormat("@")` 並放大格式化範圍；既有工作表路徑（`ensureActivityLogSheet_` 早退前）亦補上相同的純文字格式設定，不覆寫資料且保持冪等；補初始化與既有表兩條測試驗證兩欄皆設為純文字
 - [x] 2.5 在 `webApi.js` 新增 `normalizeActivityLogTimestamp_(value)`：`Date` 物件優先以 `Utilities.formatDate(value, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss")` 正規化，Node 缺少 `Utilities` 時改用固定 `+8` 小時偏移格式化（不仰賴測試機器時區），其餘轉字串；套用於 `getActivityLog` 的比較與排序，並補「假工作表回傳 `Date` 仍能查到且排序正確」的測試
 - [x] 2.6 讓 `doPost` 保留可注入的 `parseWebApiPayload` 呼叫但移除提前回傳：解析例外轉為 `payload = null`，統一交給 `executeWebApi`；更新 `tests/webApiDoPost.test.js` 斷言兩條失敗路徑各寫入一列日誌
-- [ ] 2.7 在 `buildActivityLogRecord_` 序列化詳情後檢查 500 字元上限，採逐級降級：先捨棄 `變動`；仍超限時只保留數字型指標、字串型指標改為「已省略」；仍超限時則只留 `版本`／`動作`（含長度上限）／`截斷: true`，每級重新序列化驗證。`activityLogger.js` 的最後防線不得對 `detail` 直接 `slice`，改呼叫同一降級函式，或以解析失敗時的最小合法 JSON 取代；補測試覆蓋超長 `email`／`category`（驗證 `指標.篩選` 來源）與超長 `action`，斷言長度 ≤ 500 且 `JSON.parse` 成功
+- [x] 2.7 在 `buildActivityLogRecord_` 序列化詳情後檢查 500 字元上限，採逐級降級：先捨棄 `變動`；仍超限時只保留數字型指標、字串型指標改為「已省略」；仍超限時則只留 `版本`／`動作`（含長度上限）／`截斷: true`，每級重新序列化驗證。`activityLogger.js` 的最後防線不得對 `detail` 直接 `slice`，改呼叫同一降級函式，或以解析失敗時的最小合法 JSON 取代；補測試覆蓋超長 `email`／`category`（驗證 `指標.篩選` 來源）與超長 `action`，斷言長度 ≤ 500 且 `JSON.parse` 成功
 - [ ] 2.8 於 `result && result.ok === false` 時清除 `detail.變動` 並寫入 `指標.執行 = "未執行"`，同時保留 `importCourseCodes` 的統計標記；補 CSRF 失敗不產生誤導明細的測試
 
 ## 3. 查詢驗證與讀取成本

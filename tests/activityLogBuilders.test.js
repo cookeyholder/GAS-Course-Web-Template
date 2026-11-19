@@ -244,4 +244,77 @@ console.log("9. 敏感欄位與原始資料不得進入任何詳情...");
   console.log("   ✓ 敏感欄位排除驗證通過！\n");
 }
 
+console.log("10. 詳情超限時應逐級降級且各級皆為可解析 JSON...");
+{
+  const limit = builders.ACTIVITY_DETAIL_MAX_LENGTH;
+  function assertValid(text, label) {
+    assert.strictEqual(typeof text, "string", label + " 應為字串");
+    assert(text.length <= limit, label + " 長度應 ≤ " + limit + "，實得 " + text.length);
+    const parsed = JSON.parse(text);
+    assert(parsed && typeof parsed === "object" && !Array.isArray(parsed), label + " 應為物件");
+    assert.strictEqual(parsed.版本, builders.ACTIVITY_DETAIL_VERSION);
+    assert.strictEqual(parsed.截斷, true, label + " 應標註截斷");
+    return parsed;
+  }
+
+  // 第一級：捨棄變動即可滿足上限
+  const level1Source = JSON.stringify({
+    版本: 1,
+    動作: "saveWhitelist",
+    指標: { 變動欄數: 1 },
+    變動: [{ 欄位: "新增成員", 前: "", 後: "x".repeat(limit) }]
+  });
+  const level1 = assertValid(builders.truncateDetailToLimit(level1Source), "第一級");
+  assert.strictEqual(level1.變動, undefined, "第一級應捨棄變動");
+  assert.strictEqual(level1.指標.變動欄數, 1);
+
+  // 第二級：超長 category 使指標.篩選超限，字串型指標改「已省略」
+  const longCategory = "c".repeat(limit + 100);
+  const queryDetail = builders.describe(
+    "query",
+    null,
+    null,
+    { action: "getActivityLog", category: longCategory, page: 1, pageSize: 50 },
+    { ok: true, rows: [], total: 0 }
+  );
+  assert.strictEqual(queryDetail.指標.篩選, longCategory, "指標.篩選 應來自 category");
+  const level2 = assertValid(builders.truncateDetailToLimit(JSON.stringify(queryDetail)), "第二級");
+  assert.strictEqual(level2.指標.篩選, "已省略", "字串型指標應改為「已省略」");
+  assert.strictEqual(level2.指標.頁碼, 1, "數字型指標應保留");
+  assert.strictEqual(level2.變動, undefined);
+
+  // 同時驗證超長 email 亦為篩選來源
+  const longEmail = "e".repeat(limit + 100) + "@example.com";
+  const emailDetail = builders.describe(
+    "query",
+    null,
+    null,
+    { action: "getActivityLog", email: longEmail },
+    { ok: true, rows: [] }
+  );
+  assert.strictEqual(emailDetail.指標.篩選, longEmail, "無 category 時指標.篩選 應來自 email");
+  const emailResult = assertValid(builders.truncateDetailToLimit(JSON.stringify(emailDetail)), "email 降級");
+  assert.strictEqual(emailResult.指標.篩選, "已省略");
+
+  // 第三級：超長 action 使前兩級仍超限，只留版本／動作（含上限）／截斷
+  const longAction = "a".repeat(limit + 200);
+  const actionDetail = builders.describe("unknown-key", null, null, { action: longAction }, {});
+  const level3 = assertValid(builders.truncateDetailToLimit(JSON.stringify(actionDetail)), "第三級");
+  assert.strictEqual(level3.指標, undefined, "第三級應捨棄指標");
+  assert(level3.動作.length > 0 && level3.動作.length < longAction.length, "動作應被截短但仍保留部分內容");
+
+  // 非法 JSON 應回退至最小合法 JSON
+  const minimal = assertValid(builders.truncateDetailToLimit("{not json"), "最小合法 JSON");
+  assert.strictEqual(minimal.動作, "");
+  assert.deepStrictEqual(minimal.指標, {});
+  assert.strictEqual(minimal.變動, undefined);
+
+  // 未超限的詳情應原樣回傳，不標註截斷
+  const normal = builders.describe("auth", null, null, { action: "login" }, { ok: true });
+  const normalText = builders.truncateDetailToLimit(JSON.stringify(normal));
+  assert.strictEqual(normalText, JSON.stringify(normal), "未超限不應變更詳情");
+  assert.strictEqual(JSON.parse(normalText).截斷, undefined);
+  console.log("   ✓ 逐級降級與 JSON 合法性驗證通過！\n");
+}
+
 console.log("✓ activityLogBuilders.test.js 測試全數通過！\n");

@@ -305,13 +305,78 @@ function describe(detailKey, before, after, payload, result) {
   };
 }
 
+/** 詳情序列化後的字元上限 */
+const ACTIVITY_DETAIL_MAX_LENGTH = 500;
+
+/** 降級失敗時使用的最小合法 JSON */
+const MINIMAL_ACTIVITY_DETAIL_JSON = '{"版本":1,"動作":"","指標":{},"截斷":true}';
+
+/**
+ * 將詳情序列化結果修剪至上限內，採逐級降級且每級重新序列化驗證，
+ * 保證回傳值皆為可解析且長度合規的 JSON。
+ *
+ * @param {string} serialized - 已序列化的詳情 JSON 字串
+ * @param {number} [maxLength] - 字元上限，預設 500
+ * @returns {string} 長度合規且可解析的詳情 JSON 字串
+ */
+function truncateDetailToLimit(serialized, maxLength) {
+  const limit = typeof maxLength === "number" && maxLength > 0 ? maxLength : ACTIVITY_DETAIL_MAX_LENGTH;
+  let parsed;
+  try {
+    parsed = JSON.parse(serialized);
+  } catch (error) {
+    return MINIMAL_ACTIVITY_DETAIL_JSON;
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return MINIMAL_ACTIVITY_DETAIL_JSON;
+  }
+  const original = JSON.stringify(parsed);
+  if (original.length <= limit) return original;
+
+  // 第一級：捨棄變動，保留版本／動作／指標並標註截斷
+  const level1 = {
+    版本: parsed.版本,
+    動作: parsed.動作,
+    指標: parsed.指標 && typeof parsed.指標 === "object" && !Array.isArray(parsed.指標) ? parsed.指標 : {},
+    截斷: true
+  };
+  const text1 = JSON.stringify(level1);
+  if (text1.length <= limit) return text1;
+
+  // 第二級：僅保留數字型指標；字串型指標（可能來自超長 email／category）改為「已省略」
+  const compactMetrics = {};
+  Object.keys(level1.指標).forEach(function (key) {
+    const value = level1.指標[key];
+    compactMetrics[key] = typeof value === "number" && isFinite(value) ? value : "已省略";
+  });
+  const level2 = { 版本: level1.版本, 動作: level1.動作, 指標: compactMetrics, 截斷: true };
+  const text2 = JSON.stringify(level2);
+  if (text2.length <= limit) return text2;
+
+  // 第三級：只保留版本／動作（必要時截短）／截斷
+  const action = String(level2.動作 === undefined || level2.動作 === null ? "" : level2.動作);
+  const level3 = { 版本: level2.版本, 動作: action, 截斷: true };
+  const text3 = JSON.stringify(level3);
+  if (text3.length <= limit) return text3;
+  const overhead = text3.length - action.length;
+  const allowed = Math.max(0, limit - overhead);
+  level3.動作 = action.slice(0, allowed);
+  const text3b = JSON.stringify(level3);
+  if (text3b.length <= limit) return text3b;
+
+  return MINIMAL_ACTIVITY_DETAIL_JSON;
+}
+
 const ACTIVITY_LOG_BUILDERS_API = {
   ACTIVITY_DETAIL_VERSION: ACTIVITY_DETAIL_VERSION,
+  ACTIVITY_DETAIL_MAX_LENGTH: ACTIVITY_DETAIL_MAX_LENGTH,
+  MINIMAL_ACTIVITY_DETAIL_JSON: MINIMAL_ACTIVITY_DETAIL_JSON,
   SAFE_PAYLOAD_KEYS: SAFE_PAYLOAD_KEYS,
   projectPayload: projectPayload_,
   getBuilder: getBuilder,
   captureBefore: captureBefore,
-  describe: describe
+  describe: describe,
+  truncateDetailToLimit: truncateDetailToLimit
 };
 
 if (typeof module !== "undefined" && module.exports) {
