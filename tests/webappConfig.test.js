@@ -258,4 +258,34 @@ console.log("10. applyBrowserConfig 應將瀏覽器參數組裝為 MEA.config...
   console.log("   ✓ 瀏覽器設定組裝驗證通過！\n");
 }
 
+console.log("11. isTrustedApiEndpoint 應處理缺值、相對網址與異常設定...");
+{
+  const endpoint = configModule.isTrustedApiEndpoint;
+  assert.strictEqual(endpoint("", {}), false, "空白端點應拒絕");
+  assert.strictEqual(endpoint("http://[", {}), false, "無效網址應拒絕");
+  assert.strictEqual(endpoint("https://script.google.com/macros/s/DEPLOY/exec"), true, "缺少環境參數仍應接受 GAS 網址");
+  assert.strictEqual(
+    endpoint("https://example.com/webapp/api", {
+      href: "https://example.com/app",
+      gasWebappUrl: "/webapp"
+    }),
+    true,
+    "相對 GAS 路徑應解析為同源端點"
+  );
+  assert.strictEqual(
+    endpoint("https://example.com/api", {
+      href: "https://example.com/app",
+      gasWebappUrl: "bad://["
+    }),
+    true,
+    "異常 GAS 設定應略過並續用同源規則"
+  );
+  assert.strictEqual(
+    endpoint("https://localhost/api", { href: "https://example.com/app", protocol: "file:", hostname: "" }),
+    true,
+    "本機端點於空主機名稱環境仍應接受"
+  );
+  console.log("   ✓ API 端點邊界驗證通過！\n");
+}
+
 console.log("✓ webapp/js/config.js 測試全數通過！\n");
