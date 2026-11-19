@@ -298,7 +298,17 @@ function isVerifiedGoogleEmail_(value) {
   return value === true || value === "true";
 }
 
-function validateTokenInfoClaims_(info, expectedClientId, configuredDomain) {
+/** ID Token 時間宣告容許的時鐘誤差（秒） */
+const GOOGLE_TOKEN_CLOCK_SKEW_SECONDS = 60;
+
+function parseTokenTimeClaim_(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const numeric = Number(value);
+  if (!isFinite(numeric) || numeric <= 0) return null;
+  return numeric;
+}
+
+function validateTokenInfoClaims_(info, expectedClientId, configuredDomain, options) {
   if (!info.email) {
     return webApiError("invalid_token_payload", "Google 憑證缺少 Email 欄位");
   }
@@ -313,6 +323,27 @@ function validateTokenInfoClaims_(info, expectedClientId, configuredDomain) {
   }
   if (!isAllowedGoogleDomain(info.email, configuredDomain, info.hd)) {
     return webApiError("domain_not_allowed", "僅允許 " + normalizeAllowedDomain(configuredDomain) + " 網域帳號登入");
+  }
+
+  // 明確驗證 exp/iat，不依賴 tokeninfo 端點的間接保證。
+  const settings = options || {};
+  const nowSeconds = typeof settings.now === "function" ? Number(settings.now()) : Math.floor(Date.now() / 1000);
+  const issuedAt = parseTokenTimeClaim_(info.iat);
+  const expiresAt = parseTokenTimeClaim_(info.exp);
+  if (issuedAt === null || expiresAt === null) {
+    return webApiError("invalid_token_payload", "Google 憑證缺少有效的時間宣告");
+  }
+  if (!isFinite(nowSeconds) || nowSeconds <= 0) {
+    return webApiError("invalid_token_payload", "系統時間異常，無法驗證 Google 憑證");
+  }
+  if (issuedAt > nowSeconds + GOOGLE_TOKEN_CLOCK_SKEW_SECONDS) {
+    return webApiError("token_issued_in_future", "Google 憑證簽發時間異常，請確認裝置時間");
+  }
+  if (expiresAt <= issuedAt) {
+    return webApiError("invalid_token_payload", "Google 憑證時間宣告異常");
+  }
+  if (nowSeconds > expiresAt + GOOGLE_TOKEN_CLOCK_SKEW_SECONDS) {
+    return webApiError("token_expired", "Google 憑證已過期，請重新登入");
   }
   return null;
 }
@@ -349,12 +380,13 @@ function verifyGoogleIdToken(idToken, expectedClientId, configuredDomain, deps) 
     }
 
     const info = JSON.parse(response.text);
-    const claimError = validateTokenInfoClaims_(info, cleanClientId, configuredDomain);
+    const claimError = validateTokenInfoClaims_(info, cleanClientId, configuredDomain, deps);
     if (claimError) return claimError;
 
     return buildVerifiedGoogleIdentity_(info);
   } catch (err) {
-    return webApiError("token_verify_error", "驗證 Google 憑證時發生錯誤：" + (err && err.message ? err.message : err));
+    // 不回傳例外 message 原文，避免內部路徑或設定值外洩。
+    return webApiError("token_verify_error", "驗證 Google 憑證時發生錯誤，請稍後再試或重新登入");
   }
 }
 
@@ -694,10 +726,7 @@ function handleOAuthCodeCallback(code, e, deps) {
       expectedRedirectUri: getOAuthWebAppUrl_(context)
     });
   } catch (error) {
-    return webApiError(
-      "token_exchange_error",
-      "連線 Google 憑證伺服器失敗：" + String(error && error.message ? error.message : error)
-    );
+    return webApiError("token_exchange_error", "連線 Google 憑證伺服器失敗，請稍後再試");
   }
 }
 
@@ -999,7 +1028,7 @@ function executeWebApi(payload, event) {
     return routeFn(action, payload, event);
   } catch (error) {
     console.error("[webApi executeWebApi error] " + (error && error.stack ? error.stack : error));
-    return webApiError("server_error", String(error && error.message ? error.message : error));
+    return webApiError("server_error", "系統發生未預期的錯誤，請稍後再試");
   } finally {
     if (hasLock && lock) {
       try {
@@ -1029,7 +1058,7 @@ function handleDoGetActionRequest_(action, event) {
     const routeFn = getOverridableApiFn_("routeWebApiAction", routeWebApiAction);
     return jsonResponse(routeFn(action, payload, event));
   } catch (error) {
-    return jsonResponse(webApiError("server_error", String(error && error.message ? error.message : error)));
+    return jsonResponse(webApiError("server_error", "系統發生未預期的錯誤，請稍後再試"));
   }
 }
 
@@ -1040,10 +1069,7 @@ function resolveDoGetInitialAuth_(parameter, event) {
     const callbackFn = getOverridableApiFn_("handleOAuthCodeCallback", handleOAuthCodeCallback);
     return callbackFn(authorizationCode, event);
   } catch (error) {
-    return webApiError(
-      "oauth_callback_failed",
-      "Google 登入回傳處理失敗：" + String(error && error.message ? error.message : error)
-    );
+    return webApiError("oauth_callback_failed", "Google 登入回傳處理失敗，請重新發起登入");
   }
 }
 
@@ -1127,6 +1153,7 @@ if (typeof module !== "undefined" && module.exports) {
     normalizeAllowedDomain: normalizeAllowedDomain,
     isAllowedGoogleDomain: isAllowedGoogleDomain,
     isAllowedOAuthRedirectUri: isAllowedOAuthRedirectUri,
+    validateTokenInfoClaims: validateTokenInfoClaims_,
     resolveOAuthRedirectUri: resolveOAuthRedirectUri,
     parseOAuthState: parseOAuthState_,
     consumeOAuthNonce: consumeOAuthNonce_,

@@ -224,7 +224,7 @@ console.log("11. 路由拋出例外應回傳 server_error...");
     );
     assert.strictEqual(r.ok, false);
     assert.strictEqual(r.error, "server_error");
-    assert(r.message.indexOf("route boom") !== -1);
+    assert(r.message.indexOf("route boom") === -1, "不得回傳例外訊息原文");
     assert.strictEqual(released, 1, "發生例外仍應釋放鎖");
   } finally {
     api.routeWebApiAction = prev;

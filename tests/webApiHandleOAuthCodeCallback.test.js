@@ -234,7 +234,8 @@ function makeDeps(overrides) {
     const r = await api.handleOAuthCodeCallback("code", {}, deps);
     assert.strictEqual(r.ok, false);
     assert.strictEqual(r.error, "token_exchange_error");
-    assert(r.message.indexOf("network down") !== -1);
+    assert(r.message.indexOf("network down") === -1, "不得回傳例外訊息原文");
+    assert(r.message.indexOf("請稍後再試") !== -1, "應回傳通用錯誤訊息");
     console.log("   ✓ 例外處理驗證通過！\n");
   }
 
