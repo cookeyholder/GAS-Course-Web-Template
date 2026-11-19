@@ -26,7 +26,7 @@ function requireInFreshProcess(target) {
 console.log("1. 單獨載入 activityLogBuilders.js 應成功...");
 {
   const output = requireInFreshProcess("activityLogBuilders.js");
-  ["captureBefore", "describe", "getBuilder", "projectPayload"].forEach(function (name) {
+  ["captureBefore", "describe", "getBuilder", "projectPayload", "truncateDetailToLimit"].forEach(function (name) {
     assert(output.split(",").indexOf(name) !== -1, "應匯出 " + name);
   });
   console.log("   ✓ 詳情產生器獨立載入驗證通過！\n");

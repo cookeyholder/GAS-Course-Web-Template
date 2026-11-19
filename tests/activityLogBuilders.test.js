@@ -235,6 +235,47 @@ console.log("9. 敏感欄位與原始資料不得進入任何詳情...");
   console.log("   ✓ 敏感欄位排除驗證通過！\n");
 }
 
+console.log("9.1 巢狀物件、陣列與大小寫變體敏感資料不得外洩...");
+{
+  const leaked = ["NESTED-TOKEN-LEAK", "ARRAY-CSRF-LEAK", "CASE-TOKEN-LEAK", "CASE-CSRF-LEAK"];
+  const authDetail = builders.describe(
+    "auth",
+    null,
+    {
+      action: "login",
+      TOKEN: "CASE-TOKEN-LEAK",
+      CsrfToken: "CASE-CSRF-LEAK",
+      page: { nested: { token: "NESTED-TOKEN-LEAK" } },
+      category: ["ok", { csrfToken: "ARRAY-CSRF-LEAK" }]
+    },
+    { ok: true }
+  );
+  const authText = JSON.stringify(authDetail);
+  leaked.forEach(function (needle) {
+    assert.strictEqual(authText.indexOf(needle), -1, "auth 詳情不得寫入 " + needle);
+  });
+
+  const settingsDetail = builders.describe(
+    "systemSettings",
+    { schoolYear: "114" },
+    {
+      action: "saveSystemSettings",
+      TOKEN: "CASE-TOKEN-LEAK",
+      CsrfToken: "CASE-CSRF-LEAK",
+      settings: {
+        schoolYear: { nested: "NESTED-TOKEN-LEAK" },
+        clientSecret: "ARRAY-CSRF-LEAK"
+      }
+    },
+    { ok: true }
+  );
+  const settingsText = JSON.stringify(settingsDetail);
+  leaked.forEach(function (needle) {
+    assert.strictEqual(settingsText.indexOf(needle), -1, "systemSettings 詳情不得寫入 " + needle);
+  });
+  console.log("   ✓ 巢狀與大小寫變體敏感資料排除驗證通過！\n");
+}
+
 console.log("10. 詳情超限時應逐級降級且各級皆為可解析 JSON...");
 {
   const limit = builders.ACTIVITY_DETAIL_MAX_LENGTH;

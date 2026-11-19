@@ -112,14 +112,20 @@ function getActivityLogCache_(deps) {
 }
 
 /**
- * 將值截斷至安全長度；非字串值維持原樣。
+ * 將值截斷至安全長度；物件與陣列折疊為佔位文字，避免巢狀敏感資料外洩。
  *
  * @param {*} value - 原始值
  * @returns {*} 截斷後的值
  */
 function truncateField_(value) {
-  if (typeof value !== "string") return value;
-  return value.length > MAX_FIELD_LENGTH ? value.slice(0, MAX_FIELD_LENGTH) : value;
+  if (value === null || value === undefined) return "";
+  if (typeof value === "string") {
+    return value.length > MAX_FIELD_LENGTH ? value.slice(0, MAX_FIELD_LENGTH) : value;
+  }
+  if (typeof value === "object") {
+    return Array.isArray(value) ? "[陣列，共 " + value.length + " 項]" : "[物件]";
+  }
+  return value;
 }
 
 /** 詳情欄降級失敗時使用的最小合法 JSON */

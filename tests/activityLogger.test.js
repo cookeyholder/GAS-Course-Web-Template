@@ -142,6 +142,35 @@ console.log("5. 敏感欄位與原始資料不得寫入...");
   console.log("   ✓ 敏感欄位排除驗證通過！\n");
 }
 
+console.log("5.1 巢狀物件、陣列與大小寫變體敏感資料不得寫入日誌列...");
+{
+  const sheet = makeSheet();
+  const leaked = ["NESTED-TOKEN-LEAK", "ARRAY-CSRF-LEAK", "CASE-TOKEN-LEAK", "CASE-CSRF-LEAK"];
+  const ok = logger.appendActivityLog_(
+    sampleRecord({
+      TOKEN: "CASE-TOKEN-LEAK",
+      CsrfToken: "CASE-CSRF-LEAK",
+      summary: { nested: { token: "NESTED-TOKEN-LEAK" } },
+      name: ["使用者", { csrfToken: "ARRAY-CSRF-LEAK" }],
+      detail: JSON.stringify({
+        版本: 1,
+        動作: "login",
+        指標: {},
+        變動: []
+      })
+    }),
+    makeSpreadsheet(sheet)
+  );
+  assert.strictEqual(ok, true);
+  const row = sheet.rows[0];
+  assert.strictEqual(row.length, 12);
+  const text = JSON.stringify(row);
+  leaked.forEach(function (needle) {
+    assert.strictEqual(text.indexOf(needle), -1, "日誌列不得寫入 " + needle);
+  });
+  console.log("   ✓ 巢狀與大小寫變體敏感資料排除驗證通過！\n");
+}
+
 console.log("6. 陣列形式的紀錄亦應套用截斷...");
 {
   const row = Array(12).fill("");
