@@ -22,6 +22,23 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
+
+  function getSafeErrors() {
+    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
+    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    const helper = getSafeErrors();
+    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+  }
+
+  function createSafeError(message) {
+    const helper = getSafeErrors();
+    return helper ? helper.createSafeError(message) : new Error(message);
+  }
+
   const CSRF_STORAGE_KEY = "gas_tmpl.csrf.v1";
 
   /** 重試策略常數：指數退避 + jitter + 總時間上限 */
@@ -188,7 +205,7 @@
       return {
         ok: false,
         error: "server_error",
-        message: "後端執行失敗：" + String(error && error.message ? error.message : error)
+        message: resolveSafeMessage(error, "後端執行失敗，請稍後再試")
       };
     }
 
@@ -221,7 +238,9 @@
 
     function handleFetchResponse(response) {
       if (response.ok === false) {
-        throw new Error("HTTP " + response.status);
+        const error = createSafeError("伺服器回應 HTTP " + response.status + "，請稍後再試");
+        error.status = response.status;
+        throw error;
       }
       if (typeof response.text === "function") {
         return response.text().then(parseApiResponse);
@@ -233,10 +252,7 @@
       return {
         ok: false,
         error: "network_error",
-        message:
-          "無法連線至 Google Apps Script 伺服器（" +
-          String(error && error.message ? error.message : error) +
-          "），請確認網路連線或稍後再試"
+        message: resolveSafeMessage(error, "無法連線至 Google Apps Script 伺服器，請確認網路連線或稍後再試")
       };
     }
 
@@ -246,7 +262,7 @@
         return createMissingApiUrlError();
       }
       if (typeof fetchFn !== "function") {
-        return Promise.resolve(createNetworkError(new Error("fetch_unavailable")));
+        return Promise.resolve(createNetworkError(createSafeError("尚未取得瀏覽器連線功能，請稍後再試")));
       }
       return fetchFn(apiUrl, {
         method: "POST",

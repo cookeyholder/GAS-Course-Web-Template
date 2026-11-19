@@ -23,6 +23,18 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
+
+  function getSafeErrors() {
+    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
+    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    const helper = getSafeErrors();
+    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+  }
+
   /**
    * 建立帳號與系統設定模組控制器。
    *
@@ -48,10 +60,11 @@
      * 統一錯誤訊息轉譯。
      *
      * @param {*} error - 錯誤物件或字串
+     * @param {string} fallback - 原始例外不外顯時使用的文案
      * @returns {string} 可顯示的錯誤訊息
      */
-    function normalizeErrorMessage(error) {
-      return String(error && error.message ? error.message : error);
+    function normalizeErrorMessage(error, fallback) {
+      return resolveSafeMessage(error, fallback);
     }
 
     function loadSettingsAndAccounts() {
@@ -77,7 +90,7 @@
           MEA.setState({
             settings: Object.assign({}, MEA.state.settings || {}, { loading: false })
           });
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "讀取系統設定失敗，請稍後再試"), "err");
         });
     }
 
@@ -187,7 +200,7 @@
         })
         .catch(function (error) {
           finishSettingsSaving();
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "儲存系統設定失敗，請稍後再試"), "err");
         });
     }
 
@@ -363,7 +376,7 @@
         })
         .catch(function (error) {
           finishWhitelistSaving();
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "儲存授權成員失敗，請稍後再試"), "err");
         });
     }
 

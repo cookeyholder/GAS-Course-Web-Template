@@ -28,6 +28,23 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
+
+  function getSafeErrors() {
+    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
+    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    const helper = getSafeErrors();
+    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+  }
+
+  function createSafeError(message) {
+    const helper = getSafeErrors();
+    return helper ? helper.createSafeError(message) : new Error(message);
+  }
+
   const GIS_SRC = "https://accounts.google.com/gsi/client";
   const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
   const GOOGLE_ACCOUNT_CHOOSER_URL = "https://accounts.google.com/AccountChooser";
@@ -60,7 +77,7 @@
     return {
       view: "login",
       loginBusy: false,
-      loginError: (result && result.message) || DEFAULT_LOGIN_ERROR
+      loginError: resolveSafeMessage(result, DEFAULT_LOGIN_ERROR)
     };
   }
 
@@ -363,7 +380,7 @@
    * @returns {string} 顯示給使用者的訊息
    */
   function normalizeLogoutError(error) {
-    return (error && error.message) || DEFAULT_LOGOUT_ERROR;
+    return resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
   }
 
   function buildSessionFailureState(result) {
@@ -426,7 +443,7 @@
             resolve(host.google.accounts.id);
           });
           existing.addEventListener("error", function () {
-            reject(new Error("Google 登入服務載入失敗"));
+            reject(createSafeError("Google 登入服務載入失敗"));
           });
           return;
         }
@@ -439,11 +456,11 @@
           if (host.google && host.google.accounts && host.google.accounts.id) {
             resolve(host.google.accounts.id);
           } else {
-            reject(new Error("Google 登入服務載入失敗"));
+            reject(createSafeError("Google 登入服務載入失敗"));
           }
         };
         script.onerror = function () {
-          reject(new Error("Google 登入服務載入失敗，請檢查網路連線"));
+          reject(createSafeError("Google 登入服務載入失敗，請檢查網路連線"));
         };
         doc.head.appendChild(script);
       });
@@ -531,7 +548,7 @@
     }
 
     function handleGisFailure(error) {
-      MEA.setState({ loginError: String(error && error.message ? error.message : error) });
+      MEA.setState({ loginError: resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
     }
 
     /**
@@ -540,7 +557,7 @@
      * @param {*} error - 例外或錯誤物件
      */
     function handleAuthCallFailure(error) {
-      const message = (error && error.message) || DEFAULT_LOGIN_ERROR;
+      const message = resolveSafeMessage(error, DEFAULT_LOGIN_ERROR);
       MEA.setState({ loginBusy: false, loginError: message });
       MEA.ui.toast(message, "err");
     }

@@ -25,6 +25,18 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
+
+  function getSafeErrors() {
+    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
+    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    const helper = getSafeErrors();
+    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+  }
+
   // SheetJS 自 0.19 起僅於官方 CDN 發布；固定單一版本並以 SRI 驗證完整性。
   const SHEETJS_VERSION = "0.20.3";
   const SHEETJS_CDN = ["https://cdn.sheetjs.com/xlsx-" + SHEETJS_VERSION + "/package/dist/xlsx.full.min.js"];
@@ -394,7 +406,7 @@
         })
         .catch(function (error) {
           MEA.setState({ importBusy: false });
-          MEA.ui.toast(String(error && error.message ? error.message : error), "err");
+          MEA.ui.toast(resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
           return null;
         });
     }
@@ -479,7 +491,7 @@
 
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
-      const detail = String(error && error.message ? error.message : error);
+      const detail = resolveSafeMessage(error, "匯入失敗，請稍後再試");
       MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 

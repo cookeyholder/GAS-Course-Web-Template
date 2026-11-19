@@ -163,7 +163,8 @@ function baseDeps(overrides) {
     const r1 = await apiFail.requestOnce("x", {});
     assert.strictEqual(r1.ok, false);
     assert.strictEqual(r1.error, "server_error");
-    assert(r1.message.indexOf("boom") !== -1);
+    assert.strictEqual(r1.message, "後端執行失敗，請稍後再試");
+    assert.strictEqual(r1.message.indexOf("boom"), -1);
 
     const gThrow = {
       script: {
@@ -184,7 +185,8 @@ function baseDeps(overrides) {
     const r2 = await apiThrow.requestOnce("x", {});
     assert.strictEqual(r2.ok, false);
     assert.strictEqual(r2.error, "server_error");
-    assert(r2.message.indexOf("throw") !== -1);
+    assert.strictEqual(r2.message, "後端執行失敗，請稍後再試");
+    assert.strictEqual(r2.message.indexOf("throw"), -1);
     console.log("   ✓ RPC 失敗/例外驗證通過！\n");
   }
 
@@ -277,7 +279,8 @@ function baseDeps(overrides) {
     const r3 = await apiNet.requestOnce("x", {});
     assert.strictEqual(r3.ok, false);
     assert.strictEqual(r3.error, "network_error");
-    assert(r3.message.indexOf("offline") !== -1);
+    assert.strictEqual(r3.message, "無法連線至 Google Apps Script 伺服器，請確認網路連線或稍後再試");
+    assert.strictEqual(r3.message.indexOf("offline"), -1);
     console.log("   ✓ fetch 錯誤分支驗證通過！\n");
   }
 

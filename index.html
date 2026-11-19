@@ -8084,6 +8084,67 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 });
   </script>
   <script>
+/* js/errorMessages.js */
+/**
+ * @file errorMessages.js
+ * @description 前端安全錯誤訊息轉譯：原始例外文字不外顯，僅顯示明確安全文案。
+ *
+ * 瀏覽器環境組裝 MEA.safeErrors；Node.js 環境直接匯出同一組純函式供測試使用。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory();
+
+  if (typeof window !== "undefined") {
+    const MEA = (root.MEA = root.MEA || {});
+    MEA.safeErrors = api;
+  }
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  const DEFAULT_MESSAGE = "作業失敗，請稍後再試";
+
+  /**
+   * 建立附帶安全文案的例外，供內部明確預期顯示的錯誤使用。
+   *
+   * @param {string} message - 可安全顯示給使用者的訊息
+   * @returns {Error} 附帶 safeMessage 屬性的例外
+   */
+  function createSafeError(message) {
+    const error = new Error(message);
+    error.safeMessage = typeof message === "string" && message ? message : DEFAULT_MESSAGE;
+    return error;
+  }
+
+  /**
+   * 將任意錯誤值轉譯為可安全顯示的訊息。
+   *
+   * @param {*} value - 例外、API 結果或未知值
+   * @param {string} [fallback] - 無法安全顯示時使用的文案
+   * @returns {string} 可顯示的錯誤訊息
+   */
+  function resolveUserMessage(value, fallback) {
+    const safeFallback = typeof fallback === "string" && fallback ? fallback : DEFAULT_MESSAGE;
+    if (!value || typeof value !== "object") return safeFallback;
+    if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
+    if (value instanceof Error) return safeFallback;
+    if (typeof value.message === "string" && value.message) return value.message;
+    return safeFallback;
+  }
+
+  return {
+    DEFAULT_MESSAGE: DEFAULT_MESSAGE,
+    createSafeError: createSafeError,
+    resolveUserMessage: resolveUserMessage
+  };
+});
+  </script>
+  <script>
 /* js/api.js */
 /**
  * @file api.js
@@ -8108,6 +8169,23 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
+
+  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
+
+  function getSafeErrors() {
+    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
+    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    const helper = getSafeErrors();
+    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+  }
+
+  function createSafeError(message) {
+    const helper = getSafeErrors();
+    return helper ? helper.createSafeError(message) : new Error(message);
+  }
 
   const CSRF_STORAGE_KEY = "gas_tmpl.csrf.v1";
 
@@ -8275,7 +8353,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return {
         ok: false,
         error: "server_error",
-        message: "後端執行失敗：" + String(error && error.message ? error.message : error)
+        message: resolveSafeMessage(error, "後端執行失敗，請稍後再試")
       };
     }
 
@@ -8308,7 +8386,9 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
     function handleFetchResponse(response) {
       if (response.ok === false) {
-        throw new Error("HTTP " + response.status);
+        const error = createSafeError("伺服器回應 HTTP " + response.status + "，請稍後再試");
+        error.status = response.status;
+        throw error;
       }
       if (typeof response.text === "function") {
         return response.text().then(parseApiResponse);
@@ -8320,10 +8400,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return {
         ok: false,
         error: "network_error",
-        message:
-          "無法連線至 Google Apps Script 伺服器（" +
-          String(error && error.message ? error.message : error) +
-          "），請確認網路連線或稍後再試"
+        message: resolveSafeMessage(error, "無法連線至 Google Apps Script 伺服器，請確認網路連線或稍後再試")
       };
     }
 
@@ -8333,7 +8410,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
         return createMissingApiUrlError();
       }
       if (typeof fetchFn !== "function") {
-        return Promise.resolve(createNetworkError(new Error("fetch_unavailable")));
+        return Promise.resolve(createNetworkError(createSafeError("尚未取得瀏覽器連線功能，請稍後再試")));
       }
       return fetchFn(apiUrl, {
         method: "POST",
@@ -9344,6 +9421,23 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
+
+  function getSafeErrors() {
+    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
+    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    const helper = getSafeErrors();
+    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+  }
+
+  function createSafeError(message) {
+    const helper = getSafeErrors();
+    return helper ? helper.createSafeError(message) : new Error(message);
+  }
+
   const GIS_SRC = "https://accounts.google.com/gsi/client";
   const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
   const GOOGLE_ACCOUNT_CHOOSER_URL = "https://accounts.google.com/AccountChooser";
@@ -9376,7 +9470,7 @@ window.MEA = window.MEA || {};
     return {
       view: "login",
       loginBusy: false,
-      loginError: (result && result.message) || DEFAULT_LOGIN_ERROR
+      loginError: resolveSafeMessage(result, DEFAULT_LOGIN_ERROR)
     };
   }
 
@@ -9679,7 +9773,7 @@ window.MEA = window.MEA || {};
    * @returns {string} 顯示給使用者的訊息
    */
   function normalizeLogoutError(error) {
-    return (error && error.message) || DEFAULT_LOGOUT_ERROR;
+    return resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
   }
 
   function buildSessionFailureState(result) {
@@ -9742,7 +9836,7 @@ window.MEA = window.MEA || {};
             resolve(host.google.accounts.id);
           });
           existing.addEventListener("error", function () {
-            reject(new Error("Google 登入服務載入失敗"));
+            reject(createSafeError("Google 登入服務載入失敗"));
           });
           return;
         }
@@ -9755,11 +9849,11 @@ window.MEA = window.MEA || {};
           if (host.google && host.google.accounts && host.google.accounts.id) {
             resolve(host.google.accounts.id);
           } else {
-            reject(new Error("Google 登入服務載入失敗"));
+            reject(createSafeError("Google 登入服務載入失敗"));
           }
         };
         script.onerror = function () {
-          reject(new Error("Google 登入服務載入失敗，請檢查網路連線"));
+          reject(createSafeError("Google 登入服務載入失敗，請檢查網路連線"));
         };
         doc.head.appendChild(script);
       });
@@ -9847,7 +9941,7 @@ window.MEA = window.MEA || {};
     }
 
     function handleGisFailure(error) {
-      MEA.setState({ loginError: String(error && error.message ? error.message : error) });
+      MEA.setState({ loginError: resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
     }
 
     /**
@@ -9856,7 +9950,7 @@ window.MEA = window.MEA || {};
      * @param {*} error - 例外或錯誤物件
      */
     function handleAuthCallFailure(error) {
-      const message = (error && error.message) || DEFAULT_LOGIN_ERROR;
+      const message = resolveSafeMessage(error, DEFAULT_LOGIN_ERROR);
       MEA.setState({ loginBusy: false, loginError: message });
       MEA.ui.toast(message, "err");
     }
@@ -10044,6 +10138,18 @@ window.MEA = window.MEA || {};
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
+
+  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
+
+  function getSafeErrors() {
+    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
+    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    const helper = getSafeErrors();
+    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+  }
 
   // SheetJS 自 0.19 起僅於官方 CDN 發布；固定單一版本並以 SRI 驗證完整性。
   const SHEETJS_VERSION = "0.20.3";
@@ -10414,7 +10520,7 @@ window.MEA = window.MEA || {};
         })
         .catch(function (error) {
           MEA.setState({ importBusy: false });
-          MEA.ui.toast(String(error && error.message ? error.message : error), "err");
+          MEA.ui.toast(resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
           return null;
         });
     }
@@ -10499,7 +10605,7 @@ window.MEA = window.MEA || {};
 
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
-      const detail = String(error && error.message ? error.message : error);
+      const detail = resolveSafeMessage(error, "匯入失敗，請稍後再試");
       MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 
@@ -10627,6 +10733,18 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
+
+  function getSafeErrors() {
+    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
+    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    const helper = getSafeErrors();
+    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+  }
+
   /**
    * 建立課程索引模組控制器。
    *
@@ -10652,10 +10770,11 @@ window.MEA = window.MEA || {};
      * 統一錯誤訊息轉譯。
      *
      * @param {*} error - 錯誤物件或字串
+     * @param {string} fallback - 原始例外不外顯時使用的文案
      * @returns {string} 可顯示的錯誤訊息
      */
-    function normalizeErrorMessage(error) {
-      return String(error && error.message ? error.message : error);
+    function normalizeErrorMessage(error, fallback) {
+      return resolveSafeMessage(error, fallback);
     }
 
     /**
@@ -10765,7 +10884,7 @@ window.MEA = window.MEA || {};
           MEA.setState({
             courses: Object.assign({}, cur, { loading: false })
           });
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "讀取課程資料失敗，請稍後再試"), "err");
         });
 
       const tracked = pending.then(
@@ -11100,6 +11219,18 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
+
+  function getSafeErrors() {
+    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
+    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  }
+
+  function resolveSafeMessage(value, fallback) {
+    const helper = getSafeErrors();
+    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+  }
+
   /**
    * 建立帳號與系統設定模組控制器。
    *
@@ -11125,10 +11256,11 @@ window.MEA = window.MEA || {};
      * 統一錯誤訊息轉譯。
      *
      * @param {*} error - 錯誤物件或字串
+     * @param {string} fallback - 原始例外不外顯時使用的文案
      * @returns {string} 可顯示的錯誤訊息
      */
-    function normalizeErrorMessage(error) {
-      return String(error && error.message ? error.message : error);
+    function normalizeErrorMessage(error, fallback) {
+      return resolveSafeMessage(error, fallback);
     }
 
     function loadSettingsAndAccounts() {
@@ -11154,7 +11286,7 @@ window.MEA = window.MEA || {};
           MEA.setState({
             settings: Object.assign({}, MEA.state.settings || {}, { loading: false })
           });
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "讀取系統設定失敗，請稍後再試"), "err");
         });
     }
 
@@ -11264,7 +11396,7 @@ window.MEA = window.MEA || {};
         })
         .catch(function (error) {
           finishSettingsSaving();
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "儲存系統設定失敗，請稍後再試"), "err");
         });
     }
 
@@ -11440,7 +11572,7 @@ window.MEA = window.MEA || {};
         })
         .catch(function (error) {
           finishWhitelistSaving();
-          MEA.ui.toast(normalizeErrorMessage(error), "err");
+          MEA.ui.toast(normalizeErrorMessage(error, "儲存授權成員失敗，請稍後再試"), "err");
         });
     }
 

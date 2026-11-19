@@ -27,9 +27,9 @@ const flush = helper.flush;
   const loginAuth = authModule.createAuthController(loginCtx.deps);
   loginAuth.loginMock();
   await flush();
-  assert.strictEqual(loginCtx.state.loginError, "登入服務暫時無法連線");
+  assert.strictEqual(loginCtx.state.loginError, authModule.constants.DEFAULT_LOGIN_ERROR);
   assert.strictEqual(loginCtx.state.loginBusy, false);
-  assert.deepStrictEqual(loginCtx.calls.toasts, [{ message: "登入服務暫時無法連線", level: "err" }]);
+  assert.deepStrictEqual(loginCtx.calls.toasts, [{ message: authModule.constants.DEFAULT_LOGIN_ERROR, level: "err" }]);
   console.log("   ✓ loginMock 失敗回饋驗證通過！\n");
 
   console.log("3. restore 拒絕時應明確提示而非靜默失敗...");
@@ -40,9 +40,11 @@ const flush = helper.flush;
   const restoreAuth = authModule.createAuthController(restoreCtx.deps);
   restoreAuth.restore();
   await flush();
-  assert.strictEqual(restoreCtx.state.loginError, "工作階段讀取失敗");
+  assert.strictEqual(restoreCtx.state.loginError, authModule.constants.DEFAULT_LOGIN_ERROR);
   assert.strictEqual(restoreCtx.state.view, "loading");
-  assert.deepStrictEqual(restoreCtx.calls.toasts, [{ message: "工作階段讀取失敗", level: "err" }]);
+  assert.deepStrictEqual(restoreCtx.calls.toasts, [
+    { message: authModule.constants.DEFAULT_LOGIN_ERROR, level: "err" }
+  ]);
   console.log("   ✓ restore 失敗回饋驗證通過！\n");
 
   console.log("✓ auth 失敗回饋與網域大小寫測試全數通過！\n");

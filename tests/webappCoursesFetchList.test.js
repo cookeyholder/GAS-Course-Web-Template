@@ -67,7 +67,7 @@ async function run() {
   assert.strictEqual(ctx.state.courses.loading, true);
   await flush();
   assert.strictEqual(ctx.state.courses.loading, false);
-  assert.deepStrictEqual(ctx.calls.toast, [{ message: "讀取失敗", kind: "err" }]);
+  assert.deepStrictEqual(ctx.calls.toast, [{ message: "讀取課程資料失敗，請稍後再試", kind: "err" }]);
   console.log("5. 例外路徑結束載入中並顯示錯誤 ✓\n");
 
   console.log("✓ webapp/js/courses.js fetchList 測試全數通過！\n");

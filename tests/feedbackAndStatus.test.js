@@ -100,7 +100,7 @@ async function run() {
   assert.strictEqual(failing.state.logoutBusy, false, "失敗應清除 logoutBusy");
   assert(
     failing.calls.toasts.some(function (item) {
-      return item.level === "err" && item.message === "登出服務暫時無法使用";
+      return item.level === "err" && item.message === authModule.constants.DEFAULT_LOGOUT_ERROR;
     }),
     "失敗應顯示錯誤 Toast"
   );
@@ -124,7 +124,16 @@ async function run() {
 
   console.log("6. Session 過期與登出常數應正確匯出...");
   assert.strictEqual(authModule.constants.SESSION_EXPIRED_ERROR, "工作階段已過期，請重新登入");
-  assert.strictEqual(authModule.normalizeLogoutError(new Error("逾時")), "逾時", "應使用後端回傳的錯誤訊息");
+  assert.strictEqual(
+    authModule.normalizeLogoutError(new Error("逾時")),
+    authModule.constants.DEFAULT_LOGOUT_ERROR,
+    "原始例外文字不得外顯"
+  );
+  assert.strictEqual(
+    authModule.normalizeLogoutError({ ok: false, error: "server_error", message: "登出失敗，請稍後再試" }),
+    "登出失敗，請稍後再試",
+    "後端安全訊息應可顯示"
+  );
   assert.strictEqual(
     authModule.normalizeLogoutError(null),
     authModule.constants.DEFAULT_LOGOUT_ERROR,

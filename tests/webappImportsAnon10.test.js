@@ -98,7 +98,7 @@ async function run() {
   assert.strictEqual(thrown.state.importBusy, false);
   assert(
     thrown.calls.toasts.some(function (item) {
-      return item.type === "err" && item.message.indexOf("連線中斷") === 0;
+      return item.type === "err" && item.message.indexOf("匯入失敗，請稍後再試") === 0;
     })
   );
   console.log("5. 空回應與例外應各自顯示錯誤提示 ✓\n");
@@ -116,7 +116,7 @@ async function run() {
   direct.imports.handleImportError("字串錯誤");
   assert(
     direct.calls.toasts.some(function (item) {
-      return item.message.indexOf("字串錯誤") === 0;
+      return item.message.indexOf("匯入失敗，請稍後再試") === 0;
     })
   );
   console.log("6. 直接呼叫結果與錯誤處理函式行為一致 ✓\n");
