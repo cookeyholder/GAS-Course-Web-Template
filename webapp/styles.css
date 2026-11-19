@@ -7013,6 +7013,20 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   outline-offset: 2px;
 }
 
+/* 操作日誌詳情：版本化 JSON 以可捲動區塊呈現，避免長內容撐破表格。 */
+.activity-log-detail {
+  margin: 0;
+  padding: 12px 14px;
+  max-height: 260px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--fill-2);
+  color: var(--ink);
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

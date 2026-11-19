@@ -31,7 +31,20 @@ function run() {
   assert.strictEqual(registry.isRoleAllowed("viewer", "saveSystemSettings"), false);
   assert.strictEqual(registry.isRoleAllowed("admin", "saveWhitelist"), true);
   assert.strictEqual(registry.isRoleAllowed("viewer", "not_registered"), false);
+  assert.strictEqual(registry.isRoleAllowed("admin", "getActivityLog"), true);
+  assert.strictEqual(registry.isRoleAllowed("staff", "getActivityLog"), false);
+  assert.strictEqual(registry.isRoleAllowed("viewer", "getActivityLog"), false);
   console.log("   ✓ RBAC 驗證通過！\n");
+
+  console.log("2.1 管理員權限應明確列舉所有 action 且不含萬用字元...");
+  const adminPerms = registry.buildRolePermissions().admin;
+  assert.strictEqual(adminPerms.indexOf("*"), -1, "管理員權限不得包含 *");
+  assert.deepStrictEqual(adminPerms, registry.listActions(), "管理員權限應列舉所有已登錄 action");
+  assert(adminPerms.indexOf("getActivityLog") !== -1, "管理員權限應含 getActivityLog");
+  registry.listActions().forEach(function (action) {
+    assert.strictEqual(api.hasPermission("admin", action), true, "管理員應可執行：" + action);
+  });
+  console.log("   ✓ 管理員明確列舉驗證通過！\n");
 
   console.log("3. 路由應拒絕未登錄的 action...");
   const result = api.routeWebApiAction("not_registered", {}, null);
@@ -84,7 +97,22 @@ function run() {
   assert.deepStrictEqual(handlerKeys, registry.listActions().slice().sort());
   console.log("   ✓ mock handler 完整性驗證通過！\n");
 
-  console.log("8. mock 應依登錄表拒絕未登錄 action...");
+  console.log("8. 日誌中繼資料應完整且心跳動作被排除...");
+  registry.listActions().forEach(function (name) {
+    const meta = registry.getActionMeta(name);
+    assert(meta, name + " 應有日誌中繼資料");
+    assert(["write", "query", "auth"].indexOf(meta.category) !== -1, name + " 類別應有效");
+    assert.strictEqual(typeof meta.label, "string", name + " 標籤應為字串");
+    assert.strictEqual(typeof meta.detailKey, "string", name + " 詳情鍵應為字串");
+    assert.strictEqual(typeof meta.enabled, "boolean", name + " 啟用旗標應為布林值");
+  });
+  assert.strictEqual(registry.getActionMeta("ping").enabled, false);
+  assert.strictEqual(registry.getActionMeta("getPublicConfig").enabled, false);
+  assert.strictEqual(registry.getActionMeta("importCourseCodes").enabled, true);
+  assert.strictEqual(registry.getActionMeta("not_registered"), null);
+  console.log("   ✓ 日誌中繼資料驗證通過！\n");
+
+  console.log("9. mock 應依登錄表拒絕未登錄 action...");
   const mockApi = mock.createMockApi({
     actionRegistry: registry,
     setTimeoutFn: function (fn) {
@@ -95,6 +123,8 @@ function run() {
     .handle("not_registered", {})
     .then(function (res) {
       assert.strictEqual(res.error, "unknown_mock_action");
+      assert.strictEqual(typeof registry.getHandler("getActivityLog"), "function");
+      assert.strictEqual(registry.getActionMeta("getActivityLog").enabled, false);
       console.log("   ✓ mock 守門驗證通過！\n");
       console.log("✓ actionRegistry.test.js 測試全數通過！\n");
     })

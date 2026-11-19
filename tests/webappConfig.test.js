@@ -155,7 +155,7 @@ console.log("7. buildFrontendConfig 應包含固定中繼資料、儲存鍵與�
   assert.strictEqual(c.styleKey, "gas_tmpl.style.v1");
   assert.strictEqual(c.defaultStyle, "modern-slate");
   assert(Array.isArray(c.styles) && c.styles.length === 13, "應包含 13 種視覺風格");
-  assert(Array.isArray(c.tabs) && c.tabs.length === 4, "應包含 4 個導覽頁籤");
+  assert(Array.isArray(c.tabs) && c.tabs.length === 5, "應包含 5 個導覽頁籤");
   assert.deepStrictEqual(c.roleNames, gasRuntime.ROLE_DEFINITIONS);
   console.log("   ✓ 固定設定驗證通過！\n");
 }
@@ -203,7 +203,7 @@ console.log("9. tabs 與 apiUrl 應依環境正確產生...");
     c.tabs.map(function (t) {
       return t.id;
     }),
-    ["overview", "import", "courses", "settings"]
+    ["overview", "import", "courses", "settings", "activityLog"]
   );
   c.tabs.forEach(function (t) {
     assert(t.name && t.icon && t.desc);

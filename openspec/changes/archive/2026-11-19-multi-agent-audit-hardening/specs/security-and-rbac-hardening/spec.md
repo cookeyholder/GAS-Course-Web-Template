@@ -49,9 +49,9 @@
 - **THEN** 驗證用的 `UrlFetchApp.fetch` 呼叫不被全域 Script Lock 序列化
 
 ### Requirement: API 端點與第三方腳本信任邊界
-前端 MUST 拒絕將 session token 或 CSRF token 傳送到未經允許的 API 端點；`?api=` 参数不得直接覆寫端點，僅接受同源或明確設定的 GAS 端點。SheetJS CDN MUST 固定單一版本並附 `integrity` 與 `crossorigin` 屬性。正式部署的 `index.html` 產物 MUST 預設停用 mock 模式，避免 `?mock=true` 在正式環境產生管理員 session。
+前端 MUST 拒絕將 session token 或 CSRF token 傳送到未經允許的 API 端點；`?api=` 參數不得直接覆寫端點，僅接受同源或明確設定的 GAS 端點。SheetJS CDN MUST 固定單一版本並附 `integrity` 與 `crossorigin` 屬性。正式部署的 `index.html` 產物 MUST 預設停用 mock 模式，避免 `?mock=true` 在正式環境產生管理員 session。
 
-#### Scenario: 惡意 api 参数被拒絕
+#### Scenario: 惡意 api 參數被拒絕
 - **WHEN** 頁面網址帶有 `?api=https://attacker.example`
 - **THEN** 前端拒絕覆寫端點、不傳送任何 token，並使用預設端點或顯示錯誤
 
@@ -75,7 +75,7 @@
 - **THEN** 後端拒絕匯入並回傳結構驗證錯誤
 
 #### Scenario: 公式字串被中和
-- **WHEN** 匯入資料包含 `=HYPERLINK(...)` 之类開頭值
+- **WHEN** 匯入資料包含 `=HYPERLINK(...)` 之類開頭值
 - **THEN** 寫入工作表的內容為純文字，不觸發公式計算
 
 ### Requirement: ID Token 有效期與錯誤訊息通用化

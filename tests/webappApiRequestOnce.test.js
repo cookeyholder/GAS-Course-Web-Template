@@ -478,6 +478,59 @@ function baseDeps(overrides) {
     console.log("   ✓ 瀏覽器組裝驗證通過！\n");
   }
 
+  console.log("17. getActivityLog 應沿用 call 通道並傳遞查詢參數...");
+  {
+    let handled = null;
+    const mock = {
+      handle: function (action, body) {
+        handled = { action: action, body: body };
+        return Promise.resolve({ ok: true, rows: [], total: 0 });
+      }
+    };
+    const api = apiModule.createApiClient(baseDeps({ config: { storageKey: "s", mock: true }, mock: mock }));
+    const query = {
+      startDate: "2026-11-13",
+      endDate: "2026-11-19",
+      email: "admin@example.com",
+      category: "write",
+      page: 2,
+      pageSize: 50
+    };
+    const result = await api.getActivityLog(query);
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(handled.action, "getActivityLog");
+    assert.strictEqual(handled.body.startDate, "2026-11-13");
+    assert.strictEqual(handled.body.page, 2);
+    console.log("   ✓ getActivityLog 便利性方法驗證通過！\n");
+  }
+
+  console.log("18. getActivityLog 在 fetch 模式亦應使用 text/plain;charset=utf-8...");
+  {
+    let opts = null;
+    const fetchFn = function (url, options) {
+      opts = options;
+      return Promise.resolve({
+        ok: true,
+        text: function () {
+          return Promise.resolve('{"ok":true,"rows":[]}');
+        }
+      });
+    };
+    const api = apiModule.createApiClient(
+      baseDeps({
+        config: { storageKey: "s", apiUrl: "https://api.test/exec", mock: false },
+        fetch: fetchFn
+      })
+    );
+    const result = await api.getActivityLog({ page: 1, pageSize: 50 });
+    assert.strictEqual(result.ok, true);
+    assert.strictEqual(opts.method, "POST");
+    assert.strictEqual(opts.headers["Content-Type"], "text/plain;charset=utf-8");
+    const sent = JSON.parse(opts.body);
+    assert.strictEqual(sent.action, "getActivityLog");
+    console.log("   ✓ fetch 模式通訊協議驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/api.js 測試全數通過！\n");
 })().catch(function (err) {
   console.error(err);

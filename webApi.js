@@ -78,7 +78,7 @@ const WEB_API_IMPORT_NORMALIZED_COLUMNS = 14;
 const WEB_API_IMPORT_RESULT_PREFIX = "gas_tmpl_import_";
 const WEB_API_IMPORT_RESULT_TTL_SECONDS = WEB_API_SESSION_TTL_SECONDS;
 
-/** 角色權限矩陣（RBAC）由 ACTION_REGISTRY 產生，僅 admin 使用通配規則 */
+/** 角色權限矩陣（RBAC）由 ACTION_REGISTRY 產生，所有角色皆明確列舉 action */
 const ROLE_PERMISSIONS = ACTION_REGISTRY.buildRolePermissions();
 
 /** Node.js 沙盒測試用之記憶體 Session 儲存 */
@@ -125,7 +125,6 @@ function parseWebApiPayload(e) {
 function hasPermission(role, action) {
   const normRole = normalizeRole(role);
   const permissions = ROLE_PERMISSIONS[normRole] || [];
-  if (permissions.indexOf("*") !== -1) return true;
   return permissions.indexOf(action) !== -1;
 }
 
@@ -979,6 +978,132 @@ function handleSaveWhitelistWebApiAction_(payload, session, ss) {
   return resolveRouteDependency_("saveWhitelist", saveWhitelist)(payload.accounts || [], ss);
 }
 
+/** 操作日誌查詢預設值與上限 */
+const ACTIVITY_LOG_DEFAULT_DAYS = 7;
+const ACTIVITY_LOG_PAGE_SIZE_DEFAULT = 50;
+const ACTIVITY_LOG_PAGE_SIZE_MAX = 500;
+
+/**
+ * 以 Asia/Taipei 時區格式化日期；GAS 使用 Utilities，Node 測試採固定 +8 偏移。
+ *
+ * @param {Date} date - 日期物件
+ * @returns {string} yyyy-MM-dd
+ */
+function formatTaipeiDate_(date) {
+  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    return Utilities.formatDate(date, "Asia/Taipei", "yyyy-MM-dd");
+  }
+  return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+}
+
+/**
+ * 解析操作日誌查詢的時間區間，預設最近 7 天（含端點）。
+ *
+ * @param {Object} payload - 請求 payload
+ * @returns {Object} `{ startDate, endDate, start, end }`
+ */
+function resolveActivityLogDateRange_(payload) {
+  const source = payload || {};
+  const now = new Date();
+  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
+  const requestedEnd = String(source.endDate || "").slice(0, 10);
+  const requestedStart = String(source.startDate || "").slice(0, 10);
+  const endDate = datePattern.test(requestedEnd) ? requestedEnd : formatTaipeiDate_(now);
+  const defaultStart = formatTaipeiDate_(
+    new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000)
+  );
+  const startDate = datePattern.test(requestedStart) ? requestedStart : defaultStart;
+  return {
+    startDate: startDate,
+    endDate: endDate,
+    start: startDate + " 00:00:00",
+    end: endDate + " 23:59:59"
+  };
+}
+
+/**
+ * 受保護 action：getActivityLog（僅管理員）。
+ * 回傳依時間遞減排序的分頁日誌，單次最多 500 筆。
+ */
+function handleGetActivityLogWebApiAction_(payload, session, ss) {
+  if (!session || session.role !== "admin") {
+    return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可查閱操作日誌");
+  }
+  const source = payload || {};
+  const range = resolveActivityLogDateRange_(source);
+  const page = Math.max(1, parseInt(source.page, 10) || 1);
+  const pageSize = Math.min(
+    ACTIVITY_LOG_PAGE_SIZE_MAX,
+    Math.max(1, parseInt(source.pageSize, 10) || ACTIVITY_LOG_PAGE_SIZE_DEFAULT)
+  );
+  const emptyResult = {
+    ok: true,
+    rows: [],
+    total: 0,
+    page: page,
+    pageSize: pageSize,
+    startDate: range.startDate,
+    endDate: range.endDate
+  };
+  const targetSs = ss || getRouteSpreadsheet_();
+  const sheet =
+    targetSs && typeof targetSs.getSheetByName === "function"
+      ? targetSs.getSheetByName(GAS_RUNTIME.SHEET_ACTIVITY_LOG)
+      : null;
+  if (!sheet || typeof sheet.getLastRow !== "function" || typeof sheet.getRange !== "function") {
+    return emptyResult;
+  }
+  const lastRow = Math.max(0, Number(sheet.getLastRow()) || 0);
+  if (lastRow < 2) return emptyResult;
+  const values = sheet.getRange(2, 1, lastRow - 1, 12).getValues() || [];
+  const emailFilter = String(source.email || "")
+    .trim()
+    .toLowerCase();
+  const categoryFilter = String(source.category || "").trim();
+  const matched = [];
+  values.forEach(function (row) {
+    const cells = Array.isArray(row) ? row : [];
+    const timestamp = String(cells[0] || "");
+    if (timestamp < range.start || timestamp > range.end) return;
+    if (categoryFilter && String(cells[2] || "") !== categoryFilter) return;
+    if (
+      emailFilter &&
+      String(cells[5] || "")
+        .toLowerCase()
+        .indexOf(emailFilter) === -1
+    )
+      return;
+    matched.push({
+      timestamp: timestamp,
+      requestId: String(cells[1] || ""),
+      category: String(cells[2] || ""),
+      action: String(cells[3] || ""),
+      result: String(cells[4] || ""),
+      email: String(cells[5] || ""),
+      name: String(cells[6] || ""),
+      role: String(cells[7] || ""),
+      summary: String(cells[8] || ""),
+      detail: String(cells[9] || ""),
+      durationMs: cells[10] === "" || cells[10] === null ? null : Number(cells[10]),
+      errorCode: String(cells[11] || "")
+    });
+  });
+  matched.sort(function (a, b) {
+    if (a.timestamp < b.timestamp) return 1;
+    if (a.timestamp > b.timestamp) return -1;
+    return 0;
+  });
+  return {
+    ok: true,
+    rows: matched.slice((page - 1) * pageSize, page * pageSize),
+    total: matched.length,
+    page: page,
+    pageSize: pageSize,
+    startDate: range.startDate,
+    endDate: range.endDate
+  };
+}
+
 /** 將所有 action 的處理函式註冊至 ACTION_REGISTRY，消除獨立 switch 造成的漂移。 */
 function registerWebApiActionHandlers_() {
   const handlers = {
@@ -994,7 +1119,8 @@ function registerWebApiActionHandlers_() {
     getSystemSettings: handleGetSystemSettingsWebApiAction_,
     saveSystemSettings: handleSaveSystemSettingsWebApiAction_,
     getAccounts: handleGetAccountsWebApiAction_,
-    saveWhitelist: handleSaveWhitelistWebApiAction_
+    saveWhitelist: handleSaveWhitelistWebApiAction_,
+    getActivityLog: handleGetActivityLogWebApiAction_
   };
   Object.keys(handlers).forEach(function (name) {
     ACTION_REGISTRY.setHandler(name, handlers[name]);
@@ -1085,7 +1211,7 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
   return handler(payload, session, ss);
 }
 
-function routeWebApiAction(action, payload, event) {
+function routeWebApiAction(action, payload, event, authorizationOverride) {
   const name = String(action || "").trim();
   if (name === "") return webApiError("missing_action", "缺少 action 參數");
   if (!ACTION_REGISTRY.hasAction(name)) {
@@ -1095,7 +1221,8 @@ function routeWebApiAction(action, payload, event) {
   const publicResult = routePublicWebApiAction_(name, payload);
   if (publicResult !== null) return publicResult;
 
-  const authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
+  const authorization =
+    authorizationOverride || getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
   if (!authorization.ok) return authorization;
 
   const session = authorization.session;
@@ -1110,56 +1237,366 @@ function routeWebApiAction(action, payload, event) {
 // ============================================================================
 
 /**
+ * 解析操作日誌模組：GAS 全域命名空間優先，Node 則以 require 載入。
+ *
+ * @param {string} name - 全域命名空間名稱
+ * @param {string} modulePath - Node.js 模組路徑
+ * @returns {Object|null} 模組 API
+ */
+function resolveActivityLogModule_(name, modulePath) {
+  if (typeof globalThis !== "undefined" && globalThis[name]) return globalThis[name];
+  if (typeof require === "function") {
+    try {
+      return require(modulePath);
+    } catch (error) {
+      return null;
+    }
+  }
+  return null;
+}
+
+/** 不寫入日誌的例外動作（高頻心跳與日誌查詢本身） */
+const ACTIVITY_LOG_EXCLUDED_ACTIONS = ["ping", "getPublicConfig", "getActivityLog"];
+
+/**
+ * 取得動作的日誌中繼資料；未登錄動作（例如解析失敗）使用預設值以確保仍寫入日誌。
+ *
+ * @param {string} action - 動作名稱
+ * @returns {Object} 日誌中繼資料
+ */
+function getActivityLogMeta_(action) {
+  return (
+    ACTION_REGISTRY.getActionMeta(action) || {
+      category: "query",
+      label: action || "未識別動作",
+      detailKey: "none",
+      enabled: true
+    }
+  );
+}
+
+/**
+ * 判斷動作是否應寫入日誌。
+ *
+ * @param {string} action - 動作名稱
+ * @param {Object} meta - 日誌中繼資料
+ * @returns {boolean} 是否寫入
+ */
+function shouldLogActivity_(action, meta) {
+  return ACTIVITY_LOG_EXCLUDED_ACTIONS.indexOf(action) === -1 && meta.enabled !== false;
+}
+
+/**
+ * 呼叫詳情產生器的 snapshots 擷取函式（若定義）。
+ *
+ * @param {Object} meta - 日誌中繼資料
+ * @returns {*} 變動前／後快照或 null
+ */
+function captureActivityLogSnapshot_(meta) {
+  const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
+  if (!builders || typeof builders.captureBefore !== "function") return null;
+  try {
+    return builders.captureBefore(meta.detailKey, getRouteSpreadsheet_());
+  } catch (error) {
+    return null;
+  }
+}
+
+/**
+ * 建立請求層級的日誌 context。
+ * 身分欄位一開始保持空白，待授權結果或登入結果回傳後再補寫。
+ *
+ * @param {string} [action] - 動作名稱
+ * @param {number} [startTime] - 起始時間（毫秒）
+ * @returns {Object} 日誌 context
+ */
+function createWebApiLogContext_(action, startTime) {
+  return {
+    requestId: "req_" + generateSessionToken(),
+    action: String(action || ""),
+    startTime: typeof startTime === "number" ? startTime : Date.now(),
+    email: "",
+    name: "",
+    role: "",
+    errorCode: ""
+  };
+}
+
+/**
+ * 依授權結果或公開登入結果補寫日誌 context 的已驗證身分。
+ * 角色顯示名稱一律由 getRoleDisplayName(session.role) 取得，
+ * 不得讀取可能遭竄改的 session.roleName。
+ *
+ * @param {Object} context - 日誌 context
+ * @param {Object} [authorization] - 授權結果
+ * @param {Object} [result] - action 回傳結果
+ * @returns {Object} 同一個 context
+ */
+function recordWebApiIdentity_(context, authorization, result) {
+  if (!context) return context;
+  const resolveRoleName = function (role) {
+    if (!role) return "";
+    if (typeof getRoleDisplayName === "function") {
+      try {
+        return getRoleDisplayName(role) || String(role);
+      } catch (error) {
+        return String(role);
+      }
+    }
+    return String(role);
+  };
+  if (authorization && authorization.ok && authorization.session) {
+    const session = authorization.session;
+    context.email = session.email || "";
+    context.name = session.name || "";
+    context.role = resolveRoleName(session.role);
+  }
+  if (result && result.ok && (result.email || result.role)) {
+    context.email = result.email || context.email;
+    context.name = result.name || context.name;
+    context.role = resolveRoleName(result.role) || context.role;
+  }
+  return context;
+}
+
+/**
+ * 產生操作日誌摘要（不含敏感內容與原始回傳值）。
+ *
+ * @param {Object} context - 日誌 context
+ * @param {Object} meta - 動作日誌中繼資料
+ * @param {Object} result - action 回傳結果
+ * @returns {string} 摘要文字
+ */
+function buildActivityLogSummary_(context, meta, result) {
+  const label = meta.label || context.action || "未識別動作";
+  if (result && result.ok === false) {
+    return label + "失敗：" + (result.error || "未知錯誤");
+  }
+  return label + "成功";
+}
+
+/**
+ * 建立操作日誌寫入紀錄。
+ *
+ * @param {Object} context - 日誌 context
+ * @param {Object} meta - 動作日誌中繼資料
+ * @param {Object} payload - 請求 payload（僅供詳情產生器取白名單欄位）
+ * @param {Object} result - action 回傳結果
+ * @param {*} [before] - 變動前快照
+ * @param {*} [after] - 變動後快照
+ * @returns {Object} 12 欄日誌紀錄
+ */
+function buildActivityLogRecord_(context, meta, payload, result, before, after) {
+  const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
+  let detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
+  if (builders && typeof builders.describe === "function") {
+    try {
+      // 攔截器只傳遞白名單投影，即使產生器日後改變也不會接觸敏感欄位。
+      const safePayload =
+        builders && typeof builders.projectPayload === "function"
+          ? builders.projectPayload(payload || {})
+          : payload || {};
+      detail = builders.describe(meta.detailKey, before, after, safePayload, result || {});
+    } catch (error) {
+      // 詳情產生失敗時保留最小可用的版本化結構
+    }
+  }
+  const now = new Date();
+  let timestamp;
+  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    timestamp = Utilities.formatDate(now, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+  } else {
+    timestamp = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
+  }
+  return {
+    timestamp: timestamp,
+    requestId: context.requestId,
+    category: meta.category,
+    action: meta.label || context.action || "未識別動作",
+    result: result && result.ok === true ? "success" : "failure",
+    email: context.email,
+    name: context.name,
+    role: context.role,
+    summary: buildActivityLogSummary_(context, meta, result),
+    detail: JSON.stringify(detail),
+    durationMs: Date.now() - context.startTime,
+    errorCode: context.errorCode || ""
+  };
+}
+
+/**
  * 執行 Web API Action，供 doPost 與 google.script.run 共用。
  *
  * @param {Object|string} payload - 請求資料物件或 JSON 字串
  * @param {Object} [event] - HTTP 原始事件物件
  * @returns {Object} Action 結果或錯誤物件
  */
-function executeWebApi(payload, event) {
-  if (typeof payload === "string") {
+/**
+ * 由請求資料取得 action 字串，供日誌 context 與路由共用。
+ *
+ * @param {Object|string} payload - 請求資料
+ * @param {Object} [event] - HTTP 原始事件物件
+ * @param {boolean} [shouldTrim] - 是否去除前後空白
+ * @returns {string} action 字串
+ */
+function getWebApiAction_(payload, event, shouldTrim) {
+  const raw = String((payload && payload.action) || (event && event.parameter && event.parameter.action) || "");
+  return shouldTrim ? raw.trim() : raw;
+}
+
+/**
+ * 依 action 判斷是否需要寫入鎖並嘗試取得，回傳鎖狀態供釋放。
+ *
+ * @param {string} action - action 名稱
+ * @returns {{lock: Object|null, hasLock: boolean, lockFailed: boolean}} 鎖狀態
+ */
+function acquireWebApiLock_(action) {
+  const state = { lock: null, hasLock: false, lockFailed: false };
+  if (WEB_API_LOCKED_ACTIONS.indexOf(action) === -1) return state;
+  // LockService 不可用時維持既有行為：略過鎖定，不視為逾時。
+  if (typeof LockService === "undefined" || !LockService.getScriptLock) return state;
+  state.lock = LockService.getScriptLock();
+  try {
+    state.hasLock = state.lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
+  } catch (lockError) {
+    state.hasLock = false;
+  }
+  state.lockFailed = !state.hasLock;
+  return state;
+}
+
+/**
+ * 於 executeWebApi 的 finally 統一釋放鎖並寫入操作日誌。
+ * 日誌寫入失敗不得影響 API 回應。
+ *
+ * @param {Object} context - 日誌 context
+ * @param {Object|null} actionMeta - 日誌中繼資料
+ * @param {Object|string} payload - 原始請求資料
+ * @param {Object|null} finalResult - 最終 API 回應
+ * @param {Object|null} beforeSnapshot - 寫入前快照
+ * @param {Object|null} afterSnapshot - 寫入後快照
+ * @param {Object|null} lock - 已取得的鎖
+ * @param {boolean} hasLock - 是否成功取得鎖
+ */
+function finalizeWebApiRequest_(
+  context,
+  actionMeta,
+  payload,
+  finalResult,
+  beforeSnapshot,
+  afterSnapshot,
+  lock,
+  hasLock
+) {
+  if (hasLock && lock) {
     try {
-      payload = JSON.parse(payload);
-    } catch (error) {
-      return webApiError("invalid_json", "請求 JSON 格式錯誤");
+      lock.releaseLock();
+    } catch (releaseError) {
+      // 忽略解鎖失敗
     }
   }
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return webApiError("invalid_json", "請求 JSON 格式錯誤");
-  }
-
-  const action = String(payload.action || (event && event.parameter && event.parameter.action) || "").trim();
-  if (action === "") return webApiError("missing_action", "缺少 action 參數");
-
-  let lock = null;
-  let hasLock = false;
+  // 統一日誌寫入必須在解鎖之後，且不得再次取得同一把 Script Lock。
+  // 解析失敗或缺少 action 時仍須寫入，故補上預設中繼資料。
+  if (!actionMeta) actionMeta = getActivityLogMeta_(context.action);
+  if (!actionMeta || !shouldLogActivity_(context.action, actionMeta)) return;
+  const loggerModule = resolveActivityLogModule_("activityLogger", "./activityLogger.js");
+  const appendFn = getOverridableApiFn_("appendActivityLog", loggerModule ? loggerModule.appendActivityLog : null);
+  if (typeof appendFn !== "function") return;
   try {
-    const needsLock = WEB_API_LOCKED_ACTIONS.indexOf(action) !== -1;
-    if (needsLock && typeof LockService !== "undefined" && LockService.getScriptLock) {
-      lock = LockService.getScriptLock();
+    appendFn(
+      buildActivityLogRecord_(context, actionMeta, payload, finalResult, beforeSnapshot, afterSnapshot),
+      getRouteSpreadsheet_()
+    );
+  } catch (error) {
+    console.error("寫入操作日誌失敗：", error && error.message ? error.message : error);
+  }
+}
+
+function executeWebApi(payload, event) {
+  const context = getOverridableApiFn_("createWebApiLogContext", createWebApiLogContext_)(
+    getWebApiAction_(payload, event, false),
+    Date.now()
+  );
+  let lockState = { lock: null, hasLock: false };
+  let finalResult = null;
+  let actionMeta = null;
+  let beforeSnapshot = null;
+  let afterSnapshot = null;
+  const finish_ = function (result) {
+    finalResult = result;
+    if (result && result.ok === false && !context.errorCode) {
+      context.errorCode = result.error || "failed";
+    }
+    return result;
+  };
+  try {
+    if (typeof payload === "string") {
       try {
-        hasLock = lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
-      } catch (lockError) {
-        hasLock = false;
+        payload = JSON.parse(payload);
+      } catch (error) {
+        context.errorCode = "invalid_json";
+        return finish_(webApiError("invalid_json", "請求 JSON 格式錯誤"));
       }
-      if (!hasLock) return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
+    }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      context.errorCode = "invalid_json";
+      return finish_(webApiError("invalid_json", "請求 JSON 格式錯誤"));
+    }
+
+    const action = getWebApiAction_(payload, event, true);
+    context.action = action;
+    if (action === "") {
+      context.errorCode = "missing_action";
+      return finish_(webApiError("missing_action", "缺少 action 參數"));
+    }
+
+    actionMeta = getActivityLogMeta_(action);
+    if (shouldLogActivity_(action, actionMeta)) {
+      beforeSnapshot = captureActivityLogSnapshot_(actionMeta);
+    }
+
+    // 先取得一次授權結果供日誌 context 使用，並直接交給路由，避免重複授權。
+    let authorization = null;
+    try {
+      authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(action, payload);
+    } catch (error) {
+      // 授權函式本身的例外交由路由再次觸發，維持既有 server_error 行為。
+      authorization = null;
+    }
+    if (authorization) recordWebApiIdentity_(context, authorization, null);
+
+    lockState = acquireWebApiLock_(action);
+    if (lockState.lockFailed) {
+      context.errorCode = "lock_timeout";
+      return finish_(webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試"));
     }
     const routeFn =
       typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"
         ? module.exports.routeWebApiAction
         : routeWebApiAction;
-    return routeFn(action, payload, event);
+    const result = routeFn(action, payload, event, authorization);
+    if (actionMeta && shouldLogActivity_(action, actionMeta)) {
+      afterSnapshot = captureActivityLogSnapshot_(actionMeta);
+    }
+    if ((action === "login" || action === "loginWithActiveUser") && result && result.ok) {
+      recordWebApiIdentity_(context, null, result);
+    }
+    return finish_(result);
   } catch (error) {
     console.error("[webApi executeWebApi error] " + (error && error.stack ? error.stack : error));
-    return webApiError("server_error", "系統發生未預期的錯誤，請稍後再試");
+    context.errorCode = "server_error";
+    return finish_(webApiError("server_error", "系統發生未預期的錯誤，請稍後再試"));
   } finally {
-    if (hasLock && lock) {
-      try {
-        lock.releaseLock();
-      } catch (releaseError) {
-        // 忽略解鎖失敗
-      }
-    }
+    finalizeWebApiRequest_(
+      context,
+      actionMeta,
+      payload,
+      finalResult,
+      beforeSnapshot,
+      afterSnapshot,
+      lockState.lock,
+      lockState.hasLock
+    );
   }
 }
 
@@ -1295,8 +1732,14 @@ if (typeof module !== "undefined" && module.exports) {
     logoutSession: logoutSession,
     authorizeWebApiAction: authorizeWebApiAction,
     routeWebApiAction: routeWebApiAction,
+    handleGetActivityLogWebApiAction: handleGetActivityLogWebApiAction_,
+    formatTaipeiDate: formatTaipeiDate_,
     getPublicConfig: getPublicConfig,
     executeWebApi: executeWebApi,
+    createWebApiLogContext: createWebApiLogContext_,
+    recordWebApiIdentity: recordWebApiIdentity_,
+    buildActivityLogRecord: buildActivityLogRecord_,
+    appendActivityLog: null,
     doGet: doGet,
     doPost: doPost
   };

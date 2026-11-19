@@ -24,6 +24,23 @@ const SHEET_SYSTEM_CONFIG = GAS_RUNTIME.SHEET_SYSTEM_CONFIG;
 const SHEET_COURSE_INDEX = GAS_RUNTIME.SHEET_COURSE_INDEX;
 const LEGACY_SHEET_COURSE_INDEX = GAS_RUNTIME.LEGACY_SHEET_COURSE_INDEX;
 const SHEET_SYSTEM_INSTRUCTIONS = GAS_RUNTIME.SHEET_SYSTEM_INSTRUCTIONS;
+const SHEET_ACTIVITY_LOG = GAS_RUNTIME.SHEET_ACTIVITY_LOG;
+
+/** 操作日誌工作表 12 欄表頭（順序為日誌寫入依據） */
+const ACTIVITY_LOG_HEADERS = [
+  "時間戳記",
+  "請求識別碼",
+  "事件類別",
+  "動作名稱",
+  "結果",
+  "操作者 email",
+  "操作者姓名",
+  "角色",
+  "摘要",
+  "詳情 JSON",
+  "耗時（毫秒）",
+  "錯誤代碼"
+];
 
 // ============================================================================
 // 預設參數與欄位定義
@@ -176,6 +193,9 @@ function getSystemInstructionRows_() {
       "2. 正規化課程代碼：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"
     ],
     ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
+    [
+      "4. 操作日誌：記錄各項 Web API 動作的時間、操作者、結果與變動明細，僅系統管理員可查閱；每日離峰時段自動清理過舊資料。"
+    ],
     [""],
     ["二、OAuth 2.0 Client ID 設定步驟："],
     ["1. 前往 Google Cloud Console (https://console.cloud.google.com/) 建立或選取專案。"],
@@ -199,6 +219,26 @@ function ensureInstructionsSheet_(ss, createdSheets) {
   createdSheets.push(SHEET_SYSTEM_INSTRUCTIONS);
 }
 
+function createActivityLogSheet_(ss) {
+  const sheet = ss.insertSheet(SHEET_ACTIVITY_LOG);
+  const headerRange = sheet.getRange(1, 1, 1, ACTIVITY_LOG_HEADERS.length);
+  headerRange.setValues([ACTIVITY_LOG_HEADERS]);
+  headerRange.setFontWeight("bold").setBackground("#e2e8f0");
+  sheet.setFrozenRows(1);
+  // 詳情欄位（第 10 欄）預先套用純文字格式，避免 JSON 內容被誤判為公式或數字
+  const detailRange = sheet.getRange(2, 10, 1000, 1);
+  if (detailRange && typeof detailRange.setNumberFormat === "function") {
+    detailRange.setNumberFormat("@");
+  }
+  return sheet;
+}
+
+function ensureActivityLogSheet_(ss, createdSheets) {
+  if (ss.getSheetByName(SHEET_ACTIVITY_LOG)) return;
+  createActivityLogSheet_(ss);
+  createdSheets.push(SHEET_ACTIVITY_LOG);
+}
+
 /**
  * 完整初始化／檢查所有後端工作表
  *
@@ -219,11 +259,24 @@ function initializeDatabaseSheets(options) {
   ensureSystemConfigSheet_(ss, createdSheets);
   ensureCourseIndexSheet_(ss, createdSheets);
   ensureInstructionsSheet_(ss, createdSheets);
+  ensureActivityLogSheet_(ss, createdSheets);
+
+  // 安裝每日清理觸發器；無 ScriptApp 時（例如 Node 測試）安全略過
+  const ensureTrigger = GAS_RUNTIME.resolveDependency_("ensureActivityLogCleanupTrigger_", "./activityLogger.js", null);
+  let cleanupTrigger = { ok: false, created: false, reason: "unavailable" };
+  if (typeof ensureTrigger === "function") {
+    try {
+      cleanupTrigger = ensureTrigger({ scriptApp: options && options.scriptApp }) || cleanupTrigger;
+    } catch (error) {
+      console.error("安裝操作日誌清理觸發器失敗：", error && error.message ? error.message : error);
+    }
+  }
 
   return {
     ok: true,
-    sheets: [SHEET_SYSTEM_CONFIG, SHEET_COURSE_INDEX, SHEET_SYSTEM_INSTRUCTIONS],
-    createdSheets: createdSheets
+    sheets: [SHEET_SYSTEM_CONFIG, SHEET_COURSE_INDEX, SHEET_SYSTEM_INSTRUCTIONS, SHEET_ACTIVITY_LOG],
+    createdSheets: createdSheets,
+    cleanupTrigger: cleanupTrigger
   };
 }
 
@@ -616,6 +669,8 @@ if (typeof module !== "undefined" && module.exports) {
     SHEET_COURSE_INDEX: SHEET_COURSE_INDEX,
     LEGACY_SHEET_COURSE_INDEX: LEGACY_SHEET_COURSE_INDEX,
     SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
+    SHEET_ACTIVITY_LOG: SHEET_ACTIVITY_LOG,
+    ACTIVITY_LOG_HEADERS: ACTIVITY_LOG_HEADERS,
     DEFAULT_SYSTEM_PARAMS: DEFAULT_SYSTEM_PARAMS,
     WHITELIST_HEADERS: WHITELIST_HEADERS,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,

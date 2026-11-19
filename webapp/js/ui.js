@@ -58,6 +58,19 @@
   }
 
   /**
+   * 依頁籤的管理員旗標與目前使用者角色判定頁籤是否可見。
+   * 未標記 adminOnly 的頁籤一律可見；標記者僅 admin 角色可見。
+   *
+   * @param {Object} tab - 頁籤定義
+   * @param {Object} user - 目前登入使用者（MEA.state.user）
+   * @returns {boolean} 是否允許存取
+   */
+  function isTabAllowed(tab, user) {
+    if (!tab || tab.adminOnly !== true) return true;
+    return !!(user && user.role === "admin");
+  }
+
+  /**
    * 取得角色顯示名稱。
    *
    * @param {string} role - 角色代碼
@@ -475,10 +488,12 @@
     function renderNavbar() {
       const tabs = MEA.config.tabs || [];
       const currentTab = MEA.state.tab || "overview";
+      const user = MEA.state && MEA.state.user;
 
       let tabsHtml = "";
       for (let i = 0; i < tabs.length; i++) {
         const t = tabs[i];
+        if (!isTabAllowed(t, user)) continue;
         const active = t.id === currentTab ? " active" : "";
         const current = t.id === currentTab ? ' aria-current="page"' : "";
         tabsHtml +=
@@ -717,6 +732,7 @@
     const api = {
       escapeHtml: escapeHtml,
       number: number,
+      isTabAllowed: isTabAllowed,
       roleName: function (role) {
         return roleName(role, MEA.config);
       },

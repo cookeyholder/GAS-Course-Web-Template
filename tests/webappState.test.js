@@ -22,7 +22,7 @@ function createStateModule() {
       }
     }
   };
-  vm.runInNewContext(source, sandbox, { filename: "state.js" });
+  vm.runInNewContext(source, sandbox, { filename: path.join(__dirname, "..", "webapp", "js", "state.js") });
   return { MEA: win.MEA, errors: errors };
 }
 

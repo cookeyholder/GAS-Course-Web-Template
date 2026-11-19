@@ -395,8 +395,9 @@
           <li><a href="#lock-service">4. 併發防護：LockService</a></li>
           <li><a href="#cache-service">5. 效能快取：CacheService</a></li>
           <li><a href="#sheet-db">6. 試算表作為資料庫準則</a></li>
-          <li><a href="#security-hardening">7. 全端資訊安全防護架構</a></li>
-          <li><a href="#references">8. 參考資料來源</a></li>
+          <li><a href="#activity-log">7. 操作日誌與稽核機制</a></li>
+          <li><a href="#security-hardening">8. 全端資訊安全防護架構</a></li>
+          <li><a href="#references">9. 參考資料來源</a></li>
         </ul>
       </aside>
 
@@ -680,8 +681,81 @@ try {
         </section>
 
         <!-- Section 7 -->
+        <section class="section" id="activity-log">
+          <h2 class="section-title"><span class="step-num">7</span> 操作日誌與稽核機制 (Activity Logging)</h2>
+          <p>
+            為滿足稽核與資安追蹤需求，後端在 <code>executeWebApi</code> 的最外層
+            <code>finally</code> 統一寫入每一筆請求的操作日誌。日誌寫入本身不再次取得同一把 Script
+            Lock，且寫入失敗僅記錄於主控台，不影響原有 API 回應。
+          </p>
+
+          <table class="doc-table">
+            <thead>
+              <tr>
+                <th style="width: 25%">實作面向</th>
+                <th style="width: 35%">設計說明</th>
+                <th style="width: 40%">落實方式</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>工作表結構</strong></td>
+                <td>
+                  獨立 <code>操作日誌</code> 工作表共 12 欄：時間戳記、請求識別碼、事件類別、動作名稱、結果、操作者
+                  email／姓名／角色、摘要、詳情 JSON、耗時（毫秒）與錯誤代碼。
+                </td>
+                <td>
+                  由 <code>databaseInitializer.js</code> 的 <code>ensureActivityLogSheet_</code> 建立，時間戳記採
+                  <code>Asia/Taipei</code> 時區的 <code>yyyy-MM-dd HH:mm:ss</code> 格式，詳情欄位設定
+                  <code>@</code> 純文字格式。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>寫入範圍與例外</strong></td>
+                <td>
+                  覆蓋成功、失敗、授權失敗、CSRF 失敗、JSON 解析失敗與缺少 action
+                  等情境；<code>ping</code>、<code>getPublicConfig</code>、<code>getActivityLog</code> 不寫入。
+                </td>
+                <td>
+                  請求層級 context 於
+                  <code>executeWebApi</code>
+                  建立，公開登入成功時從回傳結果補寫已驗證身份；失敗情境標記未驗證身份並記錄錯誤代碼。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>敏感資料防護</strong></td>
+                <td>避免 Session／CSRF Token 與原始請求內容落入日誌，且防止超長字串寫入試算表。</td>
+                <td>
+                  <code>activityLogBuilders.js</code> 僅傳遞白名單欄位投影；<code>activityLogger.js</code>
+                  對字串欄位統一截斷至 500 字元，並排除
+                  <code>token</code>、<code>csrfToken</code>、<code>idToken</code>、<code>credential</code>、原始
+                  <code>rows</code> 與查詢回傳內容。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>效能與容量治理</strong></td>
+                <td>避免每次寫入都讀取工作表最後一列，並防止日誌無限成長拖垮試算表。</td>
+                <td>
+                  以 <code>CacheService</code> 計數，每 100 次寫入才取樣一次 <code>getLastRow()</code>；超過 20,000
+                  列時刪除最舊資料至保留 15,000 列，並由初始化流程冪等安裝每日 03:00（<code>Asia/Taipei</code>）的
+                  <code>cleanupActivityLogRows</code> 觸發器。
+                </td>
+              </tr>
+              <tr>
+                <td><strong>管理員查詢頁籤</strong></td>
+                <td>僅系統管理員可查詢與稽核操作日誌，防止一般角色透過直接竄改前端 state 進入該頁籤。</td>
+                <td>
+                  前端「操作日誌」頁籤標記 <code>adminOnly</code>；<code>renderNavbar()</code>、<code>setTab()</code> 與
+                  <code>buildBodyHtml()</code> 共用角色守門；查詢 API 後端亦強制 <code>roles: ["admin"]</code>。
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </section>
+
+        <!-- Section 8 -->
         <section class="section" id="security-hardening">
-          <h2 class="section-title"><span class="step-num">7</span> 全端資訊安全防護架構 (Security Hardening)</h2>
+          <h2 class="section-title"><span class="step-num">8</span> 全端資訊安全防護架構 (Security Hardening)</h2>
           <p>為防範雲端環境與試算表資料庫常見的攻擊面，本範本實作了五大深層安全防禦：</p>
 
           <table class="doc-table">
@@ -760,9 +834,9 @@ try {
           </table>
         </section>
 
-        <!-- Section 8 -->
+        <!-- Section 9 -->
         <section class="section" id="references">
-          <h2 class="section-title"><span class="step-num">8</span> 參考資料來源與官方文獻</h2>
+          <h2 class="section-title"><span class="step-num">9</span> 參考資料來源與官方文獻</h2>
           <table class="doc-table">
             <thead>
               <tr>

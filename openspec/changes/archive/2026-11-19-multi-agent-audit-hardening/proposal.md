@@ -39,7 +39,7 @@
 
 ### 效能（已查證屬實）
 
-- **PERF-H1**：`subjectCodeTransformer.js:456-463,512-520,529-533` 每次分頁先讀取整表並對全部 N 列建立 14 欄物件，只為回傳 1 頁；N=100,000 時本機探針配置約 32.5 MB、61.6 ms（GAS 會更慢），且無 CacheService。
+- **PERF-H1**：`subjectCodeTransformer.js:456-463,512-520,529-533` 每次分頁先讀取整表並對全部 N 列建立 14 欄物件，只為回傳 1 頁；N=100,000 時本機探針量測約 32.5 MB、61.6 ms（GAS 會更慢），且無 CacheService。
 - **PERF-H2**（與 UX-H5 同一缺陷）：`webapp/js/state.js:44-54` 無差異通知，`webapp/js/app.js:174-182` 每次 `setState` 對 `#app` 做完整 `innerHTML` 重寫；單次搜尋造成 3 次重繪，且全目錄無 `activeElement`／`selectionStart` 保存，輸入焦點遺失。
 - **PERF-H3**：`webApi.js:43-49` 將 `login`／`loginWithActiveUser` 納入全域 Script Lock，`webApi.js:664-670 → 233-244 → 240-242` 使外部 `UrlFetchApp.fetch` 在鎖內執行，高併發登入被序列化。
 - **PERF-M1**：`subjectCodeTransformer.js:212-243` 與 `webapp/js/courseData.js:170-210` 在 `for (s<6)` 內重複計算 7 個只與列相關的欄位（最多 6 倍冗餘）。
@@ -70,7 +70,7 @@
 
 - 先提交本提案文件（proposal／design／tasks／7 份 spec delta），**再**開始任何程式碼實作。
 - 依「安全 → 效能與渲染 → UI/UX 與無障礙 → 可維護性與測試防線」四個階段實作已查證發現；需部署驗證的項目僅補文件或觀測指標，不強制變更行為。
-- 新增 4 個 capability 规格，並對 3 個既有 capability 補充 ADDED Requirements；archive 時再同步回 main specs。
+- 新增 4 個 capability 規格，並對 3 個既有 capability 補充 ADDED Requirements；archive 時再同步回 main specs。
 - **BREAKING（行為層面）**：`getSystemSettings` 對非管理員遮蔽 `clientSecret`；移除 `/^get[A-Z]/` 通配授權並明確列舉讀取動作；首次管理員開通需在白名單檢查與明確旗標後才寫入；`?api=` 改為白名單；`?mock=true` 在正式部署產物預設停用（本機 `webapp/` 仍可用）。
 - 每階段結束執行完整驗證：`npm test`、`npm run format:check`、`npm run check:lang`、`npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`、`npm run build:webapp`，並確認 Mock 模式渲染正常。
 
@@ -92,7 +92,7 @@
 ## Impact
 
 - **後端**：`webApi.js`（RBAC、getSystemSettings、bootstrap 順序、OAuth state/鎖、路由 registry、resolver 統一、錯誤訊息、鎖粒度、快取/統計 action）、`databaseInitializer.js`（bootstrap 順序與常數、重複函式、設定讀取範圍）、`subjectCodeTransformer.js`（延遲映射、hoist、格式化範圍、sanitizer、寫入上限）、`utilities.js`（死碼清理）。
-- **前端**：`webapp/js/config.js`（api 白名單、mock 開關）、`api.js`（端點驗證、重試/幂等、錯誤訊息）、`auth.js`（nonce、網域大小寫、catch、登出、session 提示）、`state.js`（差異訂閱支援與測試）、`app.js`（差異渲染）、`ui.js`（Modal a11y、class 對齊、toast、對比）、`imports.js`（鍵盤上傳、SRI、單次解析）、`courses.js`（輕量統計、請求去重、焦點）、`accounts.js`（label、確認、loading）、`mock.js`（分頁/篩選與後端一致）、`styles.css`（class 對齊、對比、RWD）、`index.html`（正式產物 mock 處理）。
-- **測試與工具链**：`tests/**`（新增 RBAC/bootstrap/nonce/上限/延遲映射/state.js/深度同構/mock 形狀等測試；調整 `subjectCodeTransformerImportNormalizedCourseCodes.test.js:298` 格式化範圍斷言）、`package.json`（watch/新增 scripts）、`.github/workflows/quality-gates.yml`（class/CSS、對比度、建置一致性）、`scripts/build-webapp.js`（正式產物 mock 排除）。
+- **前端**：`webapp/js/config.js`（api 白名單、mock 開關）、`api.js`（端點驗證、重試/冪等、錯誤訊息）、`auth.js`（nonce、網域大小寫、catch、登出、session 提示）、`state.js`（差異訂閱支援與測試）、`app.js`（差異渲染）、`ui.js`（Modal a11y、class 對齊、toast、對比）、`imports.js`（鍵盤上傳、SRI、單次解析）、`courses.js`（輕量統計、避免重複請求、焦點）、`accounts.js`（label、確認、loading）、`mock.js`（分頁/篩選與後端一致）、`styles.css`（class 對齊、對比、RWD）、`index.html`（正式產物 mock 處理）。
+- **測試與工具鏈**：`tests/**`（新增 RBAC/bootstrap/nonce/上限/延遲映射/state.js/深度同構/mock 形狀等測試；調整 `subjectCodeTransformerImportNormalizedCourseCodes.test.js:298` 格式化範圍斷言）、`package.json`（watch/新增 scripts）、`.github/workflows/quality-gates.yml`（class/CSS、對比度、建置一致性）、`scripts/build-webapp.js`（正式產物 mock 排除）。
 - **文件**：`README.md` 與 `docs/` 中涉及 RBAC、首次管理員開通、API 端點、mock 模式與部署設定的章節需同步更新。
 - **外部相依與平台**：Google Identity Services、Google OAuth tokeninfo、GAS `UrlFetchApp`／`CacheService`／`LockService`／`google.script.run`、SheetJS CDN（SRI）。

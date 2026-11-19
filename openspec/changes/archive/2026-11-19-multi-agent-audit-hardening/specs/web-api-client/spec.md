@@ -28,6 +28,6 @@
 ### Requirement: 正式環境停用 Mock
 正式建置的 `index.html` MUST 不允許 `?mock=true` 啟用 mock 客戶端；mock.js 僅供 `webapp/` 本機開發使用。建置腳本 MUST 保證正式產物沒有可觸發管理員 mock session 的路徑。
 
-#### Scenario: 正式網址加 mock 参数無效
+#### Scenario: 正式網址加 mock 參數無效
 - **WHEN** 使用者在正式部署網址加上 `?mock=true` 參數
 - **THEN** 系統仍走真實 RPC/fetch 路徑，不產生 admin mock session

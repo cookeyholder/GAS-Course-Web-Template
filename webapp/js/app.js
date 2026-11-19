@@ -47,6 +47,34 @@
     return module && typeof module[method] === "function" ? module[method]() : undefined;
   }
 
+  /**
+   * 依頁籤的管理員旗標與目前使用者角色判定頁籤是否可見。
+   * 與 webapp/js/ui.js 的守門邏輯一致，防止直接竄改 state 進入管理員頁籤。
+   *
+   * @param {Object} tab - 頁籤定義
+   * @param {Object} user - 目前登入使用者（MEA.state.user）
+   * @returns {boolean} 是否允許存取
+   */
+  function isTabAllowed(tab, user) {
+    if (!tab || tab.adminOnly !== true) return true;
+    return !!(user && user.role === "admin");
+  }
+
+  /**
+   * 依頁籤識別碼從設定中找出頁籤定義。
+   *
+   * @param {Object} MEA - 前端全域物件
+   * @param {string} tabId - 頁籤識別碼
+   * @returns {Object|null} 頁籤定義或 null
+   */
+  function findTab(MEA, tabId) {
+    const tabs = (MEA.config && MEA.config.tabs) || [];
+    for (let i = 0; i < tabs.length; i++) {
+      if (tabs[i].id === tabId) return tabs[i];
+    }
+    return null;
+  }
+
   function syncDocumentTitle(MEA, doc) {
     if (!doc) return;
     const systemName = ((MEA && MEA.state && MEA.state.publicConfig) || {}).systemName;
@@ -95,13 +123,17 @@
   }
 
   function buildBodyHtml(MEA, tab) {
-    switch (tab) {
+    const allowed = isTabAllowed(findTab(MEA, tab), MEA.state && MEA.state.user);
+    const effectiveTab = allowed ? tab : "overview";
+    switch (effectiveTab) {
       case "import":
         return invoke(MEA.imports, "renderView") || "";
       case "courses":
         return invoke(MEA.courses, "renderView") || "";
       case "settings":
         return invoke(MEA.accounts, "renderView") || "";
+      case "activityLog":
+        return invoke(MEA.activityLog, "renderView") || "";
       case "overview":
       default:
         return invoke(MEA.ui, "renderOverviewView") || "";
@@ -125,13 +157,17 @@
     }
 
     function setTab(tabId) {
+      const allowed = isTabAllowed(findTab(MEA, tabId), MEA.state && MEA.state.user);
+      const effectiveTab = allowed ? tabId : "overview";
       if (typeof MEA.setState === "function") {
-        MEA.setState({ tab: tabId });
+        MEA.setState({ tab: effectiveTab });
       }
-      if (tabId === "courses") {
+      if (effectiveTab === "courses") {
         invoke(MEA.courses, "fetchList");
-      } else if (tabId === "settings") {
+      } else if (effectiveTab === "settings") {
         invoke(MEA.accounts, "loadSettingsAndAccounts");
+      } else if (effectiveTab === "activityLog") {
+        invoke(MEA.activityLog, "fetchList");
       }
     }
 

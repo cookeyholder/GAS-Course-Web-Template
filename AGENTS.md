@@ -45,17 +45,19 @@ Always check `@/openspec/` or repository documentation when the request:
 
 - **`main.js`**: Google 試算表工具列選單入口（`onOpen`），提供「初始化後端資料庫」與彈出視窗「開啟 Web App 網頁」功能。
 - **`gasRuntime.js`**: 後端與前端共用的常數與相依解析層，提供工作表名稱、Web API 版本號、角色顯示名稱，以及 `resolveDependency_`／`injectGlobals_` 雙環境相容工具。
-- **`actionRegistry.js`**: Web API action 單一登錄來源，統一產生公開／寫入／鎖定清單、RBAC 角色權限矩陣，並保存後端註冊的實際處理函式供路由派發。
-- **`databaseInitializer.js`**: 試算表資料庫純資料工作表初始化（`系統設定與授權`、`正規化課程代碼`、`系統使用說明`），具安全冪等性；處理系統參數讀寫與授權白名單維護，首次登入管理員開通必須由請求明確標記。
+- **`actionRegistry.js`**: Web API action 單一登錄來源，統一產生公開／寫入／鎖定清單、RBAC 角色權限矩陣與日誌中繼資料（`logCategory`、`logLabel`、`logDetailKey`、`logEnabled`），並保存後端註冊的實際處理函式供路由派發。
+- **`databaseInitializer.js`**: 試算表資料庫純資料工作表初始化（`系統設定與授權`、`正規化課程代碼`、`系統使用說明`、`操作日誌`），具安全冪等性；處理系統參數讀寫與授權白名單維護，首次登入管理員開通必須由請求明確標記，並安裝每日 03:00 的日誌清理觸發器。
 - **`subjectCodeTransformer.js`**: 108 課綱課程代碼對照字典（群別、科別、屬性、必選修）、39 欄寬表全數展開為 14 欄 1NF 紀錄演算法、5,000 筆分塊批次寫入（Chunking）與分頁檢索函式。
-- **`webApi.js`**: Web App HTTP 入口（`doGet`, `doPost`）、避開 CORS OPTIONS 預檢之通訊協議、Google ID Token 驗證、`CacheService` Session 管理（6 小時 TTL）、`LockService` 併發寫入排隊防鎖，以及由 `ACTION_REGISTRY` 派發之 action 處理函式與角色權限矩陣。
+- **`activityLogBuilders.js`**: 操作日誌詳情產生器與 payload 白名單投影，依 `logDetailKey` 產生版本化 before／after 明細，排除敏感欄位與原始回傳內容。
+- **`activityLogger.js`**: 操作日誌寫入、500 字元字串截斷、`CacheService` 每 100 次取樣 `getLastRow()`、超過 20,000 列清理至 15,000 列，以及每日清理觸發器安裝。
+- **`webApi.js`**: Web App HTTP 入口（`doGet`, `doPost`）、避開 CORS OPTIONS 預檢之通訊協議、Google ID Token 驗證、`CacheService` Session 管理（6 小時 TTL）、`LockService` 併發寫入排隊防鎖、最外層統一寫入操作日誌，以及由 `ACTION_REGISTRY` 派發之 action 處理函式與角色權限矩陣。
 - **`utilities.js`**: 試算表安全格式化（`safeSetNumberFormat`, `safeApplySheetFontSize`）、無 UI 環境防護（`safeUiAlert`）與通用純工具。
 
 ### 前端模組（`webapp/` 目錄）
 
 - **`webapp/index.html`**: 前端骨架樣板，定義 `BUILD:CSS` 與 `BUILD:JS` 注入標記。
 - **`webapp/styles.css`**: 多風格 CSS 設計系統（包含極簡曜藍 Modern Slate、圖紙風格 Blueprint、紙張風格 Paper、新粗獷主義 Neo-Brutalism、黏土擬物 Claymorphism、紅白機 NES、Happy Hues 色彩盤）與深淺色模式。
-- **`webapp/js/config.js`**: 前端全域參數、導覽頁籤清單（概覽、匯入、課程、設定）與樣式字典；版本號與角色顯示名稱取自 `gasRuntime` 單一來源。
+- **`webapp/js/config.js`**: 前端全域參數、導覽頁籤清單（概覽、匯入、課程、設定、操作日誌）與樣式字典；操作日誌頁籤以 `adminOnly` 標記僅管理員可見；版本號與角色顯示名稱取自 `gasRuntime` 單一來源。
 - **`webapp/js/courseData.js`**: 前端 1NF 正規化同構運算模組（與後端規則一致，供瀏覽器即時預覽統計）。
 - **`webapp/js/mock.js`**: 本地離線開發測試 Mock API 模擬器（支援 `?mock=true` 零設定測試）。
 - **`webapp/js/errorMessages.js`**: 前端安全錯誤訊息轉譯層，遮蔽原始例外文字並統一顯示後端安全訊息或明確標記的文案。
@@ -66,7 +68,8 @@ Always check `@/openspec/` or repository documentation when the request:
 - **`webapp/js/imports.js`**: SheetJS Excel 檔案拖曳解析、1NF 展開即時預覽與匯入動作。
 - **`webapp/js/courses.js`**: 正規化課程代碼清單檢索、多條件篩選與分頁控制。
 - **`webapp/js/accounts.js`**: 系統參數設定與授權成員管理介面（RBAC）。
-- **`webapp/js/app.js`**: 前端進入點與應用程式生命週期管理。
+- **`webapp/js/activityLog.js`**: 管理員操作日誌清單、Asia/Taipei 日期區間／操作者／事件類別篩選、分頁與詳情 JSON 展開；表格標頭具 `scope="col"`、展開按鈕具 `aria-expanded`。
+- **`webapp/js/app.js`**: 前端進入點與應用程式生命週期管理；`setTab()`／`buildBodyHtml()` 與 `renderNavbar()` 共用管理員頁籤守門。
 
 ### 建置與測試
 
@@ -161,6 +164,11 @@ npm run check:complexity
 4. **試算表純資料庫原則**：
    - 後端工作表一律不使用公式（No Formula），所有計算與中文轉譯由後端 JS 處理，避免大量寫入時觸發連鎖重算逾時。
    - 寫入大量資料一律採用分批寫入（Chunking，預設 5,000 筆/批），並預先設定純文字格式 `@`，避免前導零消失。
+5. **操作日誌與稽核守則**：
+   - 後端於 `executeWebApi` 最外層 `finally` 統一寫入操作日誌；`ping`、`getPublicConfig`、`getActivityLog` 不寫入，且日誌寫入失敗不得影響 API 回應。
+   - 詳情僅保存白名單欄位投影與版本化指標，嚴禁寫入 `token`、`csrfToken`、`idToken`、`credential`、原始 `rows` 與查詢回傳內容；字串欄位統一截斷至 500 字元。
+   - 日誌工作表超過 20,000 列時清理至 15,000 列，每日 03:00（Asia/Taipei）觸發器由初始化流程冪等安裝。
+   - 前端「操作日誌」頁籤標記 `adminOnly`，`renderNavbar()`、`setTab()` 與 `buildBodyHtml()` 皆須依 `MEA.state.user.role` 守門，防止直接竄改 state 進入管理員頁籤。
 
 ---
 
