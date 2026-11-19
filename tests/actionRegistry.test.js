@@ -36,6 +36,16 @@ function run() {
   assert.strictEqual(registry.isRoleAllowed("viewer", "getActivityLog"), false);
   console.log("   ✓ RBAC 驗證通過！\n");
 
+  console.log("2.1 管理員權限應明確列舉所有 action 且不含萬用字元...");
+  const adminPerms = registry.buildRolePermissions().admin;
+  assert.strictEqual(adminPerms.indexOf("*"), -1, "管理員權限不得包含 *");
+  assert.deepStrictEqual(adminPerms, registry.listActions(), "管理員權限應列舉所有已登錄 action");
+  assert(adminPerms.indexOf("getActivityLog") !== -1, "管理員權限應含 getActivityLog");
+  registry.listActions().forEach(function (action) {
+    assert.strictEqual(api.hasPermission("admin", action), true, "管理員應可執行：" + action);
+  });
+  console.log("   ✓ 管理員明確列舉驗證通過！\n");
+
   console.log("3. 路由應拒絕未登錄的 action...");
   const result = api.routeWebApiAction("not_registered", {}, null);
   assert.strictEqual(result.ok, false);

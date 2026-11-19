@@ -249,7 +249,9 @@ console.log("6. createSessionForEmail 成功時應核發 token/csrf 並可驗證
   assert.strictEqual(r.name, "管理員");
   assert.strictEqual(r.role, "admin");
   assert.strictEqual(r.roleName, "系統管理員");
-  assert.deepStrictEqual(r.perms, ["*"]);
+  assert.deepStrictEqual(r.perms, api.ROLE_PERMISSIONS.admin);
+  assert.strictEqual(r.perms.indexOf("*"), -1, "管理員權限不得包含萬用字元");
+  assert(r.perms.indexOf("getActivityLog") !== -1, "管理員權限應含 getActivityLog");
   assert.strictEqual(r.bootstrapped, true);
   assert(r.token.indexOf("gas_") === 0);
   assert(r.csrfToken.indexOf("csrf_") === 0);

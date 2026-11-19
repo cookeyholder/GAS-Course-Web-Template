@@ -273,16 +273,18 @@
 
   /**
    * 由登錄表產生角色權限矩陣。
-   * admin 維持單一通配規則，其餘角色明確列舉受保護 action。
+   * 所有角色皆明確列舉允許的 action，移除萬用字元，使權限邊界可稽核，
+   * 且前端取得的 perms 與後端驗證結果一致。
    *
    * @returns {Object} 角色權限矩陣
    */
   function buildRolePermissions() {
-    const permissions = { admin: ["*"] };
+    const permissions = {};
     ALL_ROLES.forEach(function (role) {
-      if (role === "admin") return;
       permissions[role] = listActions().filter(function (name) {
-        return !isPublicAction(name) && isRoleAllowed(role, name);
+        // 管理員列舉所有已登錄 action（含公開動作與 getActivityLog）；
+        // 其餘角色僅列舉自身被授權的受保護動作。
+        return isRoleAllowed(role, name) && (role === "admin" || !isPublicAction(name));
       });
     });
     return permissions;

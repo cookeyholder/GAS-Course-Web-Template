@@ -26,7 +26,7 @@
 - [x] 4.3 在攔截器中依 `getActionMeta` 呼叫 `captureBefore`（若定義）並於 handler 後呼叫 `describe`（傳入白名單投影 payload），將結果寫入詳情 JSON；以 `tests/webApiActivityLog.test.js` 驗證寫入動作含 before/after 明細、查詢動作僅含彙總指標、敏感欄位不入日誌。
 - [x] 4.4 在 `actionRegistry.js` 登錄 `getActivityLog: { roles: ["admin"], logEnabled: false }`，並於 `webApi.js` 新增 `handleGetActivityLogWebApiAction_`，僅 admin 可呼叫；回傳結構 `{ ok: true, rows, total, page, pageSize }`，時間區間預設最近 7 天（Asia/Taipei）、每頁 50 列、單次最多 500 筆，依時間戳記遞減排序；以 `tests/webApiActivityLog.test.js` 驗證管理員可讀、非管理員被拒與查詢限制。
 - [x] 4.5 註冊 `getActivityLog` handler 並確認 `registerWebApiActionHandlers_` 與 RBAC 矩陣一致；以 `tests/actionRegistry.test.js` 與 `npm test` 驗證。
-- [ ] 4.6 修改 `actionRegistry.js` 的 `buildRolePermissions()`，將 admin 由 `["*"]` 通配改為明確列舉所有 action（含 `getActivityLog`），移除萬用字元；同步更新相關註解並回歸 `tests/api.test.js` 等 RBAC 測試；以 `npm test` 與 `tests/actionRegistry.test.js` 驗證管理員權限清單無 `*` 且含所有 action。
+- [x] 4.6 修改 `actionRegistry.js` 的 `buildRolePermissions()`，將 admin 由 `["*"]` 通配改為明確列舉所有 action（含 `getActivityLog`），移除萬用字元；同步更新相關註解並回歸 `tests/api.test.js` 等 RBAC 測試；以 `npm test` 與 `tests/actionRegistry.test.js` 驗證管理員權限清單無 `*` 且含所有 action。
 
 ## 5. 前端操作日誌頁籤
 

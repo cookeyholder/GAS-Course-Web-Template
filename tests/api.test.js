@@ -21,6 +21,9 @@ console.log("開始執行 Web API 與權限驗證單元測試...\n");
 {
   assert.strictEqual(api.hasPermission("admin", "importCourseCodes"), true, "admin 應具備所有權限");
   assert.strictEqual(api.hasPermission("admin", "saveSystemSettings"), true, "admin 應具備修改設定權限");
+  assert.strictEqual(api.hasPermission("admin", "getActivityLog"), true, "admin 應可查閱操作日誌");
+  assert.strictEqual(api.ROLE_PERMISSIONS.admin.indexOf("*"), -1, "admin 權限不得使用萬用字元");
+  assert.strictEqual(api.hasPermission("admin", "not_registered"), false, "未登錄動作不得因萬用字元自動授權");
 
   assert.strictEqual(api.hasPermission("staff", "importCourseCodes"), true, "staff 應具備匯入課程權限");
   assert.strictEqual(api.hasPermission("staff", "getCourseIndex"), true, "staff 應具備查詢課程權限");

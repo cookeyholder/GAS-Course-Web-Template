@@ -78,7 +78,7 @@ const WEB_API_IMPORT_NORMALIZED_COLUMNS = 14;
 const WEB_API_IMPORT_RESULT_PREFIX = "gas_tmpl_import_";
 const WEB_API_IMPORT_RESULT_TTL_SECONDS = WEB_API_SESSION_TTL_SECONDS;
 
-/** 角色權限矩陣（RBAC）由 ACTION_REGISTRY 產生，僅 admin 使用通配規則 */
+/** 角色權限矩陣（RBAC）由 ACTION_REGISTRY 產生，所有角色皆明確列舉 action */
 const ROLE_PERMISSIONS = ACTION_REGISTRY.buildRolePermissions();
 
 /** Node.js 沙盒測試用之記憶體 Session 儲存 */
@@ -125,7 +125,6 @@ function parseWebApiPayload(e) {
 function hasPermission(role, action) {
   const normRole = normalizeRole(role);
   const permissions = ROLE_PERMISSIONS[normRole] || [];
-  if (permissions.indexOf("*") !== -1) return true;
   return permissions.indexOf(action) !== -1;
 }
 
