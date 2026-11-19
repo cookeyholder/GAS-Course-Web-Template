@@ -193,6 +193,9 @@ function getSystemInstructionRows_() {
       "2. 正規化課程代碼：儲存自教育部課程計畫平臺下載之 108 課綱課程代碼，全數經 1NF 正規化後展開之 14 欄標準課程資料。"
     ],
     ["3. Google Identity Services (GIS) 登入：支援 Google One Tap、Google 登入按鈕與 Google Workspace 網域登入。"],
+    [
+      "4. 操作日誌：記錄各項 Web API 動作的時間、操作者、結果與變動明細，僅系統管理員可查閱；每日離峰時段自動清理過舊資料。"
+    ],
     [""],
     ["二、OAuth 2.0 Client ID 設定步驟："],
     ["1. 前往 Google Cloud Console (https://console.cloud.google.com/) 建立或選取專案。"],
