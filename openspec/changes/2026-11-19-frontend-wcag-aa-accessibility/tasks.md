@@ -27,5 +27,5 @@
 
 ## 5. 文件與完整驗證
 
-- [ ] 5.1 同步 `README.md`、`AGENTS.md` 的無障礙指令與檢查說明。
-- [ ] 5.2 執行 `npm test`、`npm run check:a11y`、`npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`、`npm run build:webapp`，並以 `index.html?mock=true` 驗證渲染。
+- [x] 5.1 同步 `README.md`、`AGENTS.md` 的無障礙指令與檢查說明。
+- [x] 5.2 執行 `npm test`、`npm run check:a11y`、`npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`、`npm run build:webapp`，並以 `webapp/index.html?mock=true` 驗證渲染（正式建置產物刻意忽略 `?mock=true`，故以原始檔驗證離線模式）。
