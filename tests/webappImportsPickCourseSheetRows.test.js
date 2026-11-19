@@ -33,7 +33,7 @@ function run() {
     return [[name]];
   });
   assert.deepStrictEqual(fallback, { sheetName: "A", rows: [["A"]] });
-  assert.deepStrictEqual(fallbackOrder, ["A", "B", "A"]);
+  assert.deepStrictEqual(fallbackOrder, ["A", "B"], "每個工作表應只讀取一次");
   console.log("3. 無課綱標頭時應退回首個有資料工作表 ✓\n");
 
   const emptyOrder = [];
@@ -42,7 +42,7 @@ function run() {
     return [];
   });
   assert.deepStrictEqual(empty, { sheetName: "", rows: [] });
-  assert.deepStrictEqual(emptyOrder, ["A", "B", "A", "B"]);
+  assert.deepStrictEqual(emptyOrder, ["A", "B"], "全空工作表也應只讀取一次");
 
   const noNamesOrder = [];
   const noNames = importsModule.pickCourseSheetRows({}, function (name) {
@@ -63,6 +63,23 @@ function run() {
   assert.deepStrictEqual(ctx.imports.rowsOfSheet(workbook, "不存在"), []);
   assert.strictEqual(ctx.imports.rowsOfSheet(workbook, "一般資料")[0][0], "其他");
   console.log("5. 模組實例搭配 SheetJS 讀取行為一致 ✓\n");
+
+  const countedCtx = createDeps();
+  countedCtx.win.XLSX = makeXlsx({
+    一般資料: { rows: [["其他"]] },
+    備註: { rows: [["備註"]] }
+  });
+  const originalSheetToJson = countedCtx.win.XLSX.utils.sheet_to_json;
+  const parsedSheets = [];
+  countedCtx.win.XLSX.utils.sheet_to_json = function (sheet, options) {
+    parsedSheets.push(sheet);
+    return originalSheetToJson(sheet, options);
+  };
+  const countedWorkbook = countedCtx.win.XLSX.read();
+  const countedPicked = countedCtx.imports.pickCourseSheetRows(countedWorkbook);
+  assert.strictEqual(countedPicked.sheetName, "一般資料");
+  assert.strictEqual(parsedSheets.length, 2, "找不到特色表頭時每個工作表只解析一次");
+  console.log("6. SheetJS 單次解析與快取驗證 ✓\n");
 
   console.log("✓ webapp/js/imports.js pickCourseSheetRows 測試全數通過！\n");
 }

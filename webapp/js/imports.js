@@ -53,25 +53,8 @@
   }
 
   /**
-   * 以相同條件尋找第一個符合的工作表。
-   *
-   * @param {Array<string>} names - 工作表名稱清單
-   * @param {Function} readRows - 讀取單一工作表列的函式
-   * @param {Function|null} predicate - 額外篩選條件，傳入 null 表示僅要求有資料
-   * @returns {Object|null} 符合的工作表資訊
-   */
-  function findSheetWithRows(names, readRows, predicate) {
-    for (let i = 0; i < names.length; i++) {
-      const rows = readRows(names[i]) || [];
-      if (rows.length > 0 && (!predicate || predicate(rows))) {
-        return { sheetName: names[i], rows: rows };
-      }
-    }
-    return null;
-  }
-
-  /**
    * 挑選課程代碼工作表；找不到特色標頭時退回第一個有資料的工作表。
+   * 每個工作表最多解析一次，避免退回邏輯重複呼叫 SheetJS。
    *
    * @param {Object} workbook - 試算表活頁簿
    * @param {Function} readRows - 讀取單一工作表列的函式
@@ -85,10 +68,29 @@
         : function () {
             return [];
           };
-    const courseSheet = findSheetWithRows(names, reader, looksLikeCourseCodes);
-    if (courseSheet) return courseSheet;
-    const anySheet = findSheetWithRows(names, reader, null);
-    return anySheet || { sheetName: "", rows: [] };
+    const rowsBySheet = Object.create(null);
+    let firstSheetWithRows = null;
+
+    for (let i = 0; i < names.length; i++) {
+      const sheetName = names[i];
+      let rows;
+      if (Object.prototype.hasOwnProperty.call(rowsBySheet, sheetName)) {
+        rows = rowsBySheet[sheetName];
+      } else {
+        rows = reader(sheetName) || [];
+        rowsBySheet[sheetName] = rows;
+      }
+      if (rows.length === 0) continue;
+
+      if (!firstSheetWithRows) {
+        firstSheetWithRows = { sheetName: sheetName, rows: rows };
+      }
+      if (looksLikeCourseCodes(rows)) {
+        return { sheetName: sheetName, rows: rows };
+      }
+    }
+
+    return firstSheetWithRows || { sheetName: "", rows: [] };
   }
 
   /**
