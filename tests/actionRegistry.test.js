@@ -84,7 +84,22 @@ function run() {
   assert.deepStrictEqual(handlerKeys, registry.listActions().slice().sort());
   console.log("   ✓ mock handler 完整性驗證通過！\n");
 
-  console.log("8. mock 應依登錄表拒絕未登錄 action...");
+  console.log("8. 日誌中繼資料應完整且心跳動作被排除...");
+  registry.listActions().forEach(function (name) {
+    const meta = registry.getActionMeta(name);
+    assert(meta, name + " 應有日誌中繼資料");
+    assert(["write", "query", "auth"].indexOf(meta.category) !== -1, name + " 類別應有效");
+    assert.strictEqual(typeof meta.label, "string", name + " 標籤應為字串");
+    assert.strictEqual(typeof meta.detailKey, "string", name + " 詳情鍵應為字串");
+    assert.strictEqual(typeof meta.enabled, "boolean", name + " 啟用旗標應為布林值");
+  });
+  assert.strictEqual(registry.getActionMeta("ping").enabled, false);
+  assert.strictEqual(registry.getActionMeta("getPublicConfig").enabled, false);
+  assert.strictEqual(registry.getActionMeta("importCourseCodes").enabled, true);
+  assert.strictEqual(registry.getActionMeta("not_registered"), null);
+  console.log("   ✓ 日誌中繼資料驗證通過！\n");
+
+  console.log("9. mock 應依登錄表拒絕未登錄 action...");
   const mockApi = mock.createMockApi({
     actionRegistry: registry,
     setTimeoutFn: function (fn) {

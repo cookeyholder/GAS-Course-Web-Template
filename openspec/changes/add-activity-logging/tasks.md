@@ -7,7 +7,7 @@
 
 ## 2. 動作中繼資料與摘要產生器
 
-- [ ] 2.1 在 `actionRegistry.js` 的 `ACTIONS` 為每個 action 增加 `logCategory`（`write`／`query`／`auth`）、`logLabel`、`logDetailKey`、`logEnabled` 欄位，`ping`、`getPublicConfig` 與 `getActivityLog` 設 `logEnabled: false`；新增 `getActionMeta(name)` 與必要的快取清單；以 `tests/actionRegistry.test.js` 驗證中繼資料完整且例外動作被排除。
+- [x] 2.1 在 `actionRegistry.js` 的 `ACTIONS` 為每個 action 增加 `logCategory`（`write`／`query`／`auth`）、`logLabel`、`logDetailKey`、`logEnabled` 欄位，`ping`、`getPublicConfig` 與 `getActivityLog` 設 `logEnabled: false`；新增 `getActionMeta(name)` 與必要的快取清單；以 `tests/actionRegistry.test.js` 驗證中繼資料完整且例外動作被排除。
 - [ ] 2.2 新增 `activityLogBuilders.js`，提供以 `logDetailKey` 為鍵的 `captureBefore(ss)` 與 `describe(before, after, payload, result)`：課程代碼匯入回傳 `{ ok, rows, stats }`，上傳筆數取 `stats.sourceRows`、展開筆數取 `rows` 或 `stats.expandedRows`，並處理驗證失敗（無 `stats`）與冪等命中（`idempotent: true`）三種形狀；系統設定與白名單回傳欄位級 before/after 明細；查詢動作僅回傳篩選、分頁與回傳筆數；`describe()` 的 payload 僅接收白名單投影（排除 `token`、`csrfToken`、`idToken`、`credential`、`rows` 與回傳內容欄位）；詳情格式含版本號；以新增 `tests/activityLogBuilders.test.js` 驗證各類明細、版本欄位與敏感欄位排除。
 - [ ] 2.3 驗證 `activityLogBuilders.js` 與 `actionRegistry.js` 無循環相依：以 Node 環境分別獨立 `require('activityLogBuilders.js')` 與 `require('actionRegistry.js')` 皆成功，並新增對應測試驗證（不以 `npm test` 做為循環相依的偵測手段）。
 

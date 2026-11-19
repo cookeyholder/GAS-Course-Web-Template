@@ -28,21 +28,107 @@
    * - write：寫入型 action（需 CSRF 驗證）
    * - locked：需全域 Script Lock 保護
    * - roles：允許呼叫的角色代碼（public action 不需填寫）
+   * - logCategory／logLabel／logDetailKey／logEnabled：操作日誌宣告式中繼資料
    */
   const ACTIONS = {
-    ping: { public: true },
-    getPublicConfig: { public: true },
-    login: { public: true },
-    loginWithActiveUser: { public: true },
-    getSession: { roles: ALL_ROLES },
-    logout: { write: true, roles: ALL_ROLES },
-    importCourseCodes: { write: true, locked: true, roles: ["admin", "staff"] },
-    getCourseIndex: { roles: ALL_ROLES },
-    getCourseIndexStats: { roles: ALL_ROLES },
-    getSystemSettings: { roles: ALL_ROLES },
-    saveSystemSettings: { write: true, locked: true, roles: ["admin"] },
-    getAccounts: { roles: ["admin"] },
-    saveWhitelist: { write: true, locked: true, roles: ["admin"] }
+    ping: {
+      public: true,
+      logCategory: "query",
+      logLabel: "心跳檢查",
+      logDetailKey: "none",
+      logEnabled: false
+    },
+    getPublicConfig: {
+      public: true,
+      logCategory: "query",
+      logLabel: "取得公開設定",
+      logDetailKey: "none",
+      logEnabled: false
+    },
+    login: {
+      public: true,
+      logCategory: "auth",
+      logLabel: "登入",
+      logDetailKey: "auth",
+      logEnabled: true
+    },
+    loginWithActiveUser: {
+      public: true,
+      logCategory: "auth",
+      logLabel: "使用現存帳號登入",
+      logDetailKey: "auth",
+      logEnabled: true
+    },
+    getSession: {
+      roles: ALL_ROLES,
+      logCategory: "auth",
+      logLabel: "取得工作階段",
+      logDetailKey: "auth",
+      logEnabled: true
+    },
+    logout: {
+      write: true,
+      roles: ALL_ROLES,
+      logCategory: "auth",
+      logLabel: "登出",
+      logDetailKey: "auth",
+      logEnabled: true
+    },
+    importCourseCodes: {
+      write: true,
+      locked: true,
+      roles: ["admin", "staff"],
+      logCategory: "write",
+      logLabel: "匯入課程代碼",
+      logDetailKey: "importCourseCodes",
+      logEnabled: true
+    },
+    getCourseIndex: {
+      roles: ALL_ROLES,
+      logCategory: "query",
+      logLabel: "查詢課程代碼",
+      logDetailKey: "query",
+      logEnabled: true
+    },
+    getCourseIndexStats: {
+      roles: ALL_ROLES,
+      logCategory: "query",
+      logLabel: "查詢課程統計",
+      logDetailKey: "query",
+      logEnabled: true
+    },
+    getSystemSettings: {
+      roles: ALL_ROLES,
+      logCategory: "query",
+      logLabel: "查詢系統設定",
+      logDetailKey: "query",
+      logEnabled: true
+    },
+    saveSystemSettings: {
+      write: true,
+      locked: true,
+      roles: ["admin"],
+      logCategory: "write",
+      logLabel: "儲存系統設定",
+      logDetailKey: "systemSettings",
+      logEnabled: true
+    },
+    getAccounts: {
+      roles: ["admin"],
+      logCategory: "query",
+      logLabel: "查詢授權成員",
+      logDetailKey: "query",
+      logEnabled: true
+    },
+    saveWhitelist: {
+      write: true,
+      locked: true,
+      roles: ["admin"],
+      logCategory: "write",
+      logLabel: "儲存授權名單",
+      logDetailKey: "whitelist",
+      logEnabled: true
+    }
   };
 
   /** 快取由登錄表產生的清單，避免每次呼叫重新建立陣列 */
@@ -134,6 +220,27 @@
   }
 
   /**
+   * 取得 action 的日誌中繼資料（供統一攔截器建立摘要與詳情）。
+   *
+   * @param {string} name - action 名稱
+   * @returns {Object|null} `{ category, label, detailKey, enabled }` 或 null
+   */
+  function getActionMeta(name) {
+    if (!hasAction(name)) return null;
+    if (!CACHED_LISTS.actionMeta) CACHED_LISTS.actionMeta = {};
+    if (!CACHED_LISTS.actionMeta[name]) {
+      const entry = ACTIONS[name];
+      CACHED_LISTS.actionMeta[name] = {
+        category: entry.logCategory || "query",
+        label: entry.logLabel || name,
+        detailKey: entry.logDetailKey || "default",
+        enabled: entry.logEnabled !== false
+      };
+    }
+    return Object.assign({}, CACHED_LISTS.actionMeta[name]);
+  }
+
+  /**
    * 判斷 action 是否為公開 action。
    *
    * @param {string} name - action 名稱
@@ -184,6 +291,7 @@
     hasAction: hasAction,
     setHandler: setHandler,
     getHandler: getHandler,
+    getActionMeta: getActionMeta,
     isPublicAction: isPublicAction,
     isRoleAllowed: isRoleAllowed,
     buildRolePermissions: buildRolePermissions
