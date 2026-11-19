@@ -124,8 +124,10 @@ function run() {
   ["activityLogStartDate", "activityLogEndDate", "activityLogEmail", "activityLogCategory"].forEach(function (id) {
     assert(html.indexOf('for="' + id + '"') !== -1, "篩選控制項 " + id + " 應有標籤");
   });
-  assert(html.indexOf('onsubmit="MEA.activityLog.handleSearch(event)"') !== -1);
-  assert(html.indexOf("MEA.activityLog.resetSearch()") !== -1);
+  assert(html.indexOf('data-activity-form="search"') !== -1);
+  assert(html.indexOf('data-activity-action="reset"') !== -1);
+  assert(html.indexOf('data-activity-action="refresh"') !== -1);
+  assert(html.indexOf("onclick=") === -1 && html.indexOf("onsubmit=") === -1, "日誌畫面不應使用 inline 事件處理器");
   console.log("3. 表格標頭與篩選控制項無障礙屬性 ✓\n");
 
   ctx.state.activityLog = {
@@ -164,7 +166,8 @@ function run() {
   assert(html.indexOf('aria-controls="activityLogDetail_0"') !== -1);
   assert(html.indexOf("<tr hidden>") !== -1, "未展開的詳情列應隱藏");
   assert(html.indexOf("共 1 筆紀錄 · 第 1 / 1 頁") !== -1);
-  assert(html.indexOf("MEA.activityLog.toggleDetail('req-1')") !== -1);
+  assert(html.indexOf('data-activity-action="toggle-detail"') !== -1);
+  assert(html.indexOf('data-request-id="req-1"') !== -1);
   console.log("4. 日誌資料列與未展開詳情 ✓\n");
 
   ctx.state.activityLog.expanded = { "req-1": true };
@@ -192,8 +195,11 @@ function run() {
   };
   html = log.renderView();
   assert(html.indexOf("正在載入操作日誌...") !== -1);
-  assert(html.indexOf('MEA.activityLog.fetchList(1)" disabled') !== -1);
-  assert(html.indexOf('MEA.activityLog.fetchList(3)" disabled') !== -1);
+  assert(html.indexOf('data-activity-action="page" data-page="1" disabled') !== -1);
+  assert(html.indexOf('data-activity-action="page" data-page="3" disabled') !== -1);
+  assert(html.indexOf('data-activity-action="refresh" disabled') !== -1);
+  assert(html.indexOf('data-activity-action="reset" disabled') !== -1);
+  assert(/<button[^>]*type="submit"[^>]*\sdisabled/.test(html), "載入中時搜尋按鈕應停用");
   console.log("6. 載入中狀態與分頁停用 ✓\n");
 }
 
@@ -222,7 +228,7 @@ const result = (async function () {
     console.log("   ✓ 讀取與狀態更新驗證通過！\n");
   }
 
-  console.log("8. 分頁上限與失敗處理...");
+  console.log("8. 分頁上限、頁碼收斂與錯誤訊息統一處理...");
   {
     const ctx = createDeps();
     const log = activityLogModule.createActivityLogModule(ctx.deps);
@@ -235,12 +241,26 @@ const result = (async function () {
     assert.strictEqual(ctx.state.activityLog.totalPages, 3);
 
     ctx.setResponder(function () {
-      return Promise.resolve({ ok: false, error: "forbidden", message: "無權限" });
+      return Promise.resolve({ ok: true, rows: [], total: 50, page: 9, pageSize: 50 });
+    });
+    await log.fetchList(9);
+    assert.strictEqual(ctx.state.activityLog.totalPages, 1);
+    assert.strictEqual(ctx.state.activityLog.page, 1, "目前頁碼應收斂至總頁數");
+
+    ctx.setResponder(function () {
+      return Promise.resolve({ ok: false, error: "invalid_date_range", message: "後端未翻譯訊息" });
     });
     await log.fetchList(1);
-    assert.strictEqual(ctx.calls.toasts.length, 1);
     assert.strictEqual(ctx.calls.toasts[0].kind, "err");
-    console.log("   ✓ 上限與失敗處理驗證通過！\n");
+    assert.strictEqual(ctx.calls.toasts[0].message, "日期格式不正確或日期區間無效");
+
+    ctx.setResponder(function () {
+      return Promise.reject({ code: "forbidden" });
+    });
+    await log.fetchList(1);
+    assert.strictEqual(ctx.calls.toasts[1].kind, "err");
+    assert.strictEqual(ctx.calls.toasts[1].message, "您的帳號沒有存取操作日誌的權限");
+    console.log("   ✓ 上限、頁碼收斂與錯誤處理驗證通過！\n");
   }
 
   console.log("9. 篩選、重設與展開切換...");
