@@ -1354,4 +1354,77 @@ console.log("28. 非鎖定動作的 beforeSnapshot 應在鎖判定後、路由�
   console.log("   ✓ 非鎖定動作擷取時機驗證通過！\n");
 }
 
+console.log("29. lock_timeout 應寫入失敗日誌且不呼叫 releaseLock...");
+{
+  const rows = [];
+  let releaseCalls = 0;
+  const result = withGlobals(
+    {
+      LockService: {
+        getScriptLock: function () {
+          return {
+            tryLock: function () {
+              return false;
+            },
+            releaseLock: function () {
+              releaseCalls += 1;
+            }
+          };
+        }
+      }
+    },
+    function () {
+      return withOverrides(
+        {
+          authorizeWebApiAction: function () {
+            return {
+              session: { email: "admin@example.com", name: "管理員", role: "admin", csrfToken: "ok" }
+            };
+          },
+          appendActivityLog: function (record) {
+            rows.push(record);
+          }
+        },
+        function () {
+          return api.executeWebApi({ action: "saveSystemSettings", token: "tok", csrfToken: "ok" }, {});
+        }
+      );
+    }
+  );
+  assert.strictEqual(result.ok, false);
+  assert.strictEqual(result.error, "lock_timeout");
+  assert.strictEqual(releaseCalls, 0, "未取得鎖時不得釋放鎖");
+  assert.strictEqual(rows.length, 1, "lock_timeout 應寫入一列日誌");
+  assert.strictEqual(rows[0].result, "failure");
+  assert.strictEqual(rows[0].errorCode, "lock_timeout");
+  console.log("   ✓ lock_timeout 日誌與鎖釋放驗證通過！\n");
+}
+
+console.log("30. CSRF 驗證失敗應寫入失敗日誌與 errorCode...");
+{
+  const rows = [];
+  withOverrides(
+    {
+      authorizeWebApiAction: function () {
+        return {
+          session: { email: "admin@example.com", name: "管理員", role: "admin", csrfToken: "ok" }
+        };
+      },
+      routeWebApiAction: function () {
+        return { ok: false, error: "invalid_csrf_token", message: "CSRF 驗證失敗" };
+      },
+      appendActivityLog: function (record) {
+        rows.push(record);
+      }
+    },
+    function () {
+      api.executeWebApi({ action: "saveSystemSettings", token: "tok", csrfToken: "bad" }, {});
+    }
+  );
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].result, "failure");
+  assert.strictEqual(rows[0].errorCode, "invalid_csrf_token");
+  console.log("   ✓ CSRF 失敗日誌驗證通過！\n");
+}
+
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");

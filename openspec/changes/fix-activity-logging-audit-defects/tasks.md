@@ -32,7 +32,7 @@
 ## 5. 測試與無障礙覆蓋補強
 
 - [x] 5.1 在 `tests/activityLogBuilders.test.js` 與 `tests/activityLogger.test.js` 補巢狀物件、陣列與 `TOKEN`／`CsrfToken` 等大小寫變體的敏感資料外洩測試，斷言敏感字串不出現在 `JSON.stringify(detail)` 與日誌列；並於 `tests/activityLogModuleIndependence.test.js` 確認各產生器仍匯出投影所需的函式、無循環相依
-- [x] 5.2 補 `lock_timeout` 與 CSRF 失敗時仍寫入日誌（含 `errorCode`）的測試，並確認 `releaseLock` 在超時情境不被呼叫
+- [ ] 5.2 補 `lock_timeout` 與 CSRF 失敗時仍寫入日誌（含 `errorCode`）的測試，並確認 `releaseLock` 在超時情境不被呼叫
 - [ ] 5.3 在 `tests/helpers/a11yHarness.js` 的 `createFrontend()` 加入 `webapp/js/activityLog.js` 的載入並註冊 `MEA.activityLog`，於 state 預設補 `activityLog` 初始值；再於 `collectFixtures()` 加入 ready、展開、空結果與非管理員守門夾具。執行 `npm run check:a11y`，並以「夾具 HTML 含日誌表格標頭」斷言確認新畫面確實被稽核，而非渲染成空字串
 - [ ] 5.4 修正 `webapp/js/activityLog.js` 的 `requestId` 渲染：改用 `data-request-id` 與 `addEventListener`，移除 inline `onclick` 的 JS 字串插值，並確認 `npm run check:ui-classes` 與 `npm run check:a11y` 通過
 - [ ] 5.5 於 `state.loading === true` 時禁用「重新整理」按鈕、以總頁數收斂目前頁碼、統一兩條錯誤路徑走 `resolveSafeMessage`；以 mock 模式手動驗證行為
