@@ -386,9 +386,6 @@ function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
 /** 取得公式注入跳脫函式；GAS 全域共用，Node 測試可注入。 */
 function resolveSanitizeRowMatrixFn_() {
   if (typeof sanitizeRowMatrix === "function") return sanitizeRowMatrix;
-  if (typeof globalThis !== "undefined" && typeof globalThis.sanitizeRowMatrix === "function") {
-    return globalThis.sanitizeRowMatrix;
-  }
   return function (matrix) {
     return matrix;
   };
@@ -472,6 +469,23 @@ function getCourseIndexDataRows_(targetSs) {
   const values = sheet.getDataRange().getValues();
   if (values.length <= 1) return null;
   return values.slice(1);
+}
+
+/**
+ * 輕量取得課程索引總筆數：僅讀取最後一列索引，不下載整份工作表內容。
+ * 供概覽頁顯示統計使用，避免為了取得 total 而呼叫 getCourseIndex。
+ */
+function getCourseIndexStats(ss) {
+  const targetSs = resolveCourseIndexSpreadsheet_(ss);
+  const sheet = targetSs ? targetSs.getSheetByName(NORMALIZED_COURSE_SHEET_NAME) : null;
+  if (!sheet) return { ok: true, total: 0 };
+  if (typeof sheet.getLastRow === "function") {
+    const lastRow = Number(sheet.getLastRow()) || 0;
+    return { ok: true, total: Math.max(0, lastRow - 1) };
+  }
+  // 相容未提供 getLastRow 的測試替身或其他試算表實作。
+  const dataRows = getCourseIndexDataRows_(targetSs);
+  return { ok: true, total: dataRows ? dataRows.length : 0 };
 }
 
 function normalizeCourseQueryCriteria_(filter) {
@@ -617,6 +631,7 @@ if (typeof module !== "undefined" && module.exports) {
     expandCourseRow: expandCourseRow,
     normalizeCourseCodes: normalizeCourseCodes,
     importNormalizedCourseCodes: importNormalizedCourseCodes,
-    getNormalizedCourses: getNormalizedCourses
+    getNormalizedCourses: getNormalizedCourses,
+    getCourseIndexStats: getCourseIndexStats
   };
 }

@@ -15,7 +15,7 @@
 ## 2. 效能與渲染
 
 - [x] 2.1 `getNormalizedCourses` 改為先以原始列索引篩選，再只對該頁資料呼叫 `mapCourseIndexRow_`，消除 N 個物件配置；補大量資料分頁測試。
-- [ ] 2.2 新增 `getCourseIndexStats` 輕量 action（只回傳總筆數），概覽頁改用此 API；前端改為進入課程分頁才抓清單，並加入相同參數的 in-flight Promise 去重。
+- [x] 2.2 新增 `getCourseIndexStats` 輕量 action（只回傳總筆數），概覽頁改用此 API；前端改為進入課程分頁才抓清單，並加入相同參數的 in-flight Promise 去重。
 - [ ] 2.3 將 `expandCourseRow`（後端）與 `courseData.js`（前端）中與學期無關的 7 個欄位計算提升到 `for (s<6)` 迴圈外，維持前後端同構。
 - [ ] 2.4 格式化範圍限縮至實際寫入資料列（不使用 `getMaxRows()` 墊高），合併表頭 Range 呼叫，並同步調整 `tests/subjectCodeTransformerImportNormalizedCourseCodes.test.js:298` 的範圍斷言。
 - [ ] 2.5 `pickCourseSheetRows` 改為單次遍歷工作表並快取 `sheet_to_json` 結果，找不到特色表頭時不重複解析；補測試。

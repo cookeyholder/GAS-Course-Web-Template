@@ -78,15 +78,15 @@ function run() {
   authModule.applyCsrfToken(side.MEA.api, "csrf-a");
   authModule.applyCsrfToken(side.MEA.api, "");
   assert.deepStrictEqual(side.calls.setCsrfToken, ["csrf-a"]);
-  authModule.invokeFetchCourses(side.MEA);
-  assert.strictEqual(side.calls.fetchList, 1);
-  assert.strictEqual(side.calls.lastFetchPage, 1);
+  authModule.invokeFetchStats(side.MEA);
+  assert.strictEqual(side.calls.fetchStats, 1);
+  assert.strictEqual(side.calls.fetchList, 0, "登入成功不應抓完整清單");
   const noCourses = createDeps();
   noCourses.MEA.courses = null;
   assert.doesNotThrow(function () {
-    authModule.invokeFetchCourses(noCourses.MEA);
+    authModule.invokeFetchStats(noCourses.MEA);
   });
-  console.log("4. CSRF 設定與課程列表觸發純函式 ✓\n");
+  console.log("4. CSRF 設定與輕量統計觸發純函式 ✓\n");
 
   const ctx = createDeps();
   const auth = authModule.createAuthController(ctx.deps);
@@ -110,8 +110,8 @@ function run() {
       assert.strictEqual(ctx.state.loginError, "");
       assert.strictEqual(ctx.calls.toasts.length, 1);
       assert.strictEqual(ctx.calls.toasts[0].level, "ok");
-      assert.strictEqual(ctx.calls.fetchList, 1);
-      console.log("5. 成功登入：權杖、狀態、提示與列表更新 ✓\n");
+      assert.strictEqual(ctx.calls.fetchStats, 1);
+      console.log("5. 成功登入：權杖、狀態、提示與統計更新 ✓\n");
 
       return auth.applyLoginSuccess({ ok: true, email: "d@example.test", bootstrapped: true });
     })
@@ -120,7 +120,7 @@ function run() {
       assert.strictEqual(user.roleName, undefined);
       assert.strictEqual(ctx.calls.toasts[1].level, "warn");
       assert.strictEqual(ctx.calls.toasts[1].message, "初次登入已自動開通系統管理員權限！");
-      assert.strictEqual(ctx.calls.fetchList, 2);
+      assert.strictEqual(ctx.calls.fetchStats, 2);
       console.log("6. 初次登入管理員提示分支 ✓\n");
 
       return auth.applyLoginSuccess({ ok: false, message: "帳號或密碼錯誤" });
@@ -130,7 +130,7 @@ function run() {
       assert.strictEqual(ctx.state.view, "login");
       assert.strictEqual(ctx.state.loginError, "帳號或密碼錯誤");
       assert.strictEqual(ctx.state.loginBusy, false);
-      assert.strictEqual(ctx.calls.fetchList, 2);
+      assert.strictEqual(ctx.calls.fetchStats, 2);
       assert.strictEqual(ctx.calls.toasts.length, 2);
       console.log("7. 失敗登入不寫入權杖且回到登入畫面 ✓\n");
 

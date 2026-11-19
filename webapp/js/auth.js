@@ -95,9 +95,14 @@
     if (csrfToken) api.setCsrfToken(csrfToken);
   }
 
-  function invokeFetchCourses(MEA) {
-    if (MEA.courses && typeof MEA.courses.fetchList === "function") {
-      MEA.courses.fetchList(1);
+  /**
+   * 登入或還原後僅取得輕量統計，完整清單留待進入課程分頁時再載入。
+   *
+   * @param {Object} MEA - 前端全域命名空間
+   */
+  function invokeFetchStats(MEA) {
+    if (MEA.courses && typeof MEA.courses.fetchStats === "function") {
+      MEA.courses.fetchStats();
     }
   }
 
@@ -438,7 +443,7 @@
       MEA.setState(buildLoginSuccessState(user));
       const toast = getLoginToast(user, result.bootstrapped);
       MEA.ui.toast(toast.message, toast.level);
-      invokeFetchCourses(MEA);
+      invokeFetchStats(MEA);
       return Promise.resolve(user);
     }
 
@@ -548,7 +553,7 @@
       if (!isOkResult(result)) return false;
       applyCsrfToken(MEA.api, result.csrfToken);
       MEA.setState(buildSessionSuccessState(result, getRoleNames()));
-      invokeFetchCourses(MEA);
+      invokeFetchStats(MEA);
       return true;
     }
 
@@ -603,7 +608,7 @@
     buildLoginSuccessState: buildLoginSuccessState,
     getLoginToast: getLoginToast,
     applyCsrfToken: applyCsrfToken,
-    invokeFetchCourses: invokeFetchCourses,
+    invokeFetchStats: invokeFetchStats,
     encodeAuthState: encodeAuthState,
     saveAuthState: saveAuthState,
     readAuthState: readAuthState,

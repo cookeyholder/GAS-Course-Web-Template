@@ -62,8 +62,8 @@ const WEB_API_IMPORT_NORMALIZED_COLUMNS = 14;
 /** 角色權限矩陣（RBAC）：所有受保護 action 必須明確列舉，不使用 getXxx 通配規則 */
 const ROLE_PERMISSIONS = {
   admin: ["*"],
-  staff: ["getSession", "logout", "getCourseIndex", "getSystemSettings", "importCourseCodes"],
-  viewer: ["getSession", "logout", "getCourseIndex", "getSystemSettings"]
+  staff: ["getSession", "logout", "getCourseIndex", "getCourseIndexStats", "getSystemSettings", "importCourseCodes"],
+  viewer: ["getSession", "logout", "getCourseIndex", "getCourseIndexStats", "getSystemSettings"]
 };
 
 /** Node.js 沙盒測試用之記憶體 Session 儲存 */
@@ -928,6 +928,9 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
 
     case "getCourseIndex":
       return resolveRouteDependency_("getNormalizedCourses", getNormalizedCourses)(payload, ss);
+
+    case "getCourseIndexStats":
+      return resolveRouteDependency_("getCourseIndexStats", getCourseIndexStats)(ss);
 
     case "getSystemSettings":
       return {

@@ -363,4 +363,19 @@ console.log("10. 大量資料分頁應僅映射該頁列，不對全部資料建
   console.log("   ✓ 大量資料分頁與映射次數驗證通過！\n");
 }
 
+console.log("10. 原始列為 null 或欄位為空時，篩選應安全略過...");
+{
+  const values = [
+    header,
+    null,
+    [null, "1", "1", "114", "C-NULL", "空學年", "群", "科", "類", "式", "屬", "必", "1", "1"],
+    row({ courseCode: "C-OK", academicYear: "114" })
+  ];
+  const ss = makeSs(makeSheet(values));
+  const result = transformer.getNormalizedCourses({ academicYear: "114" }, ss);
+  assert.strictEqual(result.total, 1);
+  assert.strictEqual(result.list[0].courseCode, "C-OK");
+  console.log("   ✓ 空列與空欄位篩選驗證通過！\n");
+}
+
 console.log("✓ getNormalizedCourses 測試全數通過！\n");

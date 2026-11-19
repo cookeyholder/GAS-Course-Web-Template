@@ -42,9 +42,9 @@ function run() {
       assert.strictEqual(ctx.state.user.roleName, "系統管理員");
       assert.deepStrictEqual(ctx.calls.setCsrfToken, ["csrf-mock"]);
       assert.deepStrictEqual(ctx.calls.setToken, []);
-      assert.strictEqual(ctx.calls.fetchList, 1);
+      assert.strictEqual(ctx.calls.fetchStats, 1);
       assert.strictEqual(ctx.calls.timeouts.length, 0);
-      console.log("1. 模擬模式還原成功：不清除既有權杖並載入列表 ✓\n");
+      console.log("1. 模擬模式還原成功：不清除既有權杖並載入統計 ✓\n");
 
       ctx.apiResponses.getSession = { ok: false, message: "模擬工作階段無效" };
       auth.restore();
@@ -55,7 +55,7 @@ function run() {
       assert.strictEqual(ctx.state.loginError, "先前的錯誤");
       assert.deepStrictEqual(ctx.calls.setToken, []);
       assert.deepStrictEqual(ctx.calls.setCsrfToken, ["csrf-mock"]);
-      assert.strictEqual(ctx.calls.fetchList, 1);
+      assert.strictEqual(ctx.calls.fetchStats, 1);
       assert.strictEqual(ctx.calls.timeouts.length, 1);
       assert.strictEqual(ctx.calls.timeouts[0].ms, 50);
       console.log("2. 模擬模式還原失敗：僅切換畫面且排程重繪 ✓\n");
@@ -73,7 +73,7 @@ function run() {
     })
     .then(function () {
       assert.strictEqual(withoutCoursesCtx.state.view, "app");
-      assert.strictEqual(withoutCoursesCtx.calls.fetchList, 0);
+      assert.strictEqual(withoutCoursesCtx.calls.fetchStats, 0);
       console.log("4. 缺少課程模組時仍可完成還原 ✓\n");
 
       noCsrfCtx = createDeps({ config: { mock: true } });

@@ -27,6 +27,8 @@ console.log("開始執行 Web API 與權限驗證單元測試...\n");
   assert.strictEqual(api.hasPermission("staff", "saveSystemSettings"), false, "staff 不得修改系統設定");
 
   assert.strictEqual(api.hasPermission("viewer", "getCourseIndex"), true, "viewer 應具備查詢課程權限");
+  assert.strictEqual(api.hasPermission("staff", "getCourseIndexStats"), true, "staff 應可取得輕量統計");
+  assert.strictEqual(api.hasPermission("viewer", "getCourseIndexStats"), true, "viewer 應可取得輕量統計");
   assert.strictEqual(api.hasPermission("viewer", "importCourseCodes"), false, "viewer 不得匯入課程");
   assert.strictEqual(api.hasPermission("viewer", "saveSystemSettings"), false, "viewer 不得修改系統設定");
 

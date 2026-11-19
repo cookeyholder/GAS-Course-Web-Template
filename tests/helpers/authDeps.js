@@ -37,6 +37,7 @@ function createDeps(overrides) {
     setToken: [],
     setCsrfToken: [],
     fetchList: 0,
+    fetchStats: 0,
     currentTheme: "light",
     timeouts: [],
     navigations: [],
@@ -145,6 +146,9 @@ function createDeps(overrides) {
       fetchList: function (page) {
         calls.fetchList += 1;
         calls.lastFetchPage = page;
+      },
+      fetchStats: function () {
+        calls.fetchStats += 1;
       }
     },
     auth: {

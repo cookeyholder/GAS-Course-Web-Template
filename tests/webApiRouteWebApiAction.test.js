@@ -335,6 +335,34 @@ function withGlobal(name, value, fn) {
     console.log("   ✓ getCourseIndex 驗證通過！\n");
   }
 
+  console.log("12.1 getCourseIndexStats 應委派輕量統計且不讀取內容...");
+  {
+    const session = { role: "viewer", csrfToken: "c" };
+    let statsCalls = 0;
+    withStubbed(
+      api,
+      "authorizeWebApiAction",
+      function () {
+        return { ok: true, session: session };
+      },
+      function () {
+        withGlobal(
+          "getCourseIndexStats",
+          function () {
+            statsCalls += 1;
+            return { ok: true, total: 777 };
+          },
+          function () {
+            const r = api.routeWebApiAction("getCourseIndexStats", { token: "t" });
+            assert.deepStrictEqual(r, { ok: true, total: 777 });
+            assert.strictEqual(statsCalls, 1, "應只委派統計函式一次");
+          }
+        );
+      }
+    );
+    console.log("   ✓ getCourseIndexStats 驗證通過！\n");
+  }
+
   console.log("13. getSystemSettings 應回傳系統設定...");
   {
     const session = { role: "staff", csrfToken: "c" };

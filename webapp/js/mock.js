@@ -211,6 +211,10 @@
       };
     }
 
+    function createCourseIndexStats() {
+      return { ok: true, total: mockCoursesList.length };
+    }
+
     function createSystemSettings() {
       return { ok: true, settings: Object.assign({}, mockSettings) };
     }
@@ -251,6 +255,7 @@
       },
       importCourseCodes: importCourseCodes,
       getCourseIndex: createCourseIndex,
+      getCourseIndexStats: createCourseIndexStats,
       getSystemSettings: createSystemSettings,
       saveSystemSettings: saveSystemSettings,
       getAccounts: createAccounts,

@@ -73,6 +73,23 @@
     }
 
     /**
+     * 由查詢參數建立 in-flight Promise 避免重複鍵。
+     *
+     * @param {Object} query - API 查詢參數
+     * @returns {string} 避免重複鍵
+     */
+    function buildCourseFetchKey(query) {
+      return JSON.stringify([
+        query.keyword || "",
+        query.department || "",
+        query.academicYear || "",
+        query.semester || "",
+        query.page || 1,
+        query.pageSize || 30
+      ]);
+    }
+
+    /**
      * 由成功回應建構課程狀態更新片段。
      *
      * @param {number} targetPage - 目標頁碼
@@ -111,16 +128,23 @@
       });
     }
 
+    const inflightListFetches = {};
+
     function fetchList(page) {
       const targetPage = page || (MEA.state.courses && MEA.state.courses.page) || 1;
       const cur = MEA.state.courses || {};
+      const query = buildCourseQuery(cur, targetPage);
+      const fetchKey = buildCourseFetchKey(query);
+      if (Object.prototype.hasOwnProperty.call(inflightListFetches, fetchKey)) {
+        return inflightListFetches[fetchKey];
+      }
 
       MEA.setState({
         courses: Object.assign({}, cur, { loading: true, page: targetPage })
       });
 
-      MEA.api
-        .call("getCourseIndex", buildCourseQuery(cur, targetPage))
+      const pending = MEA.api
+        .call("getCourseIndex", query)
         .then(function (result) {
           handleFetchListSuccess(cur, result, targetPage);
         })
@@ -129,6 +153,50 @@
             courses: Object.assign({}, cur, { loading: false })
           });
           MEA.ui.toast(normalizeErrorMessage(error), "err");
+        });
+
+      const tracked = pending.then(
+        function (value) {
+          delete inflightListFetches[fetchKey];
+          return value;
+        },
+        function (error) {
+          delete inflightListFetches[fetchKey];
+          throw error;
+        }
+      );
+      inflightListFetches[fetchKey] = tracked;
+      return tracked;
+    }
+
+    /**
+     * 處理輕量統計回應：僅更新概覽頁所需的總筆數。
+     *
+     * @param {Object} result - API 回應
+     */
+    function handleFetchStatsSuccess(result) {
+      if (!result || result.ok !== true) return;
+      const cur = MEA.state.courses || {};
+      MEA.setState({
+        courses: Object.assign({}, cur, { total: result.total || 0 })
+      });
+    }
+
+    /**
+     * 僅取得課程索引總筆數，不下載完整清單；供概覽頁使用。
+     *
+     * @returns {Promise<Object|null>} API 回應或失敗時的 null
+     */
+    function fetchStats() {
+      if (!MEA.api || typeof MEA.api.call !== "function") return Promise.resolve(null);
+      return MEA.api
+        .call("getCourseIndexStats", {})
+        .then(function (result) {
+          handleFetchStatsSuccess(result);
+          return result;
+        })
+        .catch(function () {
+          return null;
         });
     }
 
@@ -383,6 +451,7 @@
 
     return {
       fetchList: fetchList,
+      fetchStats: fetchStats,
       handleSearch: handleSearch,
       onKeywordInput: onKeywordInput,
       resetSearch: resetSearch,

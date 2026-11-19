@@ -79,9 +79,9 @@ function run() {
       assert.strictEqual(ctx.state.user.roleName, "系統管理員");
       assert.deepStrictEqual(ctx.calls.setCsrfToken, ["csrf-new"]);
       assert.deepStrictEqual(ctx.calls.setToken, []);
-      assert.strictEqual(ctx.calls.fetchList, 1);
+      assert.strictEqual(ctx.calls.fetchStats, 1);
       assert.strictEqual(ctx.calls.timeouts.length, 0);
-      console.log("3. 攜帶權杖還原成功：寫入 CSRF、觸發列表、不清除權杖 ✓\n");
+      console.log("3. 攜帶權杖還原成功：寫入 CSRF、觸發統計、不清除權杖 ✓\n");
 
       ctx.apiResponses.getSession = { ok: false, error: "missing_token", message: "缺少權杖" };
       auth.restore();
