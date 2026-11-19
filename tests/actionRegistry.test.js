@@ -31,6 +31,9 @@ function run() {
   assert.strictEqual(registry.isRoleAllowed("viewer", "saveSystemSettings"), false);
   assert.strictEqual(registry.isRoleAllowed("admin", "saveWhitelist"), true);
   assert.strictEqual(registry.isRoleAllowed("viewer", "not_registered"), false);
+  assert.strictEqual(registry.isRoleAllowed("admin", "getActivityLog"), true);
+  assert.strictEqual(registry.isRoleAllowed("staff", "getActivityLog"), false);
+  assert.strictEqual(registry.isRoleAllowed("viewer", "getActivityLog"), false);
   console.log("   ✓ RBAC 驗證通過！\n");
 
   console.log("3. 路由應拒絕未登錄的 action...");
@@ -110,6 +113,8 @@ function run() {
     .handle("not_registered", {})
     .then(function (res) {
       assert.strictEqual(res.error, "unknown_mock_action");
+      assert.strictEqual(typeof registry.getHandler("getActivityLog"), "function");
+      assert.strictEqual(registry.getActionMeta("getActivityLog").enabled, false);
       console.log("   ✓ mock 守門驗證通過！\n");
       console.log("✓ actionRegistry.test.js 測試全數通過！\n");
     })
