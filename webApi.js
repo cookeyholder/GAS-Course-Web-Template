@@ -1682,9 +1682,6 @@ function executeWebApi(payload, event) {
     }
 
     actionMeta = getActivityLogMeta_(action);
-    if (shouldLogActivity_(action, actionMeta)) {
-      beforeSnapshot = captureActivityLogSnapshot_(actionMeta);
-    }
 
     // 取得一次授權結果僅供日誌 context 使用；路由會自行再次授權，
     // 兩次都讀取伺服器端 session，避免把授權結果作為公開參數傳入路由。
@@ -1701,6 +1698,11 @@ function executeWebApi(payload, event) {
     if (lockState.lockFailed) {
       context.errorCode = "lock_timeout";
       return finish_(webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試"));
+    }
+    // beforeSnapshot 必須在成功取得鎖之後（鎖定動作）或鎖判定完成之後（非鎖定動作）、
+    // 路由實際寫入之前擷取，避免併發請求讀到過期前值。
+    if (shouldLogActivity_(action, actionMeta)) {
+      beforeSnapshot = captureActivityLogSnapshot_(actionMeta);
     }
     const routeFn =
       typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"

@@ -1242,4 +1242,116 @@ console.log("26. category 篩選應不分大小寫...");
   console.log("   ✓ category 大小寫不敏感驗證通過！\n");
 }
 
+console.log("27. beforeSnapshot 應於取得鎖後擷取，且連續請求以前次寫入後狀態為前值...");
+{
+  const events = [];
+  let sharedValue = "舊值";
+  const rows = [];
+  const fakeBuilders = {
+    captureBefore: function () {
+      events.push("capture:" + sharedValue);
+      return { value: sharedValue };
+    },
+    describe: function (detailKey, before, payload) {
+      return {
+        版本: 1,
+        動作: payload.action,
+        指標: {},
+        變動: [{ 欄位: "值", 前值: before ? before.value : "", 後值: payload.nextValue }]
+      };
+    }
+  };
+  withGlobals({ activityLogBuilders: fakeBuilders }, function () {
+    withOverrides(
+      {
+        appendActivityLog: function (record) {
+          rows.push(record);
+          events.push("log");
+        },
+        routeWebApiAction: function (action, payload) {
+          events.push("route:" + sharedValue);
+          sharedValue = payload.nextValue;
+          events.push("mutated:" + sharedValue);
+          return { ok: true };
+        }
+      },
+      function () {
+        withGlobals(
+          {
+            LockService: {
+              getScriptLock: function () {
+                return {
+                  tryLock: function () {
+                    events.push("lock");
+                    return true;
+                  },
+                  releaseLock: function () {
+                    events.push("unlock");
+                  }
+                };
+              }
+            }
+          },
+          function () {
+            api.executeWebApi({ action: "saveSystemSettings", nextValue: "第一次寫入" }, {});
+            api.executeWebApi({ action: "saveSystemSettings", nextValue: "第二次寫入" }, {});
+          }
+        );
+      }
+    );
+  });
+  assert.deepStrictEqual(
+    events.slice(0, 5),
+    ["lock", "capture:舊值", "route:舊值", "mutated:第一次寫入", "unlock"],
+    "鎖定動作應先取得鎖再擷取快照，最後解鎖後寫日誌"
+  );
+  assert.strictEqual(events[5], "log");
+  assert.deepStrictEqual(
+    events.slice(6, 11),
+    ["lock", "capture:第一次寫入", "route:第一次寫入", "mutated:第二次寫入", "unlock"],
+    "第二次請求的前值應為第一次寫入後狀態"
+  );
+  assert.strictEqual(rows.length, 2);
+  const firstDetail = JSON.parse(rows[0].detail);
+  const secondDetail = JSON.parse(rows[1].detail);
+  assert.strictEqual(firstDetail.變動[0].前值, "舊值");
+  assert.strictEqual(firstDetail.變動[0].後值, "第一次寫入");
+  assert.strictEqual(secondDetail.變動[0].前值, "第一次寫入");
+  assert.strictEqual(secondDetail.變動[0].後值, "第二次寫入");
+  console.log("   ✓ 鎖後擷取與連續請求前值驗證通過！\n");
+}
+
+console.log("28. 非鎖定動作的 beforeSnapshot 應在鎖判定後、路由前擷取...");
+{
+  const events = [];
+  const fakeBuilders = {
+    captureBefore: function () {
+      events.push("capture");
+      return { v: 1 };
+    },
+    describe: function () {
+      return { 版本: 1, 動作: "getCourseIndex", 指標: {}, 變動: [] };
+    }
+  };
+  // getCourseIndex 非鎖定但屬可記錄動作（query 類且 enabled）
+  withGlobals({ activityLogBuilders: fakeBuilders }, function () {
+    withOverrides(
+      {
+        appendActivityLog: function () {
+          events.push("log");
+        },
+        routeWebApiAction: function () {
+          events.push("route");
+          return { ok: true };
+        }
+      },
+      function () {
+        api.executeWebApi({ action: "getCourseIndex" }, {});
+      }
+    );
+  });
+  assert.deepStrictEqual(events.slice(0, 2), ["capture", "route"], "非鎖定動作應於鎖判定後、路由前擷取");
+  console.log("   ✓ 非鎖定動作擷取時機驗證通過！\n");
+}
+
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");

@@ -27,7 +27,7 @@
 - [x] 4.1 移除 `activityLogger.js` 的 `SAMPLED_LAST_ROW_CACHE_KEY`、`WRITE_COUNT_CACHE_KEY`、`LAST_ROW_SAMPLE_INTERVAL`、`bumpWriteCount_` 及 `cleanupActivityLogRows` 中的快取更新；確認寫入路徑不再呼叫 `getLastRow()`，且每日清理仍維持 20,000／15,000 閾值
 - [x] 4.2 移除 `activityLogger.js` 的 `SENSITIVE_RECORD_KEYS` 及 `buildActivityLogRow_` 中永不成立的敏感欄位判斷；以 `tests/activityLogger.test.js` 的 12 欄白名單與敏感值測試確認仍完整
 - [x] 4.3 移除 `webApi.js` 的 `afterSnapshot` 擷取、`buildActivityLogRecord_` 的 `after` 參數，以及 `activityLogBuilders.js` 中所有 builder 的 `after` 參數與相關 JSDoc；對應的測試預期已於 2.3 一併修正，並以 2.3 的整合測試確認差異計算仍正常
-- [ ] 4.4 將 `beforeSnapshot` 擷取時點移至成功取得 Script Lock 之後（非鎖定動作則置於鎖判定之後、路由之前）；補併發情境測試：兩個連續請求共用工作表時，第二請求的「前值」等於第一請求寫入後的值，而非舊值
+- [x] 4.4 將 `beforeSnapshot` 擷取時點移至成功取得 Script Lock 之後（非鎖定動作則置於鎖判定之後、路由之前）；補併發情境測試：兩個連續請求共用工作表時，第二請求的「前值」等於第一請求寫入後的值，而非舊值
 
 ## 5. 測試與無障礙覆蓋補強
 
