@@ -1,11 +1,12 @@
 # Google Apps Script 網頁應用程式範本 (GAS-Course-Web-Template)
 
-本專案為 **Google Apps Script (GAS) 網頁應用程式全端範本**，具備四大核心架構：
+本專案為 **Google Apps Script (GAS) 網頁應用程式全端範本**，具備五大核心架構：
 
 1. **雙軌身分驗證與 Session 安全機制**：支援一般網頁環境之 Google Identity Services（GIS）憑證登入，以及 GAS HtmlService 容器內的 ActiveUser / AccountChooser 帳號切換流程；並可依部署條件處理 OAuth 授權碼回呼與 `INITIAL_AUTH` 還原。後端驗證 Google ID Token（`iss`、`email_verified`、`aud`）、支援可選登入網域限制，登入後核發 Session 與 CSRF Token（寫入型 API 強制驗證），並提供 `?mock=true` 本機離線測試模式。
 2. **課程代碼匯入與 1NF 正規化模組**：依據教育部國民及學前教育署政策與[全國高級中等學校課程計畫平臺](https://course.k12ea.gov.tw/courseinformation/course.asp)規範，自動解析自該平臺下載之 39 欄課綱寬表 Excel，完整匯入全數課程代碼（包含不分屬性 0 與特殊需求領域 6 等所有科目），展開為三年六學期實質開課之 14 欄標準第一正規化（1NF）課程代碼表，並提供前端拖曳上傳、即時預覽統計與分頁檢索清單。
 3. **多風格現代前端設計系統**：內建極簡曜藍（Modern Slate）、圖紙風格（Blueprint）、典雅紙張（Paper）、新粗獷主義（Neo-Brutalism）、黏土擬物（Claymorphism）、紅白機像素（NES）、Happy Hues 等 13 款視覺風格切換與深淺色模式；全面支援通用卡片元件（`.card`）、頁籤導覽列（`.app-nav`、`.nav-tab`）、統計指標網格（`.metrics-grid`、`.metric-card`）、響應式表格（`.table-responsive`）、搜尋防抖（`debounce`）、列印防斷頁（`.print-signatures`），以及完整的 Toast 通知與 Modal 對話框。
 4. **全方位資訊安全與通訊強化機制**：前端 API 客戶端採 GAS `google.script.run.executeWebApi` RPC 優先、`fetch` 備援與暫時性錯誤指數退避；後端統一 `executeWebApi` 路由入口與錯誤格式，實作 RBAC、CSRF、HTTP GET 端點白名單、試算表公式注入防護、UUID Session 與 `LockService` 寫入保護，並強化登入授權與公開設定欄位控管。
+5. **可稽核操作日誌與容量治理**：後端在最外層統一記錄每次 API 請求的事件類別、動作、操作者身分、結果、耗時與版本化詳情；僅系統管理員可透過「操作日誌」頁籤查詢與稽核。日誌工作表內建 20,000 列清理閾值與每日 03:00（Asia/Taipei）自動觸發器，避免工作表無限成長。
 
 ---
 
@@ -20,11 +21,13 @@ GAS-Course-Web-Template/
 │
 ├── main.js                     # Google 試算表容器選單 (onOpen、初始化工作表、開啟 Web App)
 ├── gasRuntime.js               # GAS/Node 單一相依解析、白名單注入、工作表名稱／角色定義／API 版本號來源
-├── actionRegistry.js           # Web API action 單一登錄來源（公開／寫入／鎖定清單與 RBAC 矩陣）
+├── actionRegistry.js           # Web API action 單一登錄來源（公開／寫入／鎖定清單、RBAC 矩陣與日誌中繼資料）
 ├── courseNormalizationShared.js # 前後端共用之 108 課綱常數與 1NF 正規化純函式
-├── databaseInitializer.js      # 資料庫純資料工作表初始化（系統設定與授權、課程代碼、說明；含登入網域等設定欄位）
+├── databaseInitializer.js      # 資料庫純資料工作表初始化（系統設定與授權、課程代碼、說明、操作日誌；含登入網域等設定欄位）
 ├── subjectCodeTransformer.js   # 108 課綱 1NF 正規化展開、分頁查詢與試算表寫入（共用模組由 courseNormalizationShared.js 提供）
-├── webApi.js                   # API 路由總管與 executeWebApi 共用入口（RPC/doPost）、雙軌登入、OAuth 回呼、Session/CSRF、RBAC、LockService
+├── activityLogBuilders.js      # 操作日誌詳情產生器與 payload 白名單投影（含版本化格式）
+├── activityLogger.js           # 操作日誌寫入、字串截斷、抽樣取樣、容量清理與每日觸發器安裝
+├── webApi.js                   # API 路由總管與 executeWebApi 共用入口（RPC/doPost）、雙軌登入、OAuth 回呼、Session/CSRF、RBAC、LockService、操作日誌攔截與查詢
 ├── utilities.js                # 儲存格安全格式化、公式注入防護 (sanitizeFormulaValue)、通用工具
 │
 ├── webapp/                     # 前端原始碼目錄 (模組化開發，便於維護)
@@ -41,6 +44,7 @@ GAS-Course-Web-Template/
 │       ├── imports.js          # SheetJS 檔案讀取、拖曳上傳與 1NF 正規化預覽
 │       ├── courses.js          # 正規化課程清單檢索、多條件即時防抖篩選與分頁控制
 │       ├── accounts.js         # 系統核心設定與白名單成員管理介面（含 OAuth/允許網域設定、RBAC）
+│       ├── activityLog.js      # 管理員操作日誌清單、日期／操作者／類別篩選、分頁與詳情展開
 │       └── app.js              # 前端進入點與應用程式生命週期管理（啟動流程、INITIAL_AUTH/switch 處理）
 │
 ├── scripts/
@@ -135,7 +139,7 @@ npm run deploy
 
 1. 開啟綁定此 Apps Script 之 Google 試算表。
 2. 重新整理試算表頁面，工具列將自動出現 **課程系統管理** 選單。
-3. 點選 **初始化資料庫工作表**，系統將自動建立「系統設定與授權」、「正規化課程代碼」與「系統使用說明」三張工作表，並設定保護與格式。
+3. 點選 **初始化資料庫工作表**，系統將自動建立「系統設定與授權」、「正規化課程代碼」、「系統使用說明」與「操作日誌」四張工作表，並設定保護與格式；同時安裝每日 03:00 的操作日誌清理觸發器。既有工作表已存在時保持原樣，不會覆寫。
 4. 點選 **開啟 Web App 網頁** 即可取得網頁應用程式開啟連結！
 
 ---
@@ -297,6 +301,17 @@ npm run build:webapp
 - **深色模式對比度校正**：強化深色模式下啟用態按鈕與標籤膠囊之邊框、文字色彩與外發光立體感。
 - **搜尋防抖 (Debounce)**：內建 `MEA.ui.debounce` 工具函式，在課程代碼即時檢索時自動以 300ms 延遲防抖，操作體驗順暢無延遲。
 - **列印樣式防斷頁**：支援 `.print-signatures` 等列印專用樣式，防止報表與簽核欄跨頁切斷。
+
+### 5. 可稽核操作日誌與容量治理
+
+後端在 `executeWebApi` 最外層 `finally` 統一寫入操作日誌，覆蓋成功、失敗、授權失敗、CSRF 失敗、JSON 解析失敗與缺少 action 等情境；`ping`、`getPublicConfig`、`getActivityLog` 為不寫日誌的例外。日誌寫入失敗僅記錄於主控台，不影響原本 API 回應。
+
+- **工作表結構**：`操作日誌` 工作表共 12 欄，包含時間戳記、請求識別碼、事件類別（`auth`／`write`／`query`）、動作名稱、結果、操作者 email／姓名／角色、摘要、詳情 JSON、耗時（毫秒）與錯誤代碼；時間戳記統一採用 `Asia/Taipei` 時區的 `yyyy-MM-dd HH:mm:ss` 格式。
+- **敏感資料防護**：寫入前統一對字串欄位截斷至 500 字元，並排除 `token`、`csrfToken`、`idToken`、`credential`、原始 `rows` 與查詢回傳內容；寫入動作的詳情僅保存白名單欄位的 before／after 投影，查詢動作只保存篩選、分頁與回傳筆數等彙總指標，詳情格式附版本號。
+- **寫入效能**：以 `CacheService` 計數，每 100 次寫入才取樣一次 `getLastRow()`，避免每次請求都讀取工作表最後一列。
+- **管理員頁籤**：前端「操作日誌」頁籤以 `adminOnly` 旗標標記，僅 `admin` 角色可見；`renderNavbar()`、`setTab()` 與 `buildBodyHtml()` 三處皆執行相同守門，即使直接竄改 `state.tab` 也無法進入該頁籤。
+- **查詢限制**：預設查詢最近 7 天、每頁 50 列、單次最多 500 筆，依時間戳記遞減排序；支援開始／結束日期、操作者 email 與事件類別篩選，並可展開查看版本化詳情 JSON。
+- **容量治理**：日誌列數超過 20,000 列時，每日清理程序刪除最舊資料至保留 15,000 列；初始化流程會安裝每日 03:00（Asia/Taipei）的 `cleanupActivityLogRows` 時間觸發器，並先比對既有觸發器避免重複建立。
 
 ---
 

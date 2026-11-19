@@ -86,7 +86,7 @@ console.log("3. collectFiles 應排除指定目錄與檔案...");
   const project = helpers.createTempProject();
   try {
     project.write("webapp/keep.js", "");
-    ["node_modules", "coverage", ".git", "dist", ".clasp", ".codegraph", "openspec"].forEach(function (dir) {
+    ["node_modules", "coverage", ".git", "dist", ".clasp", ".codegraph"].forEach(function (dir) {
       project.write("webapp/" + dir + "/skip.js", "");
     });
     ["AGENTS.md", "languageCheck.js", "package-lock.json", "index.html"].forEach(function (file) {
@@ -97,6 +97,22 @@ console.log("3. collectFiles 應排除指定目錄與檔案...");
     project.cleanup();
   }
   console.log("   ✓ 排除規則驗證通過！\n");
+}
+
+console.log("3b. openspec 目錄應納入語言檢查，不再被排除...");
+{
+  const project = helpers.createTempProject();
+  try {
+    project.write("webapp/openspec/changes/add-activity-logging/proposal.md", "# 提案文件");
+    project.write("webapp/openspec/specs/example/spec.md", "# 規格文件");
+    assert.deepStrictEqual(languageCheck.collectFiles(project.webapp), [
+      "openspec/changes/add-activity-logging/proposal.md",
+      "openspec/specs/example/spec.md"
+    ]);
+  } finally {
+    project.cleanup();
+  }
+  console.log("   ✓ OpenSpec 納入檢查驗證通過！\n");
 }
 
 console.log("4. 注入檔案系統時應略過非檔案非目錄項目...");

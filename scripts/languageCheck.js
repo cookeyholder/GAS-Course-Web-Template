@@ -57,7 +57,8 @@ const MAINLAND_TERMS = [
 ];
 
 /** 略過掃描之目錄 */
-const EXCLUDED_DIRECTORIES = new Set(["node_modules", "coverage", ".git", "dist", ".clasp", ".codegraph", "openspec"]);
+// openspec 提案與規格文件亦須遵循語言規範，故不列入排除目錄。
+const EXCLUDED_DIRECTORIES = new Set(["node_modules", "coverage", ".git", "dist", ".clasp", ".codegraph"]);
 
 /**
  * 略過掃描之檔案。

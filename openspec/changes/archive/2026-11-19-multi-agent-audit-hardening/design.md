@@ -15,7 +15,7 @@
 **Goals:**
 
 - 消除所有已查證的安全缺陷，特別是機密外洩與權限搶占，並建立可測試的防護（授權明確列舉、敏感欄位遮蔽、nonce 一次性驗證、寫入鎖覆蓋回呼路徑）。
-- 將高資料量情境下的查詢與登入成本從「全表線性配置」與「鎖內外部 HTTP」改善為「分頁後映射」與「短臨界區寫入」。
+- 將高資料量情境下的查詢與登入成本從「全表線性映射」與「鎖內外部 HTTP」改善為「分頁後映射」與「短臨界區寫入」。
 - 讓前端渲染不再因每次狀態更新而摧毀輸入焦點，並修復鍵盤無法上傳、對話框語意、標籤關聯、class/CSS 對齊與 WCAG 對比。
 - 建立前後端正規化單一事實來源與深度同構測試，消除「內容漂移不會被攔截」的風險。
 - 維持既有 GIS／ActiveUser／OAuth 雙軌登入、mock 模式、RBAC 角色與所有既有 action 的向後相容（除明確列為 BREAKING 的安全修正外）。
@@ -56,9 +56,9 @@
 
 ### 5. 課程查詢採「先篩選原始列、再映射分頁」並補輕量統計
 
-`getNormalizedCourses` 改為先用原始 `row` 索引做關鍵字/學年/學期/科別比對，取得符合的列索引後只對該頁的 30 筆呼叫 `mapCourseIndexRow_`。另新增 `getCourseIndexStats` action 只回傳總筆數，讓概覽頁不必觸發 `getCourseIndex` 全表讀取。前端在真正進入課程分頁時才抓清單，並加入相同參數的 in-flight Promise 去重。
+`getNormalizedCourses` 改為先用原始 `row` 索引做關鍵字/學年/學期/科別比對，取得符合的列索引後只對該頁的 30 筆呼叫 `mapCourseIndexRow_`。另新增 `getCourseIndexStats` action 只回傳總筆數，讓概覽頁不必觸發 `getCourseIndex` 全表讀取。前端在真正進入課程分頁時才抓清單，並以 in-flight Promise 避免相同參數的重複請求。
 
-理由：見效最快且風險最低；不引入 CacheService 是因為 ScriptCache 單值 100 KB 限制與失效策略需額外驗證，先以「延遲映射」消除主要物件配置成本。
+理由：見效最快且風險最低；不引入 CacheService 是因為 ScriptCache 單值 100 KB 限制與失效策略需額外驗證，先以「延遲映射」消除主要物件建立成本。
 
 ### 6. 前端渲染採「差異渲染 + 焦點保存」兩段式修復
 
@@ -68,7 +68,7 @@
 
 ### 7. UI 樣式採「以現有 CSS class 為準」的對齊策略，而非兩份並存
 
-將 JS 產生的 39 個未定義 class 映射到 CSS 既有 class（`upload-dropzone→dropzone`、`modal-header→modal-head`、`modal-footer→modal-foot`、`login-container→login-wrap`、`app-layout→app-shell` 等），補上 `.table`、`.btn.secondary`、分頁與 RWD 規則；同時調整 `--ink-3` 與 `.input:focus` outline 来达到 WCAG AA，並在 CI 加入 class/CSS 對比檢查防止回退。
+將 JS 產生的 39 個未定義 class 映射到 CSS 既有 class（`upload-dropzone→dropzone`、`modal-header→modal-head`、`modal-footer→modal-foot`、`login-container→login-wrap`、`app-layout→app-shell` 等），補上 `.table`、`.btn.secondary`、分頁與 RWD 規則；同時調整 `--ink-3` 與 `.input:focus` outline 來達到 WCAG AA，並在 CI 加入 class/CSS 對比檢查防止回退。
 
 理由：CSS 已有 13 種風格的完整設計系統，新增第二套 class 會讓風格覆寫更難維護。
 
@@ -81,7 +81,7 @@
 ## Risks / Trade-offs
 
 - **[風險] 移除通配授權破壞既有讀取動作** → 明確列舉所有 `getXxx` 與 `logout`，並新增權限矩陣測試逐項驗證 staff/viewer 可 session 還原與登出。
-- **[風險] bootstrap 順序調整影響首次部署體驗** → 保留「白名單為空時可開通」的路徑，但需文件說明首次管理者應先由試算表/部署者預先設定白名單，或由明確的开通入口觸發。
+- **[風險] bootstrap 順序調整影響首次部署體驗** → 保留「白名單為空時可開通」的路徑，但需文件說明首次管理者應先由試算表/部署者預先設定白名單，或由明確的開通入口觸發。
 - **[風險] OAuth nonce 驗證與既有 `state` 編碼不相容** → 新增向後相容解析（舊格式僅含 redirectUri 時降級但不接受敏感寫入），並在文件說明 migrated 行為。
 - **[風險] 深度同構測試因空白/註解差異失敗** → 先以正規化空白比對函式來源，再逐步收斂為逐字相同；對照表與資料列採 `deepStrictEqual`。
 - **[風險] class 對齊造成大範圍 CSS/JS diff** → 以別名規則過渡（新舊 class 並存一段時間），再分批移除舊 class；每次改動後建置並以瀏覽器 mock 模式抽驗。
@@ -97,7 +97,7 @@
 5. **階段四：可維護性與測試防線**：深度同構測試 → 共用模組 → resolver/全域污染/死碼 → action registry/常數 → state.js/mock 測試 → 工具鏈與 CI。
 6. **同步與封存**：`openspec-sync-specs` 同步 7 份 delta 到 main specs → `openspec-archive-change` 封存提案 → 推送分支並發起 Pull Request。
 
-**Rollback 策略**：每個 task 一個 commit，可用 `git revert <hash>` 單獨回退；若某階段造成閘門失敗，先停在该階段修正，不繼續下一階段。
+**Rollback 策略**：每個 task 一個 commit，可用 `git revert <hash>` 單獨回退；若某階段造成閘門失敗，先停在該階段修正，不繼續下一階段。
 
 ## Open Questions
 
