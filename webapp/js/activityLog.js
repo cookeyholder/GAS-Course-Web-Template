@@ -262,34 +262,35 @@
       doc.__meaActivityLogBound = true;
 
       doc.addEventListener("submit", function (event) {
-        const target = event.target;
-        if (!target || target.getAttribute("data-activity-form") !== "search") return;
-        handleSearch(event);
+        const target = event && event.target;
+        if (target && target.getAttribute("data-activity-form") === "search") handleSearch(event);
       });
 
-      doc.addEventListener("click", function (event) {
-        const target = event.target;
-        if (!target || typeof target.closest !== "function") return;
-        const button = target.closest("[data-activity-action]");
+      function handleDocumentClick(event) {
+        const target = event && event.target;
+        const button = target && typeof target.closest === "function" ? target.closest("[data-activity-action]") : null;
         if (!button) return;
         const action = button.getAttribute("data-activity-action");
-        if (action === "refresh") {
-          fetchList(currentState().page);
-          return;
-        }
-        if (action === "reset") {
-          resetSearch();
-          return;
-        }
-        if (action === "page") {
-          const page = parseInt(button.getAttribute("data-page"), 10);
-          if (Number.isFinite(page)) fetchList(page);
-          return;
-        }
-        if (action === "toggle-detail") {
-          toggleDetail(button.getAttribute("data-request-id"));
-        }
-      });
+        const handlers = {
+          refresh: function () {
+            return fetchList(currentState().page);
+          },
+          reset: function () {
+            return resetSearch();
+          },
+          page: function () {
+            const page = parseInt(button.getAttribute("data-page"), 10);
+            return Number.isFinite(page) ? fetchList(page) : undefined;
+          },
+          "toggle-detail": function () {
+            return toggleDetail(button.getAttribute("data-request-id"));
+          }
+        };
+        const handler = handlers[action];
+        if (handler) handler();
+      }
+
+      doc.addEventListener("click", handleDocumentClick);
     }
 
     bindEventsOnce();

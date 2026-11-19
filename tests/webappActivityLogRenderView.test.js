@@ -288,6 +288,84 @@ const result = (async function () {
     console.log("   ✓ 篩選與切換驗證通過！\n");
   }
 
+  console.log("9.1 事件委派應處理重新整理、重設、分頁與詳情展開...");
+  {
+    const ctx = createDeps({
+      activityLog: {
+        list: [],
+        total: 0,
+        page: 2,
+        pageSize: 50,
+        totalPages: 3,
+        startDate: "2026-11-13",
+        endDate: "2026-11-19",
+        email: "",
+        category: "",
+        loading: false,
+        expanded: {}
+      }
+    });
+    const listeners = {};
+    ctx.deps.document = {
+      getElementById: function () {
+        return null;
+      },
+      addEventListener: function (type, handler) {
+        listeners[type] = handler;
+      }
+    };
+    const log = activityLogModule.createActivityLogModule(ctx.deps);
+    assert.strictEqual(typeof listeners.click, "function", "應註冊 click 事件委派");
+    assert.strictEqual(typeof listeners.submit, "function", "應註冊 submit 事件委派");
+
+    function fireClick(attrs) {
+      const button = {
+        getAttribute: function (name) {
+          return Object.prototype.hasOwnProperty.call(attrs, name) ? attrs[name] : null;
+        }
+      };
+      listeners.click({
+        target: {
+          closest: function (selector) {
+            return selector === "[data-activity-action]" ? button : null;
+          }
+        }
+      });
+    }
+
+    await fireClick({ "data-activity-action": "refresh" });
+    assert(
+      ctx.calls.apiCalls.some(function (call) {
+        return call.payload.page === 2;
+      }),
+      "重新整理應帶入目前頁碼"
+    );
+
+    ctx.state.activityLog.email = "x@example.edu.tw";
+    await fireClick({ "data-activity-action": "reset" });
+    assert.strictEqual(ctx.state.activityLog.email, "");
+
+    await fireClick({ "data-activity-action": "page", "data-page": "3" });
+    assert(
+      ctx.calls.apiCalls.some(function (call) {
+        return call.payload.page === 3;
+      }),
+      "分頁點擊應查詢目標頁"
+    );
+
+    fireClick({ "data-activity-action": "toggle-detail", "data-request-id": "req-evt" });
+    assert.strictEqual(ctx.state.activityLog.expanded["req-evt"], true);
+
+    listeners.click({
+      target: {
+        closest: function () {
+          return null;
+        }
+      }
+    });
+    console.log("   ✓ 事件委派驗證通過！\n");
+  }
+
   console.log("10. Asia/Taipei 日期格式化...");
   {
     const utcDate = new Date("2026-11-19T16:30:00Z");

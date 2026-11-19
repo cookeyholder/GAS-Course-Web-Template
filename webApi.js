@@ -1083,6 +1083,84 @@ function resolveActivityLogDateRange_(payload) {
   };
 }
 
+function buildEmptyActivityLogResult_(range, page, pageSize) {
+  return {
+    ok: true,
+    rows: [],
+    total: 0,
+    page: page,
+    pageSize: pageSize,
+    startDate: range.startDate,
+    endDate: range.endDate
+  };
+}
+
+function normalizeActivityLogDuration_(rawDuration) {
+  if (rawDuration === "" || rawDuration === null || rawDuration === undefined) return null;
+  const parsedDuration = Number(rawDuration);
+  return isFinite(parsedDuration) ? parsedDuration : null;
+}
+
+function buildActivityLogRowItem_(cells, rowIndex) {
+  return {
+    _rowIndex: rowIndex,
+    timestamp: normalizeActivityLogTimestamp_(cells[0]),
+    requestId: String(cells[1] || ""),
+    category: String(cells[2] || ""),
+    action: String(cells[3] || ""),
+    result: String(cells[4] || ""),
+    email: String(cells[5] || ""),
+    name: String(cells[6] || ""),
+    role: String(cells[7] || ""),
+    summary: String(cells[8] || ""),
+    detail: String(cells[9] || ""),
+    durationMs: normalizeActivityLogDuration_(cells[10]),
+    errorCode: String(cells[11] || "")
+  };
+}
+
+function matchActivityLogRow_(item, range, filters, state) {
+  if (item.timestamp < range.start) {
+    state.crossedRangeStart = true;
+    return false;
+  }
+  if (item.timestamp > range.end) return false;
+  if (filters.categoryFilter && item.category.toLowerCase() !== filters.categoryFilter) return false;
+  if (filters.emailFilter && item.email.toLowerCase().indexOf(filters.emailFilter) === -1) return false;
+  return true;
+}
+
+function collectActivityLogMatches_(sheet, lastRow, range, filters) {
+  const dataRowCount = lastRow - 1;
+  const maxScanRows = Math.min(dataRowCount, ACTIVITY_LOG_MAX_SCAN_ROWS);
+  const state = {
+    scannedRows: 0,
+    cursor: lastRow,
+    crossedRangeStart: false,
+    readAfterCross: false,
+    matched: []
+  };
+
+  while (state.cursor >= 2 && state.scannedRows < maxScanRows && !(state.crossedRangeStart && state.readAfterCross)) {
+    const batchSize = Math.min(ACTIVITY_LOG_SCAN_BATCH_SIZE, state.cursor - 1, maxScanRows - state.scannedRows);
+    const batchStart = state.cursor - batchSize + 1;
+    const values = sheet.getRange(batchStart, 1, batchSize, 12).getValues() || [];
+    state.scannedRows += batchSize;
+    state.cursor = batchStart - 1;
+    if (state.crossedRangeStart) state.readAfterCross = true;
+
+    for (let i = values.length - 1; i >= 0; i -= 1) {
+      const cells = Array.isArray(values[i]) ? values[i] : [];
+      const item = buildActivityLogRowItem_(cells, batchStart + i);
+      if (matchActivityLogRow_(item, range, filters, state)) {
+        state.matched.push(item);
+      }
+    }
+  }
+
+  return { matched: state.matched, scannedRows: state.scannedRows, dataRowCount: dataRowCount };
+}
+
 /**
  * 受保護 action：getActivityLog（僅管理員）。
  * 回傳依時間遞減排序的分頁日誌，單次最多 500 筆。
@@ -1099,15 +1177,7 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
     ACTIVITY_LOG_PAGE_SIZE_MAX,
     Math.max(1, parseInt(source.pageSize, 10) || ACTIVITY_LOG_PAGE_SIZE_DEFAULT)
   );
-  const emptyResult = {
-    ok: true,
-    rows: [],
-    total: 0,
-    page: page,
-    pageSize: pageSize,
-    startDate: range.startDate,
-    endDate: range.endDate
-  };
+  const emptyResult = buildEmptyActivityLogResult_(range, page, pageSize);
   const targetSs = ss || getRouteSpreadsheet_();
   const sheet =
     targetSs && typeof targetSs.getSheetByName === "function"
@@ -1118,72 +1188,17 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
   }
   const lastRow = Math.max(0, Number(sheet.getLastRow()) || 0);
   if (lastRow < 2) return emptyResult;
-  const emailFilter = String(source.email || "")
-    .trim()
-    .toLowerCase();
-  const categoryFilter = String(source.category || "")
-    .trim()
-    .toLowerCase();
 
-  const dataRowCount = lastRow - 1;
-  const maxScanRows = Math.min(dataRowCount, ACTIVITY_LOG_MAX_SCAN_ROWS);
-  let scannedRows = 0;
-  let cursor = lastRow;
-  let crossedRangeStart = false;
-  let readAfterCross = false;
-  const matched = [];
-
-  while (cursor >= 2 && scannedRows < maxScanRows && !(crossedRangeStart && readAfterCross)) {
-    const batchSize = Math.min(ACTIVITY_LOG_SCAN_BATCH_SIZE, cursor - 1, maxScanRows - scannedRows);
-    const batchStart = cursor - batchSize + 1;
-    const values = sheet.getRange(batchStart, 1, batchSize, 12).getValues() || [];
-    scannedRows += batchSize;
-    cursor = batchStart - 1;
-    if (crossedRangeStart) readAfterCross = true;
-
-    for (let i = values.length - 1; i >= 0; i -= 1) {
-      const cells = Array.isArray(values[i]) ? values[i] : [];
-      const timestamp = normalizeActivityLogTimestamp_(cells[0]);
-      if (timestamp < range.start) {
-        crossedRangeStart = true;
-        continue;
-      }
-      if (timestamp > range.end) continue;
-
-      const rowCategory = String(cells[2] || "");
-      if (categoryFilter && rowCategory.toLowerCase() !== categoryFilter) continue;
-      if (
-        emailFilter &&
-        String(cells[5] || "")
-          .toLowerCase()
-          .indexOf(emailFilter) === -1
-      )
-        continue;
-
-      const rawDuration = cells[10];
-      let durationMs = null;
-      if (!(rawDuration === "" || rawDuration === null || rawDuration === undefined)) {
-        const parsedDuration = Number(rawDuration);
-        durationMs = isFinite(parsedDuration) ? parsedDuration : null;
-      }
-
-      matched.push({
-        _rowIndex: batchStart + i,
-        timestamp: timestamp,
-        requestId: String(cells[1] || ""),
-        category: rowCategory,
-        action: String(cells[3] || ""),
-        result: String(cells[4] || ""),
-        email: String(cells[5] || ""),
-        name: String(cells[6] || ""),
-        role: String(cells[7] || ""),
-        summary: String(cells[8] || ""),
-        detail: String(cells[9] || ""),
-        durationMs: durationMs,
-        errorCode: String(cells[11] || "")
-      });
-    }
-  }
+  const filters = {
+    emailFilter: String(source.email || "")
+      .trim()
+      .toLowerCase(),
+    categoryFilter: String(source.category || "")
+      .trim()
+      .toLowerCase()
+  };
+  const collected = collectActivityLogMatches_(sheet, lastRow, range, filters);
+  const matched = collected.matched;
 
   matched.sort(function (a, b) {
     if (a.timestamp < b.timestamp) return 1;
@@ -1197,7 +1212,8 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
     return copy;
   });
 
-  const truncated = scannedRows >= ACTIVITY_LOG_MAX_SCAN_ROWS && dataRowCount > ACTIVITY_LOG_MAX_SCAN_ROWS;
+  const truncated =
+    collected.scannedRows >= ACTIVITY_LOG_MAX_SCAN_ROWS && collected.dataRowCount > ACTIVITY_LOG_MAX_SCAN_ROWS;
   const result = {
     ok: true,
     rows: rows,
