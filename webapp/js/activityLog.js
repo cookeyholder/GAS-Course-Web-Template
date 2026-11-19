@@ -27,6 +27,13 @@
     require("./errorMessages.js");
   }
 
+  /** 後端已明確定義的錯誤代碼文案（查詢日誌專用） */
+  const SAFE_ERROR_MESSAGES = {
+    invalid_date_range: "日期格式不正確或日期區間無效",
+    forbidden: "您的帳號沒有存取操作日誌的權限",
+    unauthorized: "登入狀態已失效，請重新登入"
+  };
+
   /** 事件類別顯示名稱（與後端 logCategory 一致） */
   const CATEGORY_LABELS = {
     auth: "身份驗證",
@@ -197,7 +204,9 @@
         .catch(function (error) {
           const cur = currentState();
           MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
-          MEA.ui.toast(resolveSafeMessage(error, "讀取操作日誌失敗，請稍後再試"), "err");
+          const known = resolveSafeMessage(error, null);
+          const fallback = SAFE_ERROR_MESSAGES[error && error.code] || "讀取操作日誌失敗，請稍後再試";
+          MEA.ui.toast(known || fallback, "err");
           return null;
         });
     }

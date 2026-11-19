@@ -1018,22 +1018,59 @@ function normalizeActivityLogTimestamp_(value) {
 }
 
 /**
+ * 驗證日期字串是否為真實存在的 yyyy-MM-dd 日期。
+ * 以 UTC 解析後比對回原字串，避免 2026-13-40 等溢位日期被接受。
+ *
+ * @param {string} dateStr - 日期字串
+ * @returns {boolean} 是否為有效日期
+ */
+function isValidActivityLogDate_(dateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const parsed = new Date(dateStr + "T00:00:00Z");
+  if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== dateStr) return false;
+  const year = parseInt(dateStr.slice(0, 4), 10);
+  return year >= 1970 && year <= 2100;
+}
+
+/**
  * 解析操作日誌查詢的時間區間，預設最近 7 天（含端點）。
+ * 使用者提供的日期若格式或實際日期無效、或起訖顛倒，回傳明確錯誤，不回退預設值。
  *
  * @param {Object} payload - 請求 payload
- * @returns {Object} `{ startDate, endDate, start, end }`
+ * @returns {Object} `{ startDate, endDate, start, end }` 或 `webApiError` 物件
  */
 function resolveActivityLogDateRange_(payload) {
   const source = payload || {};
   const now = new Date();
-  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-  const requestedEnd = String(source.endDate || "").slice(0, 10);
-  const requestedStart = String(source.startDate || "").slice(0, 10);
-  const endDate = datePattern.test(requestedEnd) ? requestedEnd : formatTaipeiDate_(now);
-  const defaultStart = formatTaipeiDate_(
-    new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000)
-  );
-  const startDate = datePattern.test(requestedStart) ? requestedStart : defaultStart;
+  const rawEnd = source.endDate === undefined || source.endDate === null ? "" : String(source.endDate).trim();
+  const rawStart = source.startDate === undefined || source.startDate === null ? "" : String(source.startDate).trim();
+
+  let endDate;
+  if (rawEnd === "") {
+    endDate = formatTaipeiDate_(now);
+  } else {
+    const candidate = rawEnd.slice(0, 10);
+    if (!isValidActivityLogDate_(candidate)) {
+      return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
+    }
+    endDate = candidate;
+  }
+
+  let startDate;
+  if (rawStart === "") {
+    startDate = formatTaipeiDate_(new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000));
+  } else {
+    const candidate = rawStart.slice(0, 10);
+    if (!isValidActivityLogDate_(candidate)) {
+      return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
+    }
+    startDate = candidate;
+  }
+
+  if (startDate > endDate) {
+    return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
+  }
+
   return {
     startDate: startDate,
     endDate: endDate,
@@ -1052,6 +1089,7 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
   }
   const source = payload || {};
   const range = resolveActivityLogDateRange_(source);
+  if (range && range.ok === false) return range;
   const page = Math.max(1, parseInt(source.page, 10) || 1);
   const pageSize = Math.min(
     ACTIVITY_LOG_PAGE_SIZE_MAX,

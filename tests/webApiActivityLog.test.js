@@ -942,4 +942,53 @@ console.log("22. 失敗請求應清除誤導變動並保留匯入統計標記...
   console.log("   ✓ 失敗請求變動清除與統計保留驗證通過！\n");
 }
 
+console.log("23. 無效日期區間應回傳明確錯誤且不回退預設值...");
+{
+  const emptySheet = {
+    getLastRow: function () {
+      return 1;
+    },
+    getRange: function () {
+      throw new Error("不應讀取工作表");
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return emptySheet;
+    }
+  };
+  const cases = [
+    { label: "月份與日期溢位", payload: { startDate: "2026-13-40", endDate: "2026-11-19" } },
+    { label: "不存在的日期", payload: { startDate: "2026-02-30", endDate: "2026-11-19" } },
+    { label: "起訖顛倒", payload: { startDate: "2026-11-20", endDate: "2026-11-10" } },
+    { label: "年份過小", payload: { startDate: "1969-12-31", endDate: "2026-11-19" } },
+    { label: "年份過大", payload: { startDate: "2026-11-19", endDate: "2101-01-01" } }
+  ];
+  cases.forEach(function (item) {
+    const result = api.handleGetActivityLogWebApiAction(item.payload, { role: "admin" }, ss);
+    assert.strictEqual(result.ok, false, item.label + " 應回傳失敗");
+    assert.strictEqual(result.error, "invalid_date_range", item.label + " 應回傳 invalid_date_range");
+    assert(result.message && result.message.indexOf("日期") !== -1, item.label + " 應提供明確訊息");
+  });
+
+  // 省略日期仍應回退預設值（含端點）
+  const fallback = api.handleGetActivityLogWebApiAction(
+    {},
+    { role: "admin" },
+    {
+      getSheetByName: function () {
+        return {
+          getLastRow: function () {
+            return 1;
+          }
+        };
+      }
+    }
+  );
+  assert.strictEqual(fallback.ok, true);
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(fallback.startDate));
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(fallback.endDate));
+  console.log("   ✓ 無效日期區間驗證通過！\n");
+}
+
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");
