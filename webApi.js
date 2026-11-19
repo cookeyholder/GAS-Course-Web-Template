@@ -33,6 +33,9 @@ if (typeof require !== "undefined") {
 const WEB_API_VERSION = "1.1.0";
 const WEB_API_SESSION_TTL_SECONDS = 21600; // 6 小時
 const WEB_API_LOCK_TIMEOUT_MS = 15000;
+const OAUTH_STATE_NONCE_CACHE_PREFIX = "gas_tmpl_oauth_nonce_";
+const OAUTH_STATE_NONCE_TTL_SECONDS = 600;
+const WEB_API_MEMORY_NONCES = {};
 
 /** 免登入即可呼叫的公開 action */
 const WEB_API_PUBLIC_ACTIONS = ["getPublicConfig", "ping", "login", "loginWithActiveUser"];
@@ -423,20 +426,94 @@ function decodeOAuthState_(raw) {
   return "";
 }
 
+/**
+ * 解析 OAuth state；回傳 { nonce, redirectUri }，舊格式或非物件回傳 null。
+ */
+function parseOAuthState_(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+  try {
+    const decoded = decodeOAuthState_(text);
+    if (!decoded || decoded.charAt(0) !== "{") return null;
+    const parsed = JSON.parse(decoded);
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object") return null;
+    return {
+      nonce: typeof parsed.nonce === "string" ? parsed.nonce.trim() : "",
+      redirectUri: typeof parsed.redirectUri === "string" ? parsed.redirectUri.trim() : ""
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
 function resolveOAuthRedirectUri(state, fallbackUrl) {
   const fallback = String(fallbackUrl || "").trim();
-  const raw = String(state || "").trim();
-  if (!raw) return fallback;
+  const parsed = parseOAuthState_(state);
+  if (!parsed) return fallback;
+  return isAllowedOAuthRedirectUri(parsed.redirectUri) ? parsed.redirectUri : fallback;
+}
 
-  try {
-    const decoded = decodeOAuthState_(raw);
-    if (!decoded || decoded.charAt(0) !== "{") return fallback;
-    const parsed = JSON.parse(decoded);
-    const candidate = String((parsed && parsed.redirectUri) || "").trim();
-    return isAllowedOAuthRedirectUri(candidate) ? candidate : fallback;
-  } catch (e) {
-    return fallback;
+/**
+ * 取得 nonce 一次性消耗的快取；GAS 用 CacheService，Node 測試用記憶體備援。
+ */
+function getOAuthNonceCache_(deps) {
+  if (
+    deps &&
+    deps.nonceCache &&
+    typeof deps.nonceCache.get === "function" &&
+    typeof deps.nonceCache.put === "function"
+  ) {
+    return deps.nonceCache;
   }
+  if (typeof CacheService !== "undefined" && CacheService.getScriptCache) {
+    return CacheService.getScriptCache();
+  }
+  return {
+    get: function (key) {
+      return WEB_API_MEMORY_NONCES[key] || null;
+    },
+    put: function (key, value) {
+      WEB_API_MEMORY_NONCES[key] = value;
+    }
+  };
+}
+
+/**
+ * 一次性消耗 nonce；重放或格式異常時回傳 false。
+ */
+function consumeOAuthNonce_(nonce, deps) {
+  const clean = String(nonce || "").trim();
+  if (clean.length < 8 || clean.length > 256) return false;
+  const cache = getOAuthNonceCache_(deps);
+  const key = OAUTH_STATE_NONCE_CACHE_PREFIX + clean;
+  try {
+    if (cache.get(key)) return false;
+    cache.put(key, "1", OAUTH_STATE_NONCE_TTL_SECONDS);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
+ * 驗證 OAuth 回呼的 state：nonce 必須存在且未使用，redirectUri 必須與設定相符。
+ */
+function validateOAuthCallbackState_(state, expectedRedirectUri, deps) {
+  const parsed = parseOAuthState_(state);
+  if (!parsed || !parsed.nonce) {
+    return webApiError("invalid_oauth_state", "OAuth 狀態參數無效，請重新發起登入");
+  }
+  const expected = String(expectedRedirectUri || "").trim();
+  if (!parsed.redirectUri || !isAllowedOAuthRedirectUri(parsed.redirectUri)) {
+    return webApiError("invalid_oauth_state", "OAuth 導向網址不受信任，請重新發起登入");
+  }
+  if (expected && parsed.redirectUri !== expected) {
+    return webApiError("oauth_redirect_mismatch", "OAuth 導向網址與系統設定不符，請重新發起登入");
+  }
+  if (!consumeOAuthNonce_(parsed.nonce, deps)) {
+    return webApiError("oauth_nonce_reused", "登入狀態已使用或過期，請重新發起登入");
+  }
+  return { ok: true, redirectUri: parsed.redirectUri };
 }
 
 function getOAuthSpreadsheet_(deps) {
@@ -515,13 +592,18 @@ function buildTokenExchangeFailure_(statusCode, tokenData) {
   );
 }
 
-function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss) {
+function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss, stateContext) {
   const verifyFn =
     deps && typeof deps.verifyGoogleIdToken === "function" ? deps.verifyGoogleIdToken : verifyGoogleIdToken;
   const createSessionFn =
     deps && typeof deps.createSessionForEmail === "function" ? deps.createSessionForEmail : createSessionForEmail;
   const verification = verifyFn(tokenData.id_token, clientId, settings.allowedLoginDomain);
   if (!verification.ok) return verification;
+
+  const context = stateContext || {};
+  const stateValidation = validateOAuthCallbackState_(context.state, context.expectedRedirectUri, deps);
+  if (!stateValidation.ok) return stateValidation;
+
   return createSessionFn(verification.email, verification.name, { spreadsheet: ss, allowBootstrap: true });
 }
 
@@ -568,7 +650,10 @@ function handleOAuthCodeCallback(code, e, deps) {
       return buildTokenExchangeFailure_(response.statusCode, tokenData);
     }
 
-    return verifyAndCreateOAuthSession_(context, tokenData, clientId, settings, ss);
+    return verifyAndCreateOAuthSession_(context, tokenData, clientId, settings, ss, {
+      state: e && e.parameter ? e.parameter.state : "",
+      expectedRedirectUri: getOAuthWebAppUrl_(context)
+    });
   } catch (error) {
     return webApiError(
       "token_exchange_error",
@@ -976,6 +1061,9 @@ if (typeof module !== "undefined" && module.exports) {
     isAllowedGoogleDomain: isAllowedGoogleDomain,
     isAllowedOAuthRedirectUri: isAllowedOAuthRedirectUri,
     resolveOAuthRedirectUri: resolveOAuthRedirectUri,
+    parseOAuthState: parseOAuthState_,
+    consumeOAuthNonce: consumeOAuthNonce_,
+    validateOAuthCallbackState: validateOAuthCallbackState_,
     createSessionForEmail: createSessionForEmail,
     verifyGoogleIdToken: verifyGoogleIdToken,
     loginWithGoogleIdToken: loginWithGoogleIdToken,

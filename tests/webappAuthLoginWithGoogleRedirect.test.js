@@ -72,6 +72,59 @@ function run() {
   assert(url.indexOf("&state=") !== -1);
   console.log("2. Google 授權網址與狀態編碼純函式 ✓\n");
 
+  const memoryStore = {};
+  const sessionStorage = {
+    getItem: function (key) {
+      return Object.prototype.hasOwnProperty.call(memoryStore, key) ? memoryStore[key] : null;
+    },
+    setItem: function (key, value) {
+      memoryStore[key] = String(value);
+    },
+    removeItem: function (key) {
+      delete memoryStore[key];
+    }
+  };
+  const cryptoObj = {
+    getRandomValues: function (bytes) {
+      for (let i = 0; i < bytes.length; i++) bytes[i] = (i + 1) * 17;
+      return bytes;
+    }
+  };
+  const cryptoState = authModule.encodeAuthState("https://gas.test/app", {
+    btoa: fakeBtoa,
+    crypto: cryptoObj,
+    sessionStorage: sessionStorage
+  });
+  const cryptoDecoded = JSON.parse(Buffer.from(cryptoState, "base64").toString("utf8"));
+  assert.strictEqual(cryptoDecoded.nonce.length, 32);
+  assert.deepStrictEqual(authModule.readAuthState({ sessionStorage: sessionStorage }), {
+    nonce: cryptoDecoded.nonce,
+    redirectUri: "https://gas.test/app"
+  });
+  assert.strictEqual(authModule.clearAuthState({ sessionStorage: sessionStorage }), true);
+  assert.strictEqual(authModule.readAuthState({ sessionStorage: sessionStorage }), null);
+  assert.strictEqual(authModule.saveAuthState("n", "https://gas.test/app", {}), false);
+  assert.strictEqual(authModule.readAuthState({}), null);
+
+  // 覆蓋預設參數、時間回退與儲存內容異常分支
+  assert.strictEqual(authModule.saveAuthState("n", "https://gas.test/app"), false);
+  assert.strictEqual(authModule.readAuthState(), null);
+  assert.strictEqual(authModule.clearAuthState(), false);
+  assert.strictEqual(authModule.encodeAuthState("https://gas.test/app"), "");
+  assert(
+    authModule.encodeAuthState("https://gas.test/app", {
+      btoa: fakeBtoa,
+      random: function () {
+        return 0.5;
+      }
+    }).length > 0
+  );
+  sessionStorage.setItem("gas_tmpl_oauth_state", "{}");
+  assert.strictEqual(authModule.readAuthState({ sessionStorage: sessionStorage }), null);
+  sessionStorage.setItem("gas_tmpl_oauth_state", "{bad json");
+  assert.strictEqual(authModule.readAuthState({ sessionStorage: sessionStorage }), null);
+  console.log("2.1 Web Crypto nonce 與 sessionStorage 保存驗證 ✓\n");
+
   const ctx = createDeps();
   const auth = authModule.createAuthController(ctx.deps);
   auth.loginWithGoogleRedirect();

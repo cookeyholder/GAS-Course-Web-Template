@@ -8497,6 +8497,7 @@ window.MEA = window.MEA || {};
   const MISSING_CLIENT_ID_ERROR = "尚未設定 OAuth Client ID，請系統管理員先於「系統設定」完成設定";
   const MISSING_CLIENT_SECRET_ERROR = "尚未設定 OAuth Client Secret，請系統管理員先於「系統設定」完成設定";
   const MISSING_WEBAPP_URL_ERROR = "無法取得 Web App 網址，請確認部署狀態後重新整理頁面";
+  const OAUTH_STATE_STORAGE_KEY = "gas_tmpl_oauth_state";
   const MISSING_CHOOSER_URL_ERROR = "無法建立 Google 帳戶切換網址，請稍後再試";
   const BOOTSTRAP_TOAST_MESSAGE = "初次登入已自動開通系統管理員權限！";
 
@@ -8558,23 +8559,82 @@ window.MEA = window.MEA || {};
   // 純函式：網址建立與導向
   // ---------------------------------------------------------------------------
 
-  function encodeAuthState(redirectUri, options) {
-    const settings = options || {};
-    try {
-      if (typeof settings.btoa !== "function") return "";
-      const random =
-        typeof settings.random === "function"
-          ? settings.random
-          : function () {
-              return Math.random();
-            };
+  /** 產生不可預測的 nonce：注入的 random 優先，其次 Web Crypto，最後為時間亂數備援。 */
+  function buildAuthNonce_(settings) {
+    if (typeof settings.random === "function") {
       const now =
         typeof settings.now === "function"
           ? settings.now
           : function () {
               return Date.now();
             };
-      const nonce = random().toString(36).substring(2) + now().toString(36);
+      return settings.random().toString(36).substring(2) + now().toString(36);
+    }
+    const cryptoObj =
+      settings.crypto || (typeof globalThis !== "undefined" && globalThis.crypto ? globalThis.crypto : null);
+    if (cryptoObj && typeof cryptoObj.getRandomValues === "function") {
+      const bytes = new Uint8Array(16);
+      cryptoObj.getRandomValues(bytes);
+      let hex = "";
+      for (let i = 0; i < bytes.length; i++) {
+        hex += ("0" + bytes[i].toString(16)).slice(-2);
+      }
+      return hex;
+    }
+    return String(Date.now()) + Math.random().toString(36).substring(2);
+  }
+
+  function getAuthStateStorage_(settings) {
+    if (settings.sessionStorage) return settings.sessionStorage;
+    if (typeof globalThis !== "undefined" && globalThis.sessionStorage) return globalThis.sessionStorage;
+    return null;
+  }
+
+  /** 保存 nonce 與 redirectUri 供回呼比對。 */
+  function saveAuthState(nonce, redirectUri, options) {
+    const storage = getAuthStateStorage_(options || {});
+    if (!storage || typeof storage.setItem !== "function") return false;
+    try {
+      storage.setItem(OAUTH_STATE_STORAGE_KEY, JSON.stringify({ nonce: nonce, redirectUri: redirectUri }));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  /** 讀取先前保存的 OAuth state。 */
+  function readAuthState(options) {
+    const storage = getAuthStateStorage_(options || {});
+    if (!storage || typeof storage.getItem !== "function") return null;
+    try {
+      const raw = storage.getItem(OAUTH_STATE_STORAGE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || typeof parsed.nonce !== "string" || typeof parsed.redirectUri !== "string") return null;
+      return { nonce: parsed.nonce, redirectUri: parsed.redirectUri };
+    } catch (error) {
+      return null;
+    }
+  }
+
+  /** 一次性清除已保存的 OAuth state。 */
+  function clearAuthState(options) {
+    const storage = getAuthStateStorage_(options || {});
+    if (!storage || typeof storage.removeItem !== "function") return false;
+    try {
+      storage.removeItem(OAUTH_STATE_STORAGE_KEY);
+      return true;
+    } catch (error) {
+      return false;
+    }
+  }
+
+  function encodeAuthState(redirectUri, options) {
+    const settings = options || {};
+    try {
+      if (typeof settings.btoa !== "function") return "";
+      const nonce = buildAuthNonce_(settings);
+      saveAuthState(nonce, redirectUri, settings);
       return settings.btoa(JSON.stringify({ nonce: nonce, redirectUri: redirectUri }));
     } catch (error) {
       return "";
@@ -8999,6 +9059,9 @@ window.MEA = window.MEA || {};
     applyCsrfToken: applyCsrfToken,
     invokeFetchCourses: invokeFetchCourses,
     encodeAuthState: encodeAuthState,
+    saveAuthState: saveAuthState,
+    readAuthState: readAuthState,
+    clearAuthState: clearAuthState,
     buildGoogleAuthUrl: buildGoogleAuthUrlWithOptions,
     buildChooserContinueUrl: buildChooserContinueUrl,
     normalizeAllowedDomain: normalizeAllowedDomain,
