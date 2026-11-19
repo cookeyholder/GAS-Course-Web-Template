@@ -115,7 +115,7 @@ const DETAIL_BUILDERS = {
   },
   auth: {
     captureBefore: null,
-    describe: function (before, after, payload) {
+    describe: function (before, payload) {
       const safe = projectPayload_(payload);
       const useActiveUser = safe.useActiveUser === true || safe.action === "loginWithActiveUser";
       return {
@@ -127,7 +127,7 @@ const DETAIL_BUILDERS = {
   },
   importCourseCodes: {
     captureBefore: null,
-    describe: function (before, after, payload, result) {
+    describe: function (before, payload, result) {
       const stats = result && typeof result.stats === "object" ? result.stats : null;
       if (!stats) {
         return {
@@ -151,7 +151,7 @@ const DETAIL_BUILDERS = {
   },
   query: {
     captureBefore: null,
-    describe: function (before, after, payload, result) {
+    describe: function (before, payload, result) {
       const safe = projectPayload_(payload);
       return {
         指標: {
@@ -178,7 +178,7 @@ const DETAIL_BUILDERS = {
         return null;
       }
     },
-    describe: function (before, after, payload) {
+    describe: function (before, payload) {
       const incoming = (payload && payload.settings) || {};
       const changes = [];
       Object.keys(SYSTEM_SETTING_LABELS).forEach(function (key) {
@@ -202,7 +202,7 @@ const DETAIL_BUILDERS = {
         return null;
       }
     },
-    describe: function (before, after, payload, result) {
+    describe: function (before, payload, result) {
       // accounts 非陣列屬無效請求，不得解讀為「清空名單」而產生移除變動
       if (!Array.isArray(payload && payload.accounts)) {
         return {
@@ -289,14 +289,13 @@ function captureBefore(detailKey, ss) {
  *
  * @param {string} detailKey - 詳情鍵
  * @param {*} before - 變動前快照
- * @param {*} after - 變動後快照（目前保留參數以供未來擴充）
  * @param {Object} payload - 原始請求 payload（由各產生器自行過濾敏感欄位）
  * @param {Object} result - handler 回傳結果
  * @returns {Object} 版本化詳情物件
  */
-function describe(detailKey, before, after, payload, result) {
+function describe(detailKey, before, payload, result) {
   const builder = getBuilder(detailKey);
-  const detail = builder.describe(before, after, payload, result) || {};
+  const detail = builder.describe(before, payload, result) || {};
   return {
     版本: ACTIVITY_DETAIL_VERSION,
     動作: (payload && payload.action) || detailKey,

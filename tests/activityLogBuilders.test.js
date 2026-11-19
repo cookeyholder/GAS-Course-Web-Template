@@ -30,7 +30,7 @@ function withGlobals(temp, fn) {
 
 console.log("1. 詳情應含版本號且預設產生器回退正常...");
 {
-  const detail = builders.describe("unknown-key", null, null, { action: "test" }, {});
+  const detail = builders.describe("unknown-key", null, { action: "test" }, {});
   assert.strictEqual(detail.版本, builders.ACTIVITY_DETAIL_VERSION);
   assert.strictEqual(detail.動作, "test");
   assert.deepStrictEqual(detail.指標, {});
@@ -42,7 +42,6 @@ console.log("2. 驗證失敗（無 stats）應明確標記統計不適用...");
 {
   const detail = builders.describe(
     "importCourseCodes",
-    null,
     null,
     { action: "importCourseCodes" },
     { ok: false, error: " validation " }
@@ -56,7 +55,6 @@ console.log("3. 匯入成功應記錄上傳與展開筆數（展開筆數取自 
 {
   const detail = builders.describe(
     "importCourseCodes",
-    null,
     null,
     { action: "importCourseCodes" },
     {
@@ -83,7 +81,6 @@ console.log("4. 缺少 result.rows 時應回退至 stats.expandedRows...");
   const detail = builders.describe(
     "importCourseCodes",
     null,
-    null,
     { action: "importCourseCodes" },
     {
       ok: true,
@@ -99,7 +96,6 @@ console.log("5. 冪等命中應明確標記且不誤寫統計...");
   const detail = builders.describe(
     "importCourseCodes",
     null,
-    null,
     { action: "importCourseCodes" },
     { idempotent: true, ok: true }
   );
@@ -112,7 +108,6 @@ console.log("6. 查詢動作僅記錄篩選、分頁與回傳筆數...");
 {
   const detail = builders.describe(
     "query",
-    null,
     null,
     { action: "getCourseIndex", page: 2, pageSize: 50, category: "A" },
     { ok: true, rows: [{ code: "A1" }], total: 7 }
@@ -144,7 +139,6 @@ console.log("7. 系統設定應產生欄位級 before/after 明細且排除敏�
       return builders.describe(
         "systemSettings",
         snapshot,
-        null,
         {
           action: "saveSystemSettings",
           csrfToken: "CSRF-SECRET",
@@ -183,7 +177,6 @@ console.log("8. 白名單應記錄新增與移除成員...");
       return builders.describe(
         "whitelist",
         snapshot,
-        null,
         {
           action: "saveWhitelist",
           accounts: [{ email: "B@example.com" }, { email: "c@example.com" }]
@@ -207,7 +200,6 @@ console.log("8.1 白名單 accounts 非陣列時不拋錯且回傳空變動...")
     const detail = builders.describe(
       "whitelist",
       [{ email: "old@example.com" }],
-      null,
       { action: "saveWhitelist", accounts: value },
       { ok: true }
     );
@@ -223,7 +215,6 @@ console.log("9. 敏感欄位與原始資料不得進入任何詳情...");
 {
   const detail = builders.describe(
     "auth",
-    null,
     null,
     {
       action: "login",
@@ -273,7 +264,6 @@ console.log("10. 詳情超限時應逐級降級且各級皆為可解析 JSON..."
   const queryDetail = builders.describe(
     "query",
     null,
-    null,
     { action: "getActivityLog", category: longCategory, page: 1, pageSize: 50 },
     { ok: true, rows: [], total: 0 }
   );
@@ -288,7 +278,6 @@ console.log("10. 詳情超限時應逐級降級且各級皆為可解析 JSON..."
   const emailDetail = builders.describe(
     "query",
     null,
-    null,
     { action: "getActivityLog", email: longEmail },
     { ok: true, rows: [] }
   );
@@ -298,7 +287,7 @@ console.log("10. 詳情超限時應逐級降級且各級皆為可解析 JSON..."
 
   // 第三級：超長 action 使前兩級仍超限，只留版本／動作（含上限）／截斷
   const longAction = "a".repeat(limit + 200);
-  const actionDetail = builders.describe("unknown-key", null, null, { action: longAction }, {});
+  const actionDetail = builders.describe("unknown-key", null, { action: longAction }, {});
   const level3 = assertValid(builders.truncateDetailToLimit(JSON.stringify(actionDetail)), "第三級");
   assert.strictEqual(level3.指標, undefined, "第三級應捨棄指標");
   assert(level3.動作.length > 0 && level3.動作.length < longAction.length, "動作應被截短但仍保留部分內容");
@@ -310,7 +299,7 @@ console.log("10. 詳情超限時應逐級降級且各級皆為可解析 JSON..."
   assert.strictEqual(minimal.變動, undefined);
 
   // 未超限的詳情應原樣回傳，不標註截斷
-  const normal = builders.describe("auth", null, null, { action: "login" }, { ok: true });
+  const normal = builders.describe("auth", null, { action: "login" }, { ok: true });
   const normalText = builders.truncateDetailToLimit(JSON.stringify(normal));
   assert.strictEqual(normalText, JSON.stringify(normal), "未超限不應變更詳情");
   assert.strictEqual(JSON.parse(normalText).截斷, undefined);

@@ -350,10 +350,10 @@ console.log("14. 寫入動作應擷取快照並傳遞原始 payload 給產生器
   const rows = [];
   let captureIndex = 0;
   const fakeBuilders = {
-    captureBefore: function () {
+    captureBefore: function (detailKey) {
       const snapshot = "snap-" + captureIndex;
       captureIndex += 1;
-      calls.push(["capture", snapshot]);
+      calls.push(["capture", detailKey, snapshot]);
       return snapshot;
     },
     projectPayload: function (payload) {
@@ -361,8 +361,8 @@ console.log("14. 寫入動作應擷取快照並傳遞原始 payload 給產生器
       if (payload && payload.action) projected.action = payload.action;
       return projected;
     },
-    describe: function (detailKey, before, after, payload, result) {
-      calls.push(["describe", detailKey, before, after, payload]);
+    describe: function (detailKey, before, payload, result) {
+      calls.push(["describe", detailKey, before, payload]);
       return { 版本: 1, 動作: payload.action, 指標: {}, 變動: [] };
     }
   };
@@ -390,13 +390,12 @@ console.log("14. 寫入動作應擷取快照並傳遞原始 payload 給產生器
       }
     );
   });
-  assert.deepStrictEqual(calls[0], ["capture", "snap-0"]);
-  assert.deepStrictEqual(calls[1], ["capture", "snap-1"]);
-  assert.strictEqual(calls[2][0], "describe");
-  assert.strictEqual(calls[2][1], "systemSettings");
-  assert.strictEqual(calls[2][2], "snap-0");
-  assert.strictEqual(calls[2][3], "snap-1");
-  const describePayload = calls[2][4];
+  assert.deepStrictEqual(calls[0], ["capture", "systemSettings", "snap-0"]);
+  assert.strictEqual(calls.length, 2, "應只擷取一次 before 快照且 describe 不再接收 after 快照");
+  assert.strictEqual(calls[1][0], "describe");
+  assert.strictEqual(calls[1][1], "systemSettings");
+  assert.strictEqual(calls[1][2], "snap-0");
+  const describePayload = calls[1][3];
   assert.strictEqual(describePayload.action, "saveSystemSettings");
   assert.deepStrictEqual(
     describePayload.settings,

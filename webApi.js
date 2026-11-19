@@ -1517,17 +1517,16 @@ function serializeActivityLogDetail_(detail, builders) {
  * @param {Object} payload - 請求 payload（僅供詳情產生器取白名單欄位）
  * @param {Object} result - action 回傳結果
  * @param {*} [before] - 變動前快照
- * @param {*} [after] - 變動後快照
  * @returns {Object} 12 欄日誌紀錄
  */
-function buildActivityLogRecord_(context, meta, payload, result, before, after) {
+function buildActivityLogRecord_(context, meta, payload, result, before) {
   const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
   let detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
   if (builders && typeof builders.describe === "function") {
     try {
       // 產生器自行以欄位級白名單挑選可記錄欄位；此處必須傳入原始 payload，
       // 否則 settings／accounts 會被通用投影折疊而丟失變動明細。
-      detail = builders.describe(meta.detailKey, before, after, payload || {}, result || {});
+      detail = builders.describe(meta.detailKey, before, payload || {}, result || {});
     } catch (error) {
       // 詳情產生失敗時保留最小可用的版本化結構
     }
@@ -1617,20 +1616,10 @@ function acquireWebApiLock_(action) {
  * @param {Object|string} payload - 原始請求資料
  * @param {Object|null} finalResult - 最終 API 回應
  * @param {Object|null} beforeSnapshot - 寫入前快照
- * @param {Object|null} afterSnapshot - 寫入後快照
  * @param {Object|null} lock - 已取得的鎖
  * @param {boolean} hasLock - 是否成功取得鎖
  */
-function finalizeWebApiRequest_(
-  context,
-  actionMeta,
-  payload,
-  finalResult,
-  beforeSnapshot,
-  afterSnapshot,
-  lock,
-  hasLock
-) {
+function finalizeWebApiRequest_(context, actionMeta, payload, finalResult, beforeSnapshot, lock, hasLock) {
   if (hasLock && lock) {
     try {
       lock.releaseLock();
@@ -1647,7 +1636,7 @@ function finalizeWebApiRequest_(
   if (typeof appendFn !== "function") return;
   try {
     appendFn(
-      buildActivityLogRecord_(context, actionMeta, payload, finalResult, beforeSnapshot, afterSnapshot),
+      buildActivityLogRecord_(context, actionMeta, payload, finalResult, beforeSnapshot),
       getRouteSpreadsheet_()
     );
   } catch (error) {
@@ -1664,7 +1653,6 @@ function executeWebApi(payload, event) {
   let finalResult = null;
   let actionMeta = null;
   let beforeSnapshot = null;
-  let afterSnapshot = null;
   const finish_ = function (result) {
     finalResult = result;
     if (result && result.ok === false && !context.errorCode) {
@@ -1719,9 +1707,6 @@ function executeWebApi(payload, event) {
         ? module.exports.routeWebApiAction
         : routeWebApiAction;
     const result = routeFn(action, payload, event);
-    if (actionMeta && shouldLogActivity_(action, actionMeta)) {
-      afterSnapshot = captureActivityLogSnapshot_(actionMeta);
-    }
     if ((action === "login" || action === "loginWithActiveUser") && result && result.ok) {
       recordWebApiIdentity_(context, null, result);
     }
@@ -1737,7 +1722,6 @@ function executeWebApi(payload, event) {
       payload,
       finalResult,
       beforeSnapshot,
-      afterSnapshot,
       lockState.lock,
       lockState.hasLock
     );
