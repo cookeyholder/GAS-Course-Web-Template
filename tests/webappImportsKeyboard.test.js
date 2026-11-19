@@ -31,7 +31,7 @@ console.log("1. 上傳區應具備按鈕語意、可聚焦性與鍵盤事件..."
   const html = ctx.imports.renderView();
   assert(html.indexOf('role="button"') !== -1, "應標示 role=button");
   assert(html.indexOf('tabindex="0"') !== -1, "應可用 Tab 聚焦");
-  assert(html.indexOf('aria-label="選擇或拖曳 108 課綱課程代碼 Excel 檔案"') !== -1, "應有無障礙名稱");
+  assert(html.indexOf('aria-label="選擇或拖曳課程代碼 Excel 檔案"') !== -1, "應有無障礙名稱");
   assert(html.indexOf("MEA.imports.handleDropzoneKey(event)") !== -1, "應註冊 keydown 處理");
   assert(html.indexOf('class="sr-only"') !== -1, "檔案輸入應為可聚焦的視覺隱藏樣式");
   assert(html.indexOf("display:none") === -1, "不應以 display:none 隱藏唯一的檔案輸入");

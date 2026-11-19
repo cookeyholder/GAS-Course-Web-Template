@@ -1,6 +1,6 @@
 /**
  * @file courses.js
- * @description 正規化課程索引清單檢索、篩選與分頁瀏覽（可測試工廠）。
+ * @description 正規化課程代碼清單檢索、篩選與分頁瀏覽（可測試工廠）。
  *
  * 瀏覽器環境組裝 window.MEA.courses；Node.js 環境匯出 createCoursesModule 供單元測試注入依賴。
  */
@@ -33,7 +33,7 @@
   }
 
   /**
-   * 建立課程索引模組控制器。
+   * 建立課程代碼模組控制器。
    *
    * @param {Object} [deps] - 依賴注入（MEA、document）
    * @returns {Object} 公開方法集合（與 MEA.courses 一致）
@@ -202,7 +202,7 @@
     }
 
     /**
-     * 僅取得課程索引總筆數，不下載完整清單；供概覽頁使用。
+     * 僅取得課程代碼總筆數，不下載完整清單；供概覽頁使用。
      *
      * @returns {Promise<Object|null>} API 回應或失敗時的 null
      */
@@ -440,7 +440,7 @@
         '<div class="panel">' +
         '<div class="panel-header">' +
         "  <div>" +
-        '    <h2 class="panel-title">正規化課程索引清單</h2>' +
+        '    <h2 class="panel-title">正規化課程代碼清單</h2>' +
         '    <p class="panel-sub">檢視自 39 欄課綱寬表展開後之 1NF 課程紀錄</p>' +
         "  </div>" +
         '  <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +

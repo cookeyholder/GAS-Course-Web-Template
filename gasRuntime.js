@@ -20,8 +20,11 @@
   /** 系統設定與授權工作表名稱（前後端共用單一來源） */
   const SHEET_SYSTEM_CONFIG = "系統設定與授權";
 
-  /** 1NF 正規化課程索引工作表名稱（前後端共用單一來源） */
-  const SHEET_COURSE_INDEX = "正規化課程索引";
+  /** 1NF 正規化課程代碼工作表名稱（前後端共用單一來源） */
+  const SHEET_COURSE_INDEX = "正規化課程代碼";
+
+  /** 舊版工作表名稱，僅供初始化時一次性更名遷移使用 */
+  const LEGACY_SHEET_COURSE_INDEX = "正規化課程索引";
 
   /** 系統使用說明工作表名稱（前後端共用單一來源） */
   const SHEET_SYSTEM_INSTRUCTIONS = "系統使用說明";
@@ -129,6 +132,7 @@
   return {
     SHEET_SYSTEM_CONFIG: SHEET_SYSTEM_CONFIG,
     SHEET_COURSE_INDEX: SHEET_COURSE_INDEX,
+    LEGACY_SHEET_COURSE_INDEX: LEGACY_SHEET_COURSE_INDEX,
     SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
     WEB_API_VERSION: WEB_API_VERSION,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,

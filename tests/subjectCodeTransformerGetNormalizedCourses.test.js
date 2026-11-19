@@ -2,7 +2,7 @@
 
 /**
  * getNormalizedCourses 單元測試（G4.1）
- * 驗證正規化課程索引查詢之資料來源、篩選、分頁與列映射行為。
+ * 驗證正規化課程代碼查詢之資料來源、篩選、分頁與列映射行為。
  */
 
 const assert = require("assert");
@@ -138,7 +138,7 @@ console.log("2. 無 ss 時應使用 SpreadsheetApp.getActiveSpreadsheet...");
   console.log("   ✓ SpreadsheetApp fallback 驗證通過！\n");
 }
 
-console.log("3. 找不到課程索引工作表時應回傳空結果...");
+console.log("3. 找不到課程代碼工作表時應回傳空結果...");
 {
   const ss = {
     getSheetByName: function () {

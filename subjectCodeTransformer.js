@@ -5,7 +5,7 @@
  * 對照表與正規化純邏輯已抽至 courseNormalizationShared.js，前後端共用單一來源。
  */
 
-/** 一次批次寫入正規化課程索引的最大列數 */
+/** 一次批次寫入正規化課程代碼的最大列數 */
 const COURSE_INDEX_WRITE_CHUNK_SIZE = 5000;
 
 /**
@@ -28,7 +28,7 @@ const GAS_RUNTIME =
     : typeof require === "function"
       ? require("./gasRuntime.js")
       : null;
-/** 正規化課程索引工作表名稱統一由 gasRuntime 提供（單一來源） */
+/** 正規化課程代碼工作表名稱統一由 gasRuntime 提供（單一來源） */
 const NORMALIZED_COURSE_SHEET_NAME = GAS_RUNTIME.SHEET_COURSE_INDEX;
 
 const NORMALIZED_COURSE_HEADERS = COURSE_NORMALIZATION_SHARED.NORMALIZED_COURSE_HEADERS;
@@ -196,7 +196,7 @@ function getCourseIndexDataRows_(targetSs) {
 }
 
 /**
- * 輕量取得課程索引總筆數：僅讀取最後一列索引，不下載整份工作表內容。
+ * 輕量取得課程代碼總筆數：僅讀取最後一列索引，不下載整份工作表內容。
  * 供概覽頁顯示統計使用，避免為了取得 total 而呼叫 getCourseIndex。
  */
 function getCourseIndexStats(ss) {
@@ -311,7 +311,7 @@ function buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, page, page
 }
 
 /**
- * 讀取並分頁查詢正規化課程索引
+ * 讀取並分頁查詢正規化課程代碼
  *
  * @param {Object} [filter] - 篩選條件
  * @param {string} [filter.keyword] - 科目名稱或代碼關鍵字

@@ -20,7 +20,7 @@ function run() {
 
   ctx.state.courses = { list: [], total: 0, page: 1, totalPages: 1, loading: false };
   let html = courses.renderView();
-  assert(html.indexOf("正規化課程索引清單") !== -1);
+  assert(html.indexOf("正規化課程代碼清單") !== -1);
   assert(html.indexOf("目前尚無符合的課程紀錄") !== -1);
   assert(html.indexOf('<option value="">所有科別</option>') !== -1);
   assert(html.indexOf('<option value="資訊管理科">資訊管理科</option>') !== -1);

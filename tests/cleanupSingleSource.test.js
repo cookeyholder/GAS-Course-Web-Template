@@ -27,6 +27,7 @@ function run() {
   console.log("2. 工作表名稱應共用 gasRuntime 單一來源...");
   assert.strictEqual(db.SHEET_SYSTEM_CONFIG, gasRuntime.SHEET_SYSTEM_CONFIG);
   assert.strictEqual(db.SHEET_COURSE_INDEX, gasRuntime.SHEET_COURSE_INDEX);
+  assert.strictEqual(db.LEGACY_SHEET_COURSE_INDEX, gasRuntime.LEGACY_SHEET_COURSE_INDEX);
   assert.strictEqual(db.SHEET_SYSTEM_INSTRUCTIONS, gasRuntime.SHEET_SYSTEM_INSTRUCTIONS);
   assert.strictEqual(transformer.NORMALIZED_COURSE_SHEET_NAME, gasRuntime.SHEET_COURSE_INDEX);
   console.log("   ✓ 工作表名稱驗證通過！\n");

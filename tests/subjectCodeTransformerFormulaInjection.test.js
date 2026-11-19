@@ -1,7 +1,7 @@
 "use strict";
 
 /**
- * 課程索引寫入公式注入防護測試（task 1.10）
+ * 課程代碼寫入公式注入防護測試（task 1.10）
  * 驗證 writeCourseIndexRowsInChunks_ 寫入前套用 sanitizeRowMatrix，
  * 並保留既有純文字格式（setNumberFormat("@")）。
  */
@@ -10,7 +10,7 @@ const assert = require("assert");
 const transformer = require("../subjectCodeTransformer.js");
 const utilities = require("../utilities.js");
 
-console.log("開始執行課程索引公式注入防護測試...\n");
+console.log("開始執行課程代碼公式注入防護測試...\n");
 
 function withGlobals(temp, fn) {
   const prev = {};
@@ -193,4 +193,4 @@ console.log("3. 未提供 sanitizeRowMatrix 時應安全降級不影響寫入...
   console.log("   ✓ 降級路徑驗證通過！\n");
 }
 
-console.log("✓ 課程索引公式注入防護測試全數通過！\n");
+console.log("✓ 課程代碼公式注入防護測試全數通過！\n");

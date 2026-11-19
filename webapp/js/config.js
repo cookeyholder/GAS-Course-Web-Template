@@ -187,8 +187,8 @@
       ],
       tabs: [
         { id: "overview", name: "概覽儀表板", icon: "📊", desc: "系統狀態與快速入口" },
-        { id: "import", name: "課程代碼匯入", icon: "📥", desc: "上傳課綱 Excel 並執行 1NF 正規化" },
-        { id: "courses", name: "正規化課程索引", icon: "📚", desc: "檢視與檢索已展開之課程資料" },
+        { id: "import", name: "課程代碼匯入", icon: "📥", desc: "上傳課程代碼 Excel 並執行 1NF 正規化" },
+        { id: "courses", name: "正規化課程代碼", icon: "📚", desc: "檢視與檢索已展開之課程資料" },
         { id: "settings", name: "系統設定與授權", icon: "⚙️", desc: "OAuth Client ID 與角色成員" }
       ],
       roleNames: Object.assign({}, gasRuntime.ROLE_DEFINITIONS)
