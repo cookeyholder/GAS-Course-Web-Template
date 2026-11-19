@@ -504,31 +504,46 @@ function mapCourseIndexRow_(row) {
   };
 }
 
-function isCourseRowMatchedByFields_(item, criteria) {
-  if (criteria.year !== "" && item.academicYear !== criteria.year) return false;
-  if (criteria.semester !== "" && item.semester !== criteria.semester) return false;
-  if (criteria.department !== "" && item.department !== criteria.department) return false;
+/** 取得原始列欄位並轉為字串；與 mapCourseIndexRow_ 的取值規則保持一致。 */
+function getRawCourseField_(row, index) {
+  const value = row ? row[index] : null;
+  return String(value || "");
+}
+
+function isCourseRowMatchedByFields_(row, criteria) {
+  if (criteria.year !== "" && getRawCourseField_(row, 0) !== criteria.year) return false;
+  if (criteria.semester !== "" && getRawCourseField_(row, 1) !== criteria.semester) return false;
+  if (criteria.department !== "" && getRawCourseField_(row, 7) !== criteria.department) return false;
   return true;
 }
 
-function isCourseRowMatchedByKeyword_(item, keyword) {
+function isCourseRowMatchedByKeyword_(row, keyword) {
   if (keyword === "") return true;
-  const line = (item.courseCode + " " + item.subjectName + " " + item.department + " " + item.group).toLowerCase();
-  return line.indexOf(keyword) !== -1;
+  const line =
+    getRawCourseField_(row, 4) +
+    " " +
+    getRawCourseField_(row, 5) +
+    " " +
+    getRawCourseField_(row, 7) +
+    " " +
+    getRawCourseField_(row, 6);
+  return line.toLowerCase().indexOf(keyword) !== -1;
 }
 
-function isCourseIndexRowMatched_(item, criteria) {
-  return isCourseRowMatchedByFields_(item, criteria) && isCourseRowMatchedByKeyword_(item, criteria.keyword);
+function isCourseIndexRowMatched_(row, criteria) {
+  return isCourseRowMatchedByFields_(row, criteria) && isCourseRowMatchedByKeyword_(row, criteria.keyword);
 }
 
-function collectMatchedCourseRows_(dataRows, criteria) {
-  const matched = [];
+/**
+ * 先以原始列索引篩選，不建立完整物件；僅將該頁資料轉換為回傳物件。
+ * 此舉可避免對每一列建立 N 個物件，降低大量資料查詢的記憶體用量。
+ */
+function collectMatchedCourseRowIndexes_(dataRows, criteria) {
+  const matchedIndexes = [];
   for (let i = 0; i < dataRows.length; i++) {
-    const item = mapCourseIndexRow_(dataRows[i]);
-    if (!isCourseIndexRowMatched_(item, criteria)) continue;
-    matched.push(item);
+    if (isCourseIndexRowMatched_(dataRows[i], criteria)) matchedIndexes.push(i);
   }
-  return matched;
+  return matchedIndexes;
 }
 
 function normalizeCoursePageParams_(filter) {
@@ -538,14 +553,18 @@ function normalizeCoursePageParams_(filter) {
   return { page: page, pageSize: pageSize };
 }
 
-function buildPagedCourseResult_(matched, page, pageSize) {
-  const total = matched.length;
+function buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, page, pageSize) {
+  const total = matchedIndexes.length;
   const totalPages = Math.ceil(total / pageSize) || 1;
   const start = (page - 1) * pageSize;
-  const pageItems = matched.slice(start, start + pageSize);
+  const pageIndexes = matchedIndexes.slice(start, start + pageSize);
+  const list = [];
+  for (let i = 0; i < pageIndexes.length; i++) {
+    list.push(mapCourseIndexRow_(dataRows[pageIndexes[i]]));
+  }
   return {
     ok: true,
-    list: pageItems,
+    list: list,
     total: total,
     page: page,
     pageSize: pageSize,
@@ -572,9 +591,9 @@ function getNormalizedCourses(filter, ss) {
   if (!dataRows) return createEmptyCourseQueryResult_();
 
   const criteria = normalizeCourseQueryCriteria_(filter);
-  const matched = collectMatchedCourseRows_(dataRows, criteria);
+  const matchedIndexes = collectMatchedCourseRowIndexes_(dataRows, criteria);
   const paging = normalizeCoursePageParams_(filter);
-  return buildPagedCourseResult_(matched, paging.page, paging.pageSize);
+  return buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, paging.page, paging.pageSize);
 }
 
 if (typeof module !== "undefined" && module.exports) {
