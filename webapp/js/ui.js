@@ -413,6 +413,7 @@
 
     function renderHeader() {
       const user = MEA.state.user || {};
+      const logoutBusy = !!(MEA.state && MEA.state.logoutBusy);
       const styles = getStyleList();
       const curStyle = currentStyle();
       const systemName = (MEA.state.publicConfig && MEA.state.publicConfig.systemName) || MEA.config.title;
@@ -438,10 +439,14 @@
         renderStyleOptions(styles, curStyle) +
         "    </select>" +
         "  </div>" +
-        '  <button id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
         (currentTheme() === "dark" ? "◑ 淺色模式" : "◐ 深色模式") +
         "  </button>" +
-        '  <button class="btn secondary compact" onclick="MEA.auth.logout()">登出</button>' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.auth.logout()"' +
+        (logoutBusy ? " disabled" : "") +
+        ">" +
+        (logoutBusy ? "登出中..." : "登出") +
+        "</button>" +
         "</div>" +
         "</header>"
       );
@@ -456,7 +461,7 @@
         const t = tabs[i];
         const active = t.id === currentTab ? " active" : "";
         tabsHtml +=
-          '<button class="nav-tab' +
+          '<button type="button" class="nav-tab' +
           active +
           '" onclick="MEA.setTab(\'' +
           t.id +
@@ -501,7 +506,7 @@
     function renderLoginActions(isMock, loginBusy) {
       const mockHtml = isMock
         ? '<div class="login-divider"><span>或</span></div>' +
-          '<button class="btn secondary block" onclick="MEA.auth.loginMock()"' +
+          '<button type="button" class="btn secondary block" onclick="MEA.auth.loginMock()"' +
           (loginBusy ? " disabled" : "") +
           ">" +
           "  🧪 本地測試身分登入 (Mock Mode)" +
@@ -536,7 +541,7 @@
         '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         styleOptionsHtml +
         "  </select>" +
-        '  <button id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
         (currentTheme() === "dark" ? "◑ 淺色" : "◐ 深色") +
         "  </button>" +
         "</div>" +

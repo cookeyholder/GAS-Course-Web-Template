@@ -295,7 +295,23 @@
       const updated = cur.filter(function (a) {
         return a.email !== email;
       });
-      saveAccountsList(updated);
+      MEA.ui.modal(
+        "確認刪除授權成員",
+        '<p class="mb-2">確定要刪除 <strong>' +
+          MEA.ui.escapeHtml(email) +
+          "</strong> 嗎？刪除後該帳號將立即失去存取權。</p>",
+        [
+          { text: "取消", onClick: MEA.ui.closeModal },
+          {
+            text: "確認刪除",
+            primary: true,
+            onClick: function () {
+              MEA.ui.closeModal();
+              saveAccountsList(updated);
+            }
+          }
+        ]
+      );
     }
 
     function toggleAccount(email) {
@@ -372,9 +388,11 @@
      * 產生單筆授權成員表格列。
      *
      * @param {Object} a - 帳號紀錄
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderAccountRowHtml(a) {
+    function renderAccountRowHtml(a, saving) {
+      const disabled = saving ? " disabled" : "";
       return (
         "<tr>" +
         "<td><strong>" +
@@ -396,14 +414,18 @@
         "  </span>" +
         "</td>" +
         "<td>" +
-        '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
         encodeURIComponent(a.email) +
-        "'))\">" +
+        "'))\"" +
+        disabled +
+        ">" +
         (a.enabled ? "停用" : "啟用") +
         "</button>" +
-        '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
+        '  <button type="button" class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
         encodeURIComponent(a.email) +
-        "'))\">刪除</button>" +
+        "'))\"" +
+        disabled +
+        ">刪除</button>" +
         "</td>" +
         "</tr>"
       );
@@ -413,16 +435,17 @@
      * 產生授權成員表格內容。
      *
      * @param {Array<Object>} accounts - 帳號陣列
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderAccountsRowsHtml(accounts) {
+    function renderAccountsRowsHtml(accounts, saving) {
       if (accounts.length === 0) {
         return '<tr><td colspan="5" class="text-center py-4 text-muted">目前尚未設定任何授權帳號。</td></tr>';
       }
 
       let rowsHtml = "";
       for (let i = 0; i < accounts.length; i++) {
-        rowsHtml += renderAccountRowHtml(accounts[i]);
+        rowsHtml += renderAccountRowHtml(accounts[i], saving);
       }
       return rowsHtml;
     }
@@ -503,20 +526,25 @@
      * 產生授權白名單卡片。
      *
      * @param {string} accountsRowsHtml - 表格列 HTML
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderWhitelistCardHtml(accountsRowsHtml) {
+    function renderWhitelistCardHtml(accountsRowsHtml, saving) {
+      const loadingHint = saving ? '<span class="hint" role="status">正在更新授權白名單，請稍候...</span>' : "";
       return (
         '<div class="card mt-4">' +
         '  <div class="card-header">' +
         '    <h3 class="card-title">授權白名單成員清單</h3>' +
-        '    <button class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()">＋ 新增授權成員</button>' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()"' +
+        (saving ? " disabled" : "") +
+        ">＋ 新增授權成員</button>" +
         "  </div>" +
+        loadingHint +
         '  <div class="table-responsive mt-3">' +
         '    <table class="table">' +
         "      <thead>" +
         "        <tr>" +
-        "          <th>Email</th><th>姓名/職稱</th><th>角色</th><th>狀態</th><th>操作</th>" +
+        '          <th scope="col">Email</th><th scope="col">姓名/職稱</th><th scope="col">角色</th><th scope="col">狀態</th><th scope="col">操作</th>' +
         "        </tr>" +
         "      </thead>" +
         "      <tbody>" +
@@ -546,10 +574,14 @@
         '    <h2 class="panel-title">系統設定與授權 (RBAC)</h2>' +
         '    <p class="panel-sub">設定 Google OAuth、登入網域限制與存取成員角色清單</p>' +
         "  </div>" +
-        '  <button class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()">🔄 重新讀取</button>' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()"' +
+        (settings.loading ? " disabled" : "") +
+        ">" +
+        (settings.loading ? "讀取中..." : "🔄 重新讀取") +
+        "</button>" +
         "</div>" +
         renderSystemCoreCardHtml(data, settings.saving) +
-        renderWhitelistCardHtml(renderAccountsRowsHtml(accounts)) +
+        renderWhitelistCardHtml(renderAccountsRowsHtml(accounts, settings.saving), settings.saving) +
         "</div>"
       );
     }

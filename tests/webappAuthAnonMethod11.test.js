@@ -47,13 +47,16 @@ function run() {
   assert.strictEqual(successState.user.roleName, "系統管理員");
   console.log("1. 工作階段使用者與成功狀態純函式 ✓\n");
 
-  assert.strictEqual(authModule.getSessionErrorMessage(null), "");
-  assert.strictEqual(authModule.getSessionErrorMessage({ error: "missing_token", message: "忽略" }), "");
+  const expired = authModule.constants.SESSION_EXPIRED_ERROR;
+  assert.strictEqual(authModule.getSessionErrorMessage(null), expired);
+  assert.strictEqual(authModule.getSessionErrorMessage({ error: "missing_token", message: "忽略" }), expired);
+  assert.strictEqual(authModule.getSessionErrorMessage({ error: "session_expired" }), expired);
+  assert.strictEqual(authModule.getSessionErrorMessage({ error: "invalid_session" }), expired);
   assert.strictEqual(authModule.getSessionErrorMessage({ error: "invalid_token", message: "權杖無效" }), "權杖無效");
-  assert.strictEqual(authModule.getSessionErrorMessage({ error: "invalid_token" }), "");
+  assert.strictEqual(authModule.getSessionErrorMessage({ error: "invalid_token" }), expired);
   assert.deepStrictEqual(authModule.buildSessionFailureState({ error: "missing_token" }), {
     view: "login",
-    loginError: ""
+    loginError: expired
   });
   console.log("2. 工作階段失敗訊息純函式 ✓\n");
 
@@ -89,7 +92,7 @@ function run() {
     })
     .then(function () {
       assert.strictEqual(ctx.state.view, "login");
-      assert.strictEqual(ctx.state.loginError, "");
+      assert.strictEqual(ctx.state.loginError, expired);
       assert.deepStrictEqual(ctx.calls.setToken.slice(-1), [""]);
       assert.deepStrictEqual(ctx.calls.setCsrfToken.slice(-1), [""]);
       assert.strictEqual(ctx.calls.timeouts.length, 1);
@@ -112,7 +115,7 @@ function run() {
       return flush();
     })
     .then(function () {
-      assert.strictEqual(ctx.state.loginError, "");
+      assert.strictEqual(ctx.state.loginError, expired);
       assert.strictEqual(ctx.calls.timeouts.length, 3);
       ctx.calls.timeouts[2].fn();
       assert(ctx.elements.googleLoginButton.innerHTML.indexOf("尚未設定 OAuth Client ID") !== -1);

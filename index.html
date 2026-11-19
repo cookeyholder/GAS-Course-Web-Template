@@ -8245,6 +8245,7 @@ window.MEA = window.MEA || {};
     user: null,
     publicConfig: null,
     loginBusy: false,
+    logoutBusy: false,
     loginError: "",
     importBusy: false,
     imports: {},
@@ -8714,6 +8715,7 @@ window.MEA = window.MEA || {};
 
     function renderHeader() {
       const user = MEA.state.user || {};
+      const logoutBusy = !!(MEA.state && MEA.state.logoutBusy);
       const styles = getStyleList();
       const curStyle = currentStyle();
       const systemName = (MEA.state.publicConfig && MEA.state.publicConfig.systemName) || MEA.config.title;
@@ -8739,10 +8741,14 @@ window.MEA = window.MEA || {};
         renderStyleOptions(styles, curStyle) +
         "    </select>" +
         "  </div>" +
-        '  <button id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
         (currentTheme() === "dark" ? "◑ 淺色模式" : "◐ 深色模式") +
         "  </button>" +
-        '  <button class="btn secondary compact" onclick="MEA.auth.logout()">登出</button>' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.auth.logout()"' +
+        (logoutBusy ? " disabled" : "") +
+        ">" +
+        (logoutBusy ? "登出中..." : "登出") +
+        "</button>" +
         "</div>" +
         "</header>"
       );
@@ -8757,7 +8763,7 @@ window.MEA = window.MEA || {};
         const t = tabs[i];
         const active = t.id === currentTab ? " active" : "";
         tabsHtml +=
-          '<button class="nav-tab' +
+          '<button type="button" class="nav-tab' +
           active +
           '" onclick="MEA.setTab(\'' +
           t.id +
@@ -8802,7 +8808,7 @@ window.MEA = window.MEA || {};
     function renderLoginActions(isMock, loginBusy) {
       const mockHtml = isMock
         ? '<div class="login-divider"><span>或</span></div>' +
-          '<button class="btn secondary block" onclick="MEA.auth.loginMock()"' +
+          '<button type="button" class="btn secondary block" onclick="MEA.auth.loginMock()"' +
           (loginBusy ? " disabled" : "") +
           ">" +
           "  🧪 本地測試身分登入 (Mock Mode)" +
@@ -8837,7 +8843,7 @@ window.MEA = window.MEA || {};
         '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
         styleOptionsHtml +
         "  </select>" +
-        '  <button id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
         (currentTheme() === "dark" ? "◑ 淺色" : "◐ 深色") +
         "  </button>" +
         "</div>" +
@@ -9088,6 +9094,8 @@ window.MEA = window.MEA || {};
     "</svg>";
   const CLIENT_ID_HINT_HTML = '<div class="login-hint">尚未設定 OAuth Client ID；本機測試請於網址加上 ?mock=true</div>';
   const DEFAULT_LOGIN_ERROR = "登入失敗，請稍後再試";
+  const DEFAULT_LOGOUT_ERROR = "登出失敗，請稍後再試";
+  const SESSION_EXPIRED_ERROR = "工作階段已過期，請重新登入";
   const MISSING_CLIENT_ID_ERROR = "尚未設定 OAuth Client ID，請系統管理員先於「系統設定」完成設定";
   const MISSING_CLIENT_SECRET_ERROR = "尚未設定 OAuth Client Secret，請系統管理員先於「系統設定」完成設定";
   const MISSING_WEBAPP_URL_ERROR = "無法取得 Web App 網址，請確認部署狀態後重新整理頁面";
@@ -9398,8 +9406,21 @@ window.MEA = window.MEA || {};
   }
 
   function getSessionErrorMessage(result) {
-    if (!result || result.error === "missing_token") return "";
-    return result.message || "";
+    if (!result) return SESSION_EXPIRED_ERROR;
+    if (result.error === "missing_token" || result.error === "session_expired" || result.error === "invalid_session") {
+      return SESSION_EXPIRED_ERROR;
+    }
+    return result.message || SESSION_EXPIRED_ERROR;
+  }
+
+  /**
+   * 正規化登出失敗訊息。
+   *
+   * @param {*} error - 例外或錯誤物件
+   * @returns {string} 顯示給使用者的訊息
+   */
+  function normalizeLogoutError(error) {
+    return (error && error.message) || DEFAULT_LOGOUT_ERROR;
   }
 
   function buildSessionFailureState(result) {
@@ -9424,6 +9445,7 @@ window.MEA = window.MEA || {};
 
     let gisPromise = null;
     let initializedClientId = "";
+    let logoutBusy = false;
 
     function getRoleNames() {
       return (MEA.config && MEA.config.roleNames) || {};
@@ -9584,17 +9606,31 @@ window.MEA = window.MEA || {};
     }
 
     function logout() {
-      MEA.api.call("logout", {}).then(function () {
-        MEA.api.setToken("");
-        MEA.api.setCsrfToken("");
-        MEA.setState({
-          view: "login",
-          user: null,
-          loginError: "",
-          loginBusy: false
+      if (logoutBusy) return Promise.resolve(false);
+      logoutBusy = true;
+      MEA.setState({ logoutBusy: true, loginError: "" });
+      return MEA.api
+        .call("logout", {})
+        .then(function () {
+          MEA.api.setToken("");
+          MEA.api.setCsrfToken("");
+          MEA.setState({
+            view: "login",
+            user: null,
+            loginError: "",
+            loginBusy: false,
+            logoutBusy: false
+          });
+          logoutBusy = false;
+          scheduleRenderGoogleButton();
+          return true;
+        })
+        .catch(function (error) {
+          logoutBusy = false;
+          MEA.setState({ logoutBusy: false });
+          MEA.ui.toast(normalizeLogoutError(error), "err");
+          return false;
         });
-        scheduleRenderGoogleButton();
-      });
     }
 
     function applySessionSuccess(result) {
@@ -9610,7 +9646,7 @@ window.MEA = window.MEA || {};
       if (isMock()) {
         MEA.api.call("getSession", {}).then(function (result) {
           if (!applySessionSuccess(result)) {
-            MEA.setState({ view: "login" });
+            MEA.setState(buildSessionFailureState(result));
             scheduleRenderGoogleButton();
           }
         });
@@ -9677,12 +9713,15 @@ window.MEA = window.MEA || {};
     buildSessionSuccessState: buildSessionSuccessState,
     getSessionErrorMessage: getSessionErrorMessage,
     buildSessionFailureState: buildSessionFailureState,
+    normalizeLogoutError: normalizeLogoutError,
     constants: {
       GIS_SRC: GIS_SRC,
       GOOGLE_AUTH_URL: GOOGLE_AUTH_URL,
       GOOGLE_ACCOUNT_CHOOSER_URL: GOOGLE_ACCOUNT_CHOOSER_URL,
       CLIENT_ID_HINT_HTML: CLIENT_ID_HINT_HTML,
-      DEFAULT_LOGIN_ERROR: DEFAULT_LOGIN_ERROR
+      DEFAULT_LOGIN_ERROR: DEFAULT_LOGIN_ERROR,
+      DEFAULT_LOGOUT_ERROR: DEFAULT_LOGOUT_ERROR,
+      SESSION_EXPIRED_ERROR: SESSION_EXPIRED_ERROR
     }
   };
 });
@@ -10635,12 +10674,12 @@ window.MEA = window.MEA || {};
         totalPages +
         " 頁</span>" +
         '  <div class="pagination-buttons">' +
-        '    <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         (currentPage - 1) +
         ')"' +
         (currentPage <= 1 || loading ? " disabled" : "") +
         ">上一頁</button>" +
-        '    <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         (currentPage + 1) +
         ')"' +
         (currentPage >= totalPages || loading ? " disabled" : "") +
@@ -10708,7 +10747,7 @@ window.MEA = window.MEA || {};
         '    <h2 class="panel-title">正規化課程索引清單</h2>' +
         '    <p class="panel-sub">檢視自 39 欄課綱寬表展開後之 1NF 課程紀錄</p>' +
         "  </div>" +
-        '  <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         currentPage +
         ')">🔄 重新整理</button>' +
         "</div>" +
@@ -10717,7 +10756,7 @@ window.MEA = window.MEA || {};
         '  <table class="table">' +
         "    <thead>" +
         "      <tr>" +
-        "        <th>學年</th><th>學期</th><th>年級</th><th>課程代碼</th><th>科目名稱</th><th>科別</th><th>課程類別</th><th>科目屬性</th><th>必選修</th><th>學分/時數</th>" +
+        '        <th scope="col">學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">課程類別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分/時數</th>' +
         "      </tr>" +
         "    </thead>" +
         "    <tbody>" +
@@ -11043,7 +11082,23 @@ window.MEA = window.MEA || {};
       const updated = cur.filter(function (a) {
         return a.email !== email;
       });
-      saveAccountsList(updated);
+      MEA.ui.modal(
+        "確認刪除授權成員",
+        '<p class="mb-2">確定要刪除 <strong>' +
+          MEA.ui.escapeHtml(email) +
+          "</strong> 嗎？刪除後該帳號將立即失去存取權。</p>",
+        [
+          { text: "取消", onClick: MEA.ui.closeModal },
+          {
+            text: "確認刪除",
+            primary: true,
+            onClick: function () {
+              MEA.ui.closeModal();
+              saveAccountsList(updated);
+            }
+          }
+        ]
+      );
     }
 
     function toggleAccount(email) {
@@ -11120,9 +11175,11 @@ window.MEA = window.MEA || {};
      * 產生單筆授權成員表格列。
      *
      * @param {Object} a - 帳號紀錄
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderAccountRowHtml(a) {
+    function renderAccountRowHtml(a, saving) {
+      const disabled = saving ? " disabled" : "";
       return (
         "<tr>" +
         "<td><strong>" +
@@ -11144,14 +11201,18 @@ window.MEA = window.MEA || {};
         "  </span>" +
         "</td>" +
         "<td>" +
-        '  <button class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
         encodeURIComponent(a.email) +
-        "'))\">" +
+        "'))\"" +
+        disabled +
+        ">" +
         (a.enabled ? "停用" : "啟用") +
         "</button>" +
-        '  <button class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
+        '  <button type="button" class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
         encodeURIComponent(a.email) +
-        "'))\">刪除</button>" +
+        "'))\"" +
+        disabled +
+        ">刪除</button>" +
         "</td>" +
         "</tr>"
       );
@@ -11161,16 +11222,17 @@ window.MEA = window.MEA || {};
      * 產生授權成員表格內容。
      *
      * @param {Array<Object>} accounts - 帳號陣列
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderAccountsRowsHtml(accounts) {
+    function renderAccountsRowsHtml(accounts, saving) {
       if (accounts.length === 0) {
         return '<tr><td colspan="5" class="text-center py-4 text-muted">目前尚未設定任何授權帳號。</td></tr>';
       }
 
       let rowsHtml = "";
       for (let i = 0; i < accounts.length; i++) {
-        rowsHtml += renderAccountRowHtml(accounts[i]);
+        rowsHtml += renderAccountRowHtml(accounts[i], saving);
       }
       return rowsHtml;
     }
@@ -11251,20 +11313,25 @@ window.MEA = window.MEA || {};
      * 產生授權白名單卡片。
      *
      * @param {string} accountsRowsHtml - 表格列 HTML
+     * @param {boolean} saving - 是否正在儲存
      * @returns {string} HTML 字串
      */
-    function renderWhitelistCardHtml(accountsRowsHtml) {
+    function renderWhitelistCardHtml(accountsRowsHtml, saving) {
+      const loadingHint = saving ? '<span class="hint" role="status">正在更新授權白名單，請稍候...</span>' : "";
       return (
         '<div class="card mt-4">' +
         '  <div class="card-header">' +
         '    <h3 class="card-title">授權白名單成員清單</h3>' +
-        '    <button class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()">＋ 新增授權成員</button>' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()"' +
+        (saving ? " disabled" : "") +
+        ">＋ 新增授權成員</button>" +
         "  </div>" +
+        loadingHint +
         '  <div class="table-responsive mt-3">' +
         '    <table class="table">' +
         "      <thead>" +
         "        <tr>" +
-        "          <th>Email</th><th>姓名/職稱</th><th>角色</th><th>狀態</th><th>操作</th>" +
+        '          <th scope="col">Email</th><th scope="col">姓名/職稱</th><th scope="col">角色</th><th scope="col">狀態</th><th scope="col">操作</th>' +
         "        </tr>" +
         "      </thead>" +
         "      <tbody>" +
@@ -11294,10 +11361,14 @@ window.MEA = window.MEA || {};
         '    <h2 class="panel-title">系統設定與授權 (RBAC)</h2>' +
         '    <p class="panel-sub">設定 Google OAuth、登入網域限制與存取成員角色清單</p>' +
         "  </div>" +
-        '  <button class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()">🔄 重新讀取</button>' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()"' +
+        (settings.loading ? " disabled" : "") +
+        ">" +
+        (settings.loading ? "讀取中..." : "🔄 重新讀取") +
+        "</button>" +
         "</div>" +
         renderSystemCoreCardHtml(data, settings.saving) +
-        renderWhitelistCardHtml(renderAccountsRowsHtml(accounts)) +
+        renderWhitelistCardHtml(renderAccountsRowsHtml(accounts, settings.saving), settings.saving) +
         "</div>"
       );
     }

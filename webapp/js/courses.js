@@ -360,12 +360,12 @@
         totalPages +
         " 頁</span>" +
         '  <div class="pagination-buttons">' +
-        '    <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         (currentPage - 1) +
         ')"' +
         (currentPage <= 1 || loading ? " disabled" : "") +
         ">上一頁</button>" +
-        '    <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         (currentPage + 1) +
         ')"' +
         (currentPage >= totalPages || loading ? " disabled" : "") +
@@ -433,7 +433,7 @@
         '    <h2 class="panel-title">正規化課程索引清單</h2>' +
         '    <p class="panel-sub">檢視自 39 欄課綱寬表展開後之 1NF 課程紀錄</p>' +
         "  </div>" +
-        '  <button class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '  <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
         currentPage +
         ')">🔄 重新整理</button>' +
         "</div>" +
@@ -442,7 +442,7 @@
         '  <table class="table">' +
         "    <thead>" +
         "      <tr>" +
-        "        <th>學年</th><th>學期</th><th>年級</th><th>課程代碼</th><th>科目名稱</th><th>科別</th><th>課程類別</th><th>科目屬性</th><th>必選修</th><th>學分/時數</th>" +
+        '        <th scope="col">學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">課程類別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分/時數</th>' +
         "      </tr>" +
         "    </thead>" +
         "    <tbody>" +

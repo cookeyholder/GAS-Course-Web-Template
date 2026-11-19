@@ -29,7 +29,7 @@
 - [x] 3.3 Modal 無障礙：補 `role="dialog"`、`aria-modal="true"`、`aria-labelledby`、初始焦點、Tab 焦點陷阱、Esc 關閉與關閉後焦點還原。
 - [x] 3.4 表單標籤關聯：所有 `<label>` 補 `for`，控制項補 `aria-label`／`aria-labelledby`，加入 `sr-only` 樣式；覆蓋帳號、系統設定、課程搜尋與風格選單。
 - [x] 3.5 對比與焦點指標：將淺色 `--ink-3` 調至 ≥ 4.5:1、`.input:focus`／`.select:focus` outline 改為 `--accent`，錯誤/警告 Toast 加 `role="alert"`；以對比計算腳本驗證。
-- [ ] 3.6 操作回饋：白名單刪除加確認對話框、saving 時禁用操作按鈕、載入中狀態提示、Session 過期明確文案、登出防重複與失敗回饋、非提交按鈕補 `type="button"`、表格 `<th>` 補 `scope="col"`。
+- [x] 3.6 操作回饋：白名單刪除加確認對話框、saving 時禁用操作按鈕、載入中狀態提示、Session 過期明確文案、登出防重複與失敗回饋、非提交按鈕補 `type="button"`、表格 `<th>` 補 `scope="col"`。
 
 ## 4. 可維護性與測試防線
 

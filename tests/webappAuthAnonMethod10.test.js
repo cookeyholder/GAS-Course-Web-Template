@@ -52,7 +52,7 @@ function run() {
     })
     .then(function () {
       assert.strictEqual(ctx.state.view, "login");
-      assert.strictEqual(ctx.state.loginError, "先前的錯誤");
+      assert.strictEqual(ctx.state.loginError, "模擬工作階段無效");
       assert.deepStrictEqual(ctx.calls.setToken, []);
       assert.deepStrictEqual(ctx.calls.setCsrfToken, ["csrf-mock"]);
       assert.strictEqual(ctx.calls.fetchStats, 1);
@@ -84,7 +84,10 @@ function run() {
     })
     .then(function () {
       assert.deepStrictEqual(noCsrfCtx.calls.setCsrfToken, []);
-      assert.strictEqual(authModule.buildSessionFailureState(null).loginError, "");
+      assert.strictEqual(
+        authModule.buildSessionFailureState(null).loginError,
+        authModule.constants.SESSION_EXPIRED_ERROR
+      );
       console.log("✓ webapp/js/auth.js anon method-10 測試全數通過！\n");
     });
 }

@@ -40,6 +40,8 @@
     "</svg>";
   const CLIENT_ID_HINT_HTML = '<div class="login-hint">尚未設定 OAuth Client ID；本機測試請於網址加上 ?mock=true</div>';
   const DEFAULT_LOGIN_ERROR = "登入失敗，請稍後再試";
+  const DEFAULT_LOGOUT_ERROR = "登出失敗，請稍後再試";
+  const SESSION_EXPIRED_ERROR = "工作階段已過期，請重新登入";
   const MISSING_CLIENT_ID_ERROR = "尚未設定 OAuth Client ID，請系統管理員先於「系統設定」完成設定";
   const MISSING_CLIENT_SECRET_ERROR = "尚未設定 OAuth Client Secret，請系統管理員先於「系統設定」完成設定";
   const MISSING_WEBAPP_URL_ERROR = "無法取得 Web App 網址，請確認部署狀態後重新整理頁面";
@@ -350,8 +352,21 @@
   }
 
   function getSessionErrorMessage(result) {
-    if (!result || result.error === "missing_token") return "";
-    return result.message || "";
+    if (!result) return SESSION_EXPIRED_ERROR;
+    if (result.error === "missing_token" || result.error === "session_expired" || result.error === "invalid_session") {
+      return SESSION_EXPIRED_ERROR;
+    }
+    return result.message || SESSION_EXPIRED_ERROR;
+  }
+
+  /**
+   * 正規化登出失敗訊息。
+   *
+   * @param {*} error - 例外或錯誤物件
+   * @returns {string} 顯示給使用者的訊息
+   */
+  function normalizeLogoutError(error) {
+    return (error && error.message) || DEFAULT_LOGOUT_ERROR;
   }
 
   function buildSessionFailureState(result) {
@@ -376,6 +391,7 @@
 
     let gisPromise = null;
     let initializedClientId = "";
+    let logoutBusy = false;
 
     function getRoleNames() {
       return (MEA.config && MEA.config.roleNames) || {};
@@ -536,17 +552,31 @@
     }
 
     function logout() {
-      MEA.api.call("logout", {}).then(function () {
-        MEA.api.setToken("");
-        MEA.api.setCsrfToken("");
-        MEA.setState({
-          view: "login",
-          user: null,
-          loginError: "",
-          loginBusy: false
+      if (logoutBusy) return Promise.resolve(false);
+      logoutBusy = true;
+      MEA.setState({ logoutBusy: true, loginError: "" });
+      return MEA.api
+        .call("logout", {})
+        .then(function () {
+          MEA.api.setToken("");
+          MEA.api.setCsrfToken("");
+          MEA.setState({
+            view: "login",
+            user: null,
+            loginError: "",
+            loginBusy: false,
+            logoutBusy: false
+          });
+          logoutBusy = false;
+          scheduleRenderGoogleButton();
+          return true;
+        })
+        .catch(function (error) {
+          logoutBusy = false;
+          MEA.setState({ logoutBusy: false });
+          MEA.ui.toast(normalizeLogoutError(error), "err");
+          return false;
         });
-        scheduleRenderGoogleButton();
-      });
     }
 
     function applySessionSuccess(result) {
@@ -562,7 +592,7 @@
       if (isMock()) {
         MEA.api.call("getSession", {}).then(function (result) {
           if (!applySessionSuccess(result)) {
-            MEA.setState({ view: "login" });
+            MEA.setState(buildSessionFailureState(result));
             scheduleRenderGoogleButton();
           }
         });
@@ -629,12 +659,15 @@
     buildSessionSuccessState: buildSessionSuccessState,
     getSessionErrorMessage: getSessionErrorMessage,
     buildSessionFailureState: buildSessionFailureState,
+    normalizeLogoutError: normalizeLogoutError,
     constants: {
       GIS_SRC: GIS_SRC,
       GOOGLE_AUTH_URL: GOOGLE_AUTH_URL,
       GOOGLE_ACCOUNT_CHOOSER_URL: GOOGLE_ACCOUNT_CHOOSER_URL,
       CLIENT_ID_HINT_HTML: CLIENT_ID_HINT_HTML,
-      DEFAULT_LOGIN_ERROR: DEFAULT_LOGIN_ERROR
+      DEFAULT_LOGIN_ERROR: DEFAULT_LOGIN_ERROR,
+      DEFAULT_LOGOUT_ERROR: DEFAULT_LOGOUT_ERROR,
+      SESSION_EXPIRED_ERROR: SESSION_EXPIRED_ERROR
     }
   };
 });
