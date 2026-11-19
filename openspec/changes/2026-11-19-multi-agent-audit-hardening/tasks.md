@@ -44,4 +44,4 @@
 ## 5. 文件、驗證與封存
 
 - [x] 5.1 同步 `README.md` 與 `docs/` 中 RBAC、首次管理員開通、API 端點、mock 模式、OAuth nonce 與部署設定說明。
-- [ ] 5.2 完整驗證：執行 `npm test`、`npm run format:check`、`npm run check:lang`、`npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`、`npm run build:webapp`，並以 `index.html?mock=true` 驗證渲染。
+- [x] 5.2 完整驗證：執行 `npm test`、`npm run format:check`、`npm run check:lang`、`npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`、`npm run build:webapp`，並以 `index.html?mock=true` 驗證渲染。
