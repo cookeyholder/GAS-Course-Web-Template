@@ -261,10 +261,26 @@ function initializeDatabaseSheets(options) {
   ensureInstructionsSheet_(ss, createdSheets);
   ensureActivityLogSheet_(ss, createdSheets);
 
+  // 安裝每日清理觸發器；無 ScriptApp 時（例如 Node 測試）安全略過
+  const ensureTrigger = GAS_RUNTIME.resolveDependency_(
+    "ensureActivityLogCleanupTrigger_",
+    "./activityLogger.js",
+    null
+  );
+  let cleanupTrigger = { ok: false, created: false, reason: "unavailable" };
+  if (typeof ensureTrigger === "function") {
+    try {
+      cleanupTrigger = ensureTrigger({ scriptApp: options && options.scriptApp }) || cleanupTrigger;
+    } catch (error) {
+      console.error("安裝操作日誌清理觸發器失敗：", error && error.message ? error.message : error);
+    }
+  }
+
   return {
     ok: true,
     sheets: [SHEET_SYSTEM_CONFIG, SHEET_COURSE_INDEX, SHEET_SYSTEM_INSTRUCTIONS, SHEET_ACTIVITY_LOG],
-    createdSheets: createdSheets
+    createdSheets: createdSheets,
+    cleanupTrigger: cleanupTrigger
   };
 }
 

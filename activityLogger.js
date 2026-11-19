@@ -270,6 +270,47 @@ function cleanupActivityLogRows(options) {
   }
 }
 
+/**
+ * 確保每日 03:00（Asia/Taipei）的操作日誌清理觸發器存在。
+ * 先比對既有觸發器的處理函式名稱，避免重複安裝。
+ *
+ * @param {Object} [options] - 選項
+ * @param {*} [options.scriptApp] - 明確指定的 ScriptApp（供 Node 測試注入）
+ * @returns {Object} `{ ok, created, reason }`
+ */
+function ensureActivityLogCleanupTrigger_(options) {
+  const opts = options || {};
+  const scriptApp =
+    opts.scriptApp || (typeof ScriptApp !== "undefined" ? ScriptApp : null);
+  if (!scriptApp || typeof scriptApp.newTrigger !== "function") {
+    return { ok: false, created: false, reason: "unavailable" };
+  }
+  const handlerName = "cleanupActivityLogRows";
+  if (typeof scriptApp.getProjectTriggers === "function") {
+    const triggers = scriptApp.getProjectTriggers() || [];
+    const exists = triggers.some(function (trigger) {
+      if (!trigger) return false;
+      if (typeof trigger.getHandlerFunction === "function") {
+        return trigger.getHandlerFunction() === handlerName;
+      }
+      return trigger.handlerFunction === handlerName;
+    });
+    if (exists) return { ok: true, created: false, reason: "exists" };
+  }
+  try {
+    scriptApp
+      .newTrigger(handlerName)
+      .timeBased()
+      .atHour(3)
+      .everyDays(1)
+      .create();
+    return { ok: true, created: true, reason: "created" };
+  } catch (error) {
+    console.error("建立操作日誌清理觸發器失敗：", error && error.message ? error.message : error);
+    return { ok: false, created: false, reason: "error" };
+  }
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
@@ -284,6 +325,8 @@ if (typeof module !== "undefined" && module.exports) {
     appendActivityLog: appendActivityLog_,
     appendActivityLog_: appendActivityLog_,
     buildActivityLogRow: buildActivityLogRow_,
-    cleanupActivityLogRows: cleanupActivityLogRows
+    cleanupActivityLogRows: cleanupActivityLogRows,
+    ensureActivityLogCleanupTrigger: ensureActivityLogCleanupTrigger_,
+    ensureActivityLogCleanupTrigger_: ensureActivityLogCleanupTrigger_
   };
 }

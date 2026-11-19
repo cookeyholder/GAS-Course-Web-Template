@@ -17,7 +17,7 @@
 - [x] 3.2 在 `activityLogger.js` 對 email、摘要、動作名稱等字串欄位統一截斷（上限 500 字元），並明確排除 token、原始 rows 與查詢回傳內容；以 `tests/activityLogger.test.js` 驗證超長截斷與敏感欄位不寫入。
 - [x] 3.3 在 `activityLogger.js` 以 `CacheService` 計數（鍵前綴 `gas_tmpl_activitylog_`），每 100 次寫入才呼叫一次 `getLastRow()`；比照 `getOAuthNonceCache_(deps)` 提供 `deps.cache` 注入點，Node 記憶體備援不實作 TTL，過期行為由 fake cache 驗證；以 `tests/activityLogger.test.js` 驗證抽樣間隔與注入行為。
 - [x] 3.4 新增每日清理函式（例如 `cleanupActivityLogRows`），於列數超過 20,000 時刪除最舊資料至 15,000，且可在 Node 測試環境注入 spreadsheet；以 `tests/activityLogger.test.js` 驗證超過上限才清理、清理數量正確、未達上限不刪除。
-- [ ] 3.5 新增 `ensureActivityLogCleanupTrigger_`，以 `ScriptApp.newTrigger("cleanupActivityLogRows").timeBased().atHour(3).everyDays(1).create()` 建立每日 03:00（Asia/Taipei）觸發器，先以 `ScriptApp.getProjectTriggers()` 比對處理函式名稱避免重複建立；於初始化或部署流程呼叫；以新增 `tests/activityLogTrigger.test.js` 注入 fake `ScriptApp` 驗證首次建立與重複安裝保持冪等。
+- [x] 3.5 新增 `ensureActivityLogCleanupTrigger_`，以 `ScriptApp.newTrigger("cleanupActivityLogRows").timeBased().atHour(3).everyDays(1).create()` 建立每日 03:00（Asia/Taipei）觸發器，先以 `ScriptApp.getProjectTriggers()` 比對處理函式名稱避免重複建立；於初始化或部署流程呼叫；以新增 `tests/activityLogTrigger.test.js` 注入 fake `ScriptApp` 驗證首次建立與重複安裝保持冪等。
 
 ## 4. 後端攔截與讀取 API
 
