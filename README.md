@@ -51,7 +51,8 @@ GAS-Course-Web-Template/
 │   ├── checkChangedCoverage.js # 變更覆蓋率檢查（diff + lcov）
 │   ├── checkComplexity.js      # 函式 CRAP 與模組 MI 檢查
 │   ├── checkUiClasses.js       # JS 使用的 class 必須存在於 CSS 之對齊檢查
-│   ├── checkContrast.js        # UI 色彩對比度（WCAG）檢查
+│   ├── checkContrast.js        # UI 色彩對比度（WCAG）檢查（淺色／深色文字與焦點環）
+│   ├── checkA11y.js            # 前端無障礙稽核（jsdom + axe-core，含主要畫面與關鍵狀態）
 │   └── languageCheck.js        # 臺灣繁體中文與禁用詞檢查
 │
 ├── docs/                       # 技術與教學文件目錄 (HTML 離線說明文件)
@@ -178,6 +179,9 @@ npm run check:lang
 npm run check:ui-classes
 npm run check:contrast
 
+# 前端無障礙稽核（jsdom + axe-core；color-contrast 由 check:contrast 把關）
+npm run check:a11y
+
 # 測試覆蓋率量測與檢查（c8，產出 text/lcov/json/json-summary）
 npm run test:coverage
 npm run check:coverage
@@ -210,7 +214,7 @@ npm run build:webapp
 
 ### CI 品質閘門行為
 
-`.github/workflows/quality-gates.yml`（Quality Gates）在每次推送與 Pull Request 時，以 Node 24 依序執行：checkout（取得完整 Git 歷史供變更覆蓋率比對）、安裝相依（CI 環境略過 Husky 初始化）、`format:check`、`check:lang`、`check:ui-classes`、`check:contrast`、建置產物一致性（`npm run build:webapp` 後 `git diff --exit-code -- index.html`）、`npm test`、`check:coverage`、`check:complexity`、`check:changed-coverage`。任一步驟失敗即阻擋合併；所有步驟都可在本機以同名 npm 指令重現。
+`.github/workflows/quality-gates.yml`（Quality Gates）在每次推送與 Pull Request 時，以 Node 24 依序執行：checkout（取得完整 Git 歷史供變更覆蓋率比對）、安裝相依（CI 環境略過 Husky 初始化）、`format:check`、`check:lang`、`check:ui-classes`、`check:contrast`、`check:a11y`（前端無障礙稽核）、建置產物一致性（`npm run build:webapp` 後 `git diff --exit-code -- index.html`）、`npm test`、`check:coverage`、`check:complexity`、`check:changed-coverage`。任一步驟失敗即阻擋合併；所有步驟都可在本機以同名 npm 指令重現。
 
 相依套件由 `package-lock.json` 鎖定，CI 使用 `npm ci --ignore-scripts || npm install --ignore-scripts` 安裝並搭配 npm cache；SheetJS 於前端由 CDN 動態載入，故不列為 npm 相依。
 
@@ -218,6 +222,7 @@ npm run build:webapp
 
 - **`format:check` 失敗**：執行 `npm run format` 自動格式化後重新檢查；pre-commit 只會格式化暫存檔，CI 則檢查全部檔案。
 - **`check:lang` 失敗**：依訊息將簡體字或中國用語改為臺灣繁體中文用詞（如「程式碼」「預設」「資料庫」）。
+- **`check:a11y` 失敗**：依輸出的夾具、規則與節點Selector修正 DOM 語意或 ARIA 屬性；`color-contrast` 已停用，色彩對比問題請改用 `npm run check:contrast` 排查。新增前端畫面時須同步擴充 `tests/helpers/a11yHarness.js` 的夾具。
 - **`check:coverage` 失敗**：先執行 `npm run test:coverage` 產生 `coverage/coverage-summary.json`，確認是否未達初始門檻或低於基準線；補測試後重新量測。
 - **`check:complexity` 失敗**：查看 `reports/quality/complexity.json` 定位 CRAP > 30 或 MI < 20 的項目，以拆分函式與補測試收斂，不可直接放寬門檻或排除核心模組。
 - **`check:changed-coverage` 失敗**：確認比較基準（`--base` 或 `CHANGED_COVERAGE_BASE`）是否正確，並為新增/修改的可執行行與分支補測試（Lines >= 80%、Branches >= 70%）。

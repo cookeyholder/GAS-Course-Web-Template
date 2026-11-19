@@ -136,6 +136,7 @@ npm run check:lang
 # 10. 前端樣式與無障礙檢查
 npm run check:ui-classes
 npm run check:contrast
+npm run check:a11y
 
 # 11. 品質量測與閘門（覆蓋率、變更覆蓋率、CRAP/MI）
 npm run test:coverage
@@ -168,7 +169,7 @@ npm run check:complexity
 任何程式碼或功能變更前與提交前，必須通過以下檢驗標準：
 
 1. **單元測試全數通過**：執行 `npm test`，確認課程代碼正規化與 API 路由權限無回退（Regression）。
-2. **品質閘門通過（視變更範圍）**：執行 `npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`，並依影響範圍執行 `npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`；確保符合門檻且**不得低於基準線（ratchet 不回退）**。
+2. **品質閘門通過（視變更範圍）**：執行 `npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`（jsdom + axe-core 無障礙稽核；`color-contrast` 因 jsdom 不計算配置樣式而停用，由 `check:contrast` 互補），並依影響範圍執行 `npm run test:coverage`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`；確保符合門檻且**不得低於基準線（ratchet 不回退）**。
 3. **Git Hook 與自動格式化**：`pre-commit`（Husky + lint-staged）會對暫存檔執行 Prettier 自動格式化（`prettier --write`）與語言規範檢查；提交前應確保 hook 可正常執行且變更已符合格式規範。
 4. **打包驗證無缺漏**：執行 `npm run build:webapp`，確認產生之 `index.html` 內嵌順序正常且無語法錯誤。
 5. **離線 Mock 模式相容**：若變更前端介面，需確保開啟 `index.html?mock=true` 能正常運作與渲染。
@@ -182,7 +183,7 @@ npm run check:complexity
 
 ### CI 品質閘門與相依套件
 
-- `.github/workflows/quality-gates.yml` 在每次推送與 Pull Request 時，以 Node 24 依序執行 `format:check`、`check:lang`、`npm test`、`check:coverage`、`check:complexity`、`check:changed-coverage`；任一步驟失敗即阻擋合併。
+- `.github/workflows/quality-gates.yml` 在每次推送與 Pull Request 時，以 Node 24 依序執行 `format:check`、`check:lang`、`npm test`、`check:contrast`、`check:a11y`、`check:coverage`、`check:complexity`、`check:changed-coverage`；任一步驟失敗即阻擋合併。
 - 相依套件由 `package-lock.json` 鎖定，CI 以 `npm ci --ignore-scripts`（失敗時回退 `npm install --ignore-scripts`）安裝；SheetJS 於前端由 CDN 動態載入，不列為 npm 相依。
 - 詳細指令、門檻說明與疑難排解見 `README.md`「開發與品質檢查」章節；量測快照與收斂紀錄見 `openspec/changes/archive/2026-11-19-2026-11-18-quality-gates-and-test-expansion/tasks.md`。
 
