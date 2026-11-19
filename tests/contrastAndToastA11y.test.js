@@ -65,7 +65,20 @@ function run() {
   );
   console.log("   ✓ 回退偵測驗證通過！\n");
 
-  console.log("5. 錯誤與警告 Toast 應具備 role=alert...");
+  console.log("5. 深色主題低對比回退應被偵測...");
+  const badDarkCss =
+    ":root { --bg: #15130f; --paper: #1c1a15; --accent: #e59a7d; --focus-ring: var(--accent); }" +
+    'html[data-style="paper"][data-theme="dark"] { --bg: #15130f; --paper: #1c1a15; --accent: #e59a7d; --ink-3: #7b7467; }';
+  const darkFailures = contrast.evaluateContrast(badDarkCss);
+  assert(
+    darkFailures.some(function (item) {
+      return item.theme.indexOf(":dark") !== -1 && item.metric.indexOf("--ink-3") === 0;
+    }),
+    "應偵測深色主題文字對比不足"
+  );
+  console.log("   ✓ 深色對比回退偵測驗證通過！\n");
+
+  console.log("6. 錯誤與警告 Toast 應具備 role=alert...");
   assert.strictEqual(uiModule.resolveToastRole("err"), "alert");
   assert.strictEqual(uiModule.resolveToastRole("warn"), "alert");
   assert.strictEqual(uiModule.resolveToastRole("ok"), null);

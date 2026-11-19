@@ -3,8 +3,8 @@
 
 /**
  * @file checkContrast.js
- * @description 驗證 styles.css 的次要文字（--ink-3）與焦點環（--focus-ring）符合 WCAG AA 對比
- *              （task 3.5）。淺色文字對比至少 4.5:1，焦點指標至少 3:1。
+ * @description 驗證 styles.css 的次要文字（--ink-3）與焦點環（--focus-ring）符合 WCAG AA 對比。
+ *              淺色與深色文字對比至少 4.5:1，焦點指標至少 3:1。
  */
 
 const fs = require("fs");
@@ -14,6 +14,7 @@ const ROOT = path.resolve(__dirname, "..");
 const CSS_PATH = path.join(ROOT, "webapp", "styles.css");
 
 const LIGHT_TEXT_MIN = 4.5;
+const DARK_TEXT_MIN = 4.5;
 const FOCUS_MIN = 3;
 const HEX_PATTERN = /^#([0-9a-f]{6})$/i;
 const VAR_PATTERN = /^var\(\s*(--[a-z0-9-]+)\s*\)$/i;
@@ -175,19 +176,20 @@ function evaluateContrast(cssText) {
     const bg = resolveColor(vars["--bg"], vars, parsed.rootVars);
     const ink3 = resolveColor(vars["--ink-3"], vars, parsed.rootVars);
 
-    if (isLight && ink3) {
+    const textMin = isLight ? LIGHT_TEXT_MIN : DARK_TEXT_MIN;
+    if (ink3) {
       [
         { label: "背景", color: bg },
         { label: "卡片", color: paper }
       ].forEach(function (target) {
         if (!target.color) return;
         const value = computeContrast(ink3, target.color);
-        if (value !== null && value < LIGHT_TEXT_MIN) {
+        if (value !== null && value < textMin) {
           failures.push({
             theme: key,
             metric: "--ink-3/" + target.label,
             value: value,
-            minimum: LIGHT_TEXT_MIN
+            minimum: textMin
           });
         }
       });
@@ -215,7 +217,7 @@ function evaluateContrast(cssText) {
 function main() {
   const failures = evaluateContrast(fs.readFileSync(CSS_PATH, "utf8"));
   if (failures.length === 0) {
-    console.log("[checkContrast] 淺色文字與焦點環對比皆符合 WCAG AA，檢查通過。");
+    console.log("[checkContrast] 淺色與深色文字及焦點環對比皆符合 WCAG AA，檢查通過。");
     return;
   }
   console.error("[checkContrast] 發現 " + failures.length + " 處對比不足：");

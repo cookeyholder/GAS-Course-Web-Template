@@ -16,6 +16,7 @@
     "check:lang": "node scripts/languageCheck.js",
     "check:ui-classes": "node scripts/checkUiClasses.js",
     "check:contrast": "node scripts/checkContrast.js",
+    "check:a11y": "node scripts/checkA11y.js",
     "check:coverage": "node scripts/checkCoverage.js",
     "check:changed-coverage": "node scripts/checkChangedCoverage.js",
     "check:complexity": "node scripts/checkComplexity.js",
@@ -38,8 +39,10 @@
   "license": "MIT",
   "devDependencies": {
     "@google/clasp": "^3.4.1",
+    "axe-core": "^4.14.1",
     "c8": "^10.1.3",
     "husky": "^9.1.7",
+    "jsdom": "^31.0.1",
     "lint-staged": "^15.5.2",
     "prettier": "^3.3.3",
     "typhonjs-escomplex": "^0.1.0"
