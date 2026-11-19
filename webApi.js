@@ -1431,13 +1431,93 @@ function buildActivityLogRecord_(context, meta, payload, result, before, after) 
  * @param {Object} [event] - HTTP 原始事件物件
  * @returns {Object} Action 結果或錯誤物件
  */
+/**
+ * 由請求資料取得 action 字串，供日誌 context 與路由共用。
+ *
+ * @param {Object|string} payload - 請求資料
+ * @param {Object} [event] - HTTP 原始事件物件
+ * @param {boolean} [shouldTrim] - 是否去除前後空白
+ * @returns {string} action 字串
+ */
+function getWebApiAction_(payload, event, shouldTrim) {
+  const raw = String((payload && payload.action) || (event && event.parameter && event.parameter.action) || "");
+  return shouldTrim ? raw.trim() : raw;
+}
+
+/**
+ * 依 action 判斷是否需要寫入鎖並嘗試取得，回傳鎖狀態供釋放。
+ *
+ * @param {string} action - action 名稱
+ * @returns {{lock: Object|null, hasLock: boolean, lockFailed: boolean}} 鎖狀態
+ */
+function acquireWebApiLock_(action) {
+  const state = { lock: null, hasLock: false, lockFailed: false };
+  if (WEB_API_LOCKED_ACTIONS.indexOf(action) === -1) return state;
+  // LockService 不可用時維持既有行為：略過鎖定，不視為逾時。
+  if (typeof LockService === "undefined" || !LockService.getScriptLock) return state;
+  state.lock = LockService.getScriptLock();
+  try {
+    state.hasLock = state.lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
+  } catch (lockError) {
+    state.hasLock = false;
+  }
+  state.lockFailed = !state.hasLock;
+  return state;
+}
+
+/**
+ * 於 executeWebApi 的 finally 統一釋放鎖並寫入操作日誌。
+ * 日誌寫入失敗不得影響 API 回應。
+ *
+ * @param {Object} context - 日誌 context
+ * @param {Object|null} actionMeta - 日誌中繼資料
+ * @param {Object|string} payload - 原始請求資料
+ * @param {Object|null} finalResult - 最終 API 回應
+ * @param {Object|null} beforeSnapshot - 寫入前快照
+ * @param {Object|null} afterSnapshot - 寫入後快照
+ * @param {Object|null} lock - 已取得的鎖
+ * @param {boolean} hasLock - 是否成功取得鎖
+ */
+function finalizeWebApiRequest_(
+  context,
+  actionMeta,
+  payload,
+  finalResult,
+  beforeSnapshot,
+  afterSnapshot,
+  lock,
+  hasLock
+) {
+  if (hasLock && lock) {
+    try {
+      lock.releaseLock();
+    } catch (releaseError) {
+      // 忽略解鎖失敗
+    }
+  }
+  // 統一日誌寫入必須在解鎖之後，且不得再次取得同一把 Script Lock。
+  // 解析失敗或缺少 action 時仍須寫入，故補上預設中繼資料。
+  if (!actionMeta) actionMeta = getActivityLogMeta_(context.action);
+  if (!actionMeta || !shouldLogActivity_(context.action, actionMeta)) return;
+  const loggerModule = resolveActivityLogModule_("activityLogger", "./activityLogger.js");
+  const appendFn = getOverridableApiFn_("appendActivityLog", loggerModule ? loggerModule.appendActivityLog : null);
+  if (typeof appendFn !== "function") return;
+  try {
+    appendFn(
+      buildActivityLogRecord_(context, actionMeta, payload, finalResult, beforeSnapshot, afterSnapshot),
+      getRouteSpreadsheet_()
+    );
+  } catch (error) {
+    console.error("寫入操作日誌失敗：", error && error.message ? error.message : error);
+  }
+}
+
 function executeWebApi(payload, event) {
   const context = getOverridableApiFn_("createWebApiLogContext", createWebApiLogContext_)(
-    String((payload && payload.action) || (event && event.parameter && event.parameter.action) || ""),
+    getWebApiAction_(payload, event, false),
     Date.now()
   );
-  let lock = null;
-  let hasLock = false;
+  let lockState = { lock: null, hasLock: false };
   let finalResult = null;
   let actionMeta = null;
   let beforeSnapshot = null;
@@ -1463,7 +1543,7 @@ function executeWebApi(payload, event) {
       return finish_(webApiError("invalid_json", "請求 JSON 格式錯誤"));
     }
 
-    const action = String(payload.action || (event && event.parameter && event.parameter.action) || "").trim();
+    const action = getWebApiAction_(payload, event, true);
     context.action = action;
     if (action === "") {
       context.errorCode = "missing_action";
@@ -1485,18 +1565,10 @@ function executeWebApi(payload, event) {
     }
     if (authorization) recordWebApiIdentity_(context, authorization, null);
 
-    const needsLock = WEB_API_LOCKED_ACTIONS.indexOf(action) !== -1;
-    if (needsLock && typeof LockService !== "undefined" && LockService.getScriptLock) {
-      lock = LockService.getScriptLock();
-      try {
-        hasLock = lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
-      } catch (lockError) {
-        hasLock = false;
-      }
-      if (!hasLock) {
-        context.errorCode = "lock_timeout";
-        return finish_(webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試"));
-      }
+    lockState = acquireWebApiLock_(action);
+    if (lockState.lockFailed) {
+      context.errorCode = "lock_timeout";
+      return finish_(webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試"));
     }
     const routeFn =
       typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"
@@ -1515,30 +1587,16 @@ function executeWebApi(payload, event) {
     context.errorCode = "server_error";
     return finish_(webApiError("server_error", "系統發生未預期的錯誤，請稍後再試"));
   } finally {
-    if (hasLock && lock) {
-      try {
-        lock.releaseLock();
-      } catch (releaseError) {
-        // 忽略解鎖失敗
-      }
-    }
-    // 統一日誌寫入必須在解鎖之後，且不得再次取得同一把 Script Lock。
-    // 解析失敗或缺少 action 時仍須寫入，故補上預設中繼資料。
-    if (!actionMeta) actionMeta = getActivityLogMeta_(context.action);
-    if (actionMeta && shouldLogActivity_(context.action, actionMeta)) {
-      const loggerModule = resolveActivityLogModule_("activityLogger", "./activityLogger.js");
-      const appendFn = getOverridableApiFn_("appendActivityLog", loggerModule ? loggerModule.appendActivityLog : null);
-      if (typeof appendFn === "function") {
-        try {
-          appendFn(
-            buildActivityLogRecord_(context, actionMeta, payload, finalResult, beforeSnapshot, afterSnapshot),
-            getRouteSpreadsheet_()
-          );
-        } catch (error) {
-          console.error("寫入操作日誌失敗：", error && error.message ? error.message : error);
-        }
-      }
-    }
+    finalizeWebApiRequest_(
+      context,
+      actionMeta,
+      payload,
+      finalResult,
+      beforeSnapshot,
+      afterSnapshot,
+      lockState.lock,
+      lockState.hasLock
+    );
   }
 }
 

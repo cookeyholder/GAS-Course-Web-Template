@@ -626,4 +626,61 @@ console.log("6. 舊工作表應一次性更名為新名稱並保留既有資料.
   console.log("   ✓ 工作表更名遷移與冪等性驗證通過！\n");
 }
 
+function makeReadyConfigSheet() {
+  const s = makeConfigSheet({ lastRow: 1, maxCols: 8, cells: {} });
+  db.DEFAULT_SYSTEM_PARAMS.forEach(function (row, i) {
+    s._setCell(i + 1, 1, row[0]);
+    s._setCell(i + 1, 2, row[1]);
+  });
+  s._setLastRow(db.DEFAULT_SYSTEM_PARAMS.length);
+  return s;
+}
+
+function testCleanupTriggerInstallationBranches() {
+  console.log("14. 清理觸發器安裝分支應正確處理...\n");
+  const calls = [];
+  const fakeTriggerResult = { ok: true, created: true, reason: "created" };
+
+  function runWithTrigger(triggerFn, label) {
+    const ss = makeSpreadsheet({
+      [db.SHEET_SYSTEM_CONFIG]: makeReadyConfigSheet(),
+      [db.SHEET_COURSE_INDEX]: makeGenericSheet({ maxCols: transformer.NORMALIZED_COURSE_HEADERS.length }),
+      [db.SHEET_SYSTEM_INSTRUCTIONS]: makeGenericSheet({ maxCols: 1 }),
+      [db.SHEET_ACTIVITY_LOG]: makeGenericSheet({ maxCols: db.ACTIVITY_LOG_HEADERS.length })
+    });
+    return withGlobals(
+      {
+        SpreadsheetApp: undefined,
+        NORMALIZED_COURSE_HEADERS: transformer.NORMALIZED_COURSE_HEADERS,
+        ensureActivityLogCleanupTrigger_: triggerFn
+      },
+      function () {
+        calls.push(label);
+        return db.initializeDatabaseSheets({ spreadsheet: ss, scriptApp: { fake: true } });
+      }
+    );
+  }
+
+  const success = runWithTrigger(function (options) {
+    assert.deepStrictEqual(options, { scriptApp: { fake: true } });
+    return fakeTriggerResult;
+  }, "success");
+  assert.strictEqual(success.cleanupTrigger, fakeTriggerResult);
+
+  const thrown = runWithTrigger(function () {
+    throw new Error("trigger boom");
+  }, "thrown");
+  assert.deepStrictEqual(thrown.cleanupTrigger, { ok: false, created: false, reason: "unavailable" });
+
+  const empty = runWithTrigger(function () {
+    return null;
+  }, "empty");
+  assert.deepStrictEqual(empty.cleanupTrigger, { ok: false, created: false, reason: "unavailable" });
+
+  assert.deepStrictEqual(calls, ["success", "thrown", "empty"]);
+  console.log("   ✓ 清理觸發器安裝分支驗證通過！\n");
+}
+
+testCleanupTriggerInstallationBranches();
+
 console.log("✓ initializeDatabaseSheets 測試全數通過！\n");
