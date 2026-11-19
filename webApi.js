@@ -1085,7 +1085,7 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
   return handler(payload, session, ss);
 }
 
-function routeWebApiAction(action, payload, event) {
+function routeWebApiAction(action, payload, event, authorizationOverride) {
   const name = String(action || "").trim();
   if (name === "") return webApiError("missing_action", "缺少 action 參數");
   if (!ACTION_REGISTRY.hasAction(name)) {
@@ -1095,7 +1095,8 @@ function routeWebApiAction(action, payload, event) {
   const publicResult = routePublicWebApiAction_(name, payload);
   if (publicResult !== null) return publicResult;
 
-  const authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
+  const authorization =
+    authorizationOverride || getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
   if (!authorization.ok) return authorization;
 
   const session = authorization.session;
@@ -1110,6 +1111,63 @@ function routeWebApiAction(action, payload, event) {
 // ============================================================================
 
 /**
+ * 建立請求層級的日誌 context。
+ * 身分欄位一開始保持空白，待授權結果或登入結果回傳後再補寫。
+ *
+ * @param {string} [action] - 動作名稱
+ * @param {number} [startTime] - 起始時間（毫秒）
+ * @returns {Object} 日誌 context
+ */
+function createWebApiLogContext_(action, startTime) {
+  return {
+    requestId: "req_" + generateSessionToken(),
+    action: String(action || ""),
+    startTime: typeof startTime === "number" ? startTime : Date.now(),
+    email: "",
+    name: "",
+    role: "",
+    errorCode: ""
+  };
+}
+
+/**
+ * 依授權結果或公開登入結果補寫日誌 context 的已驗證身分。
+ * 角色顯示名稱一律由 getRoleDisplayName(session.role) 取得，
+ * 不得讀取可能遭竄改的 session.roleName。
+ *
+ * @param {Object} context - 日誌 context
+ * @param {Object} [authorization] - 授權結果
+ * @param {Object} [result] - action 回傳結果
+ * @returns {Object} 同一個 context
+ */
+function recordWebApiIdentity_(context, authorization, result) {
+  if (!context) return context;
+  const resolveRoleName = function (role) {
+    if (!role) return "";
+    if (typeof getRoleDisplayName === "function") {
+      try {
+        return getRoleDisplayName(role) || String(role);
+      } catch (error) {
+        return String(role);
+      }
+    }
+    return String(role);
+  };
+  if (authorization && authorization.ok && authorization.session) {
+    const session = authorization.session;
+    context.email = session.email || "";
+    context.name = session.name || "";
+    context.role = resolveRoleName(session.role);
+  }
+  if (result && result.ok && (result.email || result.role)) {
+    context.email = result.email || context.email;
+    context.name = result.name || context.name;
+    context.role = resolveRoleName(result.role) || context.role;
+  }
+  return context;
+}
+
+/**
  * 執行 Web API Action，供 doPost 與 google.script.run 共用。
  *
  * @param {Object|string} payload - 請求資料物件或 JSON 字串
@@ -1117,23 +1175,38 @@ function routeWebApiAction(action, payload, event) {
  * @returns {Object} Action 結果或錯誤物件
  */
 function executeWebApi(payload, event) {
-  if (typeof payload === "string") {
-    try {
-      payload = JSON.parse(payload);
-    } catch (error) {
-      return webApiError("invalid_json", "請求 JSON 格式錯誤");
-    }
-  }
-  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
-    return webApiError("invalid_json", "請求 JSON 格式錯誤");
-  }
-
-  const action = String(payload.action || (event && event.parameter && event.parameter.action) || "").trim();
-  if (action === "") return webApiError("missing_action", "缺少 action 參數");
-
+  const context = getOverridableApiFn_("createWebApiLogContext", createWebApiLogContext_)(
+    String((payload && payload.action) || (event && event.parameter && event.parameter.action) || ""),
+    Date.now()
+  );
   let lock = null;
   let hasLock = false;
   try {
+    if (typeof payload === "string") {
+      try {
+        payload = JSON.parse(payload);
+      } catch (error) {
+        return webApiError("invalid_json", "請求 JSON 格式錯誤");
+      }
+    }
+    if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+      return webApiError("invalid_json", "請求 JSON 格式錯誤");
+    }
+
+    const action = String(payload.action || (event && event.parameter && event.parameter.action) || "").trim();
+    context.action = action;
+    if (action === "") return webApiError("missing_action", "缺少 action 參數");
+
+    // 先取得一次授權結果供日誌 context 使用，並直接交給路由，避免重複授權。
+    let authorization = null;
+    try {
+      authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(action, payload);
+    } catch (error) {
+      // 授權函式本身的例外交由路由再次觸發，維持既有 server_error 行為。
+      authorization = null;
+    }
+    if (authorization) recordWebApiIdentity_(context, authorization, null);
+
     const needsLock = WEB_API_LOCKED_ACTIONS.indexOf(action) !== -1;
     if (needsLock && typeof LockService !== "undefined" && LockService.getScriptLock) {
       lock = LockService.getScriptLock();
@@ -1148,7 +1221,15 @@ function executeWebApi(payload, event) {
       typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"
         ? module.exports.routeWebApiAction
         : routeWebApiAction;
-    return routeFn(action, payload, event);
+    const result = routeFn(action, payload, event, authorization);
+    if (
+      (action === "login" || action === "loginWithActiveUser") &&
+      result &&
+      result.ok
+    ) {
+      recordWebApiIdentity_(context, null, result);
+    }
+    return result;
   } catch (error) {
     console.error("[webApi executeWebApi error] " + (error && error.stack ? error.stack : error));
     return webApiError("server_error", "系統發生未預期的錯誤，請稍後再試");
@@ -1160,6 +1241,8 @@ function executeWebApi(payload, event) {
         // 忽略解鎖失敗
       }
     }
+    // 統一日誌寫入將於 4.2 加入，確保發生在解鎖之後。
+    void context;
   }
 }
 
@@ -1297,6 +1380,8 @@ if (typeof module !== "undefined" && module.exports) {
     routeWebApiAction: routeWebApiAction,
     getPublicConfig: getPublicConfig,
     executeWebApi: executeWebApi,
+    createWebApiLogContext: createWebApiLogContext_,
+    recordWebApiIdentity: recordWebApiIdentity_,
     doGet: doGet,
     doPost: doPost
   };
