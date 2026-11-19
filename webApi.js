@@ -47,24 +47,24 @@ const WEB_API_VERSION = GAS_RUNTIME.WEB_API_VERSION;
 
 /** 系統管理員顯示名稱由 gasRuntime 提供（單一來源） */
 const ADMIN_ROLE_NAME = GAS_RUNTIME.ROLE_DEFINITIONS.admin;
+
+/** action 登錄表（前後端共用單一來源） */
+const ACTION_REGISTRY =
+  typeof globalThis !== "undefined" && globalThis.actionRegistry
+    ? globalThis.actionRegistry
+    : typeof require === "function"
+      ? require("./actionRegistry.js")
+      : null;
 const WEB_API_SESSION_TTL_SECONDS = 21600; // 6 小時
 const WEB_API_LOCK_TIMEOUT_MS = 15000;
 const OAUTH_STATE_NONCE_CACHE_PREFIX = "gas_tmpl_oauth_nonce_";
 const OAUTH_STATE_NONCE_TTL_SECONDS = 600;
 const WEB_API_MEMORY_NONCES = {};
 
-/** 免登入即可呼叫的公開 action */
-const WEB_API_PUBLIC_ACTIONS = ["getPublicConfig", "ping", "login", "loginWithActiveUser"];
-
-/** 寫入型 action（需 LockService 保護與 CSRF 驗證） */
-const WEB_API_WRITE_ACTIONS = ["importCourseCodes", "saveSystemSettings", "saveWhitelist", "logout"];
-
-/**
- * 寫入型 action 中，需要全域 Script Lock 保護的項目。
- * login／loginWithActiveUser 的外部 HTTP（ID Token 驗證）必須在鎖外完成，
- * 其白名單寫入已由 createSessionForEmail 內的短臨界區保護，故不列於此。
- */
-const WEB_API_LOCKED_ACTIONS = ["importCourseCodes", "saveSystemSettings", "saveWhitelist"];
+/** 公開／寫入／全域鎖 action 清單由 ACTION_REGISTRY 單一來源產生 */
+const WEB_API_PUBLIC_ACTIONS = ACTION_REGISTRY.listPublicActions();
+const WEB_API_WRITE_ACTIONS = ACTION_REGISTRY.listWriteActions();
+const WEB_API_LOCKED_ACTIONS = ACTION_REGISTRY.listLockedActions();
 
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const WEB_API_SESSION_PREFIX = "gas_tmpl_session_";
@@ -78,12 +78,8 @@ const WEB_API_IMPORT_NORMALIZED_COLUMNS = 14;
 const WEB_API_IMPORT_RESULT_PREFIX = "gas_tmpl_import_";
 const WEB_API_IMPORT_RESULT_TTL_SECONDS = WEB_API_SESSION_TTL_SECONDS;
 
-/** 角色權限矩陣（RBAC）：所有受保護 action 必須明確列舉，不使用 getXxx 通配規則 */
-const ROLE_PERMISSIONS = {
-  admin: ["*"],
-  staff: ["getSession", "logout", "getCourseIndex", "getCourseIndexStats", "getSystemSettings", "importCourseCodes"],
-  viewer: ["getSession", "logout", "getCourseIndex", "getCourseIndexStats", "getSystemSettings"]
-};
+/** 角色權限矩陣（RBAC）由 ACTION_REGISTRY 產生，僅 admin 使用通配規則 */
+const ROLE_PERMISSIONS = ACTION_REGISTRY.buildRolePermissions();
 
 /** Node.js 沙盒測試用之記憶體 Session 儲存 */
 const WEB_API_MEMORY_SESSIONS = {};
@@ -1018,6 +1014,9 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
 function routeWebApiAction(action, payload, event) {
   const name = String(action || "").trim();
   if (name === "") return webApiError("missing_action", "缺少 action 參數");
+  if (!ACTION_REGISTRY.hasAction(name)) {
+    return webApiError("unknown_action", "未支援的 action：" + name);
+  }
 
   const publicResult = routePublicWebApiAction_(name, payload);
   if (publicResult !== null) return publicResult;
@@ -1186,6 +1185,7 @@ function doPost(e) {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     WEB_API_VERSION: WEB_API_VERSION,
+    ACTION_REGISTRY: ACTION_REGISTRY,
     WEB_API_PUBLIC_ACTIONS: WEB_API_PUBLIC_ACTIONS,
     WEB_API_WRITE_ACTIONS: WEB_API_WRITE_ACTIONS,
     WEB_API_LOCKED_ACTIONS: WEB_API_LOCKED_ACTIONS,

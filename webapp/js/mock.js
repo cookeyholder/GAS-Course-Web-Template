@@ -266,7 +266,16 @@
       return { ok: false, error: "unknown_mock_action", message: "Mock 未支援 action：" + action };
     }
 
+    const actionRegistry =
+      options.actionRegistry ||
+      (typeof globalThis !== "undefined" && globalThis.MEA && globalThis.MEA.actionRegistry) ||
+      (typeof globalThis !== "undefined" && globalThis.actionRegistry) ||
+      null;
+
     function resolveAction(action, payload) {
+      if (actionRegistry && !actionRegistry.hasAction(action)) {
+        return createUnknownActionResult(action);
+      }
       if (!Object.prototype.hasOwnProperty.call(actionHandlers, action)) {
         return createUnknownActionResult(action);
       }
