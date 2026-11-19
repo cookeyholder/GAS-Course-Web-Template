@@ -46,7 +46,16 @@ function run() {
   assert.deepStrictEqual(missingHandlers, []);
   console.log("   ✓ handler 完整性驗證通過！\n");
 
-  console.log("5. 路由應呼叫登錄表中的 handler...");
+  console.log("5. handler 註冊應拒絕無效輸入...");
+  assert.strictEqual(
+    registry.setHandler("not_registered", function () {}),
+    false
+  );
+  assert.strictEqual(registry.setHandler("ping", null), false);
+  assert.strictEqual(registry.getHandler("not_registered"), null);
+  console.log("   ✓ handler 輸入驗證通過！\n");
+
+  console.log("6. 路由應呼叫登錄表中的 handler...");
   const originalHandler = registry.getHandler("getPublicConfig");
   const routed = api.routeWebApiAction("ping", {}, null);
   assert.strictEqual(routed.ok, true);
@@ -63,7 +72,7 @@ function run() {
   }
   console.log("   ✓ 登錄表路由驗證通過！\n");
 
-  console.log("6. mock handler 應完整覆蓋所有已登錄 action...");
+  console.log("7. mock handler 應完整覆蓋所有已登錄 action...");
   const mockSource = fs.readFileSync(path.join(__dirname, "..", "webapp", "js", "mock.js"), "utf8");
   const handlerBlock = mockSource.match(/const actionHandlers = \{([\s\S]*?)\n    \};/);
   assert(handlerBlock, "找不到 mock actionHandlers 定義");
@@ -75,7 +84,7 @@ function run() {
   assert.deepStrictEqual(handlerKeys, registry.listActions().slice().sort());
   console.log("   ✓ mock handler 完整性驗證通過！\n");
 
-  console.log("7. mock 應依登錄表拒絕未登錄 action...");
+  console.log("8. mock 應依登錄表拒絕未登錄 action...");
   const mockApi = mock.createMockApi({
     actionRegistry: registry,
     setTimeoutFn: function (fn) {

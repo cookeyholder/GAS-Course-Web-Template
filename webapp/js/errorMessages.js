@@ -9,10 +9,8 @@
 
   const api = factory();
 
-  if (typeof window !== "undefined") {
-    const MEA = (root.MEA = root.MEA || {});
-    MEA.safeErrors = api;
-  }
+  const MEA = (root.MEA = root.MEA || {});
+  MEA.safeErrors = api;
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = api;

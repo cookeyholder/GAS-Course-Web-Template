@@ -23,16 +23,13 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
-
-  function getSafeErrors() {
-    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
-    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
   }
 
   function resolveSafeMessage(value, fallback) {
-    const helper = getSafeErrors();
-    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
   }
 
   /**

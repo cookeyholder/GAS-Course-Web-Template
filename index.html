@@ -7272,8 +7272,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
    * @returns {Function|null} 處理函式或 null
    */
   function getHandler(name) {
-    if (!hasAction(name)) return null;
-    return typeof ACTIONS[name].handler === "function" ? ACTIONS[name].handler : null;
+    return hasAction(name) ? ACTIONS[name].handler : null;
   }
 
   /**
@@ -7354,17 +7353,8 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  /** 版本號與角色顯示名稱共用 gasRuntime 單一來源 */
-  const gasRuntime =
-    typeof globalThis !== "undefined" && globalThis.gasRuntime
-      ? globalThis.gasRuntime
-      : typeof require === "function"
-        ? require("../../gasRuntime.js")
-        : null;
-
-  if (!gasRuntime) {
-    throw new Error("找不到 gasRuntime 共用模組，無法建立前端設定");
-  }
+  /** 版本號與角色顯示名稱共用 gasRuntime 單一來源；瀏覽器由建置腳本先嵌入 gasRuntime。 */
+  const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
 
   function getSearchParams(search) {
     try {
@@ -8274,10 +8264,8 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
   const api = factory();
 
-  if (typeof window !== "undefined") {
-    const MEA = (root.MEA = root.MEA || {});
-    MEA.safeErrors = api;
-  }
+  const MEA = (root.MEA = root.MEA || {});
+  MEA.safeErrors = api;
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
@@ -8348,21 +8336,17 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
-
-  function getSafeErrors() {
-    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
-    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
   }
 
   function resolveSafeMessage(value, fallback) {
-    const helper = getSafeErrors();
-    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
   }
 
   function createSafeError(message) {
-    const helper = getSafeErrors();
-    return helper ? helper.createSafeError(message) : new Error(message);
+    return globalThis.MEA.safeErrors.createSafeError(message);
   }
 
   const CSRF_STORAGE_KEY = "gas_tmpl.csrf.v1";
@@ -9599,21 +9583,17 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
-
-  function getSafeErrors() {
-    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
-    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
   }
 
   function resolveSafeMessage(value, fallback) {
-    const helper = getSafeErrors();
-    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
   }
 
   function createSafeError(message) {
-    const helper = getSafeErrors();
-    return helper ? helper.createSafeError(message) : new Error(message);
+    return globalThis.MEA.safeErrors.createSafeError(message);
   }
 
   const GIS_SRC = "https://accounts.google.com/gsi/client";
@@ -10317,16 +10297,13 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
-
-  function getSafeErrors() {
-    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
-    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
   }
 
   function resolveSafeMessage(value, fallback) {
-    const helper = getSafeErrors();
-    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
   }
 
   // SheetJS 自 0.19 起僅於官方 CDN 發布；固定單一版本並以 SRI 驗證完整性。
@@ -10911,16 +10888,13 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
-
-  function getSafeErrors() {
-    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
-    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
   }
 
   function resolveSafeMessage(value, fallback) {
-    const helper = getSafeErrors();
-    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
   }
 
   /**
@@ -11397,16 +11371,13 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  const safeErrorsFallback = typeof module !== "undefined" && module.exports ? require("./errorMessages.js") : null;
-
-  function getSafeErrors() {
-    const globalNamespace = typeof globalThis !== "undefined" ? globalThis : {};
-    return (globalNamespace.MEA && globalNamespace.MEA.safeErrors) || safeErrorsFallback;
+  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
+  if (typeof module !== "undefined" && module.exports) {
+    require("./errorMessages.js");
   }
 
   function resolveSafeMessage(value, fallback) {
-    const helper = getSafeErrors();
-    return helper ? helper.resolveUserMessage(value, fallback) : fallback;
+    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
   }
 
   /**

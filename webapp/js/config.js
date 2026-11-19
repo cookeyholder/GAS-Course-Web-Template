@@ -17,17 +17,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  /** 版本號與角色顯示名稱共用 gasRuntime 單一來源 */
-  const gasRuntime =
-    typeof globalThis !== "undefined" && globalThis.gasRuntime
-      ? globalThis.gasRuntime
-      : typeof require === "function"
-        ? require("../../gasRuntime.js")
-        : null;
-
-  if (!gasRuntime) {
-    throw new Error("找不到 gasRuntime 共用模組，無法建立前端設定");
-  }
+  /** 版本號與角色顯示名稱共用 gasRuntime 單一來源；瀏覽器由建置腳本先嵌入 gasRuntime。 */
+  const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
 
   function getSearchParams(search) {
     try {

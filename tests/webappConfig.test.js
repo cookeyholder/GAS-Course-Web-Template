@@ -288,4 +288,19 @@ console.log("11. isTrustedApiEndpoint 應處理缺值、相對網址與異常設
   console.log("   ✓ API 端點邊界驗證通過！\n");
 }
 
+console.log("12. 前端設定應優先使用已嵌入的 gasRuntime...");
+{
+  const originalRuntime = globalThis.gasRuntime;
+  const configPath = require.resolve("../webapp/js/config.js");
+  globalThis.gasRuntime = gasRuntime;
+  delete require.cache[configPath];
+  const embeddedConfigModule = require("../webapp/js/config.js");
+  const embedded = embeddedConfigModule.buildFrontendConfig(baseEnv());
+  assert.strictEqual(embedded.version, gasRuntime.WEB_API_VERSION);
+  assert.deepStrictEqual(embedded.roleNames, gasRuntime.ROLE_DEFINITIONS);
+  delete require.cache[configPath];
+  globalThis.gasRuntime = originalRuntime;
+  console.log("   ✓ 內嵌共用模組驗證通過！\n");
+}
+
 console.log("✓ webapp/js/config.js 測試全數通過！\n");

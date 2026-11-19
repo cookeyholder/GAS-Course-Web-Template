@@ -130,8 +130,7 @@
    * @returns {Function|null} 處理函式或 null
    */
   function getHandler(name) {
-    if (!hasAction(name)) return null;
-    return typeof ACTIONS[name].handler === "function" ? ACTIONS[name].handler : null;
+    return hasAction(name) ? ACTIONS[name].handler : null;
   }
 
   /**
