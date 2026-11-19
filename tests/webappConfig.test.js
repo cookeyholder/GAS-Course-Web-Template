@@ -7,6 +7,7 @@
 
 const assert = require("assert");
 const configModule = require("../webapp/js/config.js");
+const gasRuntime = require("../gasRuntime.js");
 
 console.log("開始執行 webapp/js/config.js 測試...\n");
 
@@ -148,14 +149,14 @@ console.log("7. buildFrontendConfig 應包含固定中繼資料、儲存鍵與�
 {
   const c = configModule.buildFrontendConfig(baseEnv());
   assert.strictEqual(c.title, "Google Apps Script 應用程式範本");
-  assert.strictEqual(c.version, "1.0.0");
+  assert.strictEqual(c.version, gasRuntime.WEB_API_VERSION);
   assert.strictEqual(c.storageKey, "gas_tmpl.session.v1");
   assert.strictEqual(c.themeKey, "gas_tmpl.theme.v1");
   assert.strictEqual(c.styleKey, "gas_tmpl.style.v1");
   assert.strictEqual(c.defaultStyle, "modern-slate");
   assert(Array.isArray(c.styles) && c.styles.length === 13, "應包含 13 種視覺風格");
   assert(Array.isArray(c.tabs) && c.tabs.length === 4, "應包含 4 個導覽頁籤");
-  assert.deepStrictEqual(c.roleNames, { admin: "系統管理員", staff: "業務人員", viewer: "檢視人員" });
+  assert.deepStrictEqual(c.roleNames, gasRuntime.ROLE_DEFINITIONS);
   console.log("   ✓ 固定設定驗證通過！\n");
 }
 

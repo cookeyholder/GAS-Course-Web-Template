@@ -275,6 +275,27 @@
     }
 
     function addAccountPrompt() {
+      const roleNames = (MEA.config && MEA.config.roleNames) || {};
+      const escapeHtml =
+        MEA.ui && typeof MEA.ui.escapeHtml === "function"
+          ? MEA.ui.escapeHtml
+          : function (value) {
+              return String(value);
+            };
+      const roleOptions = Object.keys(roleNames)
+        .map(function (role) {
+          return (
+            '<option value="' +
+            escapeHtml(role) +
+            '">' +
+            escapeHtml(roleNames[role]) +
+            " (" +
+            escapeHtml(role) +
+            ")</option>"
+          );
+        })
+        .join("");
+
       const html =
         '<div class="form-group">' +
         '  <label class="label" for="newAccountEmail">Google Email</label>' +
@@ -287,9 +308,7 @@
         '<div class="form-group mt-2">' +
         '  <label class="label" for="newAccountRole">指派角色</label>' +
         '  <select id="newAccountRole" class="select">' +
-        '    <option value="viewer">檢視人員 (viewer)</option>' +
-        '    <option value="staff">業務人員 (staff)</option>' +
-        '    <option value="admin">系統管理員 (admin)</option>' +
+        roleOptions +
         "  </select>" +
         "</div>";
 

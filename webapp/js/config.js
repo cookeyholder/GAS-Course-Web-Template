@@ -17,6 +17,18 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  /** 版本號與角色顯示名稱共用 gasRuntime 單一來源 */
+  const gasRuntime =
+    typeof globalThis !== "undefined" && globalThis.gasRuntime
+      ? globalThis.gasRuntime
+      : typeof require === "function"
+        ? require("../../gasRuntime.js")
+        : null;
+
+  if (!gasRuntime) {
+    throw new Error("找不到 gasRuntime 共用模組，無法建立前端設定");
+  }
+
   function getSearchParams(search) {
     try {
       return new URLSearchParams(search || "");
@@ -109,7 +121,7 @@
     const isProduction = source.production === true;
     return {
       title: "Google Apps Script 應用程式範本",
-      version: "1.0.0",
+      version: gasRuntime.WEB_API_VERSION,
       mock: !isProduction && params.has("mock"),
       switchAccount: source.switchAccount === true || switchFromParam,
       apiUrl: resolveDefaultApiUrl(source),
@@ -188,11 +200,7 @@
         { id: "courses", name: "正規化課程索引", icon: "📚", desc: "檢視與檢索已展開之課程資料" },
         { id: "settings", name: "系統設定與授權", icon: "⚙️", desc: "OAuth Client ID 與角色成員" }
       ],
-      roleNames: {
-        admin: "系統管理員",
-        staff: "業務人員",
-        viewer: "檢視人員"
-      }
+      roleNames: Object.assign({}, gasRuntime.ROLE_DEFINITIONS)
     };
   }
 
