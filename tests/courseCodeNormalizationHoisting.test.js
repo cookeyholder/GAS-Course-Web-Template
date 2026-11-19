@@ -79,4 +79,38 @@ console.log("3. 前後端展開結果應完全一致...");
   console.log("   ✓ 前後端同構驗證通過！\n");
 }
 
+console.log("4. 空值欄位與無效對照代碼應安全降級為空字串...");
+{
+  const row = new Array(39).fill("");
+  row[0] = null;
+  row[2] = undefined;
+  row[6] = null;
+  row[7] = "";
+  row[9] = undefined;
+  row[10] = "0";
+  row[11] = null;
+  row[15] = "";
+  row[16] = null;
+  row[17] = undefined;
+  row[18] = "";
+  for (let i = 19; i < 31; i++) row[i] = 1;
+
+  const backendRows = backend.expandCourseRow(row);
+  const frontendRows = frontend.expandCourseRow(row);
+  assert.deepStrictEqual(frontendRows, backendRows);
+  assert.strictEqual(backendRows.length, 6);
+  backendRows.forEach(function (record) {
+    assert.strictEqual(record[0], "", "開課學年空值應轉為空字串");
+    assert.strictEqual(record[3], "", "入學年空值應轉為空字串");
+    assert.strictEqual(record[4], "", "課程代碼空值應轉為空字串");
+    assert.strictEqual(record[5], "", "科目名稱空值應轉為空字串");
+    assert.strictEqual(record[6], "", "群別空值應轉為空字串");
+    assert.strictEqual(record[7], "", "科別空值應轉為空字串");
+    assert.strictEqual(record[8], "", "課程類別空值應轉為空字串");
+    assert.strictEqual(record[10], "", "科目屬性空值應轉為空字串");
+    assert.strictEqual(record[11], "", "必選修空值應轉為空字串");
+  });
+  console.log("   ✓ 空值降級與同構驗證通過！\n");
+}
+
 console.log("✓ expandCourseRow 常數因子最佳化測試全數通過！\n");

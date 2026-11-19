@@ -388,10 +388,10 @@ function prepareCourseIndexSheet_(sheet, options) {
 
 function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
-  const rowCount = Math.max(sheet.getMaxRows(), totalDataRows + 1);
-  sheet.getRange(1, 1, 1, colCount).setValues([NORMALIZED_COURSE_HEADERS]);
-  sheet.getRange(1, 1, 1, colCount).setFontWeight("bold");
-  sheet.getRange(1, 1, rowCount, colCount).setNumberFormat("@");
+  const headerRange = sheet.getRange(1, 1, 1, colCount);
+  headerRange.setValues([NORMALIZED_COURSE_HEADERS]);
+  headerRange.setFontWeight("bold");
+  sheet.getRange(1, 1, totalDataRows + 1, colCount).setNumberFormat("@");
 }
 
 /** 取得公式注入跳脫函式；GAS 全域共用，Node 測試可注入。 */
@@ -413,8 +413,7 @@ function writeCourseIndexRowsInChunks_(sheet, rows) {
 
 function finalizeCourseIndexSheet_(sheet, totalDataRows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
-  const rowCount = Math.max(sheet.getMaxRows(), totalDataRows + 1);
-  resolveSafeApplySheetFontSizeFn_()(sheet.getRange(1, 1, rowCount, colCount), 11);
+  resolveSafeApplySheetFontSizeFn_()(sheet.getRange(1, 1, totalDataRows + 1, colCount), 11);
   if (sheet.getFrozenRows() < 1) {
     sheet.setFrozenRows(1);
   }
