@@ -29,6 +29,7 @@
   "use strict";
 
   const DEFAULT_STYLE = "modern-slate";
+  const MODAL_TITLE_ID = "meaModalTitle";
 
   /**
    * 跳脫 HTML 特殊字元。
@@ -176,6 +177,8 @@
             return setTimeout(fn, ms);
           };
 
+    let modalRestoreFocus = null;
+
     function applyTheme(theme) {
       const value = theme === "dark" ? "dark" : "light";
       doc.documentElement.dataset.theme = value;
@@ -253,13 +256,38 @@
       scheduleToastRemoval(t, resolveToastDuration(kind, duration), setTimeoutFn);
     }
 
+    /**
+     * 收集容器內可聚焦元素，供初始焦點與 Tab 焦點陷阱使用。
+     *
+     * @param {Object} root - 查詢根元素
+     * @returns {Array} 可聚焦元素清單
+     */
+    function collectFocusableElements(root) {
+      if (!root || typeof root.querySelectorAll !== "function") return [];
+      const found = root.querySelectorAll("button, input, select, textarea, a[href], [tabindex]");
+      const nodes = [];
+      for (let i = 0; i < found.length; i++) {
+        const node = found[i];
+        const tabIndex = typeof node.getAttribute === "function" ? node.getAttribute("tabindex") : null;
+        if (node.disabled === true || tabIndex === "-1") continue;
+        nodes.push(node);
+      }
+      return nodes;
+    }
+
     function modal(title, contentHtml, buttons) {
       const host = doc.getElementById("modalHost");
       if (!host) return;
 
+      const previousFocus = doc.activeElement || null;
       host.innerHTML = "";
       const overlay = doc.createElement("div");
       overlay.className = "modal-overlay";
+      if (typeof overlay.setAttribute === "function") {
+        overlay.setAttribute("role", "dialog");
+        overlay.setAttribute("aria-modal", "true");
+        overlay.setAttribute("aria-labelledby", MODAL_TITLE_ID);
+      }
 
       const card = doc.createElement("div");
       card.className = "modal-card";
@@ -267,9 +295,11 @@
       const head = doc.createElement("div");
       head.className = "modal-header";
       head.innerHTML =
-        '<h3 class="modal-title">' +
+        '<h3 class="modal-title" id="' +
+        MODAL_TITLE_ID +
+        '">' +
         escapeHtml(title) +
-        '</h3><button class="modal-close" id="modalCloseBtn">✕</button>';
+        '</h3><button type="button" class="modal-close" id="modalCloseBtn" aria-label="關閉對話框">✕</button>';
 
       const body = doc.createElement("div");
       body.className = "modal-body";
@@ -278,10 +308,12 @@
       const foot = doc.createElement("div");
       foot.className = "modal-footer";
 
+      const footButtons = [];
       const btns = buttons || [{ text: "關閉", primary: true, onClick: closeModal }];
       btns.forEach(function (btn) {
         const b = doc.createElement("button");
         b.className = "btn " + (btn.primary ? "primary" : "secondary");
+        if (typeof b.setAttribute === "function") b.setAttribute("type", "button");
         b.textContent = btn.text;
         b.onclick = function () {
           if (typeof btn.onClick === "function") {
@@ -291,6 +323,7 @@
           }
         };
         foot.appendChild(b);
+        footButtons.push(b);
       });
 
       card.appendChild(head);
@@ -299,15 +332,54 @@
       overlay.appendChild(card);
       host.appendChild(overlay);
 
-      doc.getElementById("modalCloseBtn").onclick = closeModal;
+      modalRestoreFocus = previousFocus;
+
+      const closeBtn = doc.getElementById("modalCloseBtn");
+      if (closeBtn) closeBtn.onclick = closeModal;
       overlay.onclick = function (e) {
         if (e.target === overlay) closeModal();
+      };
+
+      function collectFocusables() {
+        const closeNodes = closeBtn ? [closeBtn] : [];
+        return closeNodes.concat(collectFocusableElements(body), footButtons);
+      }
+
+      const focusables = collectFocusables();
+      if (focusables.length > 0 && typeof focusables[0].focus === "function") {
+        focusables[0].focus();
+      }
+
+      overlay.onkeydown = function (e) {
+        if (!e) return;
+        const key = e.key || "";
+        if (key === "Escape" || key === "Esc" || e.keyCode === 27) {
+          if (typeof e.preventDefault === "function") e.preventDefault();
+          closeModal();
+          return;
+        }
+        if (key !== "Tab" && e.keyCode !== 9) return;
+        const nodes = collectFocusables();
+        if (nodes.length === 0) return;
+        const index = nodes.indexOf(doc.activeElement);
+        if (e.shiftKey) {
+          if (index <= 0) {
+            if (typeof e.preventDefault === "function") e.preventDefault();
+            nodes[nodes.length - 1].focus();
+          }
+        } else if (index === -1 || index === nodes.length - 1) {
+          if (typeof e.preventDefault === "function") e.preventDefault();
+          nodes[0].focus();
+        }
       };
     }
 
     function closeModal() {
       const host = doc.getElementById("modalHost");
       if (host) host.innerHTML = "";
+      const restoreTarget = modalRestoreFocus;
+      modalRestoreFocus = null;
+      if (restoreTarget && typeof restoreTarget.focus === "function") restoreTarget.focus();
     }
 
     function renderUserPill(user) {
