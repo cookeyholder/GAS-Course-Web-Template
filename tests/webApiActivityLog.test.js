@@ -709,4 +709,95 @@ console.log("18. 預設僅回傳最近 7 天，且篩選與上限生效...");
   console.log("   ✓ 預設區間、篩選與上限驗證通過！\n");
 }
 
+console.log("19. 完整 executeWebApi 應為 saveSystemSettings 產生非空的變動明細...");
+{
+  const records = [];
+  const before = { schoolYear: "114", systemName: "舊系統" };
+  withGlobals(
+    {
+      readSystemSettings: function () {
+        return Object.assign({}, before);
+      }
+    },
+    function () {
+      withOverrides(
+        {
+          authorizeWebApiAction: function () {
+            return { ok: true, session: { role: "admin", email: "admin@example.com" } };
+          },
+          routeWebApiAction: function () {
+            return { ok: true };
+          },
+          appendActivityLog: function (record) {
+            records.push(record);
+          }
+        },
+        function () {
+          api.executeWebApi(
+            {
+              action: "saveSystemSettings",
+              settings: { schoolYear: "115", systemName: "舊系統", clientSecret: "SHOULD-NOT-APPEAR" }
+            },
+            {}
+          );
+        }
+      );
+    }
+  );
+  assert.strictEqual(records.length, 1);
+  const detail = JSON.parse(records[0].detail);
+  assert.strictEqual(detail.動作, "saveSystemSettings");
+  assert(Array.isArray(detail.變動));
+  assert(detail.變動.length >= 1, "應記錄學年度變動");
+  assert.deepStrictEqual(detail.變動[0], { 欄位: "學年度", 前: "114", 後: "115" });
+  assert.strictEqual(JSON.stringify(detail).indexOf("SHOULD-NOT-APPEAR"), -1, "敏感值不得外洩");
+  console.log("   ✓ 系統設定變動明細整合驗證通過！\n");
+}
+
+console.log("20. 完整 executeWebApi 應為 saveWhitelist 同時記錄新增與移除成員...");
+{
+  const records = [];
+  const before = [{ email: "a@example.com" }, { email: "b@example.com" }];
+  withGlobals(
+    {
+      readWhitelist: function () {
+        return before.map(function (item) {
+          return Object.assign({}, item);
+        });
+      }
+    },
+    function () {
+      withOverrides(
+        {
+          authorizeWebApiAction: function () {
+            return { ok: true, session: { role: "admin", email: "admin@example.com" } };
+          },
+          routeWebApiAction: function () {
+            return { ok: true, count: 2 };
+          },
+          appendActivityLog: function (record) {
+            records.push(record);
+          }
+        },
+        function () {
+          api.executeWebApi(
+            {
+              action: "saveWhitelist",
+              accounts: [{ email: "B@example.com" }, { email: "c@example.com" }]
+            },
+            {}
+          );
+        }
+      );
+    }
+  );
+  assert.strictEqual(records.length, 1);
+  const detail = JSON.parse(records[0].detail);
+  assert.strictEqual(detail.動作, "saveWhitelist");
+  assert.strictEqual(detail.變動.length, 2);
+  assert.deepStrictEqual(detail.變動[0], { 欄位: "新增成員", 前: "", 後: "c@example.com" });
+  assert.deepStrictEqual(detail.變動[1], { 欄位: "移除成員", 前: "a@example.com", 後: "" });
+  console.log("   ✓ 白名單新增與移除整合驗證通過！\n");
+}
+
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");

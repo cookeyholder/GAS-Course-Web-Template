@@ -203,7 +203,18 @@ const DETAIL_BUILDERS = {
       }
     },
     describe: function (before, after, payload, result) {
-      const incoming = (payload && payload.accounts) || [];
+      // accounts 非陣列屬無效請求，不得解讀為「清空名單」而產生移除變動
+      if (!Array.isArray(payload && payload.accounts)) {
+        return {
+          指標: {
+            原有人數: Array.isArray(before) ? before.length : 0,
+            現有人數: 0,
+            寫入筆數: null
+          },
+          變動: []
+        };
+      }
+      const incoming = payload.accounts;
       const previous = Array.isArray(before) ? before : [];
       const previousEmails = previous.map(function (item) {
         return item && item.email ? String(item.email).toLowerCase() : "";

@@ -201,6 +201,24 @@ console.log("8. 白名單應記錄新增與移除成員...");
   console.log("   ✓ 白名單明細驗證通過！\n");
 }
 
+console.log("8.1 白名單 accounts 非陣列時不拋錯且回傳空變動...");
+{
+  [null, undefined, "not-an-array", { email: "x@example.com" }, 42].forEach(function (value) {
+    const detail = builders.describe(
+      "whitelist",
+      [{ email: "old@example.com" }],
+      null,
+      { action: "saveWhitelist", accounts: value },
+      { ok: true }
+    );
+    assert(Array.isArray(detail.變動), "應維持變動為陣列");
+    assert.strictEqual(detail.變動.length, 0, "非陣列 accounts 不應產生變動：" + JSON.stringify(value));
+    assert.strictEqual(detail.指標.現有人數, 0);
+    console.log("   ✓ 非陣列 accounts 防護驗證通過：" + JSON.stringify(value));
+  });
+  console.log("");
+}
+
 console.log("9. 敏感欄位與原始資料不得進入任何詳情...");
 {
   const detail = builders.describe(
