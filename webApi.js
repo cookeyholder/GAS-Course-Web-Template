@@ -1420,7 +1420,13 @@ function captureActivityLogSnapshot_(meta) {
   const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
   if (!builders || typeof builders.captureBefore !== "function") return null;
   try {
-    return builders.captureBefore(meta.detailKey, getRouteSpreadsheet_());
+    // 由呼叫端傳入已解析的快照提供者，使 activityLogBuilders 無須自行解析
+    // databaseInitializer／gasRuntime，維持單向相依並保留測試注入接縫。
+    const snapshotProvider = {
+      readSystemSettings: resolveRouteDependency_("readSystemSettings", readSystemSettings),
+      readWhitelist: resolveRouteDependency_("readWhitelist", readWhitelist)
+    };
+    return builders.captureBefore(meta.detailKey, getRouteSpreadsheet_(), snapshotProvider);
   } catch (error) {
     return null;
   }
