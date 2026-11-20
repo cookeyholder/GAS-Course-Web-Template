@@ -49,30 +49,56 @@ console.log("2. 驗證門檻與報告路徑設定...");
   console.log("   ✓ 門檻與報告路徑設定驗證通過！\n");
 }
 
-console.log("3. 驗證 2026-11-18 基準線可讀取且可追溯...");
+console.log("3. 驗證新基準線可讀取且自我一致...");
 {
   assert.strictEqual(typeof qualityConfig.loadBaseline, "function", "應提供 loadBaseline");
-  const baselinePath = path.join(__dirname, "..", qualityConfig.PATHS.qualityBaseline);
+  const root = path.join(__dirname, "..");
+  const baselinePath = path.join(root, qualityConfig.PATHS.qualityBaseline);
   assert(fs.existsSync(baselinePath), "基準線檔案應存在：" + baselinePath);
 
   const baseline = qualityConfig.loadBaseline();
-  assert.strictEqual(baseline.measuredAt, "2026-11-18", "基準量測日期應為 2026-11-18");
-  assert.strictEqual(baseline.scope.files, 20, "基準納管檔案數應為 20");
-  assert.strictEqual(baseline.scope.methods, 247, "基準函式/方法數應為 247");
+  assert.strictEqual(baseline.measuredAt, "2026-11-20", "基準量測日期應為實際量測日");
+  assert(baseline.environment && baseline.environment.node, "基準應記錄量測環境的 Node 版本");
+  assert(baseline.scope.include && baseline.scope.exclude, "基準應記錄納管與排除範圍");
+  assert(baseline.scope.files > 0 && baseline.scope.methods > 0, "基準應記錄納管檔案與函式數");
+  assert(baseline.ratchet && baseline.ratchet.source, "基準應記錄方向性 ratchet 的既有值來源");
 
-  assert.deepStrictEqual(baseline.coverage.totals.lines, { total: 5586, covered: 1529, pct: 27.37 });
-  assert.deepStrictEqual(baseline.coverage.totals.statements, { total: 5586, covered: 1529, pct: 27.37 });
-  assert.deepStrictEqual(baseline.coverage.totals.functions, { total: 85, covered: 50, pct: 58.82 });
-  assert.deepStrictEqual(baseline.coverage.totals.branches, { total: 330, covered: 125, pct: 37.87 });
+  ["lines", "statements", "functions", "branches"].forEach(function (metric) {
+    const entry = baseline.coverage.totals[metric];
+    assert(entry && typeof entry.pct === "number", metric + " 應記錄覆蓋率百分比");
+    // c8 的 pct 採無條件捨去至小數兩位（非四捨五入）。
+    const expectedPct = Math.floor((entry.covered / entry.total) * 10000) / 100;
+    assert.strictEqual(entry.pct, expectedPct, metric + " 覆蓋率應與 covered/total 自洽");
+  });
 
-  assert.strictEqual(baseline.maintainability.miMin, 69.134);
-  assert.strictEqual(baseline.maintainability.miMinFile, "webapp/js/config.js");
-  assert.strictEqual(baseline.maintainability.miUnder20Count, 0);
+  assert(baseline.maintainability.miMinFile, "基準應記錄 MI 最低值所屬檔案");
+  assert(baseline.crap.crapMaxFunction, "基準應記錄 CRAP 最高值所屬函式");
+  assert.strictEqual(typeof baseline.crap.crapOver30Count, "number");
 
-  assert.strictEqual(baseline.crap.crapMax, 1482.0);
-  assert.strictEqual(baseline.crap.crapMaxFunction, "subjectCodeTransformer.js::getNormalizedCourses");
-  assert.strictEqual(baseline.crap.crapOver30Count, 56);
-  console.log("   ✓ 基準線資訊驗證通過！\n");
+  // 新基準不得違反以 task 1.3 重構前既有值為來源的方向性 ratchet。
+  const before = { lines: 94.8, statements: 94.8, functions: 92.15, branches: 83.79 };
+  ["lines", "statements", "functions", "branches"].forEach(function (metric) {
+    assert(baseline.coverage.totals[metric].pct >= before[metric], metric + " 新基準不得低於重構前既有值");
+  });
+  assert(baseline.maintainability.miMin >= 83.666, "MI 新基準不得低於重構前既有值");
+  assert(baseline.crap.crapMax <= 30, "CRAP 最高值新基準不得高於重構前既有值");
+  assert(baseline.crap.crapOver30Count <= 0, "CRAP 超標數新基準不得高於重構前既有值");
+  console.log("   ✓ 新基準線自我一致性與方向性 ratchet 驗證通過！\n");
+}
+
+console.log("4. 驗證 2026-11-18 過期快照仍可供歷史比較...");
+{
+  const historyPath = path.join(__dirname, "..", "scripts/quality-baseline.2026-11-18.json");
+  assert(fs.existsSync(historyPath), "過期快照歷史檔應存在：" + historyPath);
+  const history = JSON.parse(fs.readFileSync(historyPath, "utf8"));
+  assert.strictEqual(history.measuredAt, "2026-11-18");
+  assert.strictEqual(history.scope.files, 20);
+  assert.strictEqual(history.scope.methods, 247);
+  assert.strictEqual(history.coverage.totals.lines.pct, 27.37);
+  assert.strictEqual(history.crap.crapMax, 1482.0);
+  assert.strictEqual(history.crap.crapOver30Count, 56);
+  assert.strictEqual(history.maintainability.miMin, 69.134);
+  console.log("   ✓ 過期快照歷史比較驗證通過！\n");
 }
 
 console.log("✓ 品質設定與基準檔測試全數通過！\n");

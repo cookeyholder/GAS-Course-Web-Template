@@ -1,34 +1,50 @@
 {
-  "measuredAt": "2026-11-18",
+  "measuredAt": "2026-11-20",
+  "measuredAtISO": "2026-11-20T09:25:19Z",
   "environment": {
-    "node": "v24.16.0",
-    "testCommand": "node scripts/run-tests.js",
-    "coverageCommand": "c8 --all --include='*.js' --include='webapp/js/*.js' --include='scripts/*.js' --exclude='tests/**' --exclude='node_modules/**' --exclude='coverage/**' --reporter=text --reporter=lcov --reporter=json --reporter=json-summary node scripts/run-tests.js",
+    "node": "v24.22.3",
+    "testCommand": "npm test",
+    "coverageCommand": "npm run test:coverage",
+    "complexityCommand": "npm run check:complexity",
     "complexityTool": "typhonjs-escomplex",
     "crapFormula": "comp^2 * (1 - cov)^3 + comp"
   },
   "scope": {
     "include": ["*.js", "webapp/js/*.js", "scripts/*.js"],
-    "exclude": ["tests/**", "node_modules/**", "coverage/**", "reports/**", ".nyc_output/**"],
-    "files": 20,
-    "methods": 247
+    "exclude": [
+      "tests/**",
+      "node_modules/**",
+      "coverage/**",
+      "reports/**",
+      ".nyc_output/**",
+      "scripts/captureGoldenLogSnapshot.js"
+    ],
+    "files": 42,
+    "methods": 900
   },
   "coverage": {
     "totals": {
-      "lines": { "total": 5586, "covered": 1529, "pct": 27.37 },
-      "statements": { "total": 5586, "covered": 1529, "pct": 27.37 },
-      "functions": { "total": 85, "covered": 50, "pct": 58.82 },
-      "branches": { "total": 330, "covered": 125, "pct": 37.87 }
+      "lines": { "total": 13441, "covered": 12942, "skipped": 0, "pct": 96.28 },
+      "statements": { "total": 13441, "covered": 12942, "skipped": 0, "pct": 96.28 },
+      "functions": { "total": 696, "covered": 656, "skipped": 0, "pct": 94.25 },
+      "branches": { "total": 3855, "covered": 3301, "skipped": 0, "pct": 85.62 }
     }
   },
   "maintainability": {
-    "miMin": 69.134,
+    "miMin": 83.666,
     "miMinFile": "webapp/js/config.js",
     "miUnder20Count": 0
   },
   "crap": {
-    "crapMax": 1482.0,
-    "crapMaxFunction": "subjectCodeTransformer.js::getNormalizedCourses",
-    "crapOver30Count": 56
+    "crapMax": 30,
+    "crapMaxFunction": "databaseInitializer.js::bootstrapAdminIfNeeded",
+    "crapOver30Count": 0
+  },
+  "ratchet": {
+    "source": "openspec/changes/refactor-cohesion-and-coupling/measurement-baseline-before-refactor.md",
+    "direction": {
+      "higherIsBetter": ["lines", "statements", "functions", "branches", "miMin"],
+      "lowerIsBetter": ["crapMax", "crapOver30Count"]
+    }
   }
 }

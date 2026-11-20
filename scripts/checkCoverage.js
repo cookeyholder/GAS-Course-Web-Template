@@ -123,36 +123,51 @@ function evaluateCoverageThresholds(options) {
   const baselineTotals = (baseline.coverage && baseline.coverage.totals) || {};
   const thresholds = settings.thresholds || {};
   const failures = [];
+  const actualMetrics = {};
+  const baselineMetrics = {};
 
   METRICS.forEach(function (metric) {
     const actual = total[metric] && typeof total[metric].pct === "number" ? total[metric].pct : 0;
     const minThreshold = typeof thresholds[metric] === "number" ? thresholds[metric] : 0;
     const baselinePct =
-      baselineTotals[metric] && typeof baselineTotals[metric].pct === "number" ? baselineTotals[metric].pct : 0;
-    const required = Math.max(minThreshold, baselinePct);
+      baselineTotals[metric] && typeof baselineTotals[metric].pct === "number" ? baselineTotals[metric].pct : null;
 
-    if (actual < required) {
-      if (actual < minThreshold) {
-        failures.push({
-          metric: metric,
-          actual: actual,
-          expected: minThreshold,
-          reason: "低於門檻"
-        });
-      } else {
-        failures.push({
-          metric: metric,
-          actual: actual,
-          expected: baselinePct,
-          reason: "低於基準線（回退）"
-        });
-      }
+    actualMetrics[metric] = actual;
+    if (baselinePct !== null) {
+      baselineMetrics[metric] = baselinePct;
+    }
+
+    // 覆蓋率越高越佳：先檢查硬門檻，再檢查方向性 ratchet（不得低於基準值）。
+    if (actual < minThreshold) {
+      failures.push({
+        metric: metric,
+        actual: actual,
+        expected: minThreshold,
+        reason: "低於門檻",
+        direction: "higher-is-better"
+      });
+      return;
+    }
+    if (baselinePct !== null && actual < baselinePct) {
+      failures.push({
+        metric: metric,
+        actual: actual,
+        expected: baselinePct,
+        reason: "低於基準線（回退）",
+        direction: "higher-is-better"
+      });
     }
   });
 
+  const ratchet = qualityConfig.compareWithBaseline({
+    actual: actualMetrics,
+    baseline: baselineMetrics
+  });
+
   return {
-    ok: failures.length === 0,
-    failures: failures
+    ok: failures.length === 0 && ratchet.ok,
+    failures: failures,
+    ratchet: ratchet
   };
 }
 
@@ -212,6 +227,7 @@ function defaultCheckThresholds(options) {
   }
 
   log("[checkCoverage] 覆蓋率檢查通過（符合門檻且未低於基準線）。");
+  log("[checkCoverage] 方向性 ratchet：lines／statements／functions／branches 取高，無回退。");
   return 0;
 }
 

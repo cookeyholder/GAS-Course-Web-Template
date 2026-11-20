@@ -66,6 +66,21 @@ const THRESHOLDS = {
 };
 
 /**
+ * 方向性 ratchet 的指標方向對照。
+ * - higher-is-better：實際值不得低於基準值（覆蓋率四維度與 MI 最低值）。
+ * - lower-is-better：實際值不得高於基準值（CRAP 最高值與超標數）。
+ */
+const RATCHET_DIRECTIONS = Object.freeze({
+  lines: "higher-is-better",
+  statements: "higher-is-better",
+  functions: "higher-is-better",
+  branches: "higher-is-better",
+  miMin: "higher-is-better",
+  crapMax: "lower-is-better",
+  crapOver30Count: "lower-is-better"
+});
+
+/**
  * 讀取基準線快照。
  *
  * @returns {Object} 基準線資料
@@ -75,10 +90,54 @@ function loadBaseline() {
   return JSON.parse(fs.readFileSync(baselinePath, "utf8"));
 }
 
+/**
+ * 以方向性 ratchet 比較實際量測值與基準值。
+ * 僅比較雙方皆為數字的指標；缺少的指標視為無可比對，不視為回退。
+ *
+ * @param {Object} options - 比較選項
+ * @param {Object} [options.actual] - 實際量測值（鍵為指標名稱）
+ * @param {Object} [options.baseline] - 基準值（鍵為指標名稱）
+ * @param {Object} [options.directions] - 方向對照，預設 RATCHET_DIRECTIONS
+ * @returns {{ok: boolean, regressions: Array<{metric: string, actual: number, baseline: number, direction: string, reason: string}>}}
+ */
+function compareWithBaseline(options) {
+  const settings = options || {};
+  const actual = settings.actual || {};
+  const baseline = settings.baseline || {};
+  const directions = settings.directions || RATCHET_DIRECTIONS;
+  const regressions = [];
+
+  Object.keys(directions).forEach(function (metric) {
+    const actualValue = actual[metric];
+    const baselineValue = baseline[metric];
+    if (typeof actualValue !== "number" || typeof baselineValue !== "number") return;
+
+    const direction = directions[metric];
+    const regressed = direction === "lower-is-better" ? actualValue > baselineValue : actualValue < baselineValue;
+    if (regressed) {
+      regressions.push({
+        metric: metric,
+        actual: actualValue,
+        baseline: baselineValue,
+        direction: direction,
+        reason:
+          direction === "lower-is-better" ? "高於基準值（方向性 ratchet 回退）" : "低於基準值（方向性 ratchet 回退）"
+      });
+    }
+  });
+
+  return {
+    ok: regressions.length === 0,
+    regressions: regressions
+  };
+}
+
 module.exports = {
   PROJECT_ROOT: PROJECT_ROOT,
   SCOPE: SCOPE,
   PATHS: PATHS,
   THRESHOLDS: THRESHOLDS,
-  loadBaseline: loadBaseline
+  RATCHET_DIRECTIONS: RATCHET_DIRECTIONS,
+  loadBaseline: loadBaseline,
+  compareWithBaseline: compareWithBaseline
 };
