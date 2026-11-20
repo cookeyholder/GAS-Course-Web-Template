@@ -49,7 +49,7 @@ Always check `@/openspec/` or repository documentation when the request:
 - **`databaseInitializer.js`**: 試算表資料庫純資料工作表初始化（`系統設定與授權`、`正規化課程代碼`、`系統使用說明`、`操作日誌`），具安全冪等性；處理系統參數讀寫與授權白名單維護，首次登入管理員開通必須由請求明確標記，並安裝每日 03:00 的日誌清理觸發器。
 - **`subjectCodeTransformer.js`**: 108 課綱課程代碼對照字典（群別、科別、屬性、必選修）、39 欄寬表全數展開為 14 欄 1NF 紀錄演算法、5,000 筆分塊批次寫入（Chunking）與分頁檢索函式。
 - **`activityLogBuilders.js`**: 操作日誌詳情產生器與 payload 白名單投影，依 `logDetailKey` 產生版本化 before／after 明細，排除敏感欄位與原始回傳內容。
-- **`activityLogger.js`**: 操作日誌寫入、500 字元字串截斷、`CacheService` 每 100 次取樣 `getLastRow()`、超過 20,000 列清理至 15,000 列，以及每日清理觸發器安裝。
+- **`activityLogger.js`**: 操作日誌寫入、500 字元字串截斷；寫入不取樣，超過 20,000 列清理至 15,000 列，並由初始化流程安裝每日 03:00（Asia/Taipei）清理觸發器。
 - **`webApi.js`**: Web App HTTP 入口（`doGet`, `doPost`）、避開 CORS OPTIONS 預檢之通訊協議、Google ID Token 驗證、`CacheService` Session 管理（6 小時 TTL）、`LockService` 併發寫入排隊防鎖、最外層統一寫入操作日誌，以及由 `ACTION_REGISTRY` 派發之 action 處理函式與角色權限矩陣。
 - **`utilities.js`**: 試算表安全格式化（`safeSetNumberFormat`, `safeApplySheetFontSize`）、無 UI 環境防護（`safeUiAlert`）與通用純工具。
 

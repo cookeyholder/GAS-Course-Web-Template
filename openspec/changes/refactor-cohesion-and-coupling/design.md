@@ -53,7 +53,7 @@
 
 ### 決策 3：單一解析入口、非覆寫注入與 fail-fast
 
-`gasRuntime.js` 的 `resolveDependency_` 成為唯一解析入口，順序明確為 `module.exports → globalThis → fallback`：
+`gasRuntime.js` 的 `resolveDependency_` 成為唯一解析入口，順序明確為 `overrides → globalThis → module.exports → fallback`（overrides 為呼叫端傳入的 `module.exports`，保留 `api[key] = stub` 注入接縫；全域注入優先於模組匯出，向後相容既有測試行為）：
 
 - 刪除 `webApi.js` 的 `getOverridableApiFn_` 與 `resolveActivityLogModule_`，改呼叫 `resolveDependency_`。
 - `resolveDependency_` 接受可選 overrides 參數，保留既有以 `api[key] = stub` 注入 stub 的測試接縫；移除空 catch，載入失敗時拋出含模組名稱的錯誤。

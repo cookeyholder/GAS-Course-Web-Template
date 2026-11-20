@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-TW" data-theme="light">
 <head>
+  <script>window.__PACKAGE_VERSION__ = "1.1.0";</script>
   <script>window.MEA_PRODUCTION_BUILD = true;</script>
   <!-- 本檔由 scripts/build-webapp.js 自動產生，請勿直接編輯；請修改 webapp/ 後重新建置 -->
   <meta charset="UTF-8" />
@@ -7098,14 +7099,82 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   /** 操作日誌工作表名稱（前後端共用單一來源） */
   const SHEET_ACTIVITY_LOG = "操作日誌";
 
-  /** Web API 版本號（所有後端回應共用單一來源） */
-  const WEB_API_VERSION = "1.1.0";
+  /** Web API 版本號退回值：無建置注入（如 Node 測試）時使用，對外維持 1.1.0 */
+  const FALLBACK_WEB_API_VERSION = "1.1.0";
+
+  /**
+   * 解析 Web API 版本號（task 5.1）：優先使用 build-webapp.js 由 package.json
+   * 產生並隨 push 上傳的 version.generated.js 所掛載的全域值，退回固定值。
+   *
+   * 採 getter 延遲讀取，以相容 GAS 檔案載入順序（version.generated.js 在 gasRuntime.js 之後）。
+   *
+   * @returns {string} Web API 版本號
+   */
+  function resolveWebApiVersion_() {
+    const injected = typeof globalThis !== "undefined" ? globalThis.__PACKAGE_VERSION__ : undefined;
+    return typeof injected === "string" && injected.trim() !== "" ? injected.trim() : FALLBACK_WEB_API_VERSION;
+  }
+
+  /**
+   * 操作日誌 12 欄 schema（task 5.2）：英文欄位順序與中文表頭一一對應。
+   * 此為唯一來源；寫入端（databaseInitializer／activityLogger）與查詢端
+   * （activityLogQuery）皆由此衍生，避免重複陣列與索引硬編碼。
+   */
+  const ACTIVITY_LOG_FIELDS = [
+    "timestamp",
+    "requestId",
+    "category",
+    "action",
+    "result",
+    "email",
+    "name",
+    "role",
+    "summary",
+    "detail",
+    "durationMs",
+    "errorCode"
+  ];
+
+  /** 操作日誌 12 欄中文表頭，順序須與 ACTIVITY_LOG_FIELDS 一致 */
+  const ACTIVITY_LOG_HEADERS = [
+    "時間戳記",
+    "請求識別碼",
+    "事件類別",
+    "動作名稱",
+    "結果",
+    "操作者 email",
+    "操作者姓名",
+    "角色",
+    "摘要",
+    "詳情 JSON",
+    "耗時（毫秒）",
+    "錯誤代碼"
+  ];
+
+  /** 欄位名稱至零基索引的對應（由 ACTIVITY_LOG_FIELDS 衍生，消除 cells[0..11] 硬編碼） */
+  const ACTIVITY_LOG_FIELD_INDEX = ACTIVITY_LOG_FIELDS.reduce(function (index, field, position) {
+    index[field] = position;
+    return index;
+  }, {});
+
+  /** 詳情序列化失敗或降級時使用的最小合法 JSON */
+  const MINIMAL_ACTIVITY_DETAIL_JSON = '{"版本":1,"動作":"","指標":{},"截斷":true}';
+
+  /** 詳情序列化後的字元上限 */
+  const ACTIVITY_DETAIL_MAX_LENGTH = 500;
+
+  /** 授權角色代碼（task 5.3：所有角色判定共用單一來源） */
+  const ROLE_CODES = {
+    ADMIN: "admin",
+    STAFF: "staff",
+    VIEWER: "viewer"
+  };
 
   /** 授權角色定義（所有後端角色顯示名稱共用單一來源） */
   const ROLE_DEFINITIONS = {
-    admin: "系統管理員",
-    staff: "業務人員",
-    viewer: "檢視人員"
+    [ROLE_CODES.ADMIN]: "系統管理員",
+    [ROLE_CODES.STAFF]: "業務人員",
+    [ROLE_CODES.VIEWER]: "檢視人員"
   };
 
   /**
@@ -7120,39 +7189,73 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   /**
-   * 取得目前環境的 gasRuntime（Node.js 首次載入時自動 require）。
+   * 唯一的相依解析入口，順序為：overrides（呼叫端 module.exports）→ globalThis → 模組 module.exports → fallback。
    *
-   * @returns {Object} gasRuntime API
-   */
-  function getRuntime_() {
-    if (typeof globalThis !== "undefined" && globalThis.gasRuntime) return globalThis.gasRuntime;
-    if (typeof require === "function") return require("./gasRuntime.js");
-    throw new Error("找不到 gasRuntime 共用模組");
-  }
-
-  /**
-   * 解析相依：優先 module.exports，其次 globalThis，最後 fallback。
-   * 未提供 fallback 時採 fail-fast，避免靜默取得 undefined。
+   * overrides 由呼叫端傳入自身的 module.exports（例如 webApi），保留以
+   * `api[key] = stub` 注入測試替身的接縫；值為 null／undefined 視為未提供。
+   * globalThis 涵蓋 GAS 全域命名空間與 Node 白名單注入，兩者皆優先於
+   * 明確指定 modulePath 時的模組匯出（向後相容既有注入行為）。
+   * 模組載入失敗不得被空 catch 靜默吞沒：若無其他來源可解析，
+   * 即 fail-fast 並拋出含匯出名稱與模組路徑的錯誤。
+   *
+   * requireModule 供「解析整個模組本體」使用：活動日誌等模組的全域與
+   * module.exports 即為 API 本體，並無與模組同名的具名匯出；此模式下
+   * require 成功即回傳整包模組，重現既有 resolveActivityLogModule_ 語意。
    *
    * @param {string} name - 相依匯出名稱
-   * @param {string} modulePath - Node.js require 路徑
+   * @param {string} [modulePath] - Node.js require 路徑
    * @param {*} [fallback] - 選用備援值
+   * @param {Object} [overrides] - 呼叫端 module.exports（測試注入接縫）
+   * @param {boolean} [requireModule] - 是否解析整包模組本體
    * @returns {*} 解析後的相依
    */
-  function resolveDependency_(name, modulePath, fallback) {
+  function resolveDependency_(name, modulePath, fallback, overrides, requireModule) {
+    // 1. 呼叫端注入的 module.exports 最優先（測試接縫）。
+    if (overrides && hasOwn(overrides, name) && overrides[name] !== null && overrides[name] !== undefined) {
+      return overrides[name];
+    }
+
+    // 2. globalThis（GAS 全域命名空間或 Node 白名單注入）。
     if (typeof globalThis !== "undefined" && hasOwn(globalThis, name)) return globalThis[name];
+
+    // 3. 明確指定模組路徑時，取用其 module.exports；載入失敗僅記錄，
+    //    讓 fallback 仍有機會解析，最後才 fail-fast。
+    let loadError = null;
     if (typeof require === "function" && modulePath) {
       let moduleExports;
       try {
         moduleExports = require(modulePath);
       } catch (error) {
-        if (arguments.length >= 3) return fallback;
-        throw new Error("找不到相依匯出：" + name + "（無法載入 " + modulePath + "：" + error.message + "）");
+        loadError = error;
       }
-      if (hasOwn(moduleExports, name)) return moduleExports[name];
+      if (moduleExports) {
+        if (requireModule) return moduleExports;
+        if (hasOwn(moduleExports, name)) return moduleExports[name];
+      }
     }
+
+    // 4. 明確提供的備援值。
     if (arguments.length >= 3) return fallback;
+
+    // 5. 全數失敗：fail-fast，載入失敗時一併帶出模組名稱。
+    if (loadError) {
+      throw new Error("找不到相依匯出：" + name + "（無法載入 " + modulePath + "：" + loadError.message + "）");
+    }
     throw new Error("找不到相依匯出：" + name);
+  }
+
+  /**
+   * 正規化允許登入網域（task 5.5）：去除前綴 @、前後空白並轉小寫。
+   * 前後端共用單一來源，避免各模組重複規則產生語意漂移。
+   *
+   * @param {*} configuredDomain - 設定的網域值
+   * @returns {string} 正規化後的網域
+   */
+  function normalizeAllowedDomain(configuredDomain) {
+    return String(configuredDomain || "")
+      .trim()
+      .replace(/^@/, "")
+      .toLowerCase();
   }
 
   /**
@@ -7178,6 +7281,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   /**
    * 白名單注入全域（僅 Node.js 測試環境需要）。
    * 任一要求的匯出不存在即 fail-fast，避免拼字錯誤被靜默忽略。
+   * 僅在全域不存在時寫入，避免覆寫測試預先設定的同名 sentinel。
    *
    * @param {string} modulePath - Node.js require 路徑
    * @param {Array<string>} whitelist - 允許注入的匯出名稱
@@ -7192,8 +7296,10 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       if (!hasOwn(moduleExports, name)) {
         throw new Error("相依模組 " + modulePath + " 未匯出 " + name);
       }
-      if (typeof globalThis !== "undefined") globalThis[name] = moduleExports[name];
-      injected[name] = moduleExports[name];
+      if (typeof globalThis !== "undefined" && !hasOwn(globalThis, name)) {
+        globalThis[name] = moduleExports[name];
+        injected[name] = moduleExports[name];
+      }
     });
     return injected;
   }
@@ -7204,10 +7310,18 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     LEGACY_SHEET_COURSE_INDEX: LEGACY_SHEET_COURSE_INDEX,
     SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
     SHEET_ACTIVITY_LOG: SHEET_ACTIVITY_LOG,
-    WEB_API_VERSION: WEB_API_VERSION,
+    get WEB_API_VERSION() {
+      return resolveWebApiVersion_();
+    },
+    ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
+    ACTIVITY_LOG_HEADERS: ACTIVITY_LOG_HEADERS,
+    ACTIVITY_LOG_FIELD_INDEX: ACTIVITY_LOG_FIELD_INDEX,
+    MINIMAL_ACTIVITY_DETAIL_JSON: MINIMAL_ACTIVITY_DETAIL_JSON,
+    ACTIVITY_DETAIL_MAX_LENGTH: ACTIVITY_DETAIL_MAX_LENGTH,
+    ROLE_CODES: ROLE_CODES,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
     hasOwn: hasOwn,
-    getRuntime_: getRuntime_,
+    normalizeAllowedDomain: normalizeAllowedDomain,
     resolveDependency_: resolveDependency_,
     getActiveSpreadsheetSafe_: getActiveSpreadsheetSafe_,
     injectGlobals_: injectGlobals_
@@ -7237,8 +7351,30 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  /** 所有角色的代碼（與 gasRuntime.ROLE_DEFINITIONS 一致） */
-  const ALL_ROLES = ["admin", "staff", "viewer"];
+  /**
+   * gasRuntime 單一來源解析（task 5.3）：GAS 全域優先，Node 由 require 取得。
+   * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，故採延遲解析；
+   * 隔離環境無 gasRuntime 時退回同值常數，維持雙環境載入相容。
+   */
+  function resolveRoleCodes_() {
+    const runtime =
+      typeof globalThis !== "undefined" && globalThis.gasRuntime
+        ? globalThis.gasRuntime
+        : typeof require === "function"
+          ? require("./gasRuntime.js")
+          : null;
+    return (
+      (runtime && runtime.ROLE_CODES) || {
+        ADMIN: "admin",
+        STAFF: "staff",
+        VIEWER: "viewer"
+      }
+    );
+  }
+
+  /** 所有角色的代碼（由 gasRuntime.ROLE_CODES 衍生，單一來源） */
+  const ROLE_CODES = resolveRoleCodes_();
+  const ALL_ROLES = [ROLE_CODES.ADMIN, ROLE_CODES.STAFF, ROLE_CODES.VIEWER];
 
   /**
    * action 登錄表。
@@ -7247,10 +7383,13 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
    * - locked：需全域 Script Lock 保護
    * - roles：允許呼叫的角色代碼（public action 不需填寫）
    * - logCategory／logLabel／logDetailKey／logEnabled：操作日誌宣告式中繼資料
+   * - doGet：明確允許以 GET 呼叫（public 不會自動放行）
+   * - backfillIdentity：成功地登入後補寫日誌身分（僅限公開且寫入日誌的登入動作）
    */
   const ACTIONS = {
     ping: {
       public: true,
+      doGet: true,
       logCategory: "query",
       logLabel: "心跳檢查",
       logDetailKey: "none",
@@ -7258,6 +7397,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     },
     getPublicConfig: {
       public: true,
+      doGet: true,
       logCategory: "query",
       logLabel: "取得公開設定",
       logDetailKey: "none",
@@ -7265,6 +7405,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     },
     login: {
       public: true,
+      backfillIdentity: true,
       logCategory: "auth",
       logLabel: "登入",
       logDetailKey: "auth",
@@ -7272,6 +7413,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     },
     loginWithActiveUser: {
       public: true,
+      backfillIdentity: true,
       logCategory: "auth",
       logLabel: "使用現存帳號登入",
       logDetailKey: "auth",
@@ -7412,6 +7554,39 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   /**
+   * 列出明確允許以 GET 呼叫的 action（由 doGet: true 衍生，public 不自動放行）。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listDoGetAllowedActions() {
+    return filterActionsByFlag_("doGet");
+  }
+
+  /**
+   * 列出不寫入操作日誌的 action（由 logEnabled === false 衍生）。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listLogExcludedActions() {
+    if (!CACHED_LISTS.logExcluded) {
+      CACHED_LISTS.logExcluded = Object.keys(ACTIONS).filter(function (name) {
+        return ACTIONS[name].logEnabled === false;
+      });
+    }
+    return CACHED_LISTS.logExcluded.slice();
+  }
+
+  /**
+   * 列出成功登入後需補寫日誌身分的 action（由 backfillIdentity: true 衍生）。
+   * 該旗標僅能標記於公開且寫入日誌的 action，由 actionRegistry.test.js 驗證此約束。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listIdentityBackfillActions() {
+    return filterActionsByFlag_("backfillIdentity");
+  }
+
+  /**
    * 判斷 action 是否已登錄。
    *
    * @param {string} name - action 名稱
@@ -7476,15 +7651,15 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   /**
-   * 判斷角色是否可呼叫指定 action。
+   * 判斷角色是否可呼叫指定 action（task 5.3：角色判定單一入口）。
    *
    * @param {string} role - 角色代碼
-   * @param {string} name - action 名稱
+   * @param {string} action - action 名稱
    * @returns {boolean} 是否允許
    */
-  function isRoleAllowed(role, name) {
-    if (!hasAction(name)) return false;
-    const entry = ACTIONS[name];
+  function isActionAllowed(role, action) {
+    if (!hasAction(action)) return false;
+    const entry = ACTIONS[action];
     if (entry.public === true) return true;
     return Array.isArray(entry.roles) && entry.roles.indexOf(role) !== -1;
   }
@@ -7502,7 +7677,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       permissions[role] = listActions().filter(function (name) {
         // 管理員列舉所有已登錄 action（含公開動作與 getActivityLog）；
         // 其餘角色僅列舉自身被授權的受保護動作。
-        return isRoleAllowed(role, name) && (role === "admin" || !isPublicAction(name));
+        return isActionAllowed(role, name) && (role === ROLE_CODES.ADMIN || !isPublicAction(name));
       });
     });
     return permissions;
@@ -7515,12 +7690,16 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     listPublicActions: listPublicActions,
     listWriteActions: listWriteActions,
     listLockedActions: listLockedActions,
+    listDoGetAllowedActions: listDoGetAllowedActions,
+    listLogExcludedActions: listLogExcludedActions,
+    listIdentityBackfillActions: listIdentityBackfillActions,
     hasAction: hasAction,
     setHandler: setHandler,
     getHandler: getHandler,
     getActionMeta: getActionMeta,
     isPublicAction: isPublicAction,
-    isRoleAllowed: isRoleAllowed,
+    isActionAllowed: isActionAllowed,
+    ROLE_CODES: ROLE_CODES,
     buildRolePermissions: buildRolePermissions
   };
 });
@@ -7641,6 +7820,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     const isProduction = source.production === true;
     return {
       title: "Google Apps Script 應用程式範本",
+      // gasRuntime.WEB_API_VERSION 的 getter 優先讀取 build 注入的 window.__PACKAGE_VERSION__。
       version: gasRuntime.WEB_API_VERSION,
       mock: !isProduction && params.has("mock"),
       switchAccount: source.switchAccount === true || switchFromParam,
@@ -8150,7 +8330,14 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 })(typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // 網域正規化規則單一來源（task 5.5）：瀏覽器由建置腳本先嵌入 gasRuntime，Node 由 require 取得。
+  const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
+
   const MOCK_DELAY_MS = 150;
+  /** 套件版本後綴；Mock 版本由此衍生（task 5.1）。 */
+  const MOCK_VERSION_SUFFIX = "-mock";
+  /** 無注入版本時的退回值，與 gasRuntime.WEB_API_VERSION 一致。 */
+  const FALLBACK_PACKAGE_VERSION = "1.1.0";
 
   /**
    * 建立獨立的 Mock API 實例，狀態不與其他實例共用。
@@ -8161,6 +8348,16 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   function createMockApi(deps) {
     const options = deps || {};
     const mockWindow = options.window || (typeof window !== "undefined" ? window : null);
+    // Mock 版本由套件版本衍生；優先注入值，其次瀏覽器全域，最後退回常數。
+    const injectedVersion =
+      typeof options.packageVersion === "string" && options.packageVersion.trim() !== ""
+        ? options.packageVersion.trim()
+        : mockWindow &&
+            typeof mockWindow.__PACKAGE_VERSION__ === "string" &&
+            mockWindow.__PACKAGE_VERSION__.trim() !== ""
+          ? mockWindow.__PACKAGE_VERSION__.trim()
+          : FALLBACK_PACKAGE_VERSION;
+    const mockVersion = injectedVersion + MOCK_VERSION_SUFFIX;
     const setTimeoutFn =
       typeof options.setTimeoutFn === "function"
         ? options.setTimeoutFn
@@ -8273,16 +8470,13 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     function createPublicConfig() {
       return {
         ok: true,
-        version: "1.1.0-mock",
+        version: mockVersion,
         systemName: mockSettings.systemName,
         schoolYear: mockSettings.schoolYear,
         semester: mockSettings.semester,
         clientId: mockSettings.clientId,
         hasClientSecret: Boolean(mockSettings.clientSecret),
-        allowedDomain: String(mockSettings.allowedLoginDomain || "")
-          .trim()
-          .replace(/^@/, "")
-          .toLowerCase(),
+        allowedDomain: gasRuntime.normalizeAllowedDomain(mockSettings.allowedLoginDomain),
         activeEmail: "admin@example.com",
         webAppUrl: (mockWindow && mockWindow.location && mockWindow.location.href) || ""
       };
@@ -8488,7 +8682,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
     const actionHandlers = {
       ping: function () {
-        return { ok: true, pong: nowFn(), version: "1.1.0-mock" };
+        return { ok: true, pong: nowFn(), version: mockVersion };
       },
       getPublicConfig: createPublicConfig,
       login: buildLoginPayload,
@@ -8578,13 +8772,13 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   /**
-   * 將任意錯誤值轉譯為可安全顯示的訊息。
+   * 將任意錯誤值轉譯為可安全顯示的訊息（全前端唯一轉譯定義，task 6.4）。
    *
    * @param {*} value - 例外、API 結果或未知值
    * @param {string} [fallback] - 無法安全顯示時使用的文案
    * @returns {string} 可顯示的錯誤訊息
    */
-  function resolveUserMessage(value, fallback) {
+  function resolveSafeMessage(value, fallback) {
     const safeFallback = typeof fallback === "string" && fallback ? fallback : DEFAULT_MESSAGE;
     if (!value || typeof value !== "object") return safeFallback;
     if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
@@ -8593,10 +8787,66 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     return safeFallback;
   }
 
+  /** 相容既有呼叫端：轉發至唯一的轉譯定義。 */
+  function resolveUserMessage(value, fallback) {
+    return resolveSafeMessage(value, fallback);
+  }
+
   return {
     DEFAULT_MESSAGE: DEFAULT_MESSAGE,
     createSafeError: createSafeError,
+    resolveSafeMessage: resolveSafeMessage,
     resolveUserMessage: resolveUserMessage
+  };
+});
+  </script>
+  <script>
+/* js/moduleHelpers.js */
+/**
+ * @file moduleHelpers.js
+ * @description 共用模組轉接層（task 6.4）：單一 Node require 相容墊片與相依解析。
+ *
+ * 瀏覽器環境由 errorMessages.js 之後載入並掛至 MEA.moduleHelpers；
+ * Node.js 環境由各前端模組 require，避免各模組重複撰寫環境判斷與載入邏輯。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory();
+
+  if (typeof window !== "undefined") {
+    const MEA = (root.MEA = root.MEA || {});
+    MEA.moduleHelpers = api;
+  }
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  /**
+   * 取得注入或全域可用的 safeErrors 介面。
+   *
+   * 解析順序：明確注入 → MEA 包裹注入 → globalThis 全域 → Node 載入共用作業失敗訊息模組。
+   * 此函式為全前端唯一的 Node require 相容墊片。
+   *
+   * @param {Object} [options] - 模組工廠收到的 deps／options
+   * @returns {Object|null} safeErrors 介面，極端環境下可能為 null
+   */
+  function resolveSafeErrors(options) {
+    const injected = options && (options.safeErrors || (options.MEA && options.MEA.safeErrors));
+    if (injected) return injected;
+
+    const globalErrors = typeof globalThis !== "undefined" && globalThis.MEA && globalThis.MEA.safeErrors;
+    if (globalErrors) return globalErrors;
+
+    if (typeof require === "function") return require("./errorMessages.js");
+    return null;
+  }
+
+  return {
+    resolveSafeErrors: resolveSafeErrors
   };
 });
   </script>
@@ -8626,18 +8876,8 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
-
-  function createSafeError(message) {
-    return globalThis.MEA.safeErrors.createSafeError(message);
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   const CSRF_STORAGE_KEY = "gas_tmpl.csrf.v1";
 
@@ -8664,6 +8904,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
   function createApiClient(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const config = options.config || {};
     const storage = options.storage || {
       getItem: function () {
@@ -8805,7 +9046,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return {
         ok: false,
         error: "server_error",
-        message: resolveSafeMessage(error, "後端執行失敗，請稍後再試")
+        message: safeErrors.resolveSafeMessage(error, "後端執行失敗，請稍後再試")
       };
     }
 
@@ -8838,7 +9079,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
     function handleFetchResponse(response) {
       if (response.ok === false) {
-        const error = createSafeError("伺服器回應 HTTP " + response.status + "，請稍後再試");
+        const error = safeErrors.createSafeError("伺服器回應 HTTP " + response.status + "，請稍後再試");
         error.status = response.status;
         throw error;
       }
@@ -8852,7 +9093,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
       return {
         ok: false,
         error: "network_error",
-        message: resolveSafeMessage(error, "無法連線至 Google Apps Script 伺服器，請確認網路連線或稍後再試")
+        message: safeErrors.resolveSafeMessage(error, "無法連線至 Google Apps Script 伺服器，請確認網路連線或稍後再試")
       };
     }
 
@@ -8862,7 +9103,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
         return createMissingApiUrlError();
       }
       if (typeof fetchFn !== "function") {
-        return Promise.resolve(createNetworkError(createSafeError("尚未取得瀏覽器連線功能，請稍後再試")));
+        return Promise.resolve(createNetworkError(safeErrors.createSafeError("尚未取得瀏覽器連線功能，請稍後再試")));
       }
       return fetchFn(apiUrl, {
         method: "POST",
@@ -9003,6 +9244,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     };
     const client = createApiClient({
       config: MEA.config || {},
+      safeErrors: MEA.safeErrors,
       storage: storage,
       fetchFn: typeof browser.fetch === "function" ? browser.fetch.bind(browser) : null,
       google: browser.google || null,
@@ -9114,6 +9356,366 @@ window.MEA = window.MEA || {};
 })(window.MEA);
   </script>
   <script>
+/* js/eventBindings.js */
+/**
+ * @file eventBindings.js
+ * @description 前端事件綁定單一守衛（task 6.2）：以 Symbol.for("mea.bindings")
+ *              記錄已綁定元素，避免各模組各自使用全文件布林旗標造成衝突。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory();
+
+  if (typeof window !== "undefined") {
+    const MEA = (root.MEA = root.MEA || {});
+    MEA.eventBindings = api;
+  }
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  /** 單一綁定守衛索引，跨模組共用同一 Symbol。 */
+  const BINDINGS_KEY = typeof Symbol === "function" && Symbol.for ? Symbol.for("mea.bindings") : "__meaBindings";
+
+  /** 取得元素上的綁定集合（不存在時建立）。 */
+  function getBindingSet(target) {
+    if (!target || (typeof target !== "object" && typeof target !== "function")) return null;
+    if (!target[BINDINGS_KEY]) {
+      try {
+        target[BINDINGS_KEY] = new Set();
+      } catch (e) {
+        return null;
+      }
+    }
+    return target[BINDINGS_KEY];
+  }
+
+  /** 針對單一元素綁定事件一次；重複呼叫不再綁定。 */
+  function bindOnce(target, type, handler, key) {
+    if (!target || typeof target.addEventListener !== "function") return false;
+    const set = getBindingSet(target);
+    if (!set) return false;
+    const id = key ? type + ":" + key : type;
+    if (set.has(id)) return false;
+    set.add(id);
+    target.addEventListener(type, handler);
+    return true;
+  }
+
+  /** 查找事件目標中符合 selector 的元素（支援 closest 與 parentNode fallback）。 */
+  function findDelegateTarget(target, origin, selector) {
+    if (!origin) return null;
+    if (typeof origin.closest === "function") return origin.closest(selector);
+    let node = origin;
+    while (node) {
+      if (typeof node.matches === "function" && node.matches(selector)) return node;
+      if (node === target) break;
+      node = node.parentNode;
+    }
+    return null;
+  }
+
+  /** 事件委派：在 target 上監聽 type，命中 selector 後以該元素呼叫 handler。 */
+  function delegate(target, type, selector, handler) {
+    return bindOnce(
+      target,
+      type,
+      function (event) {
+        const element = findDelegateTarget(target, event && event.target, selector);
+        if (!element) return undefined;
+        return handler.call(element, event, element);
+      },
+      "delegate:" + type + ":" + selector
+    );
+  }
+
+  /** 測試用：查詢元素是否已被標記綁定。 */
+  function isBound(target, type, key) {
+    const set = getBindingSet(target);
+    if (!set) return false;
+    return set.has(key ? type + ":" + key : type);
+  }
+
+  return {
+    BINDINGS_KEY: BINDINGS_KEY,
+    bindOnce: bindOnce,
+    delegate: delegate,
+    findDelegateTarget: findDelegateTarget,
+    isBound: isBound
+  };
+});
+  </script>
+  <script>
+/* js/listController.js */
+/**
+ * @file listController.js
+ * @description 前端列表共用控制器（task 6.3）：收斂 fetchList／handleSearch／
+ *              resetSearch／renderPagination 的控制流程，並納入請求序號競態防護。
+ *
+ * 各頁面僅提供 API action 名稱、狀態讀寫回呼、查詢與渲染所需的資料轉換函式。
+ * 瀏覽器環境掛至 MEA.listController；Node.js 環境匯出 createListController 供測試注入。
+ */
+(function (root, factory) {
+  "use strict";
+
+  const api = factory();
+
+  if (typeof window !== "undefined") {
+    const MEA = (root.MEA = root.MEA || {});
+    MEA.listController = api;
+  }
+
+  if (typeof module !== "undefined" && module.exports) {
+    module.exports = api;
+  }
+})(typeof globalThis !== "undefined" ? globalThis : this, function () {
+  "use strict";
+
+  /**
+   * 建立共用列表控制器。
+   *
+   * @param {Object} [config] - 頁面提供的設定與回呼
+   * @param {string} config.apiAction - 清單查詢的 Web API action 名稱
+   * @param {Function} config.getState - 取得目前列表狀態
+   * @param {Function} config.setState - 寫入列表狀態（傳入完整列表狀態物件）
+   * @param {Function} config.callApi - 呼叫 Web API，回傳 Promise
+   * @param {Function} config.toast - 顯示錯誤訊息
+   * @param {Function} config.buildQuery - (state, page) => API payload
+   * @param {Function} config.buildSuccessPatch - (state, result, page) => 成功狀態片段
+   * @param {Function} config.readFilters - () => 表單欄位快照
+   * @param {Function} config.buildResetPatch - (state) => 重設欄位片段
+   * @param {string} [config.failureFallback] - 失敗回應的預設文案
+   * @param {string} [config.errorFallback] - 例外狀況的預設文案
+   * @param {Function} [config.buildSearchExtraPatch] - (state) => 搜尋時額外狀態片段
+   * @param {Function} [config.resolveFailureMessage] - (result, fallback) => 安全文案
+   * @param {Function} [config.resolveErrorMessage] - (error, fallback) => 安全文案
+   * @param {Function} [config.normalizePage] - (requested, state) => 目標頁碼
+   * @param {Function} [config.buildFetchKey] - (query) => 避免重複鍵；提供時啟用同參數避免重複
+   * @param {Function} [config.canCallApi] - () => API 是否可用
+   * @param {Object} config.pagination - 分頁渲染設定
+   * @returns {Object} fetchList／handleSearch／resetSearch／renderPagination
+   */
+  function createListController(config) {
+    const options = config || {};
+    const apiAction = options.apiAction || "";
+    const getState =
+      options.getState ||
+      function () {
+        return {};
+      };
+    const setState = options.setState || function () {};
+    const callApi =
+      options.callApi ||
+      function () {
+        return Promise.resolve(null);
+      };
+    const toast = options.toast || function () {};
+    const buildQuery =
+      options.buildQuery ||
+      function (state, page) {
+        return { page: page };
+      };
+    const buildSuccessPatch =
+      options.buildSuccessPatch ||
+      function () {
+        return { loading: false };
+      };
+    const readFilters =
+      options.readFilters ||
+      function () {
+        return {};
+      };
+    const buildResetPatch =
+      options.buildResetPatch ||
+      function () {
+        return {};
+      };
+    const buildSearchExtraPatch =
+      options.buildSearchExtraPatch ||
+      function () {
+        return {};
+      };
+    const resolveFailureMessage =
+      options.resolveFailureMessage ||
+      function (result, fallback) {
+        return (result && result.message) || fallback;
+      };
+    const resolveErrorMessage =
+      options.resolveErrorMessage ||
+      function (error, fallback) {
+        return fallback;
+      };
+    const normalizePage =
+      options.normalizePage ||
+      function (requested, state) {
+        return requested || state.page || 1;
+      };
+    const canCallApi =
+      options.canCallApi ||
+      function () {
+        return true;
+      };
+    const buildFetchKey = options.buildFetchKey || null;
+    const failureFallback = options.failureFallback || "讀取資料失敗";
+    const errorFallback = options.errorFallback || "讀取資料失敗，請稍後再試";
+    const pagination = options.pagination || {};
+
+    /** 進行中的請求，以避免重複鍵為索引；未提供 buildFetchKey 時不啟用。 */
+    const inflight = Object.create(null);
+    let requestSeq = 0;
+
+    /** 只接受最新一次清單請求的回應，避免過期回應覆蓋新篩選結果。 */
+    function isCurrentRequest(seq) {
+      return seq === requestSeq;
+    }
+
+    /** 將失敗狀態標記為非載入中並顯示安全文案。 */
+    function applyFailureState(fallback, error) {
+      const current = getState();
+      setState(Object.assign({}, current, { loading: false }));
+      toast(resolveErrorMessage(error, fallback), "err");
+    }
+
+    /** 處理 successful／失敗回應；過期請求直接捨棄。 */
+    function handleResult(result, seq, page) {
+      if (!isCurrentRequest(seq)) return undefined;
+      const current = getState();
+      if (!result || result.ok !== true) {
+        setState(Object.assign({}, current, { loading: false }));
+        toast(resolveFailureMessage(result, failureFallback), "err");
+        return result || null;
+      }
+      setState(Object.assign({}, current, buildSuccessPatch(current, result, page)));
+      return result;
+    }
+
+    /** 處理例外；過期請求直接捨棄，不干擾使用者。 */
+    function handleError(error, seq) {
+      if (!isCurrentRequest(seq)) return undefined;
+      applyFailureState(errorFallback, error);
+      return null;
+    }
+
+    /** 清除避免重複記錄，並保留原本的解析值或拒絕原因。 */
+    function trackPending(fetchKey, pending) {
+      if (!fetchKey) return pending;
+      const tracked = pending.then(
+        function (value) {
+          delete inflight[fetchKey];
+          return value;
+        },
+        function (error) {
+          delete inflight[fetchKey];
+          throw error;
+        }
+      );
+      inflight[fetchKey] = tracked;
+      return tracked;
+    }
+
+    /** 讀取清單；相同避免重複鍵的進行中請求共享同一個 Promise。 */
+    function fetchList(page) {
+      const before = getState();
+      const targetPage = normalizePage(page, before);
+      const query = buildQuery(before, targetPage);
+      const fetchKey = buildFetchKey ? buildFetchKey(query) : "";
+      if (fetchKey && Object.prototype.hasOwnProperty.call(inflight, fetchKey)) {
+        return inflight[fetchKey];
+      }
+      if (!canCallApi()) return Promise.resolve(null);
+
+      const requestId = ++requestSeq;
+      setState(Object.assign({}, before, { loading: true, page: targetPage }));
+
+      const pending = callApi(apiAction, query)
+        .then(function (result) {
+          return handleResult(result, requestId, targetPage);
+        })
+        .catch(function (error) {
+          return handleError(error, requestId);
+        });
+      return trackPending(fetchKey, pending);
+    }
+
+    /** 明確觸發搜尋：讀取表單、更新狀態後回到第一頁。 */
+    function handleSearch(event) {
+      if (event && event.preventDefault) event.preventDefault();
+      const current = getState();
+      setState(Object.assign({}, current, readFilters(), buildSearchExtraPatch(current)));
+      return fetchList(1);
+    }
+
+    /** 重設篩選條件後回到第一頁。 */
+    function resetSearch() {
+      const current = getState();
+      setState(Object.assign({}, current, buildResetPatch(current)));
+      return fetchList(1);
+    }
+
+    /** 產生共用的上一頁／下一頁分頁列。 */
+    function renderPagination(state, loading) {
+      const normalize =
+        pagination.normalize ||
+        function (value) {
+          return value || {};
+        };
+      const info = normalize(state);
+      const totalPages = info.totalPages || 1;
+      const currentPage = info.currentPage || 1;
+      const number =
+        pagination.number ||
+        function (value) {
+          return String(value === undefined || value === null ? "" : value);
+        };
+      const actionAttribute = pagination.actionAttribute || "data-action";
+      return (
+        '<div class="pagination-bar">' +
+        '  <span class="pagination-info">共 ' +
+        number(info.total) +
+        " 筆紀錄 · 第 " +
+        currentPage +
+        " / " +
+        totalPages +
+        " 頁</span>" +
+        '  <div class="pagination-buttons">' +
+        '    <button type="button" class="btn secondary compact" ' +
+        actionAttribute +
+        '="page" data-page="' +
+        (currentPage - 1) +
+        '"' +
+        (currentPage <= 1 || loading ? " disabled" : "") +
+        ">上一頁</button>" +
+        '    <button type="button" class="btn secondary compact" ' +
+        actionAttribute +
+        '="page" data-page="' +
+        (currentPage + 1) +
+        '"' +
+        (currentPage >= totalPages || loading ? " disabled" : "") +
+        ">下一頁</button>" +
+        "  </div>" +
+        "</div>"
+      );
+    }
+
+    return {
+      fetchList: fetchList,
+      handleSearch: handleSearch,
+      resetSearch: resetSearch,
+      renderPagination: renderPagination,
+      isCurrentRequest: isCurrentRequest
+    };
+  }
+
+  return {
+    createListController: createListController
+  };
+});
+  </script>
+  <script>
 /* js/ui.js */
 /**
  * @file ui.js
@@ -9129,14 +9731,11 @@ window.MEA = window.MEA || {};
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.ui = api.createUiModule({
-      MEA: MEA,
-      window: window,
-      document: window.document,
-      setTimeoutFn: function (fn, ms) {
-        return window.setTimeout(fn, ms);
-      }
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.ui = api.createUiModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -9147,6 +9746,13 @@ window.MEA = window.MEA || {};
 
   const DEFAULT_STYLE = "modern-slate";
   const MODAL_TITLE_ID = "meaModalTitle";
+  /**
+   * 角色代碼單一來源（task 5.3）：GAS 全域 gasRuntime 優先，Node 由 require 取得。
+   * gasRuntime.js 在建置順序中早於本模組載入，故可安全取得。
+   */
+  const ROLE_CODES =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime && globalThis.gasRuntime.ROLE_CODES) ||
+    (typeof require === "function" ? require("../../gasRuntime.js").ROLE_CODES : null);
 
   /**
    * 跳脫 HTML 特殊字元。
@@ -9184,7 +9790,7 @@ window.MEA = window.MEA || {};
    */
   function isTabAllowed(tab, user) {
     if (!tab || tab.adminOnly !== true) return true;
-    return !!(user && user.role === "admin");
+    return !!(user && ROLE_CODES && user.role === ROLE_CODES.ADMIN);
   }
 
   /**
@@ -9320,6 +9926,34 @@ window.MEA = window.MEA || {};
         : function (fn, ms) {
             return setTimeout(fn, ms);
           };
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定所有 UI 事件；DOM 於 render 後重建仍可作用。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "change", "[data-ui-action='apply-style']", function (event, element) {
+        applyStyle(element.value);
+      });
+      bindings.delegate(doc, "click", "[data-ui-action]", function (event, element) {
+        const action = element.getAttribute("data-ui-action");
+        if (action === "toggle-theme") return toggleTheme();
+        if (action === "logout") {
+          return MEA.auth && typeof MEA.auth.logout === "function" ? MEA.auth.logout() : undefined;
+        }
+        if (action === "login-mock") {
+          return MEA.auth && typeof MEA.auth.loginMock === "function" ? MEA.auth.loginMock() : undefined;
+        }
+        if (action === "set-tab") {
+          const tab = element.getAttribute("data-tab");
+          const setTab = (MEA.navigation && MEA.navigation.setTab) || MEA.setTab;
+          return typeof setTab === "function" ? setTab(tab) : undefined;
+        }
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     let modalRestoreFocus = null;
 
@@ -9553,7 +10187,7 @@ window.MEA = window.MEA || {};
         escapeHtml(user.name || user.email) +
         "</span>" +
         '    <span class="pill ' +
-        (user.role === "admin" ? "accent" : "muted") +
+        (user.role === ROLE_CODES.ADMIN ? "accent" : "muted") +
         '">' +
         escapeHtml(user.roleName || roleName(user.role, MEA.config)) +
         "</span>" +
@@ -9585,14 +10219,14 @@ window.MEA = window.MEA || {};
         renderUserPill(user) +
         '  <div class="style-selector-wrap">' +
         '    <label class="sr-only" for="styleSelect">介面風格</label>' +
-        '    <select id="styleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
+        '    <select id="styleSelect" class="select compact" data-ui-action="apply-style">' +
         renderStyleOptions(styles, curStyle) +
         "    </select>" +
         "  </div>" +
-        '  <button type="button" id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="themeToggle" class="btn secondary compact" data-ui-action="toggle-theme">' +
         (currentTheme() === "dark" ? "◑ 淺色模式" : "◐ 深色模式") +
         "  </button>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.auth.logout()"' +
+        '  <button type="button" class="btn secondary compact" data-ui-action="logout"' +
         (logoutBusy ? " disabled" : "") +
         ">" +
         (logoutBusy ? "登出中..." : "登出") +
@@ -9618,9 +10252,9 @@ window.MEA = window.MEA || {};
           active +
           '"' +
           current +
-          " onclick=\"MEA.setTab('" +
-          t.id +
-          "')\">" +
+          ' data-ui-action="set-tab" data-tab="' +
+          escapeHtml(t.id) +
+          '">' +
           '<span class="nav-icon" aria-hidden="true">' +
           t.icon +
           "</span>" +
@@ -9667,7 +10301,7 @@ window.MEA = window.MEA || {};
     function renderLoginActions(isMock, loginBusy) {
       const mockHtml = isMock
         ? '<div class="login-divider"><span>或</span></div>' +
-          '<button type="button" class="btn secondary block" onclick="MEA.auth.loginMock()"' +
+          '<button type="button" class="btn secondary block" data-ui-action="login-mock"' +
           (loginBusy ? " disabled" : "") +
           ">" +
           "  🧪 本地測試身分登入 (Mock Mode)" +
@@ -9699,10 +10333,10 @@ window.MEA = window.MEA || {};
         '<div class="login-container">' +
         '<div class="login-header-tools">' +
         '  <label class="sr-only" for="loginStyleSelect">介面風格</label>' +
-        '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
+        '  <select id="loginStyleSelect" class="select compact" data-ui-action="apply-style">' +
         styleOptionsHtml +
         "  </select>" +
-        '  <button type="button" id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="loginThemeToggle" class="btn secondary compact" data-ui-action="toggle-theme">' +
         (currentTheme() === "dark" ? "◑ 淺色" : "◐ 深色") +
         "  </button>" +
         "</div>" +
@@ -9778,21 +10412,21 @@ window.MEA = window.MEA || {};
         '<div class="card mt-4">' +
         '  <h3 class="card-title">🚀 範本功能快速導覽</h3>' +
         '  <div class="feature-grid mt-3">' +
-        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'import\')">' +
+        '    <button type="button" class="feature-item" data-ui-action="set-tab" data-tab="import">' +
         '      <div class="feature-icon" aria-hidden="true">📥</div>' +
         '      <div class="feature-text">' +
         "        <h4>課程代碼匯入與 1NF 正規化</h4>" +
         "        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程代碼。</p>" +
         "      </div>" +
         "    </button>" +
-        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'courses\')">' +
+        '    <button type="button" class="feature-item" data-ui-action="set-tab" data-tab="courses">' +
         '      <div class="feature-icon" aria-hidden="true">📚</div>' +
         '      <div class="feature-text">' +
         "        <h4>正規化課程檢索與分頁</h4>" +
         "        <p>提供多維度關鍵字、學年、學期、科別篩選機制，支援大批量課程資料快速檢索。</p>" +
         "      </div>" +
         "    </button>" +
-        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'settings\')">' +
+        '    <button type="button" class="feature-item" data-ui-action="set-tab" data-tab="settings">' +
         '      <div class="feature-icon" aria-hidden="true">⚙️</div>' +
         '      <div class="feature-text">' +
         "        <h4>系統設定與授權管理 (RBAC)</h4>" +
@@ -9927,14 +10561,11 @@ window.MEA = window.MEA || {};
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.auth = api.createAuthController({
-      MEA: MEA,
-      document: window.document,
-      window: window,
-      setTimeoutFn: function (fn, ms) {
-        return window.setTimeout(fn, ms);
-      }
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.auth = api.createAuthController;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -9943,18 +10574,13 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
+  // 網域正規化規則單一來源（task 5.5）：瀏覽器由建置腳本先嵌入 gasRuntime，Node 由 require 取得。
+  const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
 
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
-
-  function createSafeError(message) {
-    return globalThis.MEA.safeErrors.createSafeError(message);
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
+  // 模組級純函式無法取得工廠注入，故使用共用解析結果做為安全訊息來源。
+  const sharedSafeErrors = moduleHelpers.resolveSafeErrors();
 
   const GIS_SRC = "https://accounts.google.com/gsi/client";
   const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -9988,7 +10614,7 @@ window.MEA = window.MEA || {};
     return {
       view: "login",
       loginBusy: false,
-      loginError: resolveSafeMessage(result, DEFAULT_LOGIN_ERROR)
+      loginError: sharedSafeErrors.resolveSafeMessage(result, DEFAULT_LOGIN_ERROR)
     };
   }
 
@@ -10143,10 +10769,7 @@ window.MEA = window.MEA || {};
   }
 
   function normalizeAllowedDomain(allowedDomain) {
-    return String(allowedDomain || "")
-      .trim()
-      .replace(/^@/, "")
-      .toLowerCase();
+    return gasRuntime.normalizeAllowedDomain(allowedDomain);
   }
 
   function buildAccountChooserUrl(webAppUrl, allowedDomain) {
@@ -10207,7 +10830,7 @@ window.MEA = window.MEA || {};
   function buildGasHostedLoginButtonHtml(loginBusy) {
     const busy = loginBusy ? " disabled" : "";
     return (
-      '<button type="button" class="btn google-redirect-btn" onclick="MEA.auth.switchGoogleAccount()"' +
+      '<button type="button" class="btn google-redirect-btn" data-auth-action="switch-google-account"' +
       busy +
       ">" +
       GOOGLE_LOGO_SVG +
@@ -10291,7 +10914,7 @@ window.MEA = window.MEA || {};
    * @returns {string} 顯示給使用者的訊息
    */
   function normalizeLogoutError(error) {
-    return resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
+    return sharedSafeErrors.resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
   }
 
   function buildSessionFailureState(result) {
@@ -10304,6 +10927,7 @@ window.MEA = window.MEA || {};
 
   function createAuthController(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
     const win = options.window || (typeof window !== "undefined" ? window : null);
@@ -10313,6 +10937,18 @@ window.MEA = window.MEA || {};
         : function (fn, ms) {
             return setTimeout(fn, ms);
           };
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定 GAS 託管登入按鈕（按鈕由 renderGoogleButton 後注入）。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "click", "[data-auth-action='switch-google-account']", function () {
+        switchGoogleAccount();
+      });
+    }
+
+    bindEventsOnce();
 
     let gisPromise = null;
     let initializedClientId = "";
@@ -10354,7 +10990,7 @@ window.MEA = window.MEA || {};
             resolve(host.google.accounts.id);
           });
           existing.addEventListener("error", function () {
-            reject(createSafeError("Google 登入服務載入失敗"));
+            reject(safeErrors.createSafeError("Google 登入服務載入失敗"));
           });
           return;
         }
@@ -10367,11 +11003,11 @@ window.MEA = window.MEA || {};
           if (host.google && host.google.accounts && host.google.accounts.id) {
             resolve(host.google.accounts.id);
           } else {
-            reject(createSafeError("Google 登入服務載入失敗"));
+            reject(safeErrors.createSafeError("Google 登入服務載入失敗"));
           }
         };
         script.onerror = function () {
-          reject(createSafeError("Google 登入服務載入失敗，請檢查網路連線"));
+          reject(safeErrors.createSafeError("Google 登入服務載入失敗，請檢查網路連線"));
         };
         doc.head.appendChild(script);
       });
@@ -10459,7 +11095,7 @@ window.MEA = window.MEA || {};
     }
 
     function handleGisFailure(error) {
-      MEA.setState({ loginError: resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
+      MEA.setState({ loginError: safeErrors.resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
     }
 
     /**
@@ -10468,7 +11104,7 @@ window.MEA = window.MEA || {};
      * @param {*} error - 例外或錯誤物件
      */
     function handleAuthCallFailure(error) {
-      const message = resolveSafeMessage(error, DEFAULT_LOGIN_ERROR);
+      const message = safeErrors.resolveSafeMessage(error, DEFAULT_LOGIN_ERROR);
       MEA.setState({ loginBusy: false, loginError: message });
       MEA.ui.toast(message, "err");
     }
@@ -10644,11 +11280,11 @@ window.MEA = window.MEA || {};
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.imports = api.createImportsModule({
-      MEA: MEA,
-      window: window,
-      document: window.document
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.imports = api.createImportsModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -10657,14 +11293,8 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   // SheetJS 自 0.19 起僅於官方 CDN 發布；固定單一版本並以 SRI 驗證完整性。
   const SHEETJS_VERSION = "0.20.3";
@@ -10756,16 +11386,12 @@ window.MEA = window.MEA || {};
       ' role="button"' +
       ' tabindex="0"' +
       ' aria-label="選擇或拖曳課程代碼 Excel 檔案"' +
-      ' ondragover="MEA.imports.handleDragOver(event)"' +
-      ' ondragleave="MEA.imports.handleDragLeave(event)"' +
-      ' ondrop="MEA.imports.handleDrop(event)"' +
-      ' onkeydown="MEA.imports.handleDropzoneKey(event)"' +
-      ' onclick="MEA.imports.pickFile()">' +
+      ' data-import-dropzone="1">' +
       '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
       '  <div class="dropzone-title">點擊選擇或拖曳課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
       "</div>" +
-      '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />'
+      '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" data-import-action="file-select" />'
     );
   }
 
@@ -10857,8 +11483,8 @@ window.MEA = window.MEA || {};
       " KB</p>" +
       "    </div>" +
       '    <div class="card-actions">' +
-      '      <button class="btn secondary compact" onclick="MEA.imports.resetImport()">重新選擇</button>' +
-      '      <button class="btn primary compact" onclick="MEA.imports.doImport()"' +
+      '      <button type="button" class="btn secondary compact" data-import-action="reset">重新選擇</button>' +
+      '      <button type="button" class="btn primary compact" data-import-action="import"' +
       disabled +
       ">" +
       buttonText +
@@ -10911,11 +11537,45 @@ window.MEA = window.MEA || {};
    */
   function createImportsModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const win = options.window || (typeof window !== "undefined" ? window : null) || {};
     const doc = options.document || (win && win.document) || (typeof document !== "undefined" ? document : null);
     const FileReaderCtor =
       options.FileReader || (win && win.FileReader) || (typeof FileReader !== "undefined" ? FileReader : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定拖曳區、檔案輸入與預覽卡片事件。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "dragover", "[data-import-dropzone]", function (event, element) {
+        handleDragOver(event, element);
+      });
+      bindings.delegate(doc, "dragleave", "[data-import-dropzone]", function (event, element) {
+        handleDragLeave(event, element);
+      });
+      bindings.delegate(doc, "drop", "[data-import-dropzone]", function (event, element) {
+        handleDrop(event, element);
+      });
+      bindings.delegate(doc, "keydown", "[data-import-dropzone]", function (event) {
+        handleDropzoneKey(event);
+      });
+      bindings.delegate(doc, "click", "[data-import-dropzone]", function () {
+        pickFile();
+      });
+      bindings.delegate(doc, "change", "[data-import-action='file-select']", function (event, element) {
+        handleFileSelect(element);
+      });
+      bindings.delegate(doc, "click", "[data-import-action]", function (event, element) {
+        const action = element.getAttribute("data-import-action");
+        if (action === "reset") return resetImport();
+        if (action === "import") return doImport();
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     let sheetJsPromise = null;
 
@@ -11035,7 +11695,7 @@ window.MEA = window.MEA || {};
         })
         .catch(function (error) {
           MEA.setState({ importBusy: false });
-          MEA.ui.toast(resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
+          MEA.ui.toast(safeErrors.resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
           return null;
         });
     }
@@ -11064,22 +11724,22 @@ window.MEA = window.MEA || {};
       if (file) previewFile(file);
     }
 
-    function handleDragOver(e) {
+    function handleDragOver(e, element) {
       e.preventDefault();
-      const zone = doc.getElementById("uploadDropzone");
-      if (zone) zone.classList.add("dragover");
+      const zone = element || doc.getElementById("uploadDropzone");
+      if (zone && zone.classList) zone.classList.add("dragover");
     }
 
-    function handleDragLeave(e) {
+    function handleDragLeave(e, element) {
       e.preventDefault();
-      const zone = doc.getElementById("uploadDropzone");
-      if (zone) zone.classList.remove("dragover");
+      const zone = element || doc.getElementById("uploadDropzone");
+      if (zone && zone.classList) zone.classList.remove("dragover");
     }
 
-    function handleDrop(e) {
+    function handleDrop(e, element) {
       e.preventDefault();
-      const zone = doc.getElementById("uploadDropzone");
-      if (zone) zone.classList.remove("dragover");
+      const zone = element || doc.getElementById("uploadDropzone");
+      if (zone && zone.classList) zone.classList.remove("dragover");
 
       const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
       if (file) previewFile(file);
@@ -11120,7 +11780,7 @@ window.MEA = window.MEA || {};
 
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
-      const detail = resolveSafeMessage(error, "匯入失敗，請稍後再試");
+      const detail = safeErrors.resolveSafeMessage(error, "匯入失敗，請稍後再試");
       MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 
@@ -11236,10 +11896,11 @@ window.MEA = window.MEA || {};
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.courses = api.createCoursesModule({
-      MEA: MEA,
-      document: window.document
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.courses = api.createCoursesModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -11248,14 +11909,8 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   /**
    * 建立課程代碼模組控制器。
@@ -11265,8 +11920,79 @@ window.MEA = window.MEA || {};
    */
   function createCoursesModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+    // task 6.3：列表控制流程由共用控制器提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const listControllerModule =
+      typeof require === "function" ? require("./listController.js") : globalThis.MEA.listController;
+
+    const listCtl = listControllerModule.createListController({
+      apiAction: "getCourseIndex",
+      getState: function () {
+        return MEA.state.courses || {};
+      },
+      setState: function (next) {
+        MEA.setState({ courses: next });
+      },
+      callApi: function (action, payload) {
+        return MEA.api.call(action, payload);
+      },
+      toast: function (message, kind) {
+        MEA.ui.toast(message, kind);
+      },
+      buildQuery: buildCourseQuery,
+      buildFetchKey: buildCourseFetchKey,
+      buildSuccessPatch: buildCoursesSuccessPatch,
+      readFilters: readSearchFormValues,
+      buildResetPatch: function () {
+        return { keyword: "", department: "", academicYear: "", semester: "" };
+      },
+      resolveErrorMessage: normalizeErrorMessage,
+      normalizePage: function (requested, state) {
+        return requested || state.page || 1;
+      },
+      failureFallback: "讀取課程資料失敗",
+      errorFallback: "讀取課程資料失敗，請稍後再試",
+      pagination: {
+        actionAttribute: "data-course-action",
+        number: function (value) {
+          return MEA.ui.number(value);
+        },
+        normalize: function (state) {
+          return {
+            total: state.total,
+            currentPage: state.page || 1,
+            totalPages: state.totalPages || 1
+          };
+        }
+      }
+    });
+
+    const fetchList = listCtl.fetchList;
+    const handleSearch = listCtl.handleSearch;
+    const resetSearch = listCtl.resetSearch;
+
+    /** 以 document 委派綁定搜尋表單、分頁與重設事件。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "submit", "[data-course-action='search']", function (event) {
+        handleSearch(event);
+      });
+      bindings.delegate(doc, "click", "[data-course-action]", function (event, element) {
+        const action = element.getAttribute("data-course-action");
+        if (action === "page" || action === "refresh") {
+          const page = parseInt(element.getAttribute("data-page"), 10);
+          return Number.isFinite(page) ? fetchList(page) : undefined;
+        }
+        if (action === "reset") return resetSearch();
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     /**
      * 以注入的 document 取得元素，缺損時回傳 null。
@@ -11286,7 +12012,7 @@ window.MEA = window.MEA || {};
      * @returns {string} 可顯示的錯誤訊息
      */
     function normalizeErrorMessage(error, fallback) {
-      return resolveSafeMessage(error, fallback);
+      return safeErrors.resolveSafeMessage(error, fallback);
     }
 
     /**
@@ -11327,11 +12053,12 @@ window.MEA = window.MEA || {};
     /**
      * 由成功回應建構課程狀態更新片段。
      *
-     * @param {number} targetPage - 目標頁碼
+     * @param {Object} state - 目前課程狀態
      * @param {Object} result - API 回應
+     * @param {number} targetPage - 目標頁碼
      * @returns {Object} courses 更新片段
      */
-    function buildCoursesSuccessPatch(targetPage, result) {
+    function buildCoursesSuccessPatch(state, result, targetPage) {
       return {
         loading: false,
         list: result.list || [],
@@ -11340,77 +12067,6 @@ window.MEA = window.MEA || {};
         pageSize: result.pageSize || 30,
         totalPages: result.totalPages || 1
       };
-    }
-
-    /**
-     * 處理課程清單讀取結果（原 fetchList 的 then 回呼）。
-     *
-     * @param {Object} cur - 請求前的課程狀態快照
-     * @param {Object} result - API 回應
-     * @param {number} targetPage - 目標頁碼
-     */
-    function handleFetchListSuccess(cur, result, targetPage) {
-      if (!result || result.ok !== true) {
-        MEA.setState({
-          courses: Object.assign({}, cur, { loading: false })
-        });
-        MEA.ui.toast((result && result.message) || "讀取課程資料失敗", "err");
-        return;
-      }
-
-      MEA.setState({
-        courses: Object.assign({}, cur, buildCoursesSuccessPatch(targetPage, result))
-      });
-    }
-
-    const inflightListFetches = {};
-    let listRequestSeq = 0;
-
-    /** 只接受最新一次清單請求的回應，避免過期回應覆蓋新篩選結果。 */
-    function isCurrentListRequest(seq) {
-      return seq === listRequestSeq;
-    }
-
-    function fetchList(page) {
-      const targetPage = page || (MEA.state.courses && MEA.state.courses.page) || 1;
-      const cur = MEA.state.courses || {};
-      const query = buildCourseQuery(cur, targetPage);
-      const fetchKey = buildCourseFetchKey(query);
-      if (Object.prototype.hasOwnProperty.call(inflightListFetches, fetchKey)) {
-        return inflightListFetches[fetchKey];
-      }
-
-      const requestSeq = ++listRequestSeq;
-      MEA.setState({
-        courses: Object.assign({}, cur, { loading: true, page: targetPage })
-      });
-
-      const pending = MEA.api
-        .call("getCourseIndex", query)
-        .then(function (result) {
-          if (!isCurrentListRequest(requestSeq)) return;
-          handleFetchListSuccess(cur, result, targetPage);
-        })
-        .catch(function (error) {
-          if (!isCurrentListRequest(requestSeq)) return;
-          MEA.setState({
-            courses: Object.assign({}, cur, { loading: false })
-          });
-          MEA.ui.toast(normalizeErrorMessage(error, "讀取課程資料失敗，請稍後再試"), "err");
-        });
-
-      const tracked = pending.then(
-        function (value) {
-          delete inflightListFetches[fetchKey];
-          return value;
-        },
-        function (error) {
-          delete inflightListFetches[fetchKey];
-          throw error;
-        }
-      );
-      inflightListFetches[fetchKey] = tracked;
-      return tracked;
     }
 
     /**
@@ -11461,29 +12117,6 @@ window.MEA = window.MEA || {};
         academicYear: yearInput ? yearInput.value.trim() : "",
         semester: semSelect ? semSelect.value.trim() : ""
       };
-    }
-
-    function handleSearch(e) {
-      if (e && e.preventDefault) e.preventDefault();
-      const cur = MEA.state.courses || {};
-      MEA.setState({
-        courses: Object.assign({}, cur, readSearchFormValues())
-      });
-
-      fetchList(1);
-    }
-
-    function resetSearch() {
-      const cur = MEA.state.courses || {};
-      MEA.setState({
-        courses: Object.assign({}, cur, {
-          keyword: "",
-          department: "",
-          academicYear: "",
-          semester: ""
-        })
-      });
-      fetchList(1);
     }
 
     /**
@@ -11576,41 +12209,6 @@ window.MEA = window.MEA || {};
     }
 
     /**
-     * 產生分頁列。
-     *
-     * @param {Object} courses - 課程狀態
-     * @param {boolean} loading - 是否載入中
-     * @returns {string} HTML 字串
-     */
-    function renderPaginationHtml(courses, loading) {
-      const totalPages = courses.totalPages || 1;
-      const currentPage = courses.page || 1;
-      return (
-        '<div class="pagination-bar">' +
-        '  <span class="pagination-info">共 ' +
-        MEA.ui.number(courses.total) +
-        " 筆紀錄 · 第 " +
-        currentPage +
-        " / " +
-        totalPages +
-        " 頁</span>" +
-        '  <div class="pagination-buttons">' +
-        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
-        (currentPage - 1) +
-        ')"' +
-        (currentPage <= 1 || loading ? " disabled" : "") +
-        ">上一頁</button>" +
-        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
-        (currentPage + 1) +
-        ')"' +
-        (currentPage >= totalPages || loading ? " disabled" : "") +
-        ">下一頁</button>" +
-        "  </div>" +
-        "</div>"
-      );
-    }
-
-    /**
      * 產生搜尋表單。
      *
      * @param {Object} courses - 課程狀態
@@ -11620,7 +12218,7 @@ window.MEA = window.MEA || {};
     function renderSearchFormHtml(courses, deptOptionsHtml) {
       return (
         '<div class="filter-bar">' +
-        '  <form class="filter-form" onsubmit="MEA.courses.handleSearch(event)">' +
+        '  <form class="filter-form" data-course-action="search">' +
         '    <label class="sr-only" for="courseSearchKeyword">搜尋關鍵字</label>' +
         '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
         MEA.ui.escapeHtml(courses.keyword || "") +
@@ -11644,7 +12242,7 @@ window.MEA = window.MEA || {};
         ">第 2 學期</option>" +
         "    </select>" +
         '    <button type="submit" class="btn primary">搜尋</button>' +
-        '    <button type="button" class="btn secondary" onclick="MEA.courses.resetSearch()">重設</button>' +
+        '    <button type="button" class="btn secondary" data-course-action="reset">重設</button>' +
         "  </form>" +
         "</div>"
       );
@@ -11658,7 +12256,7 @@ window.MEA = window.MEA || {};
 
       const deptOptionsHtml = renderDeptOptionsHtml(depts, courses.department);
       const rowsHtml = renderCourseRowsHtml(list, loading);
-      const paginationHtml = renderPaginationHtml(courses, loading);
+      const paginationHtml = listCtl.renderPagination(courses, loading);
       const currentPage = courses.page || 1;
 
       return (
@@ -11668,9 +12266,9 @@ window.MEA = window.MEA || {};
         '    <h2 class="panel-title">正規化課程代碼清單</h2>' +
         '    <p class="panel-sub">檢視自 39 欄課綱寬表展開後之 1NF 課程紀錄</p>' +
         "  </div>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '  <button type="button" class="btn secondary compact" data-course-action="refresh" data-page="' +
         currentPage +
-        ')">🔄 重新整理</button>' +
+        '">🔄 重新整理</button>' +
         "</div>" +
         renderSearchFormHtml(courses, deptOptionsHtml) +
         '<div class="table-responsive mt-3">' +
@@ -11719,10 +12317,11 @@ window.MEA = window.MEA || {};
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.accounts = api.createAccountsModule({
-      MEA: MEA,
-      document: window.document
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.accounts = api.createAccountsModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -11731,14 +12330,21 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
+  /**
+   * 角色代碼單一來源（task 5.3）：GAS 全域 gasRuntime 優先，Node 由 require 取得。
+   * gasRuntime.js 在建置順序中早於本模組載入，故可安全取得。
+   */
+  const ROLE_CODES =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime && globalThis.gasRuntime.ROLE_CODES) ||
+    (typeof require === "function" ? require("../../gasRuntime.js").ROLE_CODES : null);
 
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
+  // 網域正規化規則單一來源（task 5.5）：瀏覽器由 gasRuntime 全域取得，Node 由 require 取得。
+  const gasRuntime =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime) ||
+    (typeof require === "function" ? require("../../gasRuntime.js") : null);
+
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   /**
    * 建立帳號與系統設定模組控制器。
@@ -11748,8 +12354,34 @@ window.MEA = window.MEA || {};
    */
   function createAccountsModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定欄位、表單與授權成員操作事件。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "change", "[data-account-action='clear-field-error']", function (event, element) {
+        clearFieldError(element);
+      });
+      bindings.delegate(doc, "submit", "[data-account-action='save-settings']", function (event) {
+        saveSettings(event);
+      });
+      bindings.delegate(doc, "click", "[data-account-action]", function (event, element) {
+        const action = element.getAttribute("data-account-action");
+        if (action === "toggle" || action === "remove") {
+          const email = element.getAttribute("data-email") || "";
+          return action === "toggle" ? toggleAccount(email) : removeAccount(email);
+        }
+        if (action === "add") return addAccountPrompt();
+        if (action === "reload") return loadSettingsAndAccounts();
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     /**
      * 以注入的 document 取得元素，缺損時回傳 null。
@@ -11769,7 +12401,7 @@ window.MEA = window.MEA || {};
      * @returns {string} 可顯示的錯誤訊息
      */
     function normalizeErrorMessage(error, fallback) {
-      return resolveSafeMessage(error, fallback);
+      return safeErrors.resolveSafeMessage(error, fallback);
     }
 
     function loadSettingsAndAccounts() {
@@ -11819,7 +12451,7 @@ window.MEA = window.MEA || {};
         semester: semesterInput ? semesterInput.value.trim() : "",
         clientId: clientIdInput ? clientIdInput.value.trim() : "",
         clientSecret: clientSecretInput ? clientSecretInput.value.trim() : "",
-        allowedLoginDomain: allowedDomainInput ? allowedDomainInput.value.trim().replace(/^@/, "").toLowerCase() : "",
+        allowedLoginDomain: gasRuntime.normalizeAllowedDomain(allowedDomainInput ? allowedDomainInput.value : ""),
         restrict: !!(restrictInput && restrictInput.checked)
       };
     }
@@ -11922,7 +12554,7 @@ window.MEA = window.MEA || {};
       return {
         email: emailInput ? emailInput.value.trim().toLowerCase() : "",
         name: nameInput ? nameInput.value.trim() : "",
-        role: roleSelect ? roleSelect.value : "viewer"
+        role: roleSelect ? roleSelect.value : ROLE_CODES.VIEWER
       };
     }
 
@@ -12038,7 +12670,7 @@ window.MEA = window.MEA || {};
       const html =
         '<div class="form-group">' +
         '  <label class="label" for="newAccountEmail">Google Email</label>' +
-        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" onchange="MEA.accounts.clearFieldError(this)" />' +
+        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" data-account-action="clear-field-error" />' +
         '  <span class="hint" id="newAccountEmailHint">請輸入完整的 Google 電子郵件地址。</span>' +
         '  <span class="field-error" id="newAccountEmailError" role="alert" hidden></span>' +
         "</div>" +
@@ -12175,7 +12807,7 @@ window.MEA = window.MEA || {};
         MEA.ui.escapeHtml(a.name) +
         "</td>" +
         '<td><span class="pill ' +
-        (a.role === "admin" ? "accent" : "muted") +
+        (a.role === ROLE_CODES.ADMIN ? "accent" : "muted") +
         '">' +
         MEA.ui.escapeHtml(a.roleName || a.role) +
         "</span></td>" +
@@ -12187,16 +12819,16 @@ window.MEA = window.MEA || {};
         "  </span>" +
         "</td>" +
         "<td>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
-        encodeURIComponent(a.email) +
-        "'))\"" +
+        '  <button type="button" class="btn secondary compact" data-account-action="toggle" data-email="' +
+        MEA.ui.escapeHtml(a.email) +
+        '"' +
         disabled +
         ">" +
         (a.enabled ? "停用" : "啟用") +
         "</button>" +
-        '  <button type="button" class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
-        encodeURIComponent(a.email) +
-        "'))\"" +
+        '  <button type="button" class="btn danger compact" data-account-action="remove" data-email="' +
+        MEA.ui.escapeHtml(a.email) +
+        '"' +
         disabled +
         ">刪除</button>" +
         "</td>" +
@@ -12234,7 +12866,7 @@ window.MEA = window.MEA || {};
       return (
         '<div class="card mt-3">' +
         '  <h3 class="card-title">系統核心參數</h3>' +
-        '  <form class="mt-3" onsubmit="MEA.accounts.saveSettings(event)">' +
+        '  <form class="mt-3" data-account-action="save-settings">' +
         '    <div class="row">' +
         '      <div class="col" style="flex:2;">' +
         '        <label class="label" for="cfgSystemName">系統名稱</label>' +
@@ -12308,7 +12940,7 @@ window.MEA = window.MEA || {};
         '<div class="card mt-4">' +
         '  <div class="card-header">' +
         '    <h3 class="card-title">授權白名單成員清單</h3>' +
-        '    <button type="button" class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()"' +
+        '    <button type="button" class="btn secondary compact" data-account-action="add"' +
         (saving ? " disabled" : "") +
         ">＋ 新增授權成員</button>" +
         "  </div>" +
@@ -12331,7 +12963,7 @@ window.MEA = window.MEA || {};
 
     function renderView() {
       const user = MEA.state.user || {};
-      const isAdmin = user.role === "admin";
+      const isAdmin = user.role === ROLE_CODES.ADMIN;
       const settings = MEA.state.settings || {};
       const data = settings.data || {};
       const accounts = settings.accounts || [];
@@ -12347,7 +12979,7 @@ window.MEA = window.MEA || {};
         '    <h2 class="panel-title">系統設定與授權 (RBAC)</h2>' +
         '    <p class="panel-sub">設定 Google OAuth、登入網域限制與存取成員角色清單</p>' +
         "  </div>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()"' +
+        '  <button type="button" class="btn secondary compact" data-account-action="reload"' +
         (settings.loading ? " disabled" : "") +
         ">" +
         (settings.loading ? "讀取中..." : "🔄 重新讀取") +
@@ -12390,10 +13022,11 @@ window.MEA = window.MEA || {};
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.activityLog = api.createActivityLogModule({
-      MEA: MEA,
-      document: window.document
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.activityLog = api.createActivityLogModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -12402,9 +13035,8 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   /** 後端已明確定義的錯誤代碼文案（查詢日誌專用） */
   const SAFE_ERROR_MESSAGES = {
@@ -12424,10 +13056,6 @@ window.MEA = window.MEA || {};
   const DEFAULT_DAYS = 7;
   const DEFAULT_PAGE_SIZE = 50;
   const MAX_PAGE_SIZE = 500;
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
 
   /**
    * 以 Asia/Taipei 時區格式化日期為 yyyy-MM-dd。
@@ -12474,8 +13102,98 @@ window.MEA = window.MEA || {};
    */
   function createActivityLogModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+    // task 6.3：列表控制流程由共用控制器提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const listControllerModule =
+      typeof require === "function" ? require("./listController.js") : globalThis.MEA.listController;
+
+    const listCtl = listControllerModule.createListController({
+      apiAction: "getActivityLog",
+      getState: currentState,
+      setState: function (next) {
+        MEA.setState({ activityLog: next });
+      },
+      canCallApi: function () {
+        return !!(MEA.api && typeof MEA.api.call === "function");
+      },
+      callApi: function (action, payload) {
+        return MEA.api.call(action, payload);
+      },
+      toast: function (message, kind) {
+        MEA.ui.toast(message, kind);
+      },
+      buildQuery: function (state, page) {
+        return {
+          startDate: state.startDate,
+          endDate: state.endDate,
+          email: state.email,
+          category: state.category,
+          page: page,
+          pageSize: state.pageSize
+        };
+      },
+      buildSuccessPatch: function (state, result, page) {
+        const total = Number(result.total) || 0;
+        const pageSize = Math.min(MAX_PAGE_SIZE, Number(result.pageSize) || DEFAULT_PAGE_SIZE);
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        const resolvedPage = Math.min(Math.max(1, Number(result.page) || page), totalPages);
+        return {
+          loading: false,
+          list: result.rows || [],
+          total: total,
+          page: resolvedPage,
+          pageSize: pageSize,
+          totalPages: totalPages
+        };
+      },
+      readFilters: readFilterFormValues,
+      buildResetPatch: function () {
+        const range = defaultDateRange();
+        return {
+          startDate: range.startDate,
+          endDate: range.endDate,
+          email: "",
+          category: "",
+          expanded: {}
+        };
+      },
+      buildSearchExtraPatch: function () {
+        return { expanded: {} };
+      },
+      resolveFailureMessage: function (result, fallback) {
+        return resolveLogError(result, fallback);
+      },
+      resolveErrorMessage: function (error, fallback) {
+        return resolveLogError(error, fallback);
+      },
+      normalizePage: function (requested, state) {
+        return Math.max(1, requested || state.page || 1);
+      },
+      failureFallback: "讀取操作日誌失敗",
+      errorFallback: "讀取操作日誌失敗，請稍後再試",
+      pagination: {
+        actionAttribute: "data-activity-action",
+        number: function (value) {
+          return MEA.ui.number(value);
+        },
+        normalize: function (state) {
+          const totalPages = Math.max(1, state.totalPages || 1);
+          return {
+            total: state.total,
+            currentPage: Math.min(Math.max(1, state.page || 1), totalPages),
+            totalPages: totalPages
+          };
+        }
+      }
+    });
+
+    const fetchList = listCtl.fetchList;
+    const handleSearch = listCtl.handleSearch;
+    const resetSearch = listCtl.resetSearch;
 
     /**
      * 取得目前日誌狀態，缺損時回傳含預設值的物件。
@@ -12508,25 +13226,7 @@ window.MEA = window.MEA || {};
       const fallback = fallbackMessage || "讀取操作日誌失敗";
       const code = value && (value.error || value.code);
       if (code && SAFE_ERROR_MESSAGES[code]) return SAFE_ERROR_MESSAGES[code];
-      return resolveSafeMessage(value, fallback);
-    }
-
-    /**
-     * 由目前狀態與目標頁碼建立 API 查詢參數。
-     *
-     * @param {Object} state - 日誌狀態
-     * @param {number} targetPage - 目標頁碼
-     * @returns {Object} API payload
-     */
-    function buildQuery(state, targetPage) {
-      return {
-        startDate: state.startDate,
-        endDate: state.endDate,
-        email: state.email,
-        category: state.category,
-        page: targetPage,
-        pageSize: state.pageSize
-      };
+      return safeErrors.resolveSafeMessage(value, fallback);
     }
 
     /**
@@ -12549,80 +13249,6 @@ window.MEA = window.MEA || {};
     }
 
     /**
-     * 讀取操作日誌分頁資料。
-     *
-     * @param {number} [page] - 目標頁碼
-     * @returns {Promise<Object|null>} API 回應或失敗時的 null
-     */
-    function fetchList(page) {
-      const before = currentState();
-      const requestedPage = page || before.page || 1;
-      const targetPage = Math.max(1, requestedPage);
-      const query = buildQuery(before, targetPage);
-      if (!MEA.api || typeof MEA.api.call !== "function") return Promise.resolve(null);
-
-      MEA.setState({
-        activityLog: Object.assign({}, before, { loading: true, page: targetPage })
-      });
-
-      return MEA.api
-        .call("getActivityLog", query)
-        .then(function (result) {
-          const cur = currentState();
-          if (!result || result.ok !== true) {
-            MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
-            MEA.ui.toast(resolveLogError(result, "讀取操作日誌失敗"), "err");
-            return result || null;
-          }
-          const total = Number(result.total) || 0;
-          const pageSize = Math.min(MAX_PAGE_SIZE, Number(result.pageSize) || DEFAULT_PAGE_SIZE);
-          const totalPages = Math.max(1, Math.ceil(total / pageSize));
-          const resolvedPage = Math.min(Math.max(1, Number(result.page) || targetPage), totalPages);
-          MEA.setState({
-            activityLog: Object.assign({}, cur, {
-              loading: false,
-              list: result.rows || [],
-              total: total,
-              page: resolvedPage,
-              pageSize: pageSize,
-              totalPages: totalPages
-            })
-          });
-          return result;
-        })
-        .catch(function (error) {
-          const cur = currentState();
-          MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
-          MEA.ui.toast(resolveLogError(error, "讀取操作日誌失敗，請稍後再試"), "err");
-          return null;
-        });
-    }
-
-    function handleSearch(event) {
-      if (event && event.preventDefault) event.preventDefault();
-      const cur = currentState();
-      MEA.setState({
-        activityLog: Object.assign({}, cur, readFilterFormValues(), { expanded: {} })
-      });
-      return fetchList(1);
-    }
-
-    function resetSearch() {
-      const range = defaultDateRange();
-      const cur = currentState();
-      MEA.setState({
-        activityLog: Object.assign({}, cur, {
-          startDate: range.startDate,
-          endDate: range.endDate,
-          email: "",
-          category: "",
-          expanded: {}
-        })
-      });
-      return fetchList(1);
-    }
-
-    /**
      * 展開或收起單一列詳情。
      *
      * @param {string} requestId - 請求識別碼
@@ -12636,19 +13262,11 @@ window.MEA = window.MEA || {};
     }
 
     function bindEventsOnce() {
-      if (!doc || typeof doc.addEventListener !== "function") return;
-      if (doc.__meaActivityLogBound) return;
-      doc.__meaActivityLogBound = true;
-
-      doc.addEventListener("submit", function (event) {
-        const target = event && event.target;
-        if (target && target.getAttribute("data-activity-form") === "search") handleSearch(event);
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "submit", "[data-activity-form]", function (event, form) {
+        if (form.getAttribute("data-activity-form") === "search") handleSearch(event);
       });
-
-      function handleDocumentClick(event) {
-        const target = event && event.target;
-        const button = target && typeof target.closest === "function" ? target.closest("[data-activity-action]") : null;
-        if (!button) return;
+      bindings.delegate(doc, "click", "[data-activity-action]", function (event, button) {
         const action = button.getAttribute("data-activity-action");
         const handlers = {
           refresh: function () {
@@ -12667,9 +13285,7 @@ window.MEA = window.MEA || {};
         };
         const handler = handlers[action];
         if (handler) handler();
-      }
-
-      doc.addEventListener("click", handleDocumentClick);
+      });
     }
 
     bindEventsOnce();
@@ -12813,40 +13429,6 @@ window.MEA = window.MEA || {};
       return html;
     }
 
-    /**
-     * 產生分頁列。
-     *
-     * @param {Object} state - 日誌狀態
-     * @returns {string} HTML 字串
-     */
-    function renderPaginationHtml(state) {
-      const totalPages = Math.max(1, state.totalPages || 1);
-      const currentPage = Math.min(Math.max(1, state.page || 1), totalPages);
-      return (
-        '<div class="pagination-bar">' +
-        '  <span class="pagination-info">共 ' +
-        MEA.ui.number(state.total) +
-        " 筆紀錄 · 第 " +
-        currentPage +
-        " / " +
-        totalPages +
-        " 頁</span>" +
-        '  <div class="pagination-buttons">' +
-        '    <button type="button" class="btn secondary compact" data-activity-action="page" data-page="' +
-        (currentPage - 1) +
-        '"' +
-        (currentPage <= 1 || state.loading ? " disabled" : "") +
-        ">上一頁</button>" +
-        '    <button type="button" class="btn secondary compact" data-activity-action="page" data-page="' +
-        (currentPage + 1) +
-        '"' +
-        (currentPage >= totalPages || state.loading ? " disabled" : "") +
-        ">下一頁</button>" +
-        "  </div>" +
-        "</div>"
-      );
-    }
-
     function renderView() {
       const state = currentState();
       return (
@@ -12880,7 +13462,7 @@ window.MEA = window.MEA || {};
         "    </tbody>" +
         "  </table>" +
         "</div>" +
-        renderPaginationHtml(state) +
+        listCtl.renderPagination(state, state.loading) +
         "</div>"
       );
     }
@@ -12914,24 +13496,11 @@ window.MEA = window.MEA || {};
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    const controller = api.createAppController({
-      MEA: MEA,
-      document: window.document,
-      window: window,
-      setTimeoutFn: function (fn, ms) {
-        return window.setTimeout(fn, ms);
-      }
-    });
-
-    MEA.setTab = controller.setTab;
-    MEA.render = controller.render;
-    MEA.init = controller.init;
-
-    if (window.document.readyState === "loading") {
-      window.document.addEventListener("DOMContentLoaded", controller.init);
-    } else {
-      controller.init();
+    // task 6.1：僅註冊工廠，實例建立、全域別名回填與 init 由 wiring.js 集中處理。
+    if (!MEA.factories) {
+      MEA.factories = {};
     }
+    MEA.factories.app = api.createAppController;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -12940,6 +13509,14 @@ window.MEA = window.MEA || {};
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  /**
+   * 角色代碼單一來源（task 5.3）：GAS 全域 gasRuntime 優先，Node 由 require 取得。
+   * gasRuntime.js 在建置順序中早於本模組載入，故可安全取得。
+   */
+  const ROLE_CODES =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime && globalThis.gasRuntime.ROLE_CODES) ||
+    (typeof require === "function" ? require("../../gasRuntime.js").ROLE_CODES : null);
+
   const LOADING_VIEW_HTML =
     '<div class="login-container">' +
     '<div class="login-card text-center py-12" role="status" aria-label="系統載入中" aria-busy="true">' +
@@ -12947,10 +13524,6 @@ window.MEA = window.MEA || {};
     '  <div class="text-muted">正在初始化系統連線與設定...</div>' +
     "</div>" +
     "</div>";
-
-  function invoke(module, method) {
-    return module && typeof module[method] === "function" ? module[method]() : undefined;
-  }
 
   /**
    * 依頁籤的管理員旗標與目前使用者角色判定頁籤是否可見。
@@ -12962,7 +13535,7 @@ window.MEA = window.MEA || {};
    */
   function isTabAllowed(tab, user) {
     if (!tab || tab.adminOnly !== true) return true;
-    return !!(user && user.role === "admin");
+    return !!(user && ROLE_CODES && user.role === ROLE_CODES.ADMIN);
   }
 
   /**
@@ -13032,16 +13605,28 @@ window.MEA = window.MEA || {};
     const effectiveTab = allowed ? tab : "overview";
     switch (effectiveTab) {
       case "import":
-        return invoke(MEA.imports, "renderView") || "";
+        return (
+          (MEA.imports && typeof MEA.imports.renderView === "function" ? MEA.imports.renderView() : undefined) || ""
+        );
       case "courses":
-        return invoke(MEA.courses, "renderView") || "";
+        return (
+          (MEA.courses && typeof MEA.courses.renderView === "function" ? MEA.courses.renderView() : undefined) || ""
+        );
       case "settings":
-        return invoke(MEA.accounts, "renderView") || "";
+        return (
+          (MEA.accounts && typeof MEA.accounts.renderView === "function" ? MEA.accounts.renderView() : undefined) || ""
+        );
       case "activityLog":
-        return invoke(MEA.activityLog, "renderView") || "";
+        return (
+          (MEA.activityLog && typeof MEA.activityLog.renderView === "function"
+            ? MEA.activityLog.renderView()
+            : undefined) || ""
+        );
       case "overview":
       default:
-        return invoke(MEA.ui, "renderOverviewView") || "";
+        return (
+          (MEA.ui && typeof MEA.ui.renderOverviewView === "function" ? MEA.ui.renderOverviewView() : undefined) || ""
+        );
     }
   }
 
@@ -13068,11 +13653,13 @@ window.MEA = window.MEA || {};
         MEA.setState({ tab: effectiveTab });
       }
       if (effectiveTab === "courses") {
-        invoke(MEA.courses, "fetchList");
+        MEA.courses && typeof MEA.courses.fetchList === "function" ? MEA.courses.fetchList() : undefined;
       } else if (effectiveTab === "settings") {
-        invoke(MEA.accounts, "loadSettingsAndAccounts");
+        MEA.accounts && typeof MEA.accounts.loadSettingsAndAccounts === "function"
+          ? MEA.accounts.loadSettingsAndAccounts()
+          : undefined;
       } else if (effectiveTab === "activityLog") {
-        invoke(MEA.activityLog, "fetchList");
+        MEA.activityLog && typeof MEA.activityLog.fetchList === "function" ? MEA.activityLog.fetchList() : undefined;
       }
     }
 
@@ -13105,7 +13692,7 @@ window.MEA = window.MEA || {};
       }
 
       if (MEA.api && typeof MEA.api.getToken === "function" && MEA.api.getToken()) {
-        invoke(MEA.auth, "restore");
+        MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
         if (initial.message && typeof MEA.setState === "function") {
           MEA.setState({ loginError: initial.message });
         }
@@ -13127,7 +13714,7 @@ window.MEA = window.MEA || {};
       cleanUrlQuery();
       if (MEA.api && typeof MEA.api.setToken === "function") MEA.api.setToken("");
       if (MEA.api && typeof MEA.api.setCsrfToken === "function") MEA.api.setCsrfToken("");
-      invoke(MEA.auth, "loginActiveUser");
+      MEA.auth && typeof MEA.auth.loginActiveUser === "function" ? MEA.auth.loginActiveUser() : undefined;
       return true;
     }
 
@@ -13146,9 +13733,10 @@ window.MEA = window.MEA || {};
       }
 
       if (state.view === "login") {
-        mount.innerHTML = invoke(MEA.ui, "renderLoginView") || "";
+        mount.innerHTML =
+          (MEA.ui && typeof MEA.ui.renderLoginView === "function" ? MEA.ui.renderLoginView() : undefined) || "";
         setTimeoutFn(function () {
-          invoke(MEA.auth, "renderGoogleButton");
+          MEA.auth && typeof MEA.auth.renderGoogleButton === "function" ? MEA.auth.renderGoogleButton() : undefined;
         }, 50);
         restoreFocusState(doc, focusSnapshot);
         return;
@@ -13157,8 +13745,8 @@ window.MEA = window.MEA || {};
       const tab = state.tab || "overview";
       mount.innerHTML =
         '<div class="app-layout">' +
-        (invoke(MEA.ui, "renderHeader") || "") +
-        (invoke(MEA.ui, "renderNavbar") || "") +
+        ((MEA.ui && typeof MEA.ui.renderHeader === "function" ? MEA.ui.renderHeader() : undefined) || "") +
+        ((MEA.ui && typeof MEA.ui.renderNavbar === "function" ? MEA.ui.renderNavbar() : undefined) || "") +
         '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +
@@ -13168,12 +13756,12 @@ window.MEA = window.MEA || {};
 
     function finishAuth() {
       if (!applyInitialAuth() && !applyAccountSwitch()) {
-        invoke(MEA.auth, "restore");
+        MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
       }
     }
 
     function init() {
-      invoke(MEA.ui, "initThemeAndStyle");
+      MEA.ui && typeof MEA.ui.initThemeAndStyle === "function" ? MEA.ui.initThemeAndStyle() : undefined;
       if (typeof MEA.subscribe === "function") {
         MEA.subscribe(render);
       }
@@ -13224,6 +13812,93 @@ window.MEA = window.MEA || {};
     restoreFocusState: restoreFocusState
   };
 });
+  </script>
+  <script>
+/* js/wiring.js */
+/**
+ * @file wiring.js
+ * @description 前端單一組裝點（task 6.1）：建立最小介面並注入各模組，
+ *              取代各模組 UMD 外層自行建立實例與 app.js 的 invoke 服務定位器。
+ *
+ * 基礎服務（config／state／api／safeErrors／courseData／mock）仍由各自模組
+ * 掛至 window.MEA；本檔最後載入，組裝 ui／auth／imports／courses／accounts／
+ * activityLog 與 app controller，並回填全域別名以保留既有公開方法名稱與測試契約。
+ */
+(function (root) {
+  "use strict";
+
+  const win = typeof window !== "undefined" ? window : null;
+  if (!win) return;
+
+  const MEA = (root.MEA = root.MEA || {});
+  const factories = MEA.factories || {};
+  const doc = win.document;
+  const setTimeoutFn = function (fn, ms) {
+    return win.setTimeout(fn, ms);
+  };
+
+  /** 安全取得模組方法，缺失時回傳 null（自治守衛，集中一處）。 */
+  function pickMethod(module, method) {
+    return module && typeof module[method] === "function" ? module[method] : null;
+  }
+
+  /** 最小介面：基礎服務由 config／state／api／errorMessages／courseData 提供。 */
+  const services = {
+    config: MEA.config || {},
+    state: MEA.state,
+    setState: MEA.setState,
+    subscribe: MEA.subscribe,
+    api: MEA.api,
+    safeErrors: MEA.safeErrors,
+    courseData: MEA.courseData,
+    window: win,
+    document: doc,
+    setTimeoutFn: setTimeoutFn
+  };
+
+  // 工廠以 options.MEA 取得相依；此處指向同一個最小介面活參考，
+  // 使模組間交叉呼叫在執行期皆能解析已建立的模組。
+  const deps = Object.assign({ MEA: services }, services);
+
+  /** app 最後建立，因為它需要路由其他模組的 renderView／fetchList。 */
+  const MODULE_ORDER = ["ui", "auth", "imports", "courses", "accounts", "activityLog"];
+  MODULE_ORDER.forEach(function (name) {
+    services[name] = factories[name] ? factories[name](deps) : MEA[name];
+    MEA[name] = services[name];
+  });
+
+  /** navigation 最小介面：setTab 由 app controller 提供，renderNavbar 由 ui 提供。 */
+  services.navigation = {
+    setTab: null,
+    renderNavbar: pickMethod(services.ui, "renderNavbar")
+  };
+
+  /** views：各頁籤 renderView，集中注入 app controller。 */
+  services.views = {
+    overview: pickMethod(services.ui, "renderOverviewView"),
+    import: pickMethod(services.imports, "renderView"),
+    courses: pickMethod(services.courses, "renderView"),
+    settings: pickMethod(services.accounts, "renderView"),
+    activityLog: pickMethod(services.activityLog, "renderView")
+  };
+  deps.navigation = services.navigation;
+  deps.views = services.views;
+
+  const app = factories.app ? factories.app(deps) : null;
+  if (app) {
+    services.navigation.setTab = app.setTab;
+    MEA.setTab = app.setTab;
+    MEA.render = app.render;
+    MEA.init = app.init;
+
+    if (doc.readyState === "loading") {
+      doc.addEventListener("DOMContentLoaded", app.init);
+    } else {
+      app.init();
+    }
+  }
+  MEA.factories = factories;
+})(typeof globalThis !== "undefined" ? globalThis : this);
   </script>
 </body>
 </html>
