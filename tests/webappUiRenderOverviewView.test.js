@@ -22,9 +22,9 @@ function run() {
   assert(html.indexOf("未設定 Client ID") !== -1);
   assert(html.indexOf("未限制登入網域") !== -1);
   assert(html.indexOf(">0</div>") !== -1);
-  assert(html.indexOf("MEA.setTab('import')") !== -1);
-  assert(html.indexOf("MEA.setTab('courses')") !== -1);
-  assert(html.indexOf("MEA.setTab('settings')") !== -1);
+  assert(html.indexOf('data-tab="import"') !== -1);
+  assert(html.indexOf('data-tab="courses"') !== -1);
+  assert(html.indexOf('data-tab="settings"') !== -1);
   console.log("2. 預設值、登入機制與三個快速入口 ✓\n");
 
   const filled = createDeps();
@@ -84,7 +84,7 @@ function run() {
     ctx.state.user = { role: "admin" };
     html = ctx.ui.renderNavbar();
     assert(html.indexOf("操作日誌") !== -1, "管理員應看到操作日誌頁籤");
-    assert(html.indexOf("MEA.setTab('activityLog')") !== -1);
+    assert(html.indexOf('data-tab="activityLog"') !== -1);
 
     ctx.state.user = null;
     html = ctx.ui.renderNavbar();

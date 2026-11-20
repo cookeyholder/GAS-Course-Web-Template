@@ -111,7 +111,7 @@ async function run() {
   busyUi.state.logoutBusy = true;
   html = busyUi.ui.renderHeader();
   assert(html.indexOf("登出中...") !== -1, "應顯示登出中文字");
-  const logoutButton = (html.match(/<button[^>]*onclick="MEA\.auth\.logout\(\)"[^>]*>/) || [])[0];
+  const logoutButton = (html.match(/<button[^>]*data-ui-action="logout"[^>]*>/) || [])[0];
   assert(logoutButton, "應找到登出按鈕");
   assert(logoutButton.indexOf(" disabled") !== -1, "登出中按鈕應被禁用");
   assert(logoutButton.indexOf('type="button"') !== -1, "登出按鈕應標記 type");

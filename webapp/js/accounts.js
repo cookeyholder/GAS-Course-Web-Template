@@ -56,6 +56,31 @@
     const options = deps || {};
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定欄位、表單與授權成員操作事件。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "change", "[data-account-action='clear-field-error']", function (event, element) {
+        clearFieldError(element);
+      });
+      bindings.delegate(doc, "submit", "[data-account-action='save-settings']", function (event) {
+        saveSettings(event);
+      });
+      bindings.delegate(doc, "click", "[data-account-action]", function (event, element) {
+        const action = element.getAttribute("data-account-action");
+        if (action === "toggle" || action === "remove") {
+          const email = element.getAttribute("data-email") || "";
+          return action === "toggle" ? toggleAccount(email) : removeAccount(email);
+        }
+        if (action === "add") return addAccountPrompt();
+        if (action === "reload") return loadSettingsAndAccounts();
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     /**
      * 以注入的 document 取得元素，缺損時回傳 null。
@@ -344,7 +369,7 @@
       const html =
         '<div class="form-group">' +
         '  <label class="label" for="newAccountEmail">Google Email</label>' +
-        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" onchange="MEA.accounts.clearFieldError(this)" />' +
+        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" data-account-action="clear-field-error" />' +
         '  <span class="hint" id="newAccountEmailHint">請輸入完整的 Google 電子郵件地址。</span>' +
         '  <span class="field-error" id="newAccountEmailError" role="alert" hidden></span>' +
         "</div>" +
@@ -493,16 +518,16 @@
         "  </span>" +
         "</td>" +
         "<td>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
-        encodeURIComponent(a.email) +
-        "'))\"" +
+        '  <button type="button" class="btn secondary compact" data-account-action="toggle" data-email="' +
+        MEA.ui.escapeHtml(a.email) +
+        '"' +
         disabled +
         ">" +
         (a.enabled ? "停用" : "啟用") +
         "</button>" +
-        '  <button type="button" class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
-        encodeURIComponent(a.email) +
-        "'))\"" +
+        '  <button type="button" class="btn danger compact" data-account-action="remove" data-email="' +
+        MEA.ui.escapeHtml(a.email) +
+        '"' +
         disabled +
         ">刪除</button>" +
         "</td>" +
@@ -540,7 +565,7 @@
       return (
         '<div class="card mt-3">' +
         '  <h3 class="card-title">系統核心參數</h3>' +
-        '  <form class="mt-3" onsubmit="MEA.accounts.saveSettings(event)">' +
+        '  <form class="mt-3" data-account-action="save-settings">' +
         '    <div class="row">' +
         '      <div class="col" style="flex:2;">' +
         '        <label class="label" for="cfgSystemName">系統名稱</label>' +
@@ -614,7 +639,7 @@
         '<div class="card mt-4">' +
         '  <div class="card-header">' +
         '    <h3 class="card-title">授權白名單成員清單</h3>' +
-        '    <button type="button" class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()"' +
+        '    <button type="button" class="btn secondary compact" data-account-action="add"' +
         (saving ? " disabled" : "") +
         ">＋ 新增授權成員</button>" +
         "  </div>" +
@@ -653,7 +678,7 @@
         '    <h2 class="panel-title">系統設定與授權 (RBAC)</h2>' +
         '    <p class="panel-sub">設定 Google OAuth、登入網域限制與存取成員角色清單</p>' +
         "  </div>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()"' +
+        '  <button type="button" class="btn secondary compact" data-account-action="reload"' +
         (settings.loading ? " disabled" : "") +
         ">" +
         (settings.loading ? "讀取中..." : "🔄 重新讀取") +

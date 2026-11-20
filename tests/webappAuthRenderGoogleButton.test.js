@@ -20,7 +20,7 @@ function run() {
   assert.strictEqual(authModule.detectGasHosting({}, { script: {} }), false);
   assert.strictEqual(authModule.detectGasHosting({}, { script: { run: {} } }), true);
   const idleHtml = authModule.buildGasHostedLoginButtonHtml(false);
-  assert(idleHtml.indexOf("MEA.auth.switchGoogleAccount()") !== -1);
+  assert(idleHtml.indexOf('data-auth-action="switch-google-account"') !== -1);
   assert(idleHtml.indexOf(" disabled") === -1);
   assert(authModule.buildGasHostedLoginButtonHtml(true).indexOf(" disabled") !== -1);
   console.log("1. GAS 環境判定與登入按鈕樣板純函式 ✓\n");

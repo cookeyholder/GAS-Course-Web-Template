@@ -57,7 +57,8 @@ function run() {
     const title = button.querySelector("h4");
     assert(title !== null, "功能卡片應有標題做為可讀名稱");
     assert(title.textContent === featureTitles[index], "功能卡片標題應符合預期");
-    assert(button.getAttribute("onclick").indexOf("MEA.setTab(") !== -1, "功能卡片應保留切換頁籤行為");
+    assert.strictEqual(button.getAttribute("data-ui-action"), "set-tab", "功能卡片應保留切換頁籤行為");
+    assert(button.getAttribute("data-tab"), "功能卡片應標註目標頁籤");
   });
   console.log("   ✓ 功能卡片按鈕驗證通過！\n");
 
@@ -91,7 +92,7 @@ function run() {
 
   console.log("7. 表單必填、提示關聯與表格標頭...");
   const settings = renderState({ view: "ready", tab: "settings" });
-  assert(settings.doc.querySelector('.btn[onclick*="addAccountPrompt"]') !== null, "應有新增授權帳號按鈕");
+  assert(settings.doc.querySelector('[data-account-action="add"]') !== null, "應有新增授權帳號按鈕");
   settings.context.MEA.accounts.addAccountPrompt();
   const emailInput = settings.doc.getElementById("newAccountEmail");
   assert(emailInput !== null, "新增帳號表單應有 Email 欄位");

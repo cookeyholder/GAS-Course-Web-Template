@@ -25,20 +25,20 @@ function run() {
   assert(html.indexOf('<option value="">所有科別</option>') !== -1);
   assert(html.indexOf('<option value="資訊管理科">資訊管理科</option>') !== -1);
   assert(html.indexOf("共 0 筆紀錄 · 第 1 / 1 頁") !== -1);
-  assert(html.indexOf("MEA.courses.fetchList(0)") !== -1);
-  assert(html.indexOf("MEA.courses.fetchList(2)") !== -1);
-  assert(html.indexOf("MEA.courses.handleSearch(event)") !== -1);
+  assert(html.indexOf('data-course-action="page" data-page="0"') !== -1);
+  assert(html.indexOf('data-course-action="page" data-page="2"') !== -1);
+  assert(html.indexOf('data-course-action="search"') !== -1);
   assert(html.indexOf("oninput=") === -1, "搜尋應由 Enter／搜尋按鈕明確觸發，不應隨輸入自動送出");
   assert(html.indexOf('type="submit" class="btn primary">搜尋') !== -1);
-  assert(html.indexOf("MEA.courses.resetSearch()") !== -1);
-  assert(html.indexOf("MEA.courses.fetchList(1)") !== -1, "重新整理按鈕應使用目前頁碼");
+  assert(html.indexOf('data-course-action="reset"') !== -1);
+  assert(html.indexOf('data-course-action="refresh" data-page="1"') !== -1, "重新整理按鈕應使用目前頁碼");
   console.log("2. 空清單、選項與事件掛載 ✓\n");
 
   ctx.state.courses = { list: [], page: 2, totalPages: 4, loading: true };
   html = courses.renderView();
   assert(html.indexOf("正在載入課程資料...") !== -1);
-  assert(html.indexOf('fetchList(1)" disabled') !== -1, "載入中上一頁應停用");
-  assert(html.indexOf('fetchList(3)" disabled') !== -1, "載入中下一頁應停用");
+  assert(html.indexOf('data-page="1" disabled') !== -1, "載入中上一頁應停用");
+  assert(html.indexOf('data-page="3" disabled') !== -1, "載入中下一頁應停用");
   console.log("3. 載入中狀態與分頁停用 ✓\n");
 
   ctx.state.courses = {
@@ -72,8 +72,8 @@ function run() {
   assert(html.indexOf('<option value="資訊管理科" selected>資訊管理科</option>') !== -1);
   assert(html.indexOf('<option value="1" selected>') !== -1);
   assert(html.indexOf("共 123 筆紀錄 · 第 3 / 5 頁") !== -1);
-  assert(html.indexOf('fetchList(2)"') !== -1 && html.indexOf('fetchList(2)" disabled') === -1);
-  assert(html.indexOf('fetchList(4)"') !== -1 && html.indexOf('fetchList(4)" disabled') === -1);
+  assert(html.indexOf('data-page="2"') !== -1 && html.indexOf('data-page="2" disabled') === -1);
+  assert(html.indexOf('data-page="4"') !== -1 && html.indexOf('data-page="4" disabled') === -1);
   assert(html.indexOf("A1-001") !== -1);
   assert(html.indexOf("<strong>程式設計</strong>") !== -1);
   assert(html.indexOf('class="pill muted"') !== -1);
@@ -83,8 +83,8 @@ function run() {
   ctx.state.courses = { list: [], page: 1, totalPages: 1, loading: false, semester: "2" };
   html = courses.renderView();
   assert(html.indexOf('<option value="2" selected>') !== -1);
-  assert(html.indexOf('fetchList(0)" disabled') !== -1);
-  assert(html.indexOf('fetchList(2)" disabled') !== -1);
+  assert(html.indexOf('data-page="0" disabled') !== -1);
+  assert(html.indexOf('data-page="2" disabled') !== -1);
   console.log("5. 學期選項與首頁分頁邊界 ✓\n");
 
   console.log("✓ webapp/js/courses.js renderView 測試全數通過！\n");

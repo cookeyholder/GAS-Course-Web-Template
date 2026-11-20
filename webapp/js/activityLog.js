@@ -98,6 +98,8 @@
     const options = deps || {};
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
 
     /**
      * 取得目前日誌狀態，缺損時回傳含預設值的物件。
@@ -258,19 +260,11 @@
     }
 
     function bindEventsOnce() {
-      if (!doc || typeof doc.addEventListener !== "function") return;
-      if (doc.__meaActivityLogBound) return;
-      doc.__meaActivityLogBound = true;
-
-      doc.addEventListener("submit", function (event) {
-        const target = event && event.target;
-        if (target && target.getAttribute("data-activity-form") === "search") handleSearch(event);
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "submit", "[data-activity-form]", function (event, form) {
+        if (form.getAttribute("data-activity-form") === "search") handleSearch(event);
       });
-
-      function handleDocumentClick(event) {
-        const target = event && event.target;
-        const button = target && typeof target.closest === "function" ? target.closest("[data-activity-action]") : null;
-        if (!button) return;
+      bindings.delegate(doc, "click", "[data-activity-action]", function (event, button) {
         const action = button.getAttribute("data-activity-action");
         const handlers = {
           refresh: function () {
@@ -289,9 +283,7 @@
         };
         const handler = handlers[action];
         if (handler) handler();
-      }
-
-      doc.addEventListener("click", handleDocumentClick);
+      });
     }
 
     bindEventsOnce();

@@ -24,12 +24,12 @@ function run() {
   let html = mock.ui.renderLoginView();
   assert(html.indexOf("目前為本機 Mock 模式") !== -1);
   assert(html.indexOf("🧪 本地測試身分登入 (Mock Mode)") !== -1);
-  assert(html.indexOf('onclick="MEA.auth.loginMock()"') !== -1);
+  assert(html.indexOf('data-ui-action="login-mock"') !== -1);
   assert(html.indexOf('id="loginThemeToggle"') !== -1);
   assert(html.indexOf("◑ 淺色") !== -1);
   assert(html.indexOf('<option value="paper" selected>') !== -1);
   assert(html.indexOf('<option value="modern-slate">') !== -1);
-  assert(html.indexOf('onchange="MEA.ui.applyStyle(this.value)"') !== -1);
+  assert(html.indexOf('data-ui-action="apply-style"') !== -1);
 
   mock.state.loginBusy = false;
   mock.doc.documentElement.dataset.theme = "light";

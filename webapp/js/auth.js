@@ -289,7 +289,7 @@
   function buildGasHostedLoginButtonHtml(loginBusy) {
     const busy = loginBusy ? " disabled" : "";
     return (
-      '<button type="button" class="btn google-redirect-btn" onclick="MEA.auth.switchGoogleAccount()"' +
+      '<button type="button" class="btn google-redirect-btn" data-auth-action="switch-google-account"' +
       busy +
       ">" +
       GOOGLE_LOGO_SVG +
@@ -395,6 +395,18 @@
         : function (fn, ms) {
             return setTimeout(fn, ms);
           };
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定 GAS 託管登入按鈕（按鈕由 renderGoogleButton 後注入）。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "click", "[data-auth-action='switch-google-account']", function () {
+        switchGoogleAccount();
+      });
+    }
+
+    bindEventsOnce();
 
     let gisPromise = null;
     let initializedClientId = "";

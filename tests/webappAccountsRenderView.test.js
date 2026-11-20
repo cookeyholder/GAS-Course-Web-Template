@@ -33,8 +33,8 @@ function run() {
   assert(html.indexOf('id="cfgSystemName"') !== -1);
   assert(html.indexOf('value="114"') !== -1, "學年度應有預設值 114");
   assert(html.indexOf('value="1"') !== -1, "學期應有預設值 1");
-  assert(html.indexOf("MEA.accounts.loadSettingsAndAccounts()") !== -1);
-  assert(html.indexOf("MEA.accounts.addAccountPrompt()") !== -1);
+  assert(html.indexOf('data-account-action="reload"') !== -1);
+  assert(html.indexOf('data-account-action="add"') !== -1);
   assert(html.indexOf(">儲存系統設定<") !== -1);
   assert(html.indexOf(" disabled") === -1);
   console.log("3. 管理員空清單與表單預設值 ✓\n");
@@ -70,8 +70,8 @@ function run() {
   assert(html.indexOf("已停用") !== -1);
   assert(html.indexOf(">停用<") !== -1);
   assert(html.indexOf(">啟用<") !== -1);
-  assert(html.indexOf("toggleAccount(decodeURIComponent('a%40example.com'))") !== -1);
-  assert(html.indexOf("removeAccount(decodeURIComponent('b%40example.com'))") !== -1);
+  assert(html.indexOf('data-account-action="toggle" data-email="a@example.com"') !== -1);
+  assert(html.indexOf('data-account-action="remove" data-email="b@example.com"') !== -1);
   assert(html.indexOf("刪除") !== -1);
   console.log("4. 完整資料、狀態標籤與事件掛載 ✓\n");
 
@@ -83,6 +83,25 @@ function run() {
   html = accounts.renderView();
   assert(html.indexOf('value="fallback.edu.tw"') !== -1, "應支援舊版中文欄位名稱回退");
   console.log("5. 舊版中文欄位名稱回退 ✓\n");
+
+  console.log("6. Email 特殊字元應跳脫後寫入 data-email...");
+  {
+    const escapeCtx = createDeps();
+    escapeCtx.MEA.ui.escapeHtml = require("../webapp/js/ui.js").escapeHtml;
+    escapeCtx.state.user = { role: "admin" };
+    escapeCtx.state.settings = {
+      data: {},
+      accounts: [{ email: "a'b\"c@example.com", name: "測試", role: "staff", enabled: true }],
+      saving: false
+    };
+    const escapedHtml = accountsModule.createAccountsModule(escapeCtx.deps).renderView();
+    assert(escapedHtml.indexOf("onclick=") === -1, "不應使用 inline 事件");
+    assert(
+      escapedHtml.indexOf('data-email="a&#39;b&quot;c@example.com"') !== -1,
+      "Email 應跳脫單雙引號後寫入 data-email"
+    );
+    console.log("   ✓ Email 跳脫驗證通過！\n");
+  }
 
   console.log("✓ webapp/js/accounts.js renderView 測試全數通過！\n");
 }

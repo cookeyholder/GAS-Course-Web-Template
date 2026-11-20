@@ -124,16 +124,12 @@
       ' role="button"' +
       ' tabindex="0"' +
       ' aria-label="選擇或拖曳課程代碼 Excel 檔案"' +
-      ' ondragover="MEA.imports.handleDragOver(event)"' +
-      ' ondragleave="MEA.imports.handleDragLeave(event)"' +
-      ' ondrop="MEA.imports.handleDrop(event)"' +
-      ' onkeydown="MEA.imports.handleDropzoneKey(event)"' +
-      ' onclick="MEA.imports.pickFile()">' +
+      ' data-import-dropzone="1">' +
       '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
       '  <div class="dropzone-title">點擊選擇或拖曳課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
       "</div>" +
-      '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />'
+      '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" data-import-action="file-select" />'
     );
   }
 
@@ -225,8 +221,8 @@
       " KB</p>" +
       "    </div>" +
       '    <div class="card-actions">' +
-      '      <button class="btn secondary compact" onclick="MEA.imports.resetImport()">重新選擇</button>' +
-      '      <button class="btn primary compact" onclick="MEA.imports.doImport()"' +
+      '      <button type="button" class="btn secondary compact" data-import-action="reset">重新選擇</button>' +
+      '      <button type="button" class="btn primary compact" data-import-action="import"' +
       disabled +
       ">" +
       buttonText +
@@ -284,6 +280,39 @@
     const doc = options.document || (win && win.document) || (typeof document !== "undefined" ? document : null);
     const FileReaderCtor =
       options.FileReader || (win && win.FileReader) || (typeof FileReader !== "undefined" ? FileReader : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定拖曳區、檔案輸入與預覽卡片事件。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "dragover", "[data-import-dropzone]", function (event, element) {
+        handleDragOver(event, element);
+      });
+      bindings.delegate(doc, "dragleave", "[data-import-dropzone]", function (event, element) {
+        handleDragLeave(event, element);
+      });
+      bindings.delegate(doc, "drop", "[data-import-dropzone]", function (event, element) {
+        handleDrop(event, element);
+      });
+      bindings.delegate(doc, "keydown", "[data-import-dropzone]", function (event) {
+        handleDropzoneKey(event);
+      });
+      bindings.delegate(doc, "click", "[data-import-dropzone]", function () {
+        pickFile();
+      });
+      bindings.delegate(doc, "change", "[data-import-action='file-select']", function (event, element) {
+        handleFileSelect(element);
+      });
+      bindings.delegate(doc, "click", "[data-import-action]", function (event, element) {
+        const action = element.getAttribute("data-import-action");
+        if (action === "reset") return resetImport();
+        if (action === "import") return doImport();
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     let sheetJsPromise = null;
 
@@ -432,22 +461,22 @@
       if (file) previewFile(file);
     }
 
-    function handleDragOver(e) {
+    function handleDragOver(e, element) {
       e.preventDefault();
-      const zone = doc.getElementById("uploadDropzone");
-      if (zone) zone.classList.add("dragover");
+      const zone = element || doc.getElementById("uploadDropzone");
+      if (zone && zone.classList) zone.classList.add("dragover");
     }
 
-    function handleDragLeave(e) {
+    function handleDragLeave(e, element) {
       e.preventDefault();
-      const zone = doc.getElementById("uploadDropzone");
-      if (zone) zone.classList.remove("dragover");
+      const zone = element || doc.getElementById("uploadDropzone");
+      if (zone && zone.classList) zone.classList.remove("dragover");
     }
 
-    function handleDrop(e) {
+    function handleDrop(e, element) {
       e.preventDefault();
-      const zone = doc.getElementById("uploadDropzone");
-      if (zone) zone.classList.remove("dragover");
+      const zone = element || doc.getElementById("uploadDropzone");
+      if (zone && zone.classList) zone.classList.remove("dragover");
 
       const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
       if (file) previewFile(file);

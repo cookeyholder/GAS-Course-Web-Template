@@ -43,6 +43,27 @@
     const options = deps || {};
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定搜尋表單、分頁與重設事件。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "submit", "[data-course-action='search']", function (event) {
+        handleSearch(event);
+      });
+      bindings.delegate(doc, "click", "[data-course-action]", function (event, element) {
+        const action = element.getAttribute("data-course-action");
+        if (action === "page" || action === "refresh") {
+          const page = parseInt(element.getAttribute("data-page"), 10);
+          return Number.isFinite(page) ? fetchList(page) : undefined;
+        }
+        if (action === "reset") return resetSearch();
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     /**
      * 以注入的 document 取得元素，缺損時回傳 null。
@@ -371,14 +392,14 @@
         totalPages +
         " 頁</span>" +
         '  <div class="pagination-buttons">' +
-        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" data-course-action="page" data-page="' +
         (currentPage - 1) +
-        ')"' +
+        '"' +
         (currentPage <= 1 || loading ? " disabled" : "") +
         ">上一頁</button>" +
-        '    <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '    <button type="button" class="btn secondary compact" data-course-action="page" data-page="' +
         (currentPage + 1) +
-        ')"' +
+        '"' +
         (currentPage >= totalPages || loading ? " disabled" : "") +
         ">下一頁</button>" +
         "  </div>" +
@@ -396,7 +417,7 @@
     function renderSearchFormHtml(courses, deptOptionsHtml) {
       return (
         '<div class="filter-bar">' +
-        '  <form class="filter-form" onsubmit="MEA.courses.handleSearch(event)">' +
+        '  <form class="filter-form" data-course-action="search">' +
         '    <label class="sr-only" for="courseSearchKeyword">搜尋關鍵字</label>' +
         '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
         MEA.ui.escapeHtml(courses.keyword || "") +
@@ -420,7 +441,7 @@
         ">第 2 學期</option>" +
         "    </select>" +
         '    <button type="submit" class="btn primary">搜尋</button>' +
-        '    <button type="button" class="btn secondary" onclick="MEA.courses.resetSearch()">重設</button>' +
+        '    <button type="button" class="btn secondary" data-course-action="reset">重設</button>' +
         "  </form>" +
         "</div>"
       );
@@ -444,9 +465,9 @@
         '    <h2 class="panel-title">正規化課程代碼清單</h2>' +
         '    <p class="panel-sub">檢視自 39 欄課綱寬表展開後之 1NF 課程紀錄</p>' +
         "  </div>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.courses.fetchList(' +
+        '  <button type="button" class="btn secondary compact" data-course-action="refresh" data-page="' +
         currentPage +
-        ')">🔄 重新整理</button>' +
+        '">🔄 重新整理</button>' +
         "</div>" +
         renderSearchFormHtml(courses, deptOptionsHtml) +
         '<div class="table-responsive mt-3">' +
