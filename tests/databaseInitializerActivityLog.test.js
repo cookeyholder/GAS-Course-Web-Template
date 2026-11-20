@@ -164,4 +164,55 @@ console.log("4. 既有操作日誌工作表亦應補上第 1 欄與第 10 欄純
   console.log("   ✓ 既有工作表格式補強驗證通過！\n");
 }
 
+console.log("5. 純文字格式列數收斂與防護性早退...");
+{
+  // getMaxRows > 1：應以「上限 - 1」收斂格式化列數（覆蓋 resolveActivityLogFormatRowCount_ 的 then 分支）
+  const bounded = makeSheet();
+  bounded.getMaxRows = function () {
+    return 101;
+  };
+  const ssBounded = makeSpreadsheet({});
+  ssBounded.insertSheet = function (name) {
+    ssBounded._inserted.push(name);
+    ssBounded._store[name] = bounded;
+    return bounded;
+  };
+  db.initializeDatabaseSheets({ spreadsheet: ssBounded });
+  const boundedFormats = bounded.ops.filter(function (o) {
+    return o[0] === "setNumberFormat" && o[5] === "@";
+  });
+  assert.strictEqual(boundedFormats.length, 2, "有 getMaxRows 時仍應套用兩欄純文字格式");
+  boundedFormats.forEach(function (o) {
+    assert.strictEqual(o[3], 100, "格式化列數應收斂為 getMaxRows - 1 = 100");
+  });
+
+  // getMaxRows <= 1：rowCount 為 0，應直接回傳不套用格式（覆蓋 rowCount <= 0 早退分支）
+  const tiny = makeSheet();
+  tiny.getMaxRows = function () {
+    return 1;
+  };
+  const ssTiny = makeSpreadsheet({});
+  ssTiny.insertSheet = function (name) {
+    ssTiny._inserted.push(name);
+    ssTiny._store[name] = tiny;
+    return tiny;
+  };
+  db.initializeDatabaseSheets({ spreadsheet: ssTiny });
+  const tinyFormats = tiny.ops.filter(function (o) {
+    return o[0] === "setNumberFormat" && o[5] === "@";
+  });
+  assert.strictEqual(tinyFormats.length, 0, "getMaxRows <= 1 時不應套用純文字格式");
+
+  // 既有工作表缺少 getRange：應安全早退、不拋錯（覆蓋 applyActivityLogTextFormat_ 的防護分支）
+  const noRange = {
+    getMaxRows: function () {
+      return 100;
+    }
+  };
+  const ssNoRange = makeSpreadsheet({ [db.SHEET_ACTIVITY_LOG]: noRange });
+  const result = db.initializeDatabaseSheets({ spreadsheet: ssNoRange });
+  assert.strictEqual(result.ok, true, "缺少 getRange 的既有工作表不應導致初始化失敗");
+  console.log("   ✓ 列數收斂與防護性早退驗證通過！\n");
+}
+
 console.log("✓ databaseInitializerActivityLog.test.js 測試全數通過！\n");
