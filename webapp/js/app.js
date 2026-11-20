@@ -40,15 +40,16 @@
 
   /**
    * 頁籤與控制器的對應關係（buildBodyHtml 與 setTab 共用，避免路由漂移）。
+   * 以 Object.create(null) 隔離原型鏈，避免 "toString" 等屬性誤判為有效頁籤。
    * render 為畫面產生器；load 為切換頁籤時的資料載入，無則省略。
    */
-  const TAB_CONTROLLERS = {
+  const TAB_CONTROLLERS = Object.assign(Object.create(null), {
     import: { module: "imports", render: "renderView" },
     courses: { module: "courses", render: "renderView", load: "fetchList" },
     settings: { module: "accounts", render: "renderView", load: "loadSettingsAndAccounts" },
     activityLog: { module: "activityLog", render: "renderView", load: "fetchList" },
     overview: { module: "ui", render: "renderOverviewView" }
-  };
+  });
 
   /**
    * 安全呼叫物件方法：方法不存在時回傳 undefined，並保留原本的 this 綁定。
@@ -201,7 +202,7 @@
       }
 
       if (MEA.api && typeof MEA.api.getToken === "function" && MEA.api.getToken()) {
-        MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
+        invokeIfFunction_(MEA.auth, "restore");
         if (initial.message && typeof MEA.setState === "function") {
           MEA.setState({ loginError: initial.message });
         }
@@ -223,7 +224,7 @@
       cleanUrlQuery();
       if (MEA.api && typeof MEA.api.setToken === "function") MEA.api.setToken("");
       if (MEA.api && typeof MEA.api.setCsrfToken === "function") MEA.api.setCsrfToken("");
-      MEA.auth && typeof MEA.auth.loginActiveUser === "function" ? MEA.auth.loginActiveUser() : undefined;
+      invokeIfFunction_(MEA.auth, "loginActiveUser");
       return true;
     }
 
@@ -242,10 +243,9 @@
       }
 
       if (state.view === "login") {
-        mount.innerHTML =
-          (MEA.ui && typeof MEA.ui.renderLoginView === "function" ? MEA.ui.renderLoginView() : undefined) || "";
+        mount.innerHTML = invokeIfFunction_(MEA.ui, "renderLoginView") || "";
         setTimeoutFn(function () {
-          MEA.auth && typeof MEA.auth.renderGoogleButton === "function" ? MEA.auth.renderGoogleButton() : undefined;
+          invokeIfFunction_(MEA.auth, "renderGoogleButton");
         }, 50);
         restoreFocusState(doc, focusSnapshot);
         return;
@@ -254,8 +254,8 @@
       const tab = state.tab || "overview";
       mount.innerHTML =
         '<div class="app-layout">' +
-        ((MEA.ui && typeof MEA.ui.renderHeader === "function" ? MEA.ui.renderHeader() : undefined) || "") +
-        ((MEA.ui && typeof MEA.ui.renderNavbar === "function" ? MEA.ui.renderNavbar() : undefined) || "") +
+        (invokeIfFunction_(MEA.ui, "renderHeader") || "") +
+        (invokeIfFunction_(MEA.ui, "renderNavbar") || "") +
         '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +

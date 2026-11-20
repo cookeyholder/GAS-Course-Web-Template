@@ -132,12 +132,12 @@ function createActivityLogQuery(deps) {
     const source = payload || {};
     const now = new Date();
     const endDate = resolveBoundaryDate_(source.endDate, formatTaipeiDate(now));
-    if (endDate.ok === false) return endDate;
+    if (endDate && endDate.ok === false) return endDate;
     const startDate = resolveBoundaryDate_(
       source.startDate,
       formatTaipeiDate(new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000))
     );
-    if (startDate.ok === false) return startDate;
+    if (startDate && startDate.ok === false) return startDate;
 
     if (startDate > endDate) {
       return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");

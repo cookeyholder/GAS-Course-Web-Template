@@ -136,6 +136,27 @@ console.log("3. buildBodyHtml 在方法回傳空值時應降級為空字串...\n
   console.log("   ✓ 空值回傳分支驗證通過！\n");
 }
 
+console.log("3.5 buildBodyHtml 傳入原型鏈屬性名稱時應安全退回概覽畫面...\n");
+{
+  const MEA = {
+    config: { tabs: [] },
+    state: { user: null },
+    ui: {
+      renderOverviewView: function () {
+        return "<section>overview</section>";
+      }
+    }
+  };
+  ["toString", "constructor", "__proto__"].forEach(function (protoTab) {
+    assert.strictEqual(
+      appModule.buildBodyHtml(MEA, protoTab),
+      "<section>overview</section>",
+      "原型屬性 " + protoTab + " 應安全退回概覽畫面"
+    );
+  });
+  console.log("   ✓ 原型鏈屬性防禦分支驗證通過！\n");
+}
+
 console.log("4. setTab 在對應模組缺席或非函式時應安全略過...\n");
 {
   const MEA = makeMEA();

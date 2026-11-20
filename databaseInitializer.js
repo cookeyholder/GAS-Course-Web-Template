@@ -79,16 +79,16 @@ function normalizeLowerTrim_(value) {
 /** 角色名稱轉代碼對照 */
 function normalizeRole(role) {
   const r = normalizeLowerTrim_(role);
-  if (r === ROLE_DEFINITIONS.admin || r === ROLE_CODES.ADMIN) return ROLE_CODES.ADMIN;
-  if (r === ROLE_DEFINITIONS.staff || r === ROLE_CODES.STAFF) return ROLE_CODES.STAFF;
-  if (r === ROLE_DEFINITIONS.viewer || r === ROLE_CODES.VIEWER) return ROLE_CODES.VIEWER;
+  if (r === ROLE_DEFINITIONS[ROLE_CODES.ADMIN] || r === ROLE_CODES.ADMIN) return ROLE_CODES.ADMIN;
+  if (r === ROLE_DEFINITIONS[ROLE_CODES.STAFF] || r === ROLE_CODES.STAFF) return ROLE_CODES.STAFF;
+  if (r === ROLE_DEFINITIONS[ROLE_CODES.VIEWER] || r === ROLE_CODES.VIEWER) return ROLE_CODES.VIEWER;
   return r || ROLE_CODES.VIEWER;
 }
 
 /** 代碼轉角色名稱對照 */
 function getRoleDisplayName(role) {
   const r = normalizeRole(role);
-  return ROLE_DEFINITIONS[r] || ROLE_DEFINITIONS.viewer;
+  return ROLE_DEFINITIONS[r] || ROLE_DEFINITIONS[ROLE_CODES.VIEWER];
 }
 
 // ============================================================================
@@ -649,7 +649,7 @@ function getAccountRole(email, ss) {
 
   return {
     role: ROLE_CODES.VIEWER,
-    roleName: ROLE_DEFINITIONS.viewer,
+    roleName: ROLE_DEFINITIONS[ROLE_CODES.VIEWER],
     name: cleanEmail,
     enabled: true,
     found: false

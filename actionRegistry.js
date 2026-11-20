@@ -21,8 +21,8 @@
 
   /**
    * gasRuntime 單一來源解析（task 5.3）：GAS 全域優先，Node 由 require 取得。
-   * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，故採延遲解析；
-   * 隔離環境無 gasRuntime 時退回同值常數，維持雙環境載入相容。
+   * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，無 gasRuntime 時
+   * 退回同值常數，維持雙環境載入相容。
    */
   function resolveRoleCodes_() {
     const fallback = { ADMIN: "admin", STAFF: "staff", VIEWER: "viewer" };

@@ -7353,8 +7353,8 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
   /**
    * gasRuntime 單一來源解析（task 5.3）：GAS 全域優先，Node 由 require 取得。
-   * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，故採延遲解析；
-   * 隔離環境無 gasRuntime 時退回同值常數，維持雙環境載入相容。
+   * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，無 gasRuntime 時
+   * 退回同值常數，維持雙環境載入相容。
    */
   function resolveRoleCodes_() {
     const fallback = { ADMIN: "admin", STAFF: "staff", VIEWER: "viewer" };
@@ -13518,15 +13518,16 @@ window.MEA = window.MEA || {};
 
   /**
    * 頁籤與控制器的對應關係（buildBodyHtml 與 setTab 共用，避免路由漂移）。
+   * 以 Object.create(null) 隔離原型鏈，避免 "toString" 等屬性誤判為有效頁籤。
    * render 為畫面產生器；load 為切換頁籤時的資料載入，無則省略。
    */
-  const TAB_CONTROLLERS = {
+  const TAB_CONTROLLERS = Object.assign(Object.create(null), {
     import: { module: "imports", render: "renderView" },
     courses: { module: "courses", render: "renderView", load: "fetchList" },
     settings: { module: "accounts", render: "renderView", load: "loadSettingsAndAccounts" },
     activityLog: { module: "activityLog", render: "renderView", load: "fetchList" },
     overview: { module: "ui", render: "renderOverviewView" }
-  };
+  });
 
   /**
    * 安全呼叫物件方法：方法不存在時回傳 undefined，並保留原本的 this 綁定。
@@ -13679,7 +13680,7 @@ window.MEA = window.MEA || {};
       }
 
       if (MEA.api && typeof MEA.api.getToken === "function" && MEA.api.getToken()) {
-        MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
+        invokeIfFunction_(MEA.auth, "restore");
         if (initial.message && typeof MEA.setState === "function") {
           MEA.setState({ loginError: initial.message });
         }
@@ -13701,7 +13702,7 @@ window.MEA = window.MEA || {};
       cleanUrlQuery();
       if (MEA.api && typeof MEA.api.setToken === "function") MEA.api.setToken("");
       if (MEA.api && typeof MEA.api.setCsrfToken === "function") MEA.api.setCsrfToken("");
-      MEA.auth && typeof MEA.auth.loginActiveUser === "function" ? MEA.auth.loginActiveUser() : undefined;
+      invokeIfFunction_(MEA.auth, "loginActiveUser");
       return true;
     }
 
@@ -13720,10 +13721,9 @@ window.MEA = window.MEA || {};
       }
 
       if (state.view === "login") {
-        mount.innerHTML =
-          (MEA.ui && typeof MEA.ui.renderLoginView === "function" ? MEA.ui.renderLoginView() : undefined) || "";
+        mount.innerHTML = invokeIfFunction_(MEA.ui, "renderLoginView") || "";
         setTimeoutFn(function () {
-          MEA.auth && typeof MEA.auth.renderGoogleButton === "function" ? MEA.auth.renderGoogleButton() : undefined;
+          invokeIfFunction_(MEA.auth, "renderGoogleButton");
         }, 50);
         restoreFocusState(doc, focusSnapshot);
         return;
@@ -13732,8 +13732,8 @@ window.MEA = window.MEA || {};
       const tab = state.tab || "overview";
       mount.innerHTML =
         '<div class="app-layout">' +
-        ((MEA.ui && typeof MEA.ui.renderHeader === "function" ? MEA.ui.renderHeader() : undefined) || "") +
-        ((MEA.ui && typeof MEA.ui.renderNavbar === "function" ? MEA.ui.renderNavbar() : undefined) || "") +
+        (invokeIfFunction_(MEA.ui, "renderHeader") || "") +
+        (invokeIfFunction_(MEA.ui, "renderNavbar") || "") +
         '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +
