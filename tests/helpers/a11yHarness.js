@@ -19,6 +19,7 @@ const accountsModule = require("../../webapp/js/accounts.js");
 const importsModule = require("../../webapp/js/imports.js");
 const activityLogModule = require("../../webapp/js/activityLog.js");
 const appModule = require("../../webapp/js/app.js");
+const safeErrors = require("./safeErrorsDeps.js").safeErrors;
 
 const INDEX_PATH = path.join(__dirname, "..", "..", "webapp", "index.html");
 
@@ -104,6 +105,7 @@ function createFrontend(dom, stateOverrides) {
   });
   const MEA = {
     config: config,
+    safeErrors: safeErrors,
     state: Object.assign(
       {
         view: "ready",

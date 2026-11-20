@@ -6,6 +6,7 @@
  */
 
 const uiModule = require("../../webapp/js/ui.js");
+const safeErrors = require("./safeErrorsDeps.js").safeErrors;
 const importsModule = require("../../webapp/js/imports.js");
 
 /**
@@ -252,7 +253,7 @@ function createUiDeps(overrides) {
   };
   const config = {
     title: "測試系統",
-    version: "1.0.0",
+    version: "1.1.0",
     mock: false,
     themeKey: "gas_tmpl.theme.v1",
     styleKey: "gas_tmpl.style.v1",
@@ -267,6 +268,7 @@ function createUiDeps(overrides) {
   const MEA = {
     state: state,
     config: config,
+    safeErrors: safeErrors,
     setState: function (patch) {
       Object.assign(state, patch);
       calls.setState.push(Object.assign({}, patch));
@@ -350,6 +352,7 @@ function createImportsDeps(overrides) {
   const MEA = {
     state: state,
     config: config,
+    safeErrors: safeErrors,
     setState: function (patch) {
       Object.assign(state, patch);
       calls.setState.push(Object.assign({}, patch));

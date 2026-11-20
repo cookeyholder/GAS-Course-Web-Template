@@ -67,7 +67,7 @@ console.log("1. buildActivityLogRow 應處理空紀錄、非字串與 null 欄�
   console.log("   ✓ 空紀錄與欄位型別驗證通過！\n");
 }
 
-console.log("2. 快取 get/put 例外不應影響日誌寫入...\n");
+console.log("2. 傳入不相干相依不應影響日誌寫入（cache 死碼已移除）...\n");
 {
   const sheet = makeSheet();
   const ss = makeSpreadsheet(sheet);
@@ -82,7 +82,7 @@ console.log("2. 快取 get/put 例外不應影響日誌寫入...\n");
   const ok = logger.appendActivityLog({ action: "測試" }, ss, { cache: throwingCache });
   assert.strictEqual(ok, true);
   assert.strictEqual(sheet.rows.length, 1);
-  console.log("   ✓ 快取例外隔離驗證通過！\n");
+  console.log("   ✓ 寫入路徑忽略不相干相依驗證通過！\n");
 }
 
 console.log("3. appendRow 丟出非 Error 值時應安全降級為 false...\n");
@@ -99,18 +99,22 @@ console.log("3. appendRow 丟出非 Error 值時應安全降級為 false...\n");
   console.log("   ✓ 寫入例外降級驗證通過！\n");
 }
 
-console.log("4. CacheService 注入路徑應正確解析快取...\n");
+console.log("4. 列數快取死碼應已移除（7.1 回歸防護）...\n");
 {
-  const cache = { get: () => null, put: () => {} };
-  withGlobals({ CacheService: { getScriptCache: () => cache } }, function () {
-    const resolved = logger.getActivityLogCache({});
-    assert.strictEqual(resolved, cache);
+  [
+    "getActivityLogCache",
+    "ACTIVITY_LOG_CACHE_PREFIX",
+    "ACTIVITY_LOG_MEMORY_STORE",
+    "ACTIVITY_LOG_MEMORY_CACHE",
+    "getActivityLogCache_"
+  ].forEach(function (name) {
+    assert.strictEqual(
+      Object.prototype.hasOwnProperty.call(logger, name),
+      false,
+      "activityLogger 不應再匯出或保留 " + name
+    );
   });
-  withGlobals({ CacheService: {} }, function () {
-    const resolved = logger.getActivityLogCache({});
-    assert(resolved && typeof resolved.get === "function", "應回退至記憶體快取");
-  });
-  console.log("   ✓ CacheService 解析驗證通過！\n");
+  console.log("   ✓ 列數快取死碼移除驗證通過！\n");
 }
 
 console.log("5. cleanupActivityLogRows 無參數與缺少工作表應回傳失敗...\n");

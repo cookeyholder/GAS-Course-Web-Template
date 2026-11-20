@@ -1,0 +1,114 @@
+{
+  "description": "重構前日誌 golden snapshot，供 task 4.2 比對 activityLogInterceptor 拆分前後一致性",
+  "cases": [
+    {
+      "label": "invalid_json",
+      "requestOk": false,
+      "requestError": "invalid_json",
+      "logCount": 1,
+      "logs": [
+        {
+          "category": "query",
+          "action": "未識別動作",
+          "result": "failure",
+          "email": "",
+          "name": "",
+          "role": "",
+          "summary": "未識別動作失敗：invalid_json",
+          "detail": "{\"版本\":1,\"動作\":\"none\",\"指標\":{\"執行\":\"未執行\"},\"變動\":[]}",
+          "errorCode": "invalid_json"
+        }
+      ]
+    },
+    {
+      "label": "missing_action",
+      "requestOk": false,
+      "requestError": "missing_action",
+      "logCount": 1,
+      "logs": [
+        {
+          "category": "query",
+          "action": "未識別動作",
+          "result": "failure",
+          "email": "",
+          "name": "",
+          "role": "",
+          "summary": "未識別動作失敗：missing_action",
+          "detail": "{\"版本\":1,\"動作\":\"none\",\"指標\":{\"執行\":\"未執行\"},\"變動\":[]}",
+          "errorCode": "missing_action"
+        }
+      ]
+    },
+    {
+      "label": "ping",
+      "requestOk": true,
+      "requestError": "",
+      "logCount": 0,
+      "logs": []
+    },
+    {
+      "label": "getPublicConfig",
+      "requestOk": true,
+      "requestError": "",
+      "logCount": 0,
+      "logs": []
+    },
+    {
+      "label": "getSystemSettings_missing_token",
+      "requestOk": false,
+      "requestError": "missing_token",
+      "logCount": 1,
+      "logs": [
+        {
+          "category": "query",
+          "action": "查詢系統設定",
+          "result": "failure",
+          "email": "",
+          "name": "",
+          "role": "",
+          "summary": "查詢系統設定失敗：missing_token",
+          "detail": "{\"版本\":1,\"動作\":\"getSystemSettings\",\"指標\":{\"頁碼\":null,\"每頁筆數\":null,\"回傳筆數\":null,\"篩選\":null,\"執行\":\"未執行\"},\"變動\":[]}",
+          "errorCode": "missing_token"
+        }
+      ]
+    },
+    {
+      "label": "getCourseIndex_missing_token",
+      "requestOk": false,
+      "requestError": "missing_token",
+      "logCount": 1,
+      "logs": [
+        {
+          "category": "query",
+          "action": "查詢課程代碼",
+          "result": "failure",
+          "email": "",
+          "name": "",
+          "role": "",
+          "summary": "查詢課程代碼失敗：missing_token",
+          "detail": "{\"版本\":1,\"動作\":\"getCourseIndex\",\"指標\":{\"頁碼\":1,\"每頁筆數\":null,\"回傳筆數\":null,\"篩選\":null,\"執行\":\"未執行\"},\"變動\":[]}",
+          "errorCode": "missing_token"
+        }
+      ]
+    },
+    {
+      "label": "saveSystemSettings_csrf_failure",
+      "requestOk": false,
+      "requestError": "session_expired",
+      "logCount": 1,
+      "logs": [
+        {
+          "category": "write",
+          "action": "儲存系統設定",
+          "result": "failure",
+          "email": "",
+          "name": "",
+          "role": "",
+          "summary": "儲存系統設定失敗：session_expired",
+          "detail": "{\"版本\":1,\"動作\":\"saveSystemSettings\",\"指標\":{\"變動欄數\":0,\"執行\":\"未執行\"},\"變動\":[]}",
+          "errorCode": "session_expired"
+        }
+      ]
+    }
+  ]
+}

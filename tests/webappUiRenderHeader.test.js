@@ -19,13 +19,13 @@ function run() {
   let html = base.ui.renderHeader();
   assert(html.indexOf('<header class="app-header">') !== -1);
   assert(html.indexOf("測試系統") !== -1);
-  assert(html.indexOf("Web App Template v1.0.0") !== -1);
+  assert(html.indexOf("Web App Template v1.1.0") !== -1);
   assert(html.indexOf('<span class="pill muted">未授權</span>') !== -1);
   assert(html.indexOf('<option value="modern-slate" selected>') !== -1);
   assert(html.indexOf("◐ 深色模式") !== -1);
-  assert(html.indexOf('onchange="MEA.ui.applyStyle(this.value)"') !== -1);
-  assert(html.indexOf('onclick="MEA.ui.toggleTheme()"') !== -1);
-  assert(html.indexOf('onclick="MEA.auth.logout()"') !== -1);
+  assert(html.indexOf('data-ui-action="apply-style"') !== -1);
+  assert(html.indexOf('data-ui-action="toggle-theme"') !== -1);
+  assert(html.indexOf('data-ui-action="logout"') !== -1);
   console.log("2. 預設標題、角色、風格與按鈕事件 ✓\n");
 
   const filled = createDeps();

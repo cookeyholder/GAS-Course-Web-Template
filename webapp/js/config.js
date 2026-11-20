@@ -112,6 +112,7 @@
     const isProduction = source.production === true;
     return {
       title: "Google Apps Script 應用程式範本",
+      // gasRuntime.WEB_API_VERSION 的 getter 優先讀取 build 注入的 window.__PACKAGE_VERSION__。
       version: gasRuntime.WEB_API_VERSION,
       mock: !isProduction && params.has("mock"),
       switchAccount: source.switchAccount === true || switchFromParam,

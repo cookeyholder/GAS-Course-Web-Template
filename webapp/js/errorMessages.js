@@ -33,13 +33,13 @@
   }
 
   /**
-   * 將任意錯誤值轉譯為可安全顯示的訊息。
+   * 將任意錯誤值轉譯為可安全顯示的訊息（全前端唯一轉譯定義，task 6.4）。
    *
    * @param {*} value - 例外、API 結果或未知值
    * @param {string} [fallback] - 無法安全顯示時使用的文案
    * @returns {string} 可顯示的錯誤訊息
    */
-  function resolveUserMessage(value, fallback) {
+  function resolveSafeMessage(value, fallback) {
     const safeFallback = typeof fallback === "string" && fallback ? fallback : DEFAULT_MESSAGE;
     if (!value || typeof value !== "object") return safeFallback;
     if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
@@ -48,9 +48,15 @@
     return safeFallback;
   }
 
+  /** 相容既有呼叫端：轉發至唯一的轉譯定義。 */
+  function resolveUserMessage(value, fallback) {
+    return resolveSafeMessage(value, fallback);
+  }
+
   return {
     DEFAULT_MESSAGE: DEFAULT_MESSAGE,
     createSafeError: createSafeError,
+    resolveSafeMessage: resolveSafeMessage,
     resolveUserMessage: resolveUserMessage
   };
 });

@@ -11,10 +11,11 @@
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.accounts = api.createAccountsModule({
-      MEA: MEA,
-      document: window.document
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.accounts = api.createAccountsModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -23,14 +24,21 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
+  /**
+   * 角色代碼單一來源（task 5.3）：GAS 全域 gasRuntime 優先，Node 由 require 取得。
+   * gasRuntime.js 在建置順序中早於本模組載入，故可安全取得。
+   */
+  const ROLE_CODES =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime && globalThis.gasRuntime.ROLE_CODES) ||
+    (typeof require === "function" ? require("../../gasRuntime.js").ROLE_CODES : null);
 
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
+  // 網域正規化規則單一來源（task 5.5）：瀏覽器由 gasRuntime 全域取得，Node 由 require 取得。
+  const gasRuntime =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime) ||
+    (typeof require === "function" ? require("../../gasRuntime.js") : null);
+
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   /**
    * 建立帳號與系統設定模組控制器。
@@ -40,8 +48,34 @@
    */
   function createAccountsModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定欄位、表單與授權成員操作事件。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "change", "[data-account-action='clear-field-error']", function (event, element) {
+        clearFieldError(element);
+      });
+      bindings.delegate(doc, "submit", "[data-account-action='save-settings']", function (event) {
+        saveSettings(event);
+      });
+      bindings.delegate(doc, "click", "[data-account-action]", function (event, element) {
+        const action = element.getAttribute("data-account-action");
+        if (action === "toggle" || action === "remove") {
+          const email = element.getAttribute("data-email") || "";
+          return action === "toggle" ? toggleAccount(email) : removeAccount(email);
+        }
+        if (action === "add") return addAccountPrompt();
+        if (action === "reload") return loadSettingsAndAccounts();
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     /**
      * 以注入的 document 取得元素，缺損時回傳 null。
@@ -61,7 +95,7 @@
      * @returns {string} 可顯示的錯誤訊息
      */
     function normalizeErrorMessage(error, fallback) {
-      return resolveSafeMessage(error, fallback);
+      return safeErrors.resolveSafeMessage(error, fallback);
     }
 
     function loadSettingsAndAccounts() {
@@ -111,7 +145,7 @@
         semester: semesterInput ? semesterInput.value.trim() : "",
         clientId: clientIdInput ? clientIdInput.value.trim() : "",
         clientSecret: clientSecretInput ? clientSecretInput.value.trim() : "",
-        allowedLoginDomain: allowedDomainInput ? allowedDomainInput.value.trim().replace(/^@/, "").toLowerCase() : "",
+        allowedLoginDomain: gasRuntime.normalizeAllowedDomain(allowedDomainInput ? allowedDomainInput.value : ""),
         restrict: !!(restrictInput && restrictInput.checked)
       };
     }
@@ -214,7 +248,7 @@
       return {
         email: emailInput ? emailInput.value.trim().toLowerCase() : "",
         name: nameInput ? nameInput.value.trim() : "",
-        role: roleSelect ? roleSelect.value : "viewer"
+        role: roleSelect ? roleSelect.value : ROLE_CODES.VIEWER
       };
     }
 
@@ -330,7 +364,7 @@
       const html =
         '<div class="form-group">' +
         '  <label class="label" for="newAccountEmail">Google Email</label>' +
-        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" onchange="MEA.accounts.clearFieldError(this)" />' +
+        '  <input type="email" id="newAccountEmail" class="input" placeholder="user@example.com" required aria-required="true" aria-describedby="newAccountEmailHint newAccountEmailError" data-account-action="clear-field-error" />' +
         '  <span class="hint" id="newAccountEmailHint">請輸入完整的 Google 電子郵件地址。</span>' +
         '  <span class="field-error" id="newAccountEmailError" role="alert" hidden></span>' +
         "</div>" +
@@ -467,7 +501,7 @@
         MEA.ui.escapeHtml(a.name) +
         "</td>" +
         '<td><span class="pill ' +
-        (a.role === "admin" ? "accent" : "muted") +
+        (a.role === ROLE_CODES.ADMIN ? "accent" : "muted") +
         '">' +
         MEA.ui.escapeHtml(a.roleName || a.role) +
         "</span></td>" +
@@ -479,16 +513,16 @@
         "  </span>" +
         "</td>" +
         "<td>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.toggleAccount(decodeURIComponent(\'' +
-        encodeURIComponent(a.email) +
-        "'))\"" +
+        '  <button type="button" class="btn secondary compact" data-account-action="toggle" data-email="' +
+        MEA.ui.escapeHtml(a.email) +
+        '"' +
         disabled +
         ">" +
         (a.enabled ? "停用" : "啟用") +
         "</button>" +
-        '  <button type="button" class="btn danger compact" onclick="MEA.accounts.removeAccount(decodeURIComponent(\'' +
-        encodeURIComponent(a.email) +
-        "'))\"" +
+        '  <button type="button" class="btn danger compact" data-account-action="remove" data-email="' +
+        MEA.ui.escapeHtml(a.email) +
+        '"' +
         disabled +
         ">刪除</button>" +
         "</td>" +
@@ -526,7 +560,7 @@
       return (
         '<div class="card mt-3">' +
         '  <h3 class="card-title">系統核心參數</h3>' +
-        '  <form class="mt-3" onsubmit="MEA.accounts.saveSettings(event)">' +
+        '  <form class="mt-3" data-account-action="save-settings">' +
         '    <div class="row">' +
         '      <div class="col" style="flex:2;">' +
         '        <label class="label" for="cfgSystemName">系統名稱</label>' +
@@ -600,7 +634,7 @@
         '<div class="card mt-4">' +
         '  <div class="card-header">' +
         '    <h3 class="card-title">授權白名單成員清單</h3>' +
-        '    <button type="button" class="btn secondary compact" onclick="MEA.accounts.addAccountPrompt()"' +
+        '    <button type="button" class="btn secondary compact" data-account-action="add"' +
         (saving ? " disabled" : "") +
         ">＋ 新增授權成員</button>" +
         "  </div>" +
@@ -623,7 +657,7 @@
 
     function renderView() {
       const user = MEA.state.user || {};
-      const isAdmin = user.role === "admin";
+      const isAdmin = user.role === ROLE_CODES.ADMIN;
       const settings = MEA.state.settings || {};
       const data = settings.data || {};
       const accounts = settings.accounts || [];
@@ -639,7 +673,7 @@
         '    <h2 class="panel-title">系統設定與授權 (RBAC)</h2>' +
         '    <p class="panel-sub">設定 Google OAuth、登入網域限制與存取成員角色清單</p>' +
         "  </div>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.accounts.loadSettingsAndAccounts()"' +
+        '  <button type="button" class="btn secondary compact" data-account-action="reload"' +
         (settings.loading ? " disabled" : "") +
         ">" +
         (settings.loading ? "讀取中..." : "🔄 重新讀取") +

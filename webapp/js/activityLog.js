@@ -11,10 +11,11 @@
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.activityLog = api.createActivityLogModule({
-      MEA: MEA,
-      document: window.document
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.activityLog = api.createActivityLogModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -23,9 +24,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   /** 後端已明確定義的錯誤代碼文案（查詢日誌專用） */
   const SAFE_ERROR_MESSAGES = {
@@ -45,10 +45,6 @@
   const DEFAULT_DAYS = 7;
   const DEFAULT_PAGE_SIZE = 50;
   const MAX_PAGE_SIZE = 500;
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
 
   /**
    * 以 Asia/Taipei 時區格式化日期為 yyyy-MM-dd。
@@ -95,8 +91,98 @@
    */
   function createActivityLogModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+    // task 6.3：列表控制流程由共用控制器提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const listControllerModule =
+      typeof require === "function" ? require("./listController.js") : globalThis.MEA.listController;
+
+    const listCtl = listControllerModule.createListController({
+      apiAction: "getActivityLog",
+      getState: currentState,
+      setState: function (next) {
+        MEA.setState({ activityLog: next });
+      },
+      canCallApi: function () {
+        return !!(MEA.api && typeof MEA.api.call === "function");
+      },
+      callApi: function (action, payload) {
+        return MEA.api.call(action, payload);
+      },
+      toast: function (message, kind) {
+        MEA.ui.toast(message, kind);
+      },
+      buildQuery: function (state, page) {
+        return {
+          startDate: state.startDate,
+          endDate: state.endDate,
+          email: state.email,
+          category: state.category,
+          page: page,
+          pageSize: state.pageSize
+        };
+      },
+      buildSuccessPatch: function (state, result, page) {
+        const total = Number(result.total) || 0;
+        const pageSize = Math.min(MAX_PAGE_SIZE, Number(result.pageSize) || DEFAULT_PAGE_SIZE);
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        const resolvedPage = Math.min(Math.max(1, Number(result.page) || page), totalPages);
+        return {
+          loading: false,
+          list: result.rows || [],
+          total: total,
+          page: resolvedPage,
+          pageSize: pageSize,
+          totalPages: totalPages
+        };
+      },
+      readFilters: readFilterFormValues,
+      buildResetPatch: function () {
+        const range = defaultDateRange();
+        return {
+          startDate: range.startDate,
+          endDate: range.endDate,
+          email: "",
+          category: "",
+          expanded: {}
+        };
+      },
+      buildSearchExtraPatch: function () {
+        return { expanded: {} };
+      },
+      resolveFailureMessage: function (result, fallback) {
+        return resolveLogError(result, fallback);
+      },
+      resolveErrorMessage: function (error, fallback) {
+        return resolveLogError(error, fallback);
+      },
+      normalizePage: function (requested, state) {
+        return Math.max(1, requested || state.page || 1);
+      },
+      failureFallback: "讀取操作日誌失敗",
+      errorFallback: "讀取操作日誌失敗，請稍後再試",
+      pagination: {
+        actionAttribute: "data-activity-action",
+        number: function (value) {
+          return MEA.ui.number(value);
+        },
+        normalize: function (state) {
+          const totalPages = Math.max(1, state.totalPages || 1);
+          return {
+            total: state.total,
+            currentPage: Math.min(Math.max(1, state.page || 1), totalPages),
+            totalPages: totalPages
+          };
+        }
+      }
+    });
+
+    const fetchList = listCtl.fetchList;
+    const handleSearch = listCtl.handleSearch;
+    const resetSearch = listCtl.resetSearch;
 
     /**
      * 取得目前日誌狀態，缺損時回傳含預設值的物件。
@@ -129,25 +215,7 @@
       const fallback = fallbackMessage || "讀取操作日誌失敗";
       const code = value && (value.error || value.code);
       if (code && SAFE_ERROR_MESSAGES[code]) return SAFE_ERROR_MESSAGES[code];
-      return resolveSafeMessage(value, fallback);
-    }
-
-    /**
-     * 由目前狀態與目標頁碼建立 API 查詢參數。
-     *
-     * @param {Object} state - 日誌狀態
-     * @param {number} targetPage - 目標頁碼
-     * @returns {Object} API payload
-     */
-    function buildQuery(state, targetPage) {
-      return {
-        startDate: state.startDate,
-        endDate: state.endDate,
-        email: state.email,
-        category: state.category,
-        page: targetPage,
-        pageSize: state.pageSize
-      };
+      return safeErrors.resolveSafeMessage(value, fallback);
     }
 
     /**
@@ -170,80 +238,6 @@
     }
 
     /**
-     * 讀取操作日誌分頁資料。
-     *
-     * @param {number} [page] - 目標頁碼
-     * @returns {Promise<Object|null>} API 回應或失敗時的 null
-     */
-    function fetchList(page) {
-      const before = currentState();
-      const requestedPage = page || before.page || 1;
-      const targetPage = Math.max(1, requestedPage);
-      const query = buildQuery(before, targetPage);
-      if (!MEA.api || typeof MEA.api.call !== "function") return Promise.resolve(null);
-
-      MEA.setState({
-        activityLog: Object.assign({}, before, { loading: true, page: targetPage })
-      });
-
-      return MEA.api
-        .call("getActivityLog", query)
-        .then(function (result) {
-          const cur = currentState();
-          if (!result || result.ok !== true) {
-            MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
-            MEA.ui.toast(resolveLogError(result, "讀取操作日誌失敗"), "err");
-            return result || null;
-          }
-          const total = Number(result.total) || 0;
-          const pageSize = Math.min(MAX_PAGE_SIZE, Number(result.pageSize) || DEFAULT_PAGE_SIZE);
-          const totalPages = Math.max(1, Math.ceil(total / pageSize));
-          const resolvedPage = Math.min(Math.max(1, Number(result.page) || targetPage), totalPages);
-          MEA.setState({
-            activityLog: Object.assign({}, cur, {
-              loading: false,
-              list: result.rows || [],
-              total: total,
-              page: resolvedPage,
-              pageSize: pageSize,
-              totalPages: totalPages
-            })
-          });
-          return result;
-        })
-        .catch(function (error) {
-          const cur = currentState();
-          MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
-          MEA.ui.toast(resolveLogError(error, "讀取操作日誌失敗，請稍後再試"), "err");
-          return null;
-        });
-    }
-
-    function handleSearch(event) {
-      if (event && event.preventDefault) event.preventDefault();
-      const cur = currentState();
-      MEA.setState({
-        activityLog: Object.assign({}, cur, readFilterFormValues(), { expanded: {} })
-      });
-      return fetchList(1);
-    }
-
-    function resetSearch() {
-      const range = defaultDateRange();
-      const cur = currentState();
-      MEA.setState({
-        activityLog: Object.assign({}, cur, {
-          startDate: range.startDate,
-          endDate: range.endDate,
-          email: "",
-          category: "",
-          expanded: {}
-        })
-      });
-      return fetchList(1);
-    }
-
-    /**
      * 展開或收起單一列詳情。
      *
      * @param {string} requestId - 請求識別碼
@@ -257,19 +251,11 @@
     }
 
     function bindEventsOnce() {
-      if (!doc || typeof doc.addEventListener !== "function") return;
-      if (doc.__meaActivityLogBound) return;
-      doc.__meaActivityLogBound = true;
-
-      doc.addEventListener("submit", function (event) {
-        const target = event && event.target;
-        if (target && target.getAttribute("data-activity-form") === "search") handleSearch(event);
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "submit", "[data-activity-form]", function (event, form) {
+        if (form.getAttribute("data-activity-form") === "search") handleSearch(event);
       });
-
-      function handleDocumentClick(event) {
-        const target = event && event.target;
-        const button = target && typeof target.closest === "function" ? target.closest("[data-activity-action]") : null;
-        if (!button) return;
+      bindings.delegate(doc, "click", "[data-activity-action]", function (event, button) {
         const action = button.getAttribute("data-activity-action");
         const handlers = {
           refresh: function () {
@@ -288,9 +274,7 @@
         };
         const handler = handlers[action];
         if (handler) handler();
-      }
-
-      doc.addEventListener("click", handleDocumentClick);
+      });
     }
 
     bindEventsOnce();
@@ -434,40 +418,6 @@
       return html;
     }
 
-    /**
-     * 產生分頁列。
-     *
-     * @param {Object} state - 日誌狀態
-     * @returns {string} HTML 字串
-     */
-    function renderPaginationHtml(state) {
-      const totalPages = Math.max(1, state.totalPages || 1);
-      const currentPage = Math.min(Math.max(1, state.page || 1), totalPages);
-      return (
-        '<div class="pagination-bar">' +
-        '  <span class="pagination-info">共 ' +
-        MEA.ui.number(state.total) +
-        " 筆紀錄 · 第 " +
-        currentPage +
-        " / " +
-        totalPages +
-        " 頁</span>" +
-        '  <div class="pagination-buttons">' +
-        '    <button type="button" class="btn secondary compact" data-activity-action="page" data-page="' +
-        (currentPage - 1) +
-        '"' +
-        (currentPage <= 1 || state.loading ? " disabled" : "") +
-        ">上一頁</button>" +
-        '    <button type="button" class="btn secondary compact" data-activity-action="page" data-page="' +
-        (currentPage + 1) +
-        '"' +
-        (currentPage >= totalPages || state.loading ? " disabled" : "") +
-        ">下一頁</button>" +
-        "  </div>" +
-        "</div>"
-      );
-    }
-
     function renderView() {
       const state = currentState();
       return (
@@ -501,7 +451,7 @@
         "    </tbody>" +
         "  </table>" +
         "</div>" +
-        renderPaginationHtml(state) +
+        listCtl.renderPagination(state, state.loading) +
         "</div>"
       );
     }

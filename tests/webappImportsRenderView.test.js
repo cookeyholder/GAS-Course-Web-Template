@@ -39,10 +39,10 @@ function run() {
   const empty = createDeps();
   const emptyHtml = empty.imports.renderView();
   assert(emptyHtml.indexOf('id="uploadDropzone"') !== -1);
-  assert(emptyHtml.indexOf("MEA.imports.handleDragOver(event)") !== -1);
-  assert(emptyHtml.indexOf("MEA.imports.handleDragLeave(event)") !== -1);
-  assert(emptyHtml.indexOf("MEA.imports.handleDrop(event)") !== -1);
-  assert(emptyHtml.indexOf("MEA.imports.pickFile()") !== -1);
+  assert(emptyHtml.indexOf('data-import-dropzone="1"') !== -1);
+  assert(emptyHtml.indexOf("ondragover=") === -1, "拖曳事件應改由委派綁定");
+  assert(emptyHtml.indexOf("onkeydown=") === -1, "鍵盤事件應改由委派綁定");
+  assert(emptyHtml.indexOf("MEA.imports.pickFile()") === -1, "點選事件應改由委派綁定");
   assert(emptyHtml.indexOf('id="fileInput"') !== -1);
   assert(emptyHtml.indexOf("metrics-grid") === -1);
   assert(emptyHtml.indexOf("課程代碼匯入與 1NF 正規化") !== -1);

@@ -26,8 +26,10 @@ GAS-Course-Web-Template/
 ├── databaseInitializer.js      # 資料庫純資料工作表初始化（系統設定與授權、課程代碼、說明、操作日誌；含登入網域等設定欄位）
 ├── subjectCodeTransformer.js   # 108 課綱 1NF 正規化展開、分頁查詢與試算表寫入（共用模組由 courseNormalizationShared.js 提供）
 ├── activityLogBuilders.js      # 操作日誌詳情產生器與 payload 白名單投影（含版本化格式）
-├── activityLogger.js           # 操作日誌寫入、字串截斷、抽樣取樣、容量清理與每日觸發器安裝
-├── webApi.js                   # API 路由總管與 executeWebApi 共用入口（RPC/doPost）、雙軌登入、OAuth 回呼、Session/CSRF、RBAC、LockService、操作日誌攔截與查詢
+├── activityLogInterceptor.js   # 操作日誌攔截器（log context、身分補寫、詳情捕獲、紀錄建構與最終寫入）
+├── activityLogQuery.js         # 管理員操作日誌查詢（日期區間解析、篩選、分頁與 5,000 列掃描上限）
+├── activityLogger.js           # 操作日誌寫入、字串截斷、容量清理與每日觸發器安裝（寫入不取樣列數）
+├── webApi.js                   # API 路由總管與 executeWebApi 共用入口（RPC/doPost）、雙軌登入、OAuth 回呼、Session/CSRF、RBAC、LockService；日誌攔截與查詢拆至 activityLogInterceptor.js／activityLogQuery.js，保留 facade 轉發
 ├── utilities.js                # 儲存格安全格式化、公式注入防護 (sanitizeFormulaValue)、通用工具
 │
 ├── webapp/                     # 前端原始碼目錄 (模組化開發，便於維護)
@@ -37,15 +39,20 @@ GAS-Course-Web-Template/
 │       ├── config.js           # 前端全域設定、API 端點白名單、分頁導覽與樣式清單
 │       ├── courseData.js       # 轉發共用正規化模組，供前端 1NF 即時預覽計算
 │       ├── mock.js             # 本機離線開發測試 Mock API 模擬器（前端攔截，含登入/CSRF/公開設定相容欄位）
+│       ├── errorMessages.js    # 安全錯誤訊息轉譯（resolveSafeMessage 單一來源，遮蔽原始例外文字）
+│       ├── moduleHelpers.js    # 前端模組共用 Node require 相容墊片與 safeErrors 注入解析
 │       ├── api.js              # API 客戶端（RPC 優先 + fetch 備援、自動夾帶 Token/CSRF、暫時性錯誤重試）
 │       ├── state.js            # 響應式狀態容器 (State Store) 與訂閱發布機制
+│       ├── eventBindings.js    # 共用事件委派與單一綁定守護（取代 inline 事件字串）
+│       ├── listController.js   # 共用列表控制器（檢索、分頁、請求序號競態防護）
 │       ├── ui.js               # UI 元件渲染器 (Header、Nav、Login、Toast、Modal、Debounce 防抖)
 │       ├── auth.js             # 登入流程（GIS、ActiveUser/AccountChooser、OAuth 導向、Session 還原與登出）
 │       ├── imports.js          # SheetJS 檔案讀取、拖曳上傳與 1NF 正規化預覽
 │       ├── courses.js          # 正規化課程清單檢索、多條件即時防抖篩選與分頁控制
 │       ├── accounts.js         # 系統核心設定與白名單成員管理介面（含 OAuth/允許網域設定、RBAC）
 │       ├── activityLog.js      # 管理員操作日誌清單、日期／操作者／類別篩選、分頁與詳情展開
-│       └── app.js              # 前端進入點與應用程式生命週期管理（啟動流程、INITIAL_AUTH/switch 處理）
+│       ├── app.js              # 前端進入點與應用程式生命週期管理（啟動流程、INITIAL_AUTH/switch 處理）
+│       └── wiring.js           # 前端單一組裝點：建立最小介面並注入各模組工廠（最後載入）
 │
 ├── scripts/
 │   ├── build-webapp.js         # 前端打包腳本：將 webapp/styles.css 與 js/ 內嵌至根目錄 index.html
@@ -308,9 +315,9 @@ npm run build:webapp
 
 - **工作表結構**：`操作日誌` 工作表共 12 欄，包含時間戳記、請求識別碼、事件類別（`auth`／`write`／`query`）、動作名稱、結果、操作者 email／姓名／角色、摘要、詳情 JSON、耗時（毫秒）與錯誤代碼；時間戳記統一採用 `Asia/Taipei` 時區的 `yyyy-MM-dd HH:mm:ss` 格式。
 - **敏感資料防護**：寫入前統一對字串欄位截斷至 500 字元，並排除 `token`、`csrfToken`、`idToken`、`credential`、原始 `rows` 與查詢回傳內容；寫入動作的詳情僅保存白名單欄位的 before／after 投影，查詢動作只保存篩選、分頁與回傳筆數等彙總指標，詳情格式附版本號。
-- **寫入效能**：以 `CacheService` 計數，每 100 次寫入才取樣一次 `getLastRow()`，避免每次請求都讀取工作表最後一列。
+- **寫入效能**：寫入路徑不取樣、也不掃描工作表列數，容量檢查由每日清理程序獨立處理，避免每次請求都讀取工作表最後一列。
 - **管理員頁籤**：前端「操作日誌」頁籤以 `adminOnly` 旗標標記，僅 `admin` 角色可見；`renderNavbar()`、`setTab()` 與 `buildBodyHtml()` 三處皆執行相同守門，即使直接竄改 `state.tab` 也無法進入該頁籤。
-- **查詢限制**：預設查詢最近 7 天、每頁 50 列、單次最多 500 筆，依時間戳記遞減排序；支援開始／結束日期、操作者 email 與事件類別篩選，並可展開查看版本化詳情 JSON。
+- **查詢限制**：預設查詢最近 7 天、每頁 50 列、單次最多 500 筆，單次最多往前掃描 5,000 列（達上限且總列數更多時回傳 `truncated: true`），依時間戳記遞減排序；支援開始／結束日期、操作者 email 與事件類別篩選，並可展開查看版本化詳情 JSON。
 - **容量治理**：日誌列數超過 20,000 列時，每日清理程序刪除最舊資料至保留 15,000 列；初始化流程會安裝每日 03:00（Asia/Taipei）的 `cleanupActivityLogRows` 時間觸發器，並先比對既有觸發器避免重複建立。
 
 ---

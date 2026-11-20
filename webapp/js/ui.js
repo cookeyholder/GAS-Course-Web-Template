@@ -12,14 +12,11 @@
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.ui = api.createUiModule({
-      MEA: MEA,
-      window: window,
-      document: window.document,
-      setTimeoutFn: function (fn, ms) {
-        return window.setTimeout(fn, ms);
-      }
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.ui = api.createUiModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -30,6 +27,13 @@
 
   const DEFAULT_STYLE = "modern-slate";
   const MODAL_TITLE_ID = "meaModalTitle";
+  /**
+   * 角色代碼單一來源（task 5.3）：GAS 全域 gasRuntime 優先，Node 由 require 取得。
+   * gasRuntime.js 在建置順序中早於本模組載入，故可安全取得。
+   */
+  const ROLE_CODES =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime && globalThis.gasRuntime.ROLE_CODES) ||
+    (typeof require === "function" ? require("../../gasRuntime.js").ROLE_CODES : null);
 
   /**
    * 跳脫 HTML 特殊字元。
@@ -67,7 +71,7 @@
    */
   function isTabAllowed(tab, user) {
     if (!tab || tab.adminOnly !== true) return true;
-    return !!(user && user.role === "admin");
+    return !!(user && ROLE_CODES && user.role === ROLE_CODES.ADMIN);
   }
 
   /**
@@ -203,6 +207,34 @@
         : function (fn, ms) {
             return setTimeout(fn, ms);
           };
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定所有 UI 事件；DOM 於 render 後重建仍可作用。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "change", "[data-ui-action='apply-style']", function (event, element) {
+        applyStyle(element.value);
+      });
+      bindings.delegate(doc, "click", "[data-ui-action]", function (event, element) {
+        const action = element.getAttribute("data-ui-action");
+        if (action === "toggle-theme") return toggleTheme();
+        if (action === "logout") {
+          return MEA.auth && typeof MEA.auth.logout === "function" ? MEA.auth.logout() : undefined;
+        }
+        if (action === "login-mock") {
+          return MEA.auth && typeof MEA.auth.loginMock === "function" ? MEA.auth.loginMock() : undefined;
+        }
+        if (action === "set-tab") {
+          const tab = element.getAttribute("data-tab");
+          const setTab = (MEA.navigation && MEA.navigation.setTab) || MEA.setTab;
+          return typeof setTab === "function" ? setTab(tab) : undefined;
+        }
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     let modalRestoreFocus = null;
 
@@ -436,7 +468,7 @@
         escapeHtml(user.name || user.email) +
         "</span>" +
         '    <span class="pill ' +
-        (user.role === "admin" ? "accent" : "muted") +
+        (user.role === ROLE_CODES.ADMIN ? "accent" : "muted") +
         '">' +
         escapeHtml(user.roleName || roleName(user.role, MEA.config)) +
         "</span>" +
@@ -468,14 +500,14 @@
         renderUserPill(user) +
         '  <div class="style-selector-wrap">' +
         '    <label class="sr-only" for="styleSelect">介面風格</label>' +
-        '    <select id="styleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
+        '    <select id="styleSelect" class="select compact" data-ui-action="apply-style">' +
         renderStyleOptions(styles, curStyle) +
         "    </select>" +
         "  </div>" +
-        '  <button type="button" id="themeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="themeToggle" class="btn secondary compact" data-ui-action="toggle-theme">' +
         (currentTheme() === "dark" ? "◑ 淺色模式" : "◐ 深色模式") +
         "  </button>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.auth.logout()"' +
+        '  <button type="button" class="btn secondary compact" data-ui-action="logout"' +
         (logoutBusy ? " disabled" : "") +
         ">" +
         (logoutBusy ? "登出中..." : "登出") +
@@ -501,9 +533,9 @@
           active +
           '"' +
           current +
-          " onclick=\"MEA.setTab('" +
-          t.id +
-          "')\">" +
+          ' data-ui-action="set-tab" data-tab="' +
+          escapeHtml(t.id) +
+          '">' +
           '<span class="nav-icon" aria-hidden="true">' +
           t.icon +
           "</span>" +
@@ -550,7 +582,7 @@
     function renderLoginActions(isMock, loginBusy) {
       const mockHtml = isMock
         ? '<div class="login-divider"><span>或</span></div>' +
-          '<button type="button" class="btn secondary block" onclick="MEA.auth.loginMock()"' +
+          '<button type="button" class="btn secondary block" data-ui-action="login-mock"' +
           (loginBusy ? " disabled" : "") +
           ">" +
           "  🧪 本地測試身分登入 (Mock Mode)" +
@@ -582,10 +614,10 @@
         '<div class="login-container">' +
         '<div class="login-header-tools">' +
         '  <label class="sr-only" for="loginStyleSelect">介面風格</label>' +
-        '  <select id="loginStyleSelect" class="select compact" onchange="MEA.ui.applyStyle(this.value)">' +
+        '  <select id="loginStyleSelect" class="select compact" data-ui-action="apply-style">' +
         styleOptionsHtml +
         "  </select>" +
-        '  <button type="button" id="loginThemeToggle" class="btn secondary compact" onclick="MEA.ui.toggleTheme()">' +
+        '  <button type="button" id="loginThemeToggle" class="btn secondary compact" data-ui-action="toggle-theme">' +
         (currentTheme() === "dark" ? "◑ 淺色" : "◐ 深色") +
         "  </button>" +
         "</div>" +
@@ -661,21 +693,21 @@
         '<div class="card mt-4">' +
         '  <h3 class="card-title">🚀 範本功能快速導覽</h3>' +
         '  <div class="feature-grid mt-3">' +
-        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'import\')">' +
+        '    <button type="button" class="feature-item" data-ui-action="set-tab" data-tab="import">' +
         '      <div class="feature-icon" aria-hidden="true">📥</div>' +
         '      <div class="feature-text">' +
         "        <h4>課程代碼匯入與 1NF 正規化</h4>" +
         "        <p>支援 39 欄課綱寬表 Excel 檔案上傳，全數匯入並展開為 14 欄標準 1NF 課程代碼。</p>" +
         "      </div>" +
         "    </button>" +
-        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'courses\')">' +
+        '    <button type="button" class="feature-item" data-ui-action="set-tab" data-tab="courses">' +
         '      <div class="feature-icon" aria-hidden="true">📚</div>' +
         '      <div class="feature-text">' +
         "        <h4>正規化課程檢索與分頁</h4>" +
         "        <p>提供多維度關鍵字、學年、學期、科別篩選機制，支援大批量課程資料快速檢索。</p>" +
         "      </div>" +
         "    </button>" +
-        '    <button type="button" class="feature-item" onclick="MEA.setTab(\'settings\')">' +
+        '    <button type="button" class="feature-item" data-ui-action="set-tab" data-tab="settings">' +
         '      <div class="feature-icon" aria-hidden="true">⚙️</div>' +
         '      <div class="feature-text">' +
         "        <h4>系統設定與授權管理 (RBAC)</h4>" +

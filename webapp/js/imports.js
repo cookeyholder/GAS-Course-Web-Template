@@ -12,11 +12,11 @@
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.imports = api.createImportsModule({
-      MEA: MEA,
-      window: window,
-      document: window.document
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.imports = api.createImportsModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -25,14 +25,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   // SheetJS 自 0.19 起僅於官方 CDN 發布；固定單一版本並以 SRI 驗證完整性。
   const SHEETJS_VERSION = "0.20.3";
@@ -124,16 +118,12 @@
       ' role="button"' +
       ' tabindex="0"' +
       ' aria-label="選擇或拖曳課程代碼 Excel 檔案"' +
-      ' ondragover="MEA.imports.handleDragOver(event)"' +
-      ' ondragleave="MEA.imports.handleDragLeave(event)"' +
-      ' ondrop="MEA.imports.handleDrop(event)"' +
-      ' onkeydown="MEA.imports.handleDropzoneKey(event)"' +
-      ' onclick="MEA.imports.pickFile()">' +
+      ' data-import-dropzone="1">' +
       '  <div class="dropzone-icon" aria-hidden="true">📁</div>' +
       '  <div class="dropzone-title">點擊選擇或拖曳課程代碼 Excel 檔案至此</div>' +
       '  <div class="dropzone-desc">支援自教育部課程計畫平臺下載之 .xlsx、.xls 或 .ods 寬表（39 欄格式）</div>' +
       "</div>" +
-      '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" onchange="MEA.imports.handleFileSelect(this)" />'
+      '<input type="file" id="fileInput" class="sr-only" aria-label="選擇課程代碼 Excel 檔案" accept=".xlsx,.xls,.ods" data-import-action="file-select" />'
     );
   }
 
@@ -225,8 +215,8 @@
       " KB</p>" +
       "    </div>" +
       '    <div class="card-actions">' +
-      '      <button class="btn secondary compact" onclick="MEA.imports.resetImport()">重新選擇</button>' +
-      '      <button class="btn primary compact" onclick="MEA.imports.doImport()"' +
+      '      <button type="button" class="btn secondary compact" data-import-action="reset">重新選擇</button>' +
+      '      <button type="button" class="btn primary compact" data-import-action="import"' +
       disabled +
       ">" +
       buttonText +
@@ -279,11 +269,45 @@
    */
   function createImportsModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const win = options.window || (typeof window !== "undefined" ? window : null) || {};
     const doc = options.document || (win && win.document) || (typeof document !== "undefined" ? document : null);
     const FileReaderCtor =
       options.FileReader || (win && win.FileReader) || (typeof FileReader !== "undefined" ? FileReader : null);
+    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+
+    /** 以 document 委派綁定拖曳區、檔案輸入與預覽卡片事件。 */
+    function bindEventsOnce() {
+      if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
+      bindings.delegate(doc, "dragover", "[data-import-dropzone]", function (event, element) {
+        handleDragOver(event, element);
+      });
+      bindings.delegate(doc, "dragleave", "[data-import-dropzone]", function (event, element) {
+        handleDragLeave(event, element);
+      });
+      bindings.delegate(doc, "drop", "[data-import-dropzone]", function (event, element) {
+        handleDrop(event, element);
+      });
+      bindings.delegate(doc, "keydown", "[data-import-dropzone]", function (event) {
+        handleDropzoneKey(event);
+      });
+      bindings.delegate(doc, "click", "[data-import-dropzone]", function () {
+        pickFile();
+      });
+      bindings.delegate(doc, "change", "[data-import-action='file-select']", function (event, element) {
+        handleFileSelect(element);
+      });
+      bindings.delegate(doc, "click", "[data-import-action]", function (event, element) {
+        const action = element.getAttribute("data-import-action");
+        if (action === "reset") return resetImport();
+        if (action === "import") return doImport();
+        return undefined;
+      });
+    }
+
+    bindEventsOnce();
 
     let sheetJsPromise = null;
 
@@ -403,7 +427,7 @@
         })
         .catch(function (error) {
           MEA.setState({ importBusy: false });
-          MEA.ui.toast(resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
+          MEA.ui.toast(safeErrors.resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
           return null;
         });
     }
@@ -432,22 +456,22 @@
       if (file) previewFile(file);
     }
 
-    function handleDragOver(e) {
+    function handleDragOver(e, element) {
       e.preventDefault();
-      const zone = doc.getElementById("uploadDropzone");
-      if (zone) zone.classList.add("dragover");
+      const zone = element || doc.getElementById("uploadDropzone");
+      if (zone && zone.classList) zone.classList.add("dragover");
     }
 
-    function handleDragLeave(e) {
+    function handleDragLeave(e, element) {
       e.preventDefault();
-      const zone = doc.getElementById("uploadDropzone");
-      if (zone) zone.classList.remove("dragover");
+      const zone = element || doc.getElementById("uploadDropzone");
+      if (zone && zone.classList) zone.classList.remove("dragover");
     }
 
-    function handleDrop(e) {
+    function handleDrop(e, element) {
       e.preventDefault();
-      const zone = doc.getElementById("uploadDropzone");
-      if (zone) zone.classList.remove("dragover");
+      const zone = element || doc.getElementById("uploadDropzone");
+      if (zone && zone.classList) zone.classList.remove("dragover");
 
       const file = e.dataTransfer && e.dataTransfer.files ? e.dataTransfer.files[0] : null;
       if (file) previewFile(file);
@@ -488,7 +512,7 @@
 
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
-      const detail = resolveSafeMessage(error, "匯入失敗，請稍後再試");
+      const detail = safeErrors.resolveSafeMessage(error, "匯入失敗，請稍後再試");
       MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 

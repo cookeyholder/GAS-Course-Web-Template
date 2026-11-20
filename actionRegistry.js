@@ -19,8 +19,30 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  /** 所有角色的代碼（與 gasRuntime.ROLE_DEFINITIONS 一致） */
-  const ALL_ROLES = ["admin", "staff", "viewer"];
+  /**
+   * gasRuntime 單一來源解析（task 5.3）：GAS 全域優先，Node 由 require 取得。
+   * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，故採延遲解析；
+   * 隔離環境無 gasRuntime 時退回同值常數，維持雙環境載入相容。
+   */
+  function resolveRoleCodes_() {
+    const runtime =
+      typeof globalThis !== "undefined" && globalThis.gasRuntime
+        ? globalThis.gasRuntime
+        : typeof require === "function"
+          ? require("./gasRuntime.js")
+          : null;
+    return (
+      (runtime && runtime.ROLE_CODES) || {
+        ADMIN: "admin",
+        STAFF: "staff",
+        VIEWER: "viewer"
+      }
+    );
+  }
+
+  /** 所有角色的代碼（由 gasRuntime.ROLE_CODES 衍生，單一來源） */
+  const ROLE_CODES = resolveRoleCodes_();
+  const ALL_ROLES = [ROLE_CODES.ADMIN, ROLE_CODES.STAFF, ROLE_CODES.VIEWER];
 
   /**
    * action 登錄表。
@@ -29,10 +51,13 @@
    * - locked：需全域 Script Lock 保護
    * - roles：允許呼叫的角色代碼（public action 不需填寫）
    * - logCategory／logLabel／logDetailKey／logEnabled：操作日誌宣告式中繼資料
+   * - doGet：明確允許以 GET 呼叫（public 不會自動放行）
+   * - backfillIdentity：成功地登入後補寫日誌身分（僅限公開且寫入日誌的登入動作）
    */
   const ACTIONS = {
     ping: {
       public: true,
+      doGet: true,
       logCategory: "query",
       logLabel: "心跳檢查",
       logDetailKey: "none",
@@ -40,6 +65,7 @@
     },
     getPublicConfig: {
       public: true,
+      doGet: true,
       logCategory: "query",
       logLabel: "取得公開設定",
       logDetailKey: "none",
@@ -47,6 +73,7 @@
     },
     login: {
       public: true,
+      backfillIdentity: true,
       logCategory: "auth",
       logLabel: "登入",
       logDetailKey: "auth",
@@ -54,6 +81,7 @@
     },
     loginWithActiveUser: {
       public: true,
+      backfillIdentity: true,
       logCategory: "auth",
       logLabel: "使用現存帳號登入",
       logDetailKey: "auth",
@@ -194,6 +222,39 @@
   }
 
   /**
+   * 列出明確允許以 GET 呼叫的 action（由 doGet: true 衍生，public 不自動放行）。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listDoGetAllowedActions() {
+    return filterActionsByFlag_("doGet");
+  }
+
+  /**
+   * 列出不寫入操作日誌的 action（由 logEnabled === false 衍生）。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listLogExcludedActions() {
+    if (!CACHED_LISTS.logExcluded) {
+      CACHED_LISTS.logExcluded = Object.keys(ACTIONS).filter(function (name) {
+        return ACTIONS[name].logEnabled === false;
+      });
+    }
+    return CACHED_LISTS.logExcluded.slice();
+  }
+
+  /**
+   * 列出成功登入後需補寫日誌身分的 action（由 backfillIdentity: true 衍生）。
+   * 該旗標僅能標記於公開且寫入日誌的 action，由 actionRegistry.test.js 驗證此約束。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listIdentityBackfillActions() {
+    return filterActionsByFlag_("backfillIdentity");
+  }
+
+  /**
    * 判斷 action 是否已登錄。
    *
    * @param {string} name - action 名稱
@@ -258,15 +319,15 @@
   }
 
   /**
-   * 判斷角色是否可呼叫指定 action。
+   * 判斷角色是否可呼叫指定 action（task 5.3：角色判定單一入口）。
    *
    * @param {string} role - 角色代碼
-   * @param {string} name - action 名稱
+   * @param {string} action - action 名稱
    * @returns {boolean} 是否允許
    */
-  function isRoleAllowed(role, name) {
-    if (!hasAction(name)) return false;
-    const entry = ACTIONS[name];
+  function isActionAllowed(role, action) {
+    if (!hasAction(action)) return false;
+    const entry = ACTIONS[action];
     if (entry.public === true) return true;
     return Array.isArray(entry.roles) && entry.roles.indexOf(role) !== -1;
   }
@@ -284,7 +345,7 @@
       permissions[role] = listActions().filter(function (name) {
         // 管理員列舉所有已登錄 action（含公開動作與 getActivityLog）；
         // 其餘角色僅列舉自身被授權的受保護動作。
-        return isRoleAllowed(role, name) && (role === "admin" || !isPublicAction(name));
+        return isActionAllowed(role, name) && (role === ROLE_CODES.ADMIN || !isPublicAction(name));
       });
     });
     return permissions;
@@ -297,12 +358,16 @@
     listPublicActions: listPublicActions,
     listWriteActions: listWriteActions,
     listLockedActions: listLockedActions,
+    listDoGetAllowedActions: listDoGetAllowedActions,
+    listLogExcludedActions: listLogExcludedActions,
+    listIdentityBackfillActions: listIdentityBackfillActions,
     hasAction: hasAction,
     setHandler: setHandler,
     getHandler: getHandler,
     getActionMeta: getActionMeta,
     isPublicAction: isPublicAction,
-    isRoleAllowed: isRoleAllowed,
+    isActionAllowed: isActionAllowed,
+    ROLE_CODES: ROLE_CODES,
     buildRolePermissions: buildRolePermissions
   };
 });
