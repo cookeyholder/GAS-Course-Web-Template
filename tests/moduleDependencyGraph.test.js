@@ -1,10 +1,10 @@
 "use strict";
 
 /**
- * moduleDependencyGraph.test.js（task 1.1）
- * 以靜態掃描建立後端模組相依圖，驗證三節點循環相依
+ * moduleDependencyGraph.test.js（task 1.1 建立、task 2.1 後更新）
+ * 以靜態掃描建立後端模組相依圖，驗證重構前偵測到的三節點循環相依
  * （databaseInitializer → activityLogger → activityLogBuilders → databaseInitializer）
- * 被正確偵測；並以人造環反向驗證「無環檢查」確實會失敗，避免假驗證。
+ * 已打斷為無環；並以人造環反向驗證「無環檢查」確實會失敗，避免假驗證。
  */
 
 const assert = require("assert");
@@ -91,22 +91,15 @@ function findCycles(edges) {
   });
 }
 
-console.log("1. 靜態掃描應偵測到三節點循環相依...");
+console.log("1. 靜態掃描應顯示後端模組相依圖無環...");
 {
   const edges = scanBackendEdges();
-  const cycle = findCycles(edges).find(function (candidate) {
-    return (
-      candidate.length === 3 &&
-      candidate.indexOf("databaseInitializer") !== -1 &&
-      candidate.indexOf("activityLogger") !== -1 &&
-      candidate.indexOf("activityLogBuilders") !== -1
-    );
-  });
-  assert(cycle, "應偵測到 databaseInitializer → activityLogger → activityLogBuilders → databaseInitializer 三節點環");
-  console.log("   ✓ 三節點環偵測成功：" + cycle.join(" → ") + " → " + cycle[0] + "\n");
+  const cycles = findCycles(edges);
+  assert.strictEqual(cycles.length, 0, "重構後後端模組相依圖應無環，但發現：" + JSON.stringify(cycles));
+  console.log("   ✓ 相依圖無環驗證通過！\n");
 }
 
-console.log("2. 驗證環的三條相依邊皆來自原始碼掃描...");
+console.log("2. 關鍵相依邊應已移除...");
 {
   const edges = scanBackendEdges();
   const hasEdge = function (from, to) {
@@ -114,10 +107,9 @@ console.log("2. 驗證環的三條相依邊皆來自原始碼掃描...");
       return edge.from === from && edge.to === to;
     });
   };
-  assert(hasEdge("databaseInitializer", "activityLogger"), "應掃描到 databaseInitializer → activityLogger");
-  assert(hasEdge("activityLogger", "activityLogBuilders"), "應掃描到 activityLogger → activityLogBuilders");
-  assert(hasEdge("activityLogBuilders", "databaseInitializer"), "應掃描到 activityLogBuilders → databaseInitializer");
-  console.log("   ✓ 三條相依邊來源驗證通過！\n");
+  assert(!hasEdge("activityLogBuilders", "databaseInitializer"), "activityLogBuilders 不應再依賴 databaseInitializer");
+  assert(!hasEdge("activityLogBuilders", "gasRuntime"), "activityLogBuilders 不應再依賴 gasRuntime");
+  console.log("   ✓ 關鍵相依邊移除驗證通過！\n");
 }
 
 console.log("3. 反向斷言：人為注入環時無環檢查必須失敗...");

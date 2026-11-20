@@ -87,21 +87,17 @@ function countFromResult_(result) {
 }
 
 /**
- * 解析 databaseInitializer 的函式（GAS 全域優先，Node 再 require）。
+ * 從注入的快照提供者取得指定讀取函式。
+ * 提供者由呼叫端傳入，使本模組不再 require databaseInitializer 或 gasRuntime，
+ * 打斷既有三節點循環相依；保留全域同名函式作為過渡期的向後相容。
  *
- * @param {string} name - 函式名稱
- * @returns {Function|null} 解析後的函式
+ * @param {Object} provider - 呼叫端傳入的快照提供者
+ * @param {string} name - 讀取函式名稱
+ * @returns {Function|null} 讀取函式或 null
  */
-function resolveDbFn_(name) {
+function resolveSnapshotReader_(provider, name) {
+  if (provider && typeof provider[name] === "function") return provider[name];
   if (typeof globalThis !== "undefined" && typeof globalThis[name] === "function") return globalThis[name];
-  if (typeof require === "function") {
-    try {
-      const db = require("./databaseInitializer.js");
-      return typeof db[name] === "function" ? db[name] : null;
-    } catch (error) {
-      return null;
-    }
-  }
   return null;
 }
 
@@ -164,8 +160,8 @@ const DETAIL_BUILDERS = {
     }
   },
   systemSettings: {
-    captureBefore: function (ss) {
-      const read = resolveDbFn_("readSystemSettings");
+    captureBefore: function (ss, provider) {
+      const read = resolveSnapshotReader_(provider, "readSystemSettings");
       if (!read) return null;
       try {
         const settings = read(ss) || {};
@@ -193,8 +189,8 @@ const DETAIL_BUILDERS = {
     }
   },
   whitelist: {
-    captureBefore: function (ss) {
-      const read = resolveDbFn_("readWhitelist");
+    captureBefore: function (ss, provider) {
+      const read = resolveSnapshotReader_(provider, "readWhitelist");
       if (!read) return null;
       try {
         return read(ss) || [];
@@ -269,16 +265,19 @@ function getBuilder(detailKey) {
 
 /**
  * 於 handler 執行前擷取變動前快照。
+ * 提供者讀取失敗時回退為 null，後續由 describe／truncateDetailToLimit
+ * 保證詳情仍寫入版本化最小合法 JSON，不阻斷主流程。
  *
  * @param {string} detailKey - 詳情鍵
  * @param {*} ss - 試算表物件
+ * @param {Object} [snapshotProvider] - 呼叫端注入的快照讀取提供者
  * @returns {*} 快照或 null
  */
-function captureBefore(detailKey, ss) {
+function captureBefore(detailKey, ss, snapshotProvider) {
   const builder = getBuilder(detailKey);
   if (typeof builder.captureBefore !== "function") return null;
   try {
-    return builder.captureBefore(ss);
+    return builder.captureBefore(ss, snapshotProvider);
   } catch (error) {
     return null;
   }
