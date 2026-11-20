@@ -96,11 +96,18 @@
   /** 詳情序列化後的字元上限 */
   const ACTIVITY_DETAIL_MAX_LENGTH = 500;
 
+  /** 授權角色代碼（task 5.3：所有角色判定共用單一來源） */
+  const ROLE_CODES = {
+    ADMIN: "admin",
+    STAFF: "staff",
+    VIEWER: "viewer"
+  };
+
   /** 授權角色定義（所有後端角色顯示名稱共用單一來源） */
   const ROLE_DEFINITIONS = {
-    admin: "系統管理員",
-    staff: "業務人員",
-    viewer: "檢視人員"
+    [ROLE_CODES.ADMIN]: "系統管理員",
+    [ROLE_CODES.STAFF]: "業務人員",
+    [ROLE_CODES.VIEWER]: "檢視人員"
   };
 
   /**
@@ -241,6 +248,7 @@
     ACTIVITY_LOG_FIELD_INDEX: ACTIVITY_LOG_FIELD_INDEX,
     MINIMAL_ACTIVITY_DETAIL_JSON: MINIMAL_ACTIVITY_DETAIL_JSON,
     ACTIVITY_DETAIL_MAX_LENGTH: ACTIVITY_DETAIL_MAX_LENGTH,
+    ROLE_CODES: ROLE_CODES,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
     hasOwn: hasOwn,
     getRuntime_: getRuntime_,

@@ -989,7 +989,7 @@ function handleGetSystemSettingsWebApiAction_(payload, session, ss) {
 
 /** 受保護 action：saveSystemSettings */
 function handleSaveSystemSettingsWebApiAction_(payload, session, ss) {
-  if (session.role !== "admin") {
+  if (!ACTION_REGISTRY.isActionAllowed(session.role, "saveSystemSettings")) {
     return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可修改系統參數");
   }
   resolveRouteDependency_("saveSystemSettings", saveSystemSettings)(payload.settings || {}, ss);
@@ -998,7 +998,7 @@ function handleSaveSystemSettingsWebApiAction_(payload, session, ss) {
 
 /** 受保護 action：getAccounts */
 function handleGetAccountsWebApiAction_(payload, session, ss) {
-  if (session.role !== "admin") {
+  if (!ACTION_REGISTRY.isActionAllowed(session.role, "getAccounts")) {
     return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可檢視授權白名單");
   }
   return {
@@ -1009,7 +1009,7 @@ function handleGetAccountsWebApiAction_(payload, session, ss) {
 
 /** 受保護 action：saveWhitelist */
 function handleSaveWhitelistWebApiAction_(payload, session, ss) {
-  if (session.role !== "admin") {
+  if (!ACTION_REGISTRY.isActionAllowed(session.role, "saveWhitelist")) {
     return webApiError("forbidden", "僅" + ADMIN_ROLE_NAME + "可修改授權白名單");
   }
   return resolveRouteDependency_("saveWhitelist", saveWhitelist)(payload.accounts || [], ss);
@@ -1095,7 +1095,7 @@ function validateRouteCsrf_(name, payload, session) {
  */
 function sanitizeSystemSettingsForRole_(settings, role) {
   const source = settings || {};
-  if (String(role || "") === "admin") return source;
+  if (String(role || "") === GAS_RUNTIME.ROLE_CODES.ADMIN) return source;
   const safe = Object.assign({}, source);
   delete safe.clientSecret;
   return safe;

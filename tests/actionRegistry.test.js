@@ -24,16 +24,16 @@ function run() {
   console.log("2. RBAC 權限矩陣應由 ACTION_REGISTRY 產生...");
   assert.deepStrictEqual(api.ROLE_PERMISSIONS, registry.buildRolePermissions());
   ["getSession", "logout", "getCourseIndex", "getCourseIndexStats", "getSystemSettings"].forEach(function (action) {
-    assert.strictEqual(registry.isRoleAllowed("viewer", action), true);
+    assert.strictEqual(registry.isActionAllowed("viewer", action), true);
   });
-  assert.strictEqual(registry.isRoleAllowed("viewer", "importCourseCodes"), false);
-  assert.strictEqual(registry.isRoleAllowed("staff", "importCourseCodes"), true);
-  assert.strictEqual(registry.isRoleAllowed("viewer", "saveSystemSettings"), false);
-  assert.strictEqual(registry.isRoleAllowed("admin", "saveWhitelist"), true);
-  assert.strictEqual(registry.isRoleAllowed("viewer", "not_registered"), false);
-  assert.strictEqual(registry.isRoleAllowed("admin", "getActivityLog"), true);
-  assert.strictEqual(registry.isRoleAllowed("staff", "getActivityLog"), false);
-  assert.strictEqual(registry.isRoleAllowed("viewer", "getActivityLog"), false);
+  assert.strictEqual(registry.isActionAllowed("viewer", "importCourseCodes"), false);
+  assert.strictEqual(registry.isActionAllowed("staff", "importCourseCodes"), true);
+  assert.strictEqual(registry.isActionAllowed("viewer", "saveSystemSettings"), false);
+  assert.strictEqual(registry.isActionAllowed("admin", "saveWhitelist"), true);
+  assert.strictEqual(registry.isActionAllowed("viewer", "not_registered"), false);
+  assert.strictEqual(registry.isActionAllowed("admin", "getActivityLog"), true);
+  assert.strictEqual(registry.isActionAllowed("staff", "getActivityLog"), false);
+  assert.strictEqual(registry.isActionAllowed("viewer", "getActivityLog"), false);
   console.log("   ✓ RBAC 驗證通過！\n");
 
   console.log("2.1 管理員權限應明確列舉所有 action 且不含萬用字元...");

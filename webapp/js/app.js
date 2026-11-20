@@ -35,6 +35,14 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  /**
+   * 角色代碼單一來源（task 5.3）：GAS 全域 gasRuntime 優先，Node 由 require 取得。
+   * gasRuntime.js 在建置順序中早於本模組載入，故可安全取得。
+   */
+  const ROLE_CODES =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime && globalThis.gasRuntime.ROLE_CODES) ||
+    (typeof require === "function" ? require("../../gasRuntime.js").ROLE_CODES : null);
+
   const LOADING_VIEW_HTML =
     '<div class="login-container">' +
     '<div class="login-card text-center py-12" role="status" aria-label="系統載入中" aria-busy="true">' +
@@ -57,7 +65,7 @@
    */
   function isTabAllowed(tab, user) {
     if (!tab || tab.adminOnly !== true) return true;
-    return !!(user && user.role === "admin");
+    return !!(user && ROLE_CODES && user.role === ROLE_CODES.ADMIN);
   }
 
   /**

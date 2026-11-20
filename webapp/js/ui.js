@@ -30,6 +30,13 @@
 
   const DEFAULT_STYLE = "modern-slate";
   const MODAL_TITLE_ID = "meaModalTitle";
+  /**
+   * 角色代碼單一來源（task 5.3）：GAS 全域 gasRuntime 優先，Node 由 require 取得。
+   * gasRuntime.js 在建置順序中早於本模組載入，故可安全取得。
+   */
+  const ROLE_CODES =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime && globalThis.gasRuntime.ROLE_CODES) ||
+    (typeof require === "function" ? require("../../gasRuntime.js").ROLE_CODES : null);
 
   /**
    * 跳脫 HTML 特殊字元。
@@ -67,7 +74,7 @@
    */
   function isTabAllowed(tab, user) {
     if (!tab || tab.adminOnly !== true) return true;
-    return !!(user && user.role === "admin");
+    return !!(user && ROLE_CODES && user.role === ROLE_CODES.ADMIN);
   }
 
   /**
@@ -436,7 +443,7 @@
         escapeHtml(user.name || user.email) +
         "</span>" +
         '    <span class="pill ' +
-        (user.role === "admin" ? "accent" : "muted") +
+        (user.role === ROLE_CODES.ADMIN ? "accent" : "muted") +
         '">' +
         escapeHtml(user.roleName || roleName(user.role, MEA.config)) +
         "</span>" +

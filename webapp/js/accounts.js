@@ -23,6 +23,14 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  /**
+   * 角色代碼單一來源（task 5.3）：GAS 全域 gasRuntime 優先，Node 由 require 取得。
+   * gasRuntime.js 在建置順序中早於本模組載入，故可安全取得。
+   */
+  const ROLE_CODES =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime && globalThis.gasRuntime.ROLE_CODES) ||
+    (typeof require === "function" ? require("../../gasRuntime.js").ROLE_CODES : null);
+
   // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
   if (typeof module !== "undefined" && module.exports) {
     require("./errorMessages.js");
@@ -214,7 +222,7 @@
       return {
         email: emailInput ? emailInput.value.trim().toLowerCase() : "",
         name: nameInput ? nameInput.value.trim() : "",
-        role: roleSelect ? roleSelect.value : "viewer"
+        role: roleSelect ? roleSelect.value : ROLE_CODES.VIEWER
       };
     }
 
@@ -467,7 +475,7 @@
         MEA.ui.escapeHtml(a.name) +
         "</td>" +
         '<td><span class="pill ' +
-        (a.role === "admin" ? "accent" : "muted") +
+        (a.role === ROLE_CODES.ADMIN ? "accent" : "muted") +
         '">' +
         MEA.ui.escapeHtml(a.roleName || a.role) +
         "</span></td>" +
@@ -623,7 +631,7 @@
 
     function renderView() {
       const user = MEA.state.user || {};
-      const isAdmin = user.role === "admin";
+      const isAdmin = user.role === ROLE_CODES.ADMIN;
       const settings = MEA.state.settings || {};
       const data = settings.data || {};
       const accounts = settings.accounts || [];
