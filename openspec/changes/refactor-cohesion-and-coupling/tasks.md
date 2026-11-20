@@ -94,7 +94,8 @@
 
 ### 8. 重新量測並產出基準報告（新增需求）
 
-- [ ] 8.1 保存歷史快照：將現行 `scripts/quality-baseline.json` 複製為 `scripts/quality-baseline.2026-11-18.json`，作為與過期快照的比較依據；ratchet 來源為 1.3 記錄的重構前量測值，不得使用此過期快照。驗證：歷史檔存在且內容與原檔一致。
+- [x] 8.1 保存歷史快照：將現行 `scripts/quality-baseline.json` 複製為 `scripts/quality-baseline.2026-11-18.json`，作為與過期快照的比較依據；ratchet 來源為 1.3 記錄的重構前量測值，不得使用此過期快照。驗證：歷史檔存在且內容與原檔一致。
+  - 實作備註：以 `cmp -s` 驗證兩檔內容完全一致（皆 1266 bytes）；該檔僅供 8.4 報告的歷史比較，ratchet 仍以 1.3 重構前量測值為準。
 - [ ] 8.2 執行完整品質檢查：依序執行 `npm test`、`npm run format:check`、`npm run check:lang`、`npm run check:a11y`、`npm run test:coverage`、`npm run check:complexity`、`npm run check:coverage`、`npm run check:changed-coverage`，確認全部通過。驗證：八個指令結束碼皆為 0，報告檔 `reports/quality/complexity.json` 與 `coverage/**` 已更新。
 - [ ] 8.3 更新新基準與比較方向：調整 `scripts/checkCoverage.js` 與 `scripts/checkComplexity.js`，使基準比較符合方向性 ratchet（CRAP／超標數取低，MI／覆蓋率取高；`checkComplexity.js` 目前未讀取基準線）；以 8.2 量測值更新 `scripts/quality-baseline.json` 的 `measuredAt`、`environment`（Node 實際版本）、`scope`（含 `files`／`methods`）、`coverage.totals`、`maintainability`（含 `miMinFile`）、`crap`（含 `crapMaxFunction`），並確認無維度違反方向性 ratchet 與門檻。驗證：`npm run check:coverage` 與 `npm run check:complexity` 通過，且新舊比較表已記錄於 `README.md` 或 `docs/`。
 - [ ] 8.4 產出基準報告文件：新增一份 Markdown 報告（如 `docs/quality-baseline-2026-11-20.md`；若實際執行日不同則以實際日期命名），內容包含量測環境（Node 版本、指令、納管與排除範圍、量測時間）、四大覆蓋率維度、CRAP 最高值與超標數及其所屬函式、MI 最低值及其所屬檔案、與 1.3 重構前既有值的新舊比較、與 2026-11-18 過期快照的歷史比較，以及模組行數變化（特別是 `webApi.js` 拆分前後）。驗證：報告檔案存在、數值與 `reports/quality/complexity.json` 及 `coverage/coverage-summary.json` 一致。
