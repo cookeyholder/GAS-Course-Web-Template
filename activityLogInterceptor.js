@@ -14,11 +14,18 @@
  * GAS 環境下掛載為全域 `activityLogInterceptor`，Node.js 下由 module.exports 匯出。
  */
 
-/** 詳情序列化失敗或降級模組不可用時的最小合法 JSON */
-const MINIMAL_ACTIVITY_DETAIL_JSON = '{"版本":1,"動作":"","指標":{},"截斷":true}';
+/**
+ * gasRuntime 常數單一來源（task 5.2）：僅讀取 GAS 全域，不 require，
+ * 以維持本模組可在無 gasRuntime 的隔離環境載入（task 4.4 部署相容）。
+ */
+const GAS_RUNTIME = typeof globalThis !== "undefined" ? globalThis.gasRuntime : null;
 
-/** 詳情欄位字元上限（與 activityLogBuilders 一致） */
-const ACTIVITY_DETAIL_MAX_LENGTH = 500;
+/** 詳情序列化失敗或降級模組不可用時的最小合法 JSON（GAS 由 gasRuntime 單一來源取得） */
+const MINIMAL_ACTIVITY_DETAIL_JSON =
+  (GAS_RUNTIME && GAS_RUNTIME.MINIMAL_ACTIVITY_DETAIL_JSON) || '{"版本":1,"動作":"","指標":{},"截斷":true}';
+
+/** 詳情欄位字元上限（GAS 由 gasRuntime 單一來源取得） */
+const ACTIVITY_DETAIL_MAX_LENGTH = (GAS_RUNTIME && GAS_RUNTIME.ACTIVITY_DETAIL_MAX_LENGTH) || 500;
 
 /**
  * 建立攔截器實例。

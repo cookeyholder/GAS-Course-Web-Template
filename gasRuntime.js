@@ -48,6 +48,54 @@
     return typeof injected === "string" && injected.trim() !== "" ? injected.trim() : FALLBACK_WEB_API_VERSION;
   }
 
+  /**
+   * 操作日誌 12 欄 schema（task 5.2）：英文欄位順序與中文表頭一一對應。
+   * 此為唯一來源；寫入端（databaseInitializer／activityLogger）與查詢端
+   * （activityLogQuery）皆由此衍生，避免重複陣列與索引硬編碼。
+   */
+  const ACTIVITY_LOG_FIELDS = [
+    "timestamp",
+    "requestId",
+    "category",
+    "action",
+    "result",
+    "email",
+    "name",
+    "role",
+    "summary",
+    "detail",
+    "durationMs",
+    "errorCode"
+  ];
+
+  /** 操作日誌 12 欄中文表頭，順序須與 ACTIVITY_LOG_FIELDS 一致 */
+  const ACTIVITY_LOG_HEADERS = [
+    "時間戳記",
+    "請求識別碼",
+    "事件類別",
+    "動作名稱",
+    "結果",
+    "操作者 email",
+    "操作者姓名",
+    "角色",
+    "摘要",
+    "詳情 JSON",
+    "耗時（毫秒）",
+    "錯誤代碼"
+  ];
+
+  /** 欄位名稱至零基索引的對應（由 ACTIVITY_LOG_FIELDS 衍生，消除 cells[0..11] 硬編碼） */
+  const ACTIVITY_LOG_FIELD_INDEX = ACTIVITY_LOG_FIELDS.reduce(function (index, field, position) {
+    index[field] = position;
+    return index;
+  }, {});
+
+  /** 詳情序列化失敗或降級時使用的最小合法 JSON */
+  const MINIMAL_ACTIVITY_DETAIL_JSON = '{"版本":1,"動作":"","指標":{},"截斷":true}';
+
+  /** 詳情序列化後的字元上限 */
+  const ACTIVITY_DETAIL_MAX_LENGTH = 500;
+
   /** 授權角色定義（所有後端角色顯示名稱共用單一來源） */
   const ROLE_DEFINITIONS = {
     admin: "系統管理員",
@@ -188,6 +236,11 @@
     get WEB_API_VERSION() {
       return resolveWebApiVersion_();
     },
+    ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
+    ACTIVITY_LOG_HEADERS: ACTIVITY_LOG_HEADERS,
+    ACTIVITY_LOG_FIELD_INDEX: ACTIVITY_LOG_FIELD_INDEX,
+    MINIMAL_ACTIVITY_DETAIL_JSON: MINIMAL_ACTIVITY_DETAIL_JSON,
+    ACTIVITY_DETAIL_MAX_LENGTH: ACTIVITY_DETAIL_MAX_LENGTH,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
     hasOwn: hasOwn,
     getRuntime_: getRuntime_,

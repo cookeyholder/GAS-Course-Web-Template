@@ -62,7 +62,8 @@ const ACTIVITY_LOG_QUERY = ACTIVITY_LOG_QUERY_MODULE
       webApiError: webApiError,
       adminRoleName: ADMIN_ROLE_NAME,
       sheetName: GAS_RUNTIME.SHEET_ACTIVITY_LOG,
-      getSpreadsheet: getRouteSpreadsheet_
+      getSpreadsheet: getRouteSpreadsheet_,
+      fieldIndex: GAS_RUNTIME.ACTIVITY_LOG_FIELD_INDEX
     })
   : null;
 

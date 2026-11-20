@@ -77,6 +77,7 @@ function isValidActivityLogDate(dateStr) {
  * @param {string} deps.adminRoleName - 系統管理員顯示名稱
  * @param {string} deps.sheetName - 操作日誌工作表名稱
  * @param {Function} deps.getSpreadsheet - 取得試算表的函式
+ * @param {Object} deps.fieldIndex - 欄位名稱至零基索引對應（由 gasRuntime 單一來源注入）
  * @returns {Object} 查詢 API
  */
 function createActivityLogQuery(deps) {
@@ -85,6 +86,7 @@ function createActivityLogQuery(deps) {
   const adminRoleName = config.adminRoleName || "";
   const sheetName = config.sheetName || "";
   const getSpreadsheet = config.getSpreadsheet;
+  const fieldIndex = config.fieldIndex || {};
 
   /**
    * 解析操作日誌查詢的時間區間，預設最近 7 天（含端點）。
@@ -151,21 +153,25 @@ function createActivityLogQuery(deps) {
     return isFinite(parsedDuration) ? parsedDuration : null;
   }
 
+  function cellAt(cells, field) {
+    return cells[fieldIndex[field]];
+  }
+
   function buildActivityLogRowItem(cells, rowIndex) {
     return {
       _rowIndex: rowIndex,
-      timestamp: normalizeActivityLogTimestamp(cells[0]),
-      requestId: String(cells[1] || ""),
-      category: String(cells[2] || ""),
-      action: String(cells[3] || ""),
-      result: String(cells[4] || ""),
-      email: String(cells[5] || ""),
-      name: String(cells[6] || ""),
-      role: String(cells[7] || ""),
-      summary: String(cells[8] || ""),
-      detail: String(cells[9] || ""),
-      durationMs: normalizeActivityLogDuration(cells[10]),
-      errorCode: String(cells[11] || "")
+      timestamp: normalizeActivityLogTimestamp(cellAt(cells, "timestamp")),
+      requestId: String(cellAt(cells, "requestId") || ""),
+      category: String(cellAt(cells, "category") || ""),
+      action: String(cellAt(cells, "action") || ""),
+      result: String(cellAt(cells, "result") || ""),
+      email: String(cellAt(cells, "email") || ""),
+      name: String(cellAt(cells, "name") || ""),
+      role: String(cellAt(cells, "role") || ""),
+      summary: String(cellAt(cells, "summary") || ""),
+      detail: String(cellAt(cells, "detail") || ""),
+      durationMs: normalizeActivityLogDuration(cellAt(cells, "durationMs")),
+      errorCode: String(cellAt(cells, "errorCode") || "")
     };
   }
 

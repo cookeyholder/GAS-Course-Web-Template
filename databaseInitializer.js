@@ -26,21 +26,8 @@ const LEGACY_SHEET_COURSE_INDEX = GAS_RUNTIME.LEGACY_SHEET_COURSE_INDEX;
 const SHEET_SYSTEM_INSTRUCTIONS = GAS_RUNTIME.SHEET_SYSTEM_INSTRUCTIONS;
 const SHEET_ACTIVITY_LOG = GAS_RUNTIME.SHEET_ACTIVITY_LOG;
 
-/** 操作日誌工作表 12 欄表頭（順序為日誌寫入依據） */
-const ACTIVITY_LOG_HEADERS = [
-  "時間戳記",
-  "請求識別碼",
-  "事件類別",
-  "動作名稱",
-  "結果",
-  "操作者 email",
-  "操作者姓名",
-  "角色",
-  "摘要",
-  "詳情 JSON",
-  "耗時（毫秒）",
-  "錯誤代碼"
-];
+/** 操作日誌工作表 12 欄表頭（順序為日誌寫入依據；單一來源見 gasRuntime） */
+const ACTIVITY_LOG_HEADERS = GAS_RUNTIME.ACTIVITY_LOG_HEADERS;
 
 // ============================================================================
 // 預設參數與欄位定義

@@ -15,21 +15,8 @@ const GAS_RUNTIME =
       ? require("./gasRuntime.js")
       : null;
 
-/** 日誌欄位順序，必須與 databaseInitializer.ACTIVITY_LOG_HEADERS 一致 */
-const ACTIVITY_LOG_FIELDS = [
-  "timestamp",
-  "requestId",
-  "category",
-  "action",
-  "result",
-  "email",
-  "name",
-  "role",
-  "summary",
-  "detail",
-  "durationMs",
-  "errorCode"
-];
+/** 日誌欄位順序，與 gasRuntime.ACTIVITY_LOG_HEADERS 一一對應（單一來源見 gasRuntime） */
+const ACTIVITY_LOG_FIELDS = GAS_RUNTIME.ACTIVITY_LOG_FIELDS;
 
 /** CacheService 鍵前綴（與其他快取資料區隔） */
 const ACTIVITY_LOG_CACHE_PREFIX = "gas_tmpl_activitylog_";
@@ -128,8 +115,8 @@ function truncateField_(value) {
   return value;
 }
 
-/** 詳情欄降級失敗時使用的最小合法 JSON */
-const MINIMAL_DETAIL_JSON = '{"版本":1,"動作":"","指標":{},"截斷":true}';
+/** 詳情欄降級失敗時使用的最小合法 JSON（單一來源見 gasRuntime） */
+const MINIMAL_DETAIL_JSON = GAS_RUNTIME.MINIMAL_ACTIVITY_DETAIL_JSON;
 
 /**
  * 解析共用的詳情降級函式（GAS 全域命名空間優先，Node 再 require）。

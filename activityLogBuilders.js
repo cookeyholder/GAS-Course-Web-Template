@@ -8,6 +8,12 @@
  * 不得寫入 token、原始上傳列或查詢回傳內容。
  */
 
+/**
+ * gasRuntime 常數單一來源（task 5.2）：僅讀取 GAS 全域，不 require，
+ * 以維持本模組零後端相依的設計（task 2.1 解環）。Node 測試無全域時退回字面值。
+ */
+const GAS_RUNTIME = typeof globalThis !== "undefined" ? globalThis.gasRuntime : null;
+
 /** 詳情格式版本，日後欄位增減時可由此判讀舊資料 */
 const ACTIVITY_DETAIL_VERSION = 1;
 
@@ -303,11 +309,12 @@ function describe(detailKey, before, payload, result) {
   };
 }
 
-/** 詳情序列化後的字元上限 */
-const ACTIVITY_DETAIL_MAX_LENGTH = 500;
+/** 詳情序列化後的字元上限（GAS 由 gasRuntime 單一來源取得，Node 退回字面值） */
+const ACTIVITY_DETAIL_MAX_LENGTH = (GAS_RUNTIME && GAS_RUNTIME.ACTIVITY_DETAIL_MAX_LENGTH) || 500;
 
-/** 降級失敗時使用的最小合法 JSON */
-const MINIMAL_ACTIVITY_DETAIL_JSON = '{"版本":1,"動作":"","指標":{},"截斷":true}';
+/** 降級失敗時使用的最小合法 JSON（GAS 由 gasRuntime 單一來源取得，Node 退回字面值） */
+const MINIMAL_ACTIVITY_DETAIL_JSON =
+  (GAS_RUNTIME && GAS_RUNTIME.MINIMAL_ACTIVITY_DETAIL_JSON) || '{"版本":1,"動作":"","指標":{},"截斷":true}';
 
 /**
  * 將詳情序列化結果修剪至上限內，採逐級降級且每級重新序列化驗證，
