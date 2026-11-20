@@ -19,7 +19,7 @@ function run() {
   let html = base.ui.renderHeader();
   assert(html.indexOf('<header class="app-header">') !== -1);
   assert(html.indexOf("測試系統") !== -1);
-  assert(html.indexOf("Web App Template v1.0.0") !== -1);
+  assert(html.indexOf("Web App Template v1.1.0") !== -1);
   assert(html.indexOf('<span class="pill muted">未授權</span>') !== -1);
   assert(html.indexOf('<option value="modern-slate" selected>') !== -1);
   assert(html.indexOf("◐ 深色模式") !== -1);

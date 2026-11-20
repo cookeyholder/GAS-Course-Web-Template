@@ -27,6 +27,10 @@
   "use strict";
 
   const MOCK_DELAY_MS = 150;
+  /** 套件版本後綴；Mock 版本由此衍生（task 5.1）。 */
+  const MOCK_VERSION_SUFFIX = "-mock";
+  /** 無注入版本時的退回值，與 gasRuntime.WEB_API_VERSION 一致。 */
+  const FALLBACK_PACKAGE_VERSION = "1.1.0";
 
   /**
    * 建立獨立的 Mock API 實例，狀態不與其他實例共用。
@@ -37,6 +41,16 @@
   function createMockApi(deps) {
     const options = deps || {};
     const mockWindow = options.window || (typeof window !== "undefined" ? window : null);
+    // Mock 版本由套件版本衍生；優先注入值，其次瀏覽器全域，最後退回常數。
+    const injectedVersion =
+      typeof options.packageVersion === "string" && options.packageVersion.trim() !== ""
+        ? options.packageVersion.trim()
+        : mockWindow &&
+            typeof mockWindow.__PACKAGE_VERSION__ === "string" &&
+            mockWindow.__PACKAGE_VERSION__.trim() !== ""
+          ? mockWindow.__PACKAGE_VERSION__.trim()
+          : FALLBACK_PACKAGE_VERSION;
+    const mockVersion = injectedVersion + MOCK_VERSION_SUFFIX;
     const setTimeoutFn =
       typeof options.setTimeoutFn === "function"
         ? options.setTimeoutFn
@@ -149,7 +163,7 @@
     function createPublicConfig() {
       return {
         ok: true,
-        version: "1.1.0-mock",
+        version: mockVersion,
         systemName: mockSettings.systemName,
         schoolYear: mockSettings.schoolYear,
         semester: mockSettings.semester,
@@ -364,7 +378,7 @@
 
     const actionHandlers = {
       ping: function () {
-        return { ok: true, pong: nowFn(), version: "1.1.0-mock" };
+        return { ok: true, pong: nowFn(), version: mockVersion };
       },
       getPublicConfig: createPublicConfig,
       login: buildLoginPayload,

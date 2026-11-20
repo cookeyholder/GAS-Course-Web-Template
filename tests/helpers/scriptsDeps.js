@@ -54,6 +54,8 @@ function createTempProject() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "gas-quality-"));
   const webapp = path.join(root, "webapp");
   fs.mkdirSync(path.join(webapp, "js"), { recursive: true });
+  // build-webapp.js 需要套件版本（task 5.1），提供測試用預設值。
+  fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ version: "1.1.0" }), "utf8");
 
   return {
     root: root,

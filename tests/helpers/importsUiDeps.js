@@ -252,7 +252,7 @@ function createUiDeps(overrides) {
   };
   const config = {
     title: "測試系統",
-    version: "1.0.0",
+    version: "1.1.0",
     mock: false,
     themeKey: "gas_tmpl.theme.v1",
     styleKey: "gas_tmpl.style.v1",

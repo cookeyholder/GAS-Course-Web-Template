@@ -32,8 +32,21 @@
   /** 操作日誌工作表名稱（前後端共用單一來源） */
   const SHEET_ACTIVITY_LOG = "操作日誌";
 
-  /** Web API 版本號（所有後端回應共用單一來源） */
-  const WEB_API_VERSION = "1.1.0";
+  /** Web API 版本號退回值：無建置注入（如 Node 測試）時使用，對外維持 1.1.0 */
+  const FALLBACK_WEB_API_VERSION = "1.1.0";
+
+  /**
+   * 解析 Web API 版本號（task 5.1）：優先使用 build-webapp.js 由 package.json
+   * 產生並隨 push 上傳的 version.generated.js 所掛載的全域值，退回固定值。
+   *
+   * 採 getter 延遲讀取，以相容 GAS 檔案載入順序（version.generated.js 在 gasRuntime.js 之後）。
+   *
+   * @returns {string} Web API 版本號
+   */
+  function resolveWebApiVersion_() {
+    const injected = typeof globalThis !== "undefined" ? globalThis.__PACKAGE_VERSION__ : undefined;
+    return typeof injected === "string" && injected.trim() !== "" ? injected.trim() : FALLBACK_WEB_API_VERSION;
+  }
 
   /** 授權角色定義（所有後端角色顯示名稱共用單一來源） */
   const ROLE_DEFINITIONS = {
@@ -172,7 +185,9 @@
     LEGACY_SHEET_COURSE_INDEX: LEGACY_SHEET_COURSE_INDEX,
     SHEET_SYSTEM_INSTRUCTIONS: SHEET_SYSTEM_INSTRUCTIONS,
     SHEET_ACTIVITY_LOG: SHEET_ACTIVITY_LOG,
-    WEB_API_VERSION: WEB_API_VERSION,
+    get WEB_API_VERSION() {
+      return resolveWebApiVersion_();
+    },
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
     hasOwn: hasOwn,
     getRuntime_: getRuntime_,

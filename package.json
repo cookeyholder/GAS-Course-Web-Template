@@ -1,6 +1,6 @@
 {
   "name": "gas-course-web-template",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Google Apps Script 網頁應用程式範本（含 GIS 登入、課程代碼匯入與 1NF 正規化、多風格現代前端）",
   "scripts": {
     "build:webapp": "node scripts/build-webapp.js",

@@ -20,6 +20,10 @@ const JS_BLOCK = /<!-- BUILD:JS -->([\s\S]*?)<!-- \/BUILD:JS -->/;
 const SCRIPT_TAG = /<script\s+src="([^"]+)"\s*><\/script>/g;
 const BUILD_COMMENT = "<!-- 本檔由 scripts/build-webapp.js 自動產生，請勿直接編輯；請修改 webapp/ 後重新建置 -->";
 const PRODUCTION_FLAG = "<script>window.MEA_PRODUCTION_BUILD = true;</script>";
+/** 後端可讀取的版本來源檔名，需隨 npm run push 上傳至 GAS。 */
+const VERSION_GENERATED_FILE = "version.generated.js";
+/** 版本來源全域變數名稱，前端與後端共用。 */
+const VERSION_GLOBAL_NAME = "__PACKAGE_VERSION__";
 
 /**
  * 跳脫腳本內容中的結尾標籤。
@@ -45,9 +49,67 @@ function createBuilder(options) {
   const cssPath = settings.css || path.join(root, "webapp", "styles.css");
   const webappDir = settings.webappDir || path.join(root, "webapp");
   const outputPath = settings.output || path.join(root, "index.html");
+  const packagePath = settings.package || path.join(root, "package.json");
+  const versionGeneratedPath = settings.versionGenerated || path.join(root, VERSION_GENERATED_FILE);
 
   function read(file) {
     return fsApi.readFileSync(file, "utf8");
+  }
+
+  /**
+   * 由 package.json 讀取版本號（版本號單一來源，task 5.1）。
+   *
+   * @returns {string} 套件版本號
+   */
+  function readPackageVersion() {
+    if (!fsApi.existsSync(packagePath)) {
+      throw new Error("找不到 package.json：" + packagePath);
+    }
+    let parsed;
+    try {
+      parsed = JSON.parse(read(packagePath));
+    } catch (error) {
+      throw new Error("package.json 格式錯誤：" + packagePath);
+    }
+    const version = parsed && parsed.version;
+    if (typeof version !== "string" || version.trim() === "") {
+      throw new Error("package.json 缺少有效的 version 欄位：" + packagePath);
+    }
+    return version.trim();
+  }
+
+  /**
+   * 產生後端可讀取的版本來源檔（GAS 全域掛載 + Node 匯出）。
+   *
+   * @param {string} version - 套件版本號
+   * @returns {string} 版本模組原始碼
+   */
+  function buildVersionSource(version) {
+    return [
+      "/**",
+      " * 由 scripts/build-webapp.js 從 package.json 產生，請勿直接編輯。",
+      " * 後端可讀取的版本來源（task 5.1）；GAS 全域掛載，Node 由 module.exports 匯出。",
+      " */",
+      '"use strict";',
+      "",
+      "const PACKAGE_VERSION = " + JSON.stringify(version) + ";",
+      "",
+      'if (typeof module !== "undefined" && module.exports) module.exports = { PACKAGE_VERSION: PACKAGE_VERSION };',
+      'if (typeof globalThis !== "undefined") globalThis.' + VERSION_GLOBAL_NAME + " = PACKAGE_VERSION;",
+      ""
+    ].join("\n");
+  }
+
+  /**
+   * 注入前端版本全域標記（task 5.1）。
+   *
+   * @param {string} html - 原始 HTML
+   * @param {string} version - 套件版本號
+   * @returns {string} 注入後的 HTML
+   */
+  function insertVersionFlag(html, version) {
+    const flag = "<script>window." + VERSION_GLOBAL_NAME + " = " + JSON.stringify(version) + ";</script>";
+    return html.replace("<head>", "<head>\n  " + flag);
   }
 
   function readTemplate() {
@@ -113,6 +175,7 @@ function createBuilder(options) {
   }
 
   function build() {
+    const version = readPackageVersion();
     let html = readTemplate();
     html = replaceCss(html);
 
@@ -122,12 +185,16 @@ function createBuilder(options) {
     }
 
     const jsResult = replaceJs(html, match);
-    html = insertProductionFlag(insertBuildComment(jsResult.html));
+    html = insertVersionFlag(insertProductionFlag(insertBuildComment(jsResult.html)), version);
     fsApi.mkdirSync(path.dirname(outputPath), { recursive: true });
     fsApi.writeFileSync(outputPath, html, "utf8");
+    // 後端可讀取的版本來源需與前端同一版本，並隨 push 上傳（task 5.1）。
+    fsApi.writeFileSync(versionGeneratedPath, buildVersionSource(version), "utf8");
 
     return {
       output: outputPath,
+      version: version,
+      versionGenerated: versionGeneratedPath,
       bytes: Buffer.byteLength(html, "utf8"),
       scripts: jsResult.scripts.map(function (script) {
         return script.relative;
@@ -161,6 +228,7 @@ if (require.main === module) {
         " 個腳本）"
     );
     console.log("腳本順序：" + result.scripts.join(" → "));
+    console.log("套件版本：" + result.version + "（後端來源：" + path.relative(ROOT, result.versionGenerated) + "）");
   } catch (error) {
     console.error("[build-webapp] " + (error && error.message ? error.message : error));
     process.exitCode = 1;
@@ -170,5 +238,7 @@ if (require.main === module) {
 module.exports = {
   build: build,
   createBuilder: createBuilder,
-  escapeScript: escapeScript
+  escapeScript: escapeScript,
+  VERSION_GENERATED_FILE: VERSION_GENERATED_FILE,
+  VERSION_GLOBAL_NAME: VERSION_GLOBAL_NAME
 };
