@@ -125,6 +125,14 @@ async function run() {
   }
   console.log("   ✓ config/mock 版本驗證通過！\n");
 
+  console.log("6. 建置產生的 version.generated.js 應提供後端版本來源...\n");
+  {
+    const generated = require("../version.generated.js");
+    assert.strictEqual(generated.PACKAGE_VERSION, PACKAGE_VERSION);
+    assert.strictEqual(globalThis.__PACKAGE_VERSION__, PACKAGE_VERSION);
+    console.log("   ✓ 建置版本來源驗證通過！\n");
+  }
+
   console.log("✓ packageVersionInjection.test.js 測試全數通過！\n");
 }
 
