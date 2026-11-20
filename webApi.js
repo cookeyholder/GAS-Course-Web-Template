@@ -205,21 +205,44 @@ function isAllowedGoogleDomain(email, configuredDomain, hostedDomain) {
 }
 
 /**
- * 在短臨界區內執行首次管理員開通；寫入前重新檢查白名單以避免並發覆寫。
- * 無 LockService 的 Node 測試環境直接執行回呼。
+ * 單一 Script Lock 模板（task 4.3）：取得鎖後執行 fn，並在 finally 釋放。
+ *
+ * - 無 LockService 或 skipLock 時直接執行 fn（Node 測試環境與非鎖定動作）。
+ * - tryLock 失敗或擲錯時呼叫 onLockFailure；未提供時回傳 lock_timeout 錯誤。
+ * - 釋放鎖的 try/catch 集中在這裡，釋放失敗不影響已完成的工作。
+ *
+ * @param {Object} [options] - 選項
+ * @param {Object} [options.lockService] - 鎖服務（預設使用全域 LockService）
+ * @param {boolean} [options.skipLock] - 是否略過鎖定
+ * @param {Function} [options.onLockFailure] - 取得鎖失敗時的處理函式
+ * @param {Function} fn - 臨界區回呼，接收鎖狀態
+ * @returns {*} fn 或 onLockFailure 的回傳值
  */
-function runBootstrapWithLock_(fn) {
-  if (typeof LockService === "undefined" || !LockService.getScriptLock) return fn();
-  const lock = LockService.getScriptLock();
+function withScriptLock_(options, fn) {
+  const config = options || {};
+  const lockService =
+    config.lockService || (typeof LockService !== "undefined" && LockService.getScriptLock ? LockService : null);
+  const lockState = { lock: null, hasLock: false, lockFailed: false };
+  // 無可用鎖服務或明確略過：直接執行，不視為逾時。
+  if (config.skipLock === true || !lockService) return fn(lockState);
+
+  const lock = lockService.getScriptLock();
   let acquired = false;
   try {
-    acquired = lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
+    acquired = !!lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
   } catch (lockError) {
     acquired = false;
   }
-  if (!acquired) return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
+  if (!acquired) {
+    lockState.lockFailed = true;
+    if (typeof config.onLockFailure === "function") return config.onLockFailure(lockState);
+    return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
+  }
+
+  lockState.lock = lock;
+  lockState.hasLock = true;
   try {
-    return fn();
+    return fn(lockState);
   } finally {
     try {
       lock.releaseLock();
@@ -227,6 +250,14 @@ function runBootstrapWithLock_(fn) {
       // 釋放失敗不影響已完成的寫入結果
     }
   }
+}
+
+/**
+ * 在短臨界區內執行首次管理員開通；寫入前重新檢查白名單以避免並發覆寫。
+ * 無 LockService 的 Node 測試環境直接執行回呼。
+ */
+function runBootstrapWithLock_(fn) {
+  return withScriptLock_({}, fn);
 }
 
 function createSessionForEmail(email, name, options) {
@@ -674,31 +705,8 @@ function buildTokenExchangeFailure_(statusCode, tokenData) {
  * deps.lockService 可供測試注入，正式環境使用全域 LockService。
  */
 function runOAuthCallbackWriteLock_(fn, deps) {
-  const lockService =
-    deps && deps.lockService
-      ? deps.lockService
-      : typeof LockService !== "undefined" && LockService.getScriptLock
-        ? LockService
-        : null;
-  if (!lockService) return fn();
-
-  const lock = lockService.getScriptLock();
-  let acquired = false;
-  try {
-    acquired = lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
-  } catch (lockError) {
-    acquired = false;
-  }
-  if (!acquired) return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
-  try {
-    return fn();
-  } finally {
-    try {
-      lock.releaseLock();
-    } catch (releaseError) {
-      // 釋放失敗不影響已完成的寫入結果
-    }
-  }
+  // deps.lockService 可供測試注入；未注入時由 withScriptLock_ 使用全域 LockService。
+  return withScriptLock_({ lockService: deps && deps.lockService ? deps.lockService : undefined }, fn);
 }
 
 function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss, stateContext) {
@@ -1305,28 +1313,7 @@ function getWebApiAction_(payload, event, shouldTrim) {
 }
 
 /**
- * 依 action 判斷是否需要寫入鎖並嘗試取得，回傳鎖狀態供釋放。
- *
- * @param {string} action - action 名稱
- * @returns {{lock: Object|null, hasLock: boolean, lockFailed: boolean}} 鎖狀態
- */
-function acquireWebApiLock_(action) {
-  const state = { lock: null, hasLock: false, lockFailed: false };
-  if (WEB_API_LOCKED_ACTIONS.indexOf(action) === -1) return state;
-  // LockService 不可用時維持既有行為：略過鎖定，不視為逾時。
-  if (typeof LockService === "undefined" || !LockService.getScriptLock) return state;
-  state.lock = LockService.getScriptLock();
-  try {
-    state.hasLock = state.lock.tryLock(WEB_API_LOCK_TIMEOUT_MS);
-  } catch (lockError) {
-    state.hasLock = false;
-  }
-  state.lockFailed = !state.hasLock;
-  return state;
-}
-
-/**
- * 於 executeWebApi 的 finally 統一釋放鎖並寫入操作日誌。
+ * 於 executeWebApi 的 finally 統一寫入操作日誌（鎖已由 withScriptLock_ 釋放）。
  * 日誌寫入失敗不得影響 API 回應。
  *
  * @param {Object} context - 日誌 context
@@ -1334,12 +1321,10 @@ function acquireWebApiLock_(action) {
  * @param {Object|string} payload - 原始請求資料
  * @param {Object|null} finalResult - 最終 API 回應
  * @param {Object|null} beforeSnapshot - 寫入前快照
- * @param {Object|null} lock - 已取得的鎖
- * @param {boolean} hasLock - 是否成功取得鎖
  */
-function finalizeWebApiRequest_(context, actionMeta, payload, finalResult, beforeSnapshot, lock, hasLock) {
-  // 解鎖、寫入與失敗隔離的實際邏輯見 activityLogInterceptor.js。
-  ACTIVITY_LOG_INTERCEPTOR.finalize(context, actionMeta, payload, finalResult, beforeSnapshot, lock, hasLock);
+function finalizeWebApiRequest_(context, actionMeta, payload, finalResult, beforeSnapshot) {
+  // 寫入與失敗隔離的實際邏輯見 activityLogInterceptor.js。
+  ACTIVITY_LOG_INTERCEPTOR.finalize(context, actionMeta, payload, finalResult, beforeSnapshot);
 }
 
 function executeWebApi(payload, event) {
@@ -1347,7 +1332,6 @@ function executeWebApi(payload, event) {
     getWebApiAction_(payload, event, false),
     Date.now()
   );
-  let lockState = { lock: null, hasLock: false };
   let finalResult = null;
   let actionMeta = null;
   let beforeSnapshot = null;
@@ -1392,39 +1376,38 @@ function executeWebApi(payload, event) {
     }
     if (authorization) recordWebApiIdentity_(context, authorization, null);
 
-    lockState = acquireWebApiLock_(action);
-    if (lockState.lockFailed) {
-      context.errorCode = "lock_timeout";
-      return finish_(webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試"));
-    }
-    // beforeSnapshot 必須在成功取得鎖之後（鎖定動作）或鎖判定完成之後（非鎖定動作）、
-    // 路由實際寫入之前擷取，避免併發請求讀到過期前值。
-    if (shouldLogActivity_(action, actionMeta)) {
-      beforeSnapshot = ACTIVITY_LOG_INTERCEPTOR.captureSnapshot(actionMeta);
-    }
-    const routeFn =
-      typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"
-        ? module.exports.routeWebApiAction
-        : routeWebApiAction;
-    const result = routeFn(action, payload, event);
-    if ((action === "login" || action === "loginWithActiveUser") && result && result.ok) {
-      recordWebApiIdentity_(context, null, result);
-    }
-    return finish_(result);
+    // 單一鎖模板：鎖定動作在臨界區內擷取快照並執行路由，
+    // withScriptLock_ 於 fn 結束時先釋放鎖，外層 finally 才寫入日誌。
+    const routeResult = withScriptLock_(
+      {
+        skipLock: WEB_API_LOCKED_ACTIONS.indexOf(action) === -1,
+        onLockFailure: function () {
+          context.errorCode = "lock_timeout";
+          return webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試");
+        }
+      },
+      function () {
+        if (shouldLogActivity_(action, actionMeta)) {
+          beforeSnapshot = ACTIVITY_LOG_INTERCEPTOR.captureSnapshot(actionMeta);
+        }
+        const routeFn =
+          typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"
+            ? module.exports.routeWebApiAction
+            : routeWebApiAction;
+        const result = routeFn(action, payload, event);
+        if ((action === "login" || action === "loginWithActiveUser") && result && result.ok) {
+          recordWebApiIdentity_(context, null, result);
+        }
+        return result;
+      }
+    );
+    return finish_(routeResult);
   } catch (error) {
     console.error("[webApi executeWebApi error] " + (error && error.stack ? error.stack : error));
     context.errorCode = "server_error";
     return finish_(webApiError("server_error", "系統發生未預期的錯誤，請稍後再試"));
   } finally {
-    finalizeWebApiRequest_(
-      context,
-      actionMeta,
-      payload,
-      finalResult,
-      beforeSnapshot,
-      lockState.lock,
-      lockState.hasLock
-    );
+    finalizeWebApiRequest_(context, actionMeta, payload, finalResult, beforeSnapshot);
   }
 }
 
@@ -1553,6 +1536,7 @@ if (typeof module !== "undefined" && module.exports) {
     normalizeActivityLogTimestamp: normalizeActivityLogTimestamp_,
     getPublicConfig: getPublicConfig,
     executeWebApi: executeWebApi,
+    withScriptLock: withScriptLock_,
     createWebApiLogContext: createWebApiLogContext_,
     recordWebApiIdentity: recordWebApiIdentity_,
     buildActivityLogRecord: buildActivityLogRecord_,

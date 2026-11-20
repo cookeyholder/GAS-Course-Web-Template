@@ -233,26 +233,16 @@ function createActivityLogInterceptor(deps) {
   }
 
   /**
-   * 於 executeWebApi 的 finally 統一釋放鎖並寫入操作日誌。
-   * 日誌寫入失敗不得影響 API 回應。
+   * 於 executeWebApi 的 finally 統一寫入操作日誌。
+   * 鎖已由 webApi.js 的 withScriptLock_ 在前一步釋放，日誌寫入失敗不得影響 API 回應。
    *
    * @param {Object} context - 日誌 context
    * @param {Object|null} actionMeta - 日誌中繼資料
    * @param {Object|string} payload - 原始請求資料
    * @param {Object|null} finalResult - 最終 API 回應
    * @param {Object|null} beforeSnapshot - 寫入前快照
-   * @param {Object|null} lock - 已取得的鎖
-   * @param {boolean} hasLock - 是否成功取得鎖
    */
-  function finalize(context, actionMeta, payload, finalResult, beforeSnapshot, lock, hasLock) {
-    if (hasLock && lock) {
-      try {
-        lock.releaseLock();
-      } catch (releaseError) {
-        // 忽略解鎖失敗
-      }
-    }
-    // 統一日誌寫入必須在解鎖之後，且不得再次取得同一把 Script Lock。
+  function finalize(context, actionMeta, payload, finalResult, beforeSnapshot) {
     // 解析失敗或缺少 action 時仍須寫入，故補上預設中繼資料。
     const meta = actionMeta || getMeta(context.action);
     if (!shouldLog(context.action, meta)) return;

@@ -275,9 +275,8 @@ console.log("7. buildRecord 在 GAS Utilities 可用時應以(formatDate)產生�
   console.log("   ✓ GAS 時區分支驗證通過！\n");
 }
 
-console.log("8. finalize 應釋放鎖、寫入日誌並隔離寫入例外...\n");
+console.log("8. finalize 應寫入日誌並隔離寫入例外...\n");
 {
-  let released = 0;
   const { interceptor, state } = makeInterceptor({
     resolveAppendActivityLog: function () {
       return function (record, spreadsheet) {
@@ -290,37 +289,10 @@ console.log("8. finalize 應釋放鎖、寫入日誌並隔離寫入例外...\n")
     { category: "query", detailKey: "none", enabled: true },
     {},
     { ok: true },
-    null,
-    {
-      releaseLock: function () {
-        released += 1;
-      }
-    },
-    true
+    null
   );
-  assert.strictEqual(released, 1);
   assert.strictEqual(state.appended.length, 1);
   assert.strictEqual(state.spreadsheetCalls, 1);
-
-  // 解鎖擲錯不應中斷寫入
-  const { interceptor: unlockThrow } = makeInterceptor({
-    resolveAppendActivityLog: function () {
-      return function () {};
-    }
-  });
-  unlockThrow.finalize(
-    unlockThrow.createContext("x", 1),
-    { category: "query", detailKey: "none", enabled: true },
-    {},
-    { ok: true },
-    null,
-    {
-      releaseLock: function () {
-        throw new Error("unlock");
-      }
-    },
-    true
-  );
 
   // 寫入函式不可用時不寫入
   const { interceptor: noAppender, state: noAppenderState } = makeInterceptor();
@@ -329,9 +301,7 @@ console.log("8. finalize 應釋放鎖、寫入日誌並隔離寫入例外...\n")
     { category: "query", detailKey: "none", enabled: true },
     {},
     { ok: true },
-    null,
-    null,
-    false
+    null
   );
   assert.strictEqual(noAppenderState.appended.length, 0);
 
@@ -348,9 +318,7 @@ console.log("8. finalize 應釋放鎖、寫入日誌並隔離寫入例外...\n")
     { category: "query", detailKey: "none", enabled: true },
     {},
     { ok: true },
-    null,
-    null,
-    false
+    null
   );
   assert.strictEqual(throwingState.errors.length, 1);
   assert.strictEqual(throwingState.errors[0].detail, "write failed");
@@ -363,7 +331,7 @@ console.log("8. finalize 應釋放鎖、寫入日誌並隔離寫入例外...\n")
       };
     }
   });
-  noMeta.finalize(noMeta.createContext("unknown", 1), null, {}, { ok: true }, null, null, false);
+  noMeta.finalize(noMeta.createContext("unknown", 1), null, {}, { ok: true }, null);
   assert.strictEqual(noMetaState.appended[0].category, "query");
   console.log("   ✓ finalize 驗證通過！\n");
 }
