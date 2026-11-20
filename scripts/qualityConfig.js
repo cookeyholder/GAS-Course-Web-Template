@@ -81,18 +81,53 @@ const RATCHET_DIRECTIONS = Object.freeze({
 });
 
 /**
- * 讀取基準線快照。
+ * ratchet 比較所需的基準欄位路徑；缺任一欄位即視為基準無效。
+ */
+const REQUIRED_BASELINE_PATHS = Object.freeze([
+  ["coverage", "totals", "lines", "pct"],
+  ["coverage", "totals", "statements", "pct"],
+  ["coverage", "totals", "functions", "pct"],
+  ["coverage", "totals", "branches", "pct"],
+  ["crap", "crapMax"],
+  ["crap", "crapOver30Count"],
+  ["maintainability", "miMin"]
+]);
+
+/**
+ * 驗證基準線的必要欄位皆為有限數字，避免欄位被誤刪時 ratchet 被靜默關閉。
+ *
+ * @param {Object} baseline - 基準線資料
+ * @returns {Object} 通過驗證的基準線資料
+ * @throws {Error} 必要欄位缺失或非有限數字時
+ */
+function validateBaseline(baseline) {
+  const source = baseline || {};
+  REQUIRED_BASELINE_PATHS.forEach(function (parts) {
+    let value = source;
+    for (let i = 0; i < parts.length; i += 1) {
+      value = value === null || value === undefined ? undefined : value[parts[i]];
+    }
+    if (!Number.isFinite(value)) {
+      throw new Error("基準線缺少必要數值欄位：" + parts.join("."));
+    }
+  });
+  return source;
+}
+
+/**
+ * 讀取基準線快照並驗證必要欄位。
  *
  * @returns {Object} 基準線資料
+ * @throws {Error} 檔案讀取失敗或必要欄位缺失時
  */
 function loadBaseline() {
   const baselinePath = path.join(PROJECT_ROOT, PATHS.qualityBaseline);
-  return JSON.parse(fs.readFileSync(baselinePath, "utf8"));
+  return validateBaseline(JSON.parse(fs.readFileSync(baselinePath, "utf8")));
 }
 
 /**
  * 以方向性 ratchet 比較實際量測值與基準值。
- * 僅比較雙方皆為數字的指標；缺少的指標視為無可比對，不視為回退。
+ * 僅比較雙方皆為有限數值且方向合法的指標；缺少或無效的指標視為無可比對，不視為回退。
  *
  * @param {Object} options - 比較選項
  * @param {Object} [options.actual] - 實際量測值（鍵為指標名稱）
@@ -110,9 +145,11 @@ function compareWithBaseline(options) {
   Object.keys(directions).forEach(function (metric) {
     const actualValue = actual[metric];
     const baselineValue = baseline[metric];
-    if (typeof actualValue !== "number" || typeof baselineValue !== "number") return;
+    if (!Number.isFinite(actualValue) || !Number.isFinite(baselineValue)) return;
 
     const direction = directions[metric];
+    if (direction !== "higher-is-better" && direction !== "lower-is-better") return;
+
     const regressed = direction === "lower-is-better" ? actualValue > baselineValue : actualValue < baselineValue;
     if (regressed) {
       regressions.push({
@@ -138,6 +175,8 @@ module.exports = {
   PATHS: PATHS,
   THRESHOLDS: THRESHOLDS,
   RATCHET_DIRECTIONS: RATCHET_DIRECTIONS,
+  REQUIRED_BASELINE_PATHS: REQUIRED_BASELINE_PATHS,
+  validateBaseline: validateBaseline,
   loadBaseline: loadBaseline,
   compareWithBaseline: compareWithBaseline
 };

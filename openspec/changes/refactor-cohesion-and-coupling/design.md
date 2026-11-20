@@ -7,7 +7,7 @@
 - 後端運行於 GAS V8，根目錄 `*.js` 共享全域命名空間；Node 測試則仰賴 `module.exports` 與白名單注入。任何拆分都必須維持雙環境相容，且新增後端模組必須隨 `npm run push` 上傳、不得被 `.claspignore` 排除。
 - `index.html` 為 `build-webapp.js` 依 `webapp/index.html` 的 `<script>` 順序內嵌的單一產物；新增前端模組必須更新樣板順序，建置腳本不另維護模組清單。
 - 操作日誌已通過稽核測試與 RBAC 測試，拆分時必須保持日誌內容、寫入時機與錯誤不阻斷主流程的語意；既有 facade 匯出被大量測試直接使用，需保留向後相容轉發。
-- 品質閘門已綠燈（CRAP > 30 為 0、MI 最低 83.666、覆蓋率 94.75／94.75／92.15／83.67），但 `scripts/quality-baseline.json` 為 2026-11-18 過期快照（CRAP 最高 1482、超標 56、MI 最低 69.134、覆蓋率 27.37／27.37／58.82／37.87）。ratchet 以重構前量測值為準，採方向性比較：CRAP／超標數取低、MI／覆蓋率取高。
+- 品質閘門在重構前的量測既有值為 CRAP 最高 30／超標 0、MI 最低 83.666、覆蓋率 94.8／94.8／92.15／83.79（見 `measurement-baseline-before-refactor.md`；早期文件的 94.75／94.75／92.15／83.67 與 MI 83.67 僅為量測前參考值，不得作為 ratchet 來源），但 `scripts/quality-baseline.json` 為 2026-11-18 過期快照（CRAP 最高 1482、超標 56、MI 最低 69.134、覆蓋率 27.37／27.37／58.82／37.87）。ratchet 以重構前量測既有值為準，採方向性比較：CRAP／超標數取低、MI／覆蓋率取高。
 
 ## Goals / Non-Goals
 
@@ -126,7 +126,7 @@
 1. 確認目前位置：`git log --oneline -5`；批次 D 的起點（即前一批次 A–C 的合併 commit）為 `f0022d0`。
 2. 建立回滾分支並回到前一批次：`git checkout -b rollback/batch-c f0022d0`。
 3. 執行安全網：`npm test`、`npm run build:webapp`、`npm run check:coverage`、`npm run check:complexity`、`npm run check:changed-coverage`（以 `CHANGED_COVERAGE_BASE` 指定回滾目標的父 commit）。
-4. 推送與部署：`npm run push`（自動先建置再 `clasp push`），接著 `npm run deploy -i <DEPLOYMENT_ID> -d "回滾至批次 C"`，以 `-i` 明確沿用既有 deployment ID。若已有 `CLASP_DEPLOYMENT_ID` 環境變數，亦可直接 `npm run deploy -d "回滾至批次 C"`。
+4. 推送與部署：`npm run push`（自動先建置再 `clasp push`），接著 `npm run deploy -- -i <DEPLOYMENT_ID> -d "回滾至批次 C"`。**必須以 `--` 分隔 npm 旗標與腳本參數**，否則 `-i`／`-d` 會被 npm 自行解析而在 npm 10 被吃掉、在 npm 12 直接報錯，可能建立新的 deployment ID 與網址。若已有 `CLASP_DEPLOYMENT_ID` 環境變數，亦可改用 `node scripts/deploy.js -d "回滾至批次 C"` 直接呼叫部署腳本。部署後務必以 `npm run status` 確認 deployment ID 與退回前一致。
 5. 驗證同路徑 A 步驟 3；另執行 `node scripts/captureGoldenLogSnapshot.js /tmp/golden-after-rollback.json` 並與 `openspec/changes/refactor-cohesion-and-coupling/golden-log-snapshot.json` 比對，確認 `getPublicConfig` 與日誌寫入行為未漂移。
 
 #### 驗證方式與結果

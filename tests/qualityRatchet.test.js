@@ -95,12 +95,20 @@ function run() {
     });
     assert.strictEqual(partial.regressions.length, 1, "缺少基準的指標應略過");
 
+    // 以「實際值高於基準」搭配 lower-is-better 才能證明自訂方向真正被採用。
     const custom = qualityConfig.compareWithBaseline({
-      actual: { customMetric: 5 },
+      actual: { customMetric: 15 },
       baseline: { customMetric: 10 },
       directions: { customMetric: "lower-is-better" }
     });
-    assert.strictEqual(custom.ok, true, "自訂 lower-is-better 方向應生效");
+    assert.strictEqual(custom.ok, false, "自訂 lower-is-better 方向應標記回退");
+    assert.strictEqual(custom.regressions[0].direction, "lower-is-better");
+
+    const withoutDirections = qualityConfig.compareWithBaseline({
+      actual: { customMetric: 15 },
+      baseline: { customMetric: 10 }
+    });
+    assert.strictEqual(withoutDirections.ok, true, "未知指標鍵應略過");
     console.log("   ✓ 缺少指標與自訂方向驗證通過！\n");
   }
 
@@ -226,6 +234,90 @@ function run() {
     });
     assert.strictEqual(failedLoad, 1, "基準線讀取失敗時應回傳失敗");
     console.log("   ✓ 基準線讀取與失敗處理驗證通過！\n");
+  }
+
+  console.log("7. 驗證無效數值、等於基準與非法方向...");
+  {
+    const invalid = qualityConfig.compareWithBaseline({
+      actual: { lines: NaN, statements: Infinity, functions: "90", branches: null },
+      baseline: { lines: 95, statements: 96, functions: 92, branches: 84 }
+    });
+    assert.strictEqual(invalid.ok, true, "非有限數值應略過，不得因 typeof 為 number 而誤判");
+    assert.strictEqual(invalid.regressions.length, 0);
+
+    const negativeInfinity = qualityConfig.compareWithBaseline({
+      actual: { crapMax: -Infinity },
+      baseline: { crapMax: 30 }
+    });
+    assert.strictEqual(negativeInfinity.ok, true, "-Infinity 應略過");
+
+    const metrics = Object.keys(qualityConfig.RATCHET_DIRECTIONS);
+    const makeValues = function (value) {
+      const result = {};
+      metrics.forEach(function (metric) {
+        result[metric] = value;
+      });
+      return result;
+    };
+    const equal = qualityConfig.compareWithBaseline({ actual: makeValues(50), baseline: makeValues(50) });
+    assert.strictEqual(equal.ok, true, "等於基準時不應視為回退");
+    assert.strictEqual(equal.regressions.length, 0);
+
+    const badDirection = qualityConfig.compareWithBaseline({
+      actual: { lines: 90 },
+      baseline: { lines: 95 },
+      directions: { lines: "sideways" }
+    });
+    assert.strictEqual(badDirection.ok, true, "非法方向應略過，不得誤用 higher-is-better 比較");
+    assert.strictEqual(badDirection.regressions.length, 0);
+    console.log("   ✓ 無效數值與邊界驗證通過！\n");
+  }
+
+  console.log("8. 驗證基準線必要欄位檢查...");
+  {
+    const valid = {
+      coverage: {
+        totals: {
+          lines: { pct: 96 },
+          statements: { pct: 96 },
+          functions: { pct: 94 },
+          branches: { pct: 85 }
+        }
+      },
+      crap: { crapMax: 30, crapOver30Count: 0 },
+      maintainability: { miMin: 83.666 }
+    };
+    assert.strictEqual(qualityConfig.validateBaseline(valid), valid, "完整基準應通過驗證");
+    assert.strictEqual(qualityConfig.REQUIRED_BASELINE_PATHS.length, 7, "應檢查七個 ratchet 必要數值");
+
+    assert.throws(
+      function () {
+        qualityConfig.validateBaseline({});
+      },
+      /coverage\.totals\.lines\.pct/,
+      "缺少整個區塊時應丟出錯誤"
+    );
+
+    const missing = JSON.parse(JSON.stringify(valid));
+    delete missing.crap.crapMax;
+    assert.throws(
+      function () {
+        qualityConfig.validateBaseline(missing);
+      },
+      /crap\.crapMax/,
+      "缺少 CRAP 欄位應丟出錯誤，避免 ratchet 被靜默關閉"
+    );
+
+    const notFinite = JSON.parse(JSON.stringify(valid));
+    notFinite.maintainability.miMin = NaN;
+    assert.throws(
+      function () {
+        qualityConfig.validateBaseline(notFinite);
+      },
+      /miMin/,
+      "非有限數值應丟出錯誤"
+    );
+    console.log("   ✓ 基準線必要欄位檢查通過！\n");
   }
 
   console.log("✓ 方向性 ratchet 比較測試全數通過！\n");
