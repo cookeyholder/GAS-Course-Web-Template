@@ -31,15 +31,13 @@ if (typeof require !== "undefined" && GAS_RUNTIME) {
     "readWhitelist",
     "saveWhitelist",
     "getAccountRole",
-    "bootstrapAdminIfNeeded",
-    "initializeDatabaseSheets"
+    "bootstrapAdminIfNeeded"
   ]);
   GAS_RUNTIME.injectGlobals_("./subjectCodeTransformer.js", [
     "importNormalizedCourseCodes",
     "getNormalizedCourses",
     "getCourseIndexStats"
   ]);
-  GAS_RUNTIME.injectGlobals_("./utilities.js", ["safeApplySheetFontSize", "safeSetNumberFormat", "sanitizeRowMatrix"]);
 }
 
 /** Web API 版本號由 gasRuntime 提供（單一來源） */
