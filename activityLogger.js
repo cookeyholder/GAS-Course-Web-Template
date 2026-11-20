@@ -18,23 +18,9 @@ const GAS_RUNTIME =
 /** 日誌欄位順序，與 gasRuntime.ACTIVITY_LOG_HEADERS 一一對應（單一來源見 gasRuntime） */
 const ACTIVITY_LOG_FIELDS = GAS_RUNTIME.ACTIVITY_LOG_FIELDS;
 
-/** CacheService 鍵前綴（與其他快取資料區隔） */
-const ACTIVITY_LOG_CACHE_PREFIX = "gas_tmpl_activitylog_";
-
 /** 超過此資料列數即觸發清理，清理後保留目標列數（不含標題列） */
 const MAX_ACTIVITY_LOG_ROWS = 20000;
 const TARGET_ACTIVITY_LOG_ROWS = 15000;
-
-/** Node 測試環境的記憶體快取備援（不實作 TTL，過期行為由注入的 fake cache 驗證） */
-const ACTIVITY_LOG_MEMORY_STORE = {};
-const ACTIVITY_LOG_MEMORY_CACHE = {
-  get: function (key) {
-    return ACTIVITY_LOG_MEMORY_STORE[key] || null;
-  },
-  put: function (key, value) {
-    ACTIVITY_LOG_MEMORY_STORE[key] = String(value);
-  }
-};
 
 /** 單一欄位寫入上限（字元數），避免惡意超長內容撐爆工作表 */
 const MAX_FIELD_LENGTH = 500;
@@ -69,22 +55,6 @@ function resolveSheetName_() {
  */
 function resolveSpreadsheet_(ss) {
   return GAS_RUNTIME.getActiveSpreadsheetSafe_({ spreadsheet: ss });
-}
-
-/**
- * 取得寫入計數快取；GAS 用 CacheService，Node 測試可用 deps.cache 注入。
- *
- * @param {Object} [deps] - 相依注入
- * @returns {Object} 具 get/put 方法的快取物件
- */
-function getActivityLogCache_(deps) {
-  if (deps && deps.cache && typeof deps.cache.get === "function" && typeof deps.cache.put === "function") {
-    return deps.cache;
-  }
-  if (typeof CacheService !== "undefined" && CacheService.getScriptCache) {
-    return CacheService.getScriptCache();
-  }
-  return ACTIVITY_LOG_MEMORY_CACHE;
 }
 
 /**
@@ -183,7 +153,7 @@ function buildActivityLogRow_(record) {
  *
  * @param {Object|Array} record - 日誌紀錄
  * @param {*} [ss] - 明確指定的試算表物件
- * @param {Object} [deps] - 皆可注入的相依（已預留供快取與清理使用）
+ * @param {Object} [deps] - 保留的相依參數（當前寫入路徑直接使用試算表）
  * @returns {boolean} 是否成功寫入
  */
 function appendActivityLog_(record, ss, deps) {
@@ -207,7 +177,6 @@ function appendActivityLog_(record, ss, deps) {
  *
  * @param {Object} [options] - 選項
  * @param {*} [options.spreadsheet] - 明確指定的試算表
- * @param {Object} [options.cache] - 明確指定的快取（供取樣值更新）
  * @returns {Object} `{ ok, before, after, deleted }`
  */
 function cleanupActivityLogRows(options) {
@@ -280,11 +249,9 @@ function ensureActivityLogCleanupTrigger_(options) {
 
 const ACTIVITY_LOGGER_API = {
   ACTIVITY_LOG_FIELDS: ACTIVITY_LOG_FIELDS,
-  ACTIVITY_LOG_CACHE_PREFIX: ACTIVITY_LOG_CACHE_PREFIX,
   MAX_ACTIVITY_LOG_ROWS: MAX_ACTIVITY_LOG_ROWS,
   TARGET_ACTIVITY_LOG_ROWS: TARGET_ACTIVITY_LOG_ROWS,
   MAX_FIELD_LENGTH: MAX_FIELD_LENGTH,
-  getActivityLogCache: getActivityLogCache_,
   appendActivityLog: appendActivityLog_,
   appendActivityLog_: appendActivityLog_,
   buildActivityLogRow: buildActivityLogRow_,

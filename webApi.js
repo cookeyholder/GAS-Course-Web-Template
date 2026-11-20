@@ -1032,7 +1032,7 @@ function normalizeActivityLogTimestamp_(value) {
  */
 function handleGetActivityLogWebApiAction_(payload, session, ss) {
   if (ACTIVITY_LOG_QUERY) return ACTIVITY_LOG_QUERY.handleGetActivityLog(payload, session, ss);
-  return webApiError("server_error", "操作日誌查詢模組未載入");
+  return webApiError("server_error", "系統發生未預期的錯誤，請稍後再試");
 }
 
 /** 將所有 action 的處理函式註冊至 ACTION_REGISTRY，消除獨立 switch 造成的漂移。 */

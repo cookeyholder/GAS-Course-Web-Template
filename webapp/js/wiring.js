@@ -5,7 +5,7 @@
  *
  * 基礎服務（config／state／api／safeErrors／courseData／mock）仍由各自模組
  * 掛至 window.MEA；本檔最後載入，組裝 ui／auth／imports／courses／accounts／
- * activityLog 與 app controller，並回填全域別名以相容任務 6.2 前的 inline 事件。
+ * activityLog 與 app controller，並回填全域別名以保留既有公開方法名稱與測試契約。
  */
 (function (root) {
   "use strict";

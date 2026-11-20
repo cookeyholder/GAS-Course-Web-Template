@@ -122,17 +122,6 @@
   }
 
   /**
-   * 取得目前環境的 gasRuntime（Node.js 首次載入時自動 require）。
-   *
-   * @returns {Object} gasRuntime API
-   */
-  function getRuntime_() {
-    if (typeof globalThis !== "undefined" && globalThis.gasRuntime) return globalThis.gasRuntime;
-    if (typeof require === "function") return require("./gasRuntime.js");
-    throw new Error("找不到 gasRuntime 共用模組");
-  }
-
-  /**
    * 唯一的相依解析入口，順序為：overrides（呼叫端 module.exports）→ globalThis → 模組 module.exports → fallback。
    *
    * overrides 由呼叫端傳入自身的 module.exports（例如 webApi），保留以
@@ -266,7 +255,6 @@
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
     hasOwn: hasOwn,
     normalizeAllowedDomain: normalizeAllowedDomain,
-    getRuntime_: getRuntime_,
     resolveDependency_: resolveDependency_,
     getActiveSpreadsheetSafe_: getActiveSpreadsheetSafe_,
     injectGlobals_: injectGlobals_
