@@ -68,18 +68,7 @@ function resolveSheetName_() {
  * @returns {*} 試算表實例或 null
  */
 function resolveSpreadsheet_(ss) {
-  if (GAS_RUNTIME && typeof GAS_RUNTIME.getActiveSpreadsheetSafe_ === "function") {
-    return GAS_RUNTIME.getActiveSpreadsheetSafe_({ spreadsheet: ss });
-  }
-  if (ss) return ss;
-  if (
-    typeof SpreadsheetApp !== "undefined" &&
-    SpreadsheetApp &&
-    typeof SpreadsheetApp.getActiveSpreadsheet === "function"
-  ) {
-    return SpreadsheetApp.getActiveSpreadsheet();
-  }
-  return null;
+  return GAS_RUNTIME.getActiveSpreadsheetSafe_({ spreadsheet: ss });
 }
 
 /**

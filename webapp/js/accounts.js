@@ -31,6 +31,11 @@
     (typeof globalThis !== "undefined" && globalThis.gasRuntime && globalThis.gasRuntime.ROLE_CODES) ||
     (typeof require === "function" ? require("../../gasRuntime.js").ROLE_CODES : null);
 
+  // 網域正規化規則單一來源（task 5.5）：瀏覽器由 gasRuntime 全域取得，Node 由 require 取得。
+  const gasRuntime =
+    (typeof globalThis !== "undefined" && globalThis.gasRuntime) ||
+    (typeof require === "function" ? require("../../gasRuntime.js") : null);
+
   // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
   if (typeof module !== "undefined" && module.exports) {
     require("./errorMessages.js");
@@ -119,7 +124,7 @@
         semester: semesterInput ? semesterInput.value.trim() : "",
         clientId: clientIdInput ? clientIdInput.value.trim() : "",
         clientSecret: clientSecretInput ? clientSecretInput.value.trim() : "",
-        allowedLoginDomain: allowedDomainInput ? allowedDomainInput.value.trim().replace(/^@/, "").toLowerCase() : "",
+        allowedLoginDomain: gasRuntime.normalizeAllowedDomain(allowedDomainInput ? allowedDomainInput.value : ""),
         restrict: !!(restrictInput && restrictInput.checked)
       };
     }

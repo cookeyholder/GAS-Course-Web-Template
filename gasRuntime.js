@@ -189,6 +189,20 @@
   }
 
   /**
+   * 正規化允許登入網域（task 5.5）：去除前綴 @、前後空白並轉小寫。
+   * 前後端共用單一來源，避免各模組重複規則產生語意漂移。
+   *
+   * @param {*} configuredDomain - 設定的網域值
+   * @returns {string} 正規化後的網域
+   */
+  function normalizeAllowedDomain(configuredDomain) {
+    return String(configuredDomain || "")
+      .trim()
+      .replace(/^@/, "")
+      .toLowerCase();
+  }
+
+  /**
    * 安全取得試算表：明確傳入 > SpreadsheetApp > null。
    *
    * @param {Object} [options] - 選項
@@ -251,6 +265,7 @@
     ROLE_CODES: ROLE_CODES,
     ROLE_DEFINITIONS: ROLE_DEFINITIONS,
     hasOwn: hasOwn,
+    normalizeAllowedDomain: normalizeAllowedDomain,
     getRuntime_: getRuntime_,
     resolveDependency_: resolveDependency_,
     getActiveSpreadsheetSafe_: getActiveSpreadsheetSafe_,

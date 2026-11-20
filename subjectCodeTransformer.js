@@ -167,12 +167,7 @@ function importNormalizedCourseCodes(rawData, options) {
 }
 
 function resolveCourseIndexSpreadsheet_(ss) {
-  return (
-    ss ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null)
-  );
+  return GAS_RUNTIME.getActiveSpreadsheetSafe_({ spreadsheet: ss });
 }
 
 function createEmptyCourseQueryResult_(page, pageSize, totalPages) {

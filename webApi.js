@@ -188,10 +188,7 @@ function generateCsrfToken() {
 }
 
 function normalizeAllowedDomain(configuredDomain) {
-  return String(configuredDomain || "")
-    .trim()
-    .replace(/^@/, "")
-    .toLowerCase();
+  return GAS_RUNTIME.normalizeAllowedDomain(configuredDomain);
 }
 
 function isAllowedGoogleDomain(email, configuredDomain, hostedDomain) {
@@ -266,11 +263,7 @@ function runBootstrapWithLock_(fn) {
 
 function createSessionForEmail(email, name, options) {
   options = options || {};
-  const ss =
-    options.spreadsheet ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
+  const ss = GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
 
   const cleanEmail = String(email || "")
     .trim()
@@ -478,12 +471,7 @@ function loginWithGoogleIdToken(idToken, options) {
 }
 
 function resolveLoginSpreadsheet_(options) {
-  const resolvedOptions = options || {};
-  if (resolvedOptions.spreadsheet) return resolvedOptions.spreadsheet;
-  if (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet) {
-    return SpreadsheetApp.getActiveSpreadsheet();
-  }
-  return null;
+  return GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
 }
 
 function getActiveUserEmail_() {
@@ -629,10 +617,7 @@ function validateOAuthCallbackState_(state, expectedRedirectUri, deps) {
 }
 
 function getOAuthSpreadsheet_(deps) {
-  if (deps && deps.spreadsheet) return deps.spreadsheet;
-  return typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-    ? SpreadsheetApp.getActiveSpreadsheet()
-    : null;
+  return GAS_RUNTIME.getActiveSpreadsheetSafe_(deps);
 }
 
 function getOAuthSettings_(deps, ss) {
@@ -848,10 +833,7 @@ function authorizeWebApiAction(action, payload) {
 // ============================================================================
 
 function getPublicConfig() {
-  const ss =
-    typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null;
+  const ss = GAS_RUNTIME.getActiveSpreadsheetSafe_();
   const settings = readSystemSettings(ss);
 
   let needsBootstrap = false;

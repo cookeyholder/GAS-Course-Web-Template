@@ -28,6 +28,9 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // 網域正規化規則單一來源（task 5.5）：瀏覽器由建置腳本先嵌入 gasRuntime，Node 由 require 取得。
+  const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
+
   // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
   if (typeof module !== "undefined" && module.exports) {
     require("./errorMessages.js");
@@ -228,10 +231,7 @@
   }
 
   function normalizeAllowedDomain(allowedDomain) {
-    return String(allowedDomain || "")
-      .trim()
-      .replace(/^@/, "")
-      .toLowerCase();
+    return gasRuntime.normalizeAllowedDomain(allowedDomain);
   }
 
   function buildAccountChooserUrl(webAppUrl, allowedDomain) {

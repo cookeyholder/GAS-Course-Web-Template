@@ -330,10 +330,7 @@ function parseConfigBoolean(value) {
 }
 
 function normalizeAllowedLoginDomain_(value) {
-  return String(value || "")
-    .trim()
-    .replace(/^@/, "")
-    .toLowerCase();
+  return GAS_RUNTIME.normalizeAllowedDomain(value);
 }
 
 function applySystemSettingConvenienceFields_(config) {
@@ -417,10 +414,7 @@ function normalizeSystemSettingValue_(targetKey, value) {
     return parseConfigBoolean(value) ? "true" : "false";
   }
   if (targetKey === "Google 登入允許網域") {
-    return String(value || "")
-      .trim()
-      .replace(/^@/, "")
-      .toLowerCase();
+    return GAS_RUNTIME.normalizeAllowedDomain(value);
   }
   return String(value === null || value === undefined ? "" : value);
 }
@@ -481,11 +475,7 @@ function saveSystemSettingsToSheet_(ss, updates) {
 }
 
 function saveSystemSettings(settings, ss) {
-  const targetSs =
-    ss ||
-    (typeof SpreadsheetApp !== "undefined" && SpreadsheetApp.getActiveSpreadsheet
-      ? SpreadsheetApp.getActiveSpreadsheet()
-      : null);
+  const targetSs = GAS_RUNTIME.getActiveSpreadsheetSafe_({ spreadsheet: ss });
   const updates = buildSystemSettingUpdates_(settings);
   if (!targetSs) return saveSystemSettingsToMemory_(updates);
   return saveSystemSettingsToSheet_(targetSs, updates);

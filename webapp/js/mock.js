@@ -26,6 +26,9 @@
 })(typeof window !== "undefined" ? window : typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  // 網域正規化規則單一來源（task 5.5）：瀏覽器由建置腳本先嵌入 gasRuntime，Node 由 require 取得。
+  const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
+
   const MOCK_DELAY_MS = 150;
   /** 套件版本後綴；Mock 版本由此衍生（task 5.1）。 */
   const MOCK_VERSION_SUFFIX = "-mock";
@@ -169,10 +172,7 @@
         semester: mockSettings.semester,
         clientId: mockSettings.clientId,
         hasClientSecret: Boolean(mockSettings.clientSecret),
-        allowedDomain: String(mockSettings.allowedLoginDomain || "")
-          .trim()
-          .replace(/^@/, "")
-          .toLowerCase(),
+        allowedDomain: gasRuntime.normalizeAllowedDomain(mockSettings.allowedLoginDomain),
         activeEmail: "admin@example.com",
         webAppUrl: (mockWindow && mockWindow.location && mockWindow.location.href) || ""
       };
