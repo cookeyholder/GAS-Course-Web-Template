@@ -60,6 +60,7 @@ const ACTIVITY_LOG_QUERY_MODULE =
 const ACTIVITY_LOG_QUERY = ACTIVITY_LOG_QUERY_MODULE
   ? ACTIVITY_LOG_QUERY_MODULE.createActivityLogQuery({
       webApiError: webApiError,
+      adminRoleCode: GAS_RUNTIME.ROLE_CODES.ADMIN,
       adminRoleName: ADMIN_ROLE_NAME,
       sheetName: GAS_RUNTIME.SHEET_ACTIVITY_LOG,
       getSpreadsheet: getRouteSpreadsheet_,

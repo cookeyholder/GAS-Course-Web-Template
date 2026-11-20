@@ -25,19 +25,14 @@
    * 隔離環境無 gasRuntime 時退回同值常數，維持雙環境載入相容。
    */
   function resolveRoleCodes_() {
-    const runtime =
-      typeof globalThis !== "undefined" && globalThis.gasRuntime
-        ? globalThis.gasRuntime
-        : typeof require === "function"
-          ? require("./gasRuntime.js")
-          : null;
-    return (
-      (runtime && runtime.ROLE_CODES) || {
-        ADMIN: "admin",
-        STAFF: "staff",
-        VIEWER: "viewer"
-      }
-    );
+    const fallback = { ADMIN: "admin", STAFF: "staff", VIEWER: "viewer" };
+    let runtime = null;
+    if (typeof globalThis !== "undefined" && globalThis.gasRuntime) {
+      runtime = globalThis.gasRuntime;
+    } else if (typeof require === "function") {
+      runtime = require("./gasRuntime.js");
+    }
+    return (runtime && runtime.ROLE_CODES) || fallback;
   }
 
   /** 所有角色的代碼（由 gasRuntime.ROLE_CODES 衍生，單一來源） */
@@ -105,7 +100,7 @@
     importCourseCodes: {
       write: true,
       locked: true,
-      roles: ["admin", "staff"],
+      roles: [ROLE_CODES.ADMIN, ROLE_CODES.STAFF],
       logCategory: "write",
       logLabel: "匯入課程代碼",
       logDetailKey: "importCourseCodes",
@@ -135,14 +130,14 @@
     saveSystemSettings: {
       write: true,
       locked: true,
-      roles: ["admin"],
+      roles: [ROLE_CODES.ADMIN],
       logCategory: "write",
       logLabel: "儲存系統設定",
       logDetailKey: "systemSettings",
       logEnabled: true
     },
     getAccounts: {
-      roles: ["admin"],
+      roles: [ROLE_CODES.ADMIN],
       logCategory: "query",
       logLabel: "查詢授權成員",
       logDetailKey: "query",
@@ -151,14 +146,14 @@
     saveWhitelist: {
       write: true,
       locked: true,
-      roles: ["admin"],
+      roles: [ROLE_CODES.ADMIN],
       logCategory: "write",
       logLabel: "儲存授權名單",
       logDetailKey: "whitelist",
       logEnabled: true
     },
     getActivityLog: {
-      roles: ["admin"],
+      roles: [ROLE_CODES.ADMIN],
       logCategory: "query",
       logLabel: "查詢操作日誌",
       logDetailKey: "none",

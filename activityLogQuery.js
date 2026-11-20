@@ -74,6 +74,7 @@ function isValidActivityLogDate(dateStr) {
  *
  * @param {Object} deps - 相依
  * @param {Function} deps.webApiError - 產生錯誤回應的函式
+ * @param {string} deps.adminRoleCode - 系統管理員角色代碼（由 gasRuntime.ROLE_CODES.ADMIN 注入）
  * @param {string} deps.adminRoleName - 系統管理員顯示名稱
  * @param {string} deps.sheetName - 操作日誌工作表名稱
  * @param {Function} deps.getSpreadsheet - 取得試算表的函式
@@ -83,6 +84,7 @@ function isValidActivityLogDate(dateStr) {
 function createActivityLogQuery(deps) {
   const config = deps || {};
   const webApiError = config.webApiError;
+  const adminRoleCode = config.adminRoleCode || "admin";
   const adminRoleName = config.adminRoleName || "";
   const sheetName = config.sheetName || "";
   const getSpreadsheet = config.getSpreadsheet;
@@ -222,7 +224,7 @@ function createActivityLogQuery(deps) {
    * 回傳依時間遞減排序的分頁日誌，單次最多 500 筆。
    */
   function handleGetActivityLog(payload, session, ss) {
-    if (!session || session.role !== "admin") {
+    if (!session || session.role !== adminRoleCode) {
       return webApiError("forbidden", "僅" + adminRoleName + "可查閱操作日誌");
     }
     const source = payload || {};
