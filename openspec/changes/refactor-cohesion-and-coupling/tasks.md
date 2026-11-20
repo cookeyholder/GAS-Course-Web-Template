@@ -22,7 +22,7 @@
 
 - [x] 2.1 重構 `activityLogBuilders.js` 的快照取得：移除 `resolveDbFn_()`，改讓 `captureBefore(detailKey, ss, snapshotProvider)` 接受由呼叫端傳入的 `readSystemSettings`／`readWhitelist` 純函式提供者；提供者讀取失敗時降級為最小合法 JSON，不阻斷主流程。驗證：`node tests/activityLogBuilders.test.js` 與 `node tests/activityLogBuildersBranchCoverage.test.js` 通過，且檔案內不再出現 `require("./databaseInitializer.js")` 與 `require("./gasRuntime.js")`。
 - [x] 2.2 調整呼叫端注入：在 `webApi.js` 建立 log context 處（原 `:1423`）傳入已解析的系統設定與白名單讀取函式，確保 `captureBefore` 取得相同資料來源。驗證：`npm test` 全數通過，特別是 `tests/activityLogModuleIndependence.test.js`、`tests/webApiActivityLog.test.js`、`tests/webApiActivityLogBranchCoverage.test.js`。
-- [ ] 2.3 修正假驗證的獨立性測試：改寫 `tests/activityLogModuleIndependence.test.js`，在單一全新行程中載入 `databaseInitializer → activityLogger → activityLogBuilders` 完整鏈並驗證相依方向，且能因人為注入的循環而失敗；補上提供者失敗降級的測試案例。驗證：`node tests/activityLogModuleIndependence.test.js` 通過，且 1.1 的相依圖測試顯示無環。
+- [x] 2.3 修正假驗證的獨立性測試：改寫 `tests/activityLogModuleIndependence.test.js`，在單一全新行程中載入 `databaseInitializer → activityLogger → activityLogBuilders` 完整鏈並驗證相依方向，且能因人為注入的循環而失敗；補上提供者失敗降級的測試案例。驗證：`node tests/activityLogModuleIndependence.test.js` 通過，且 1.1 的相依圖測試顯示無環。
 
 ### 3. 合併相依解析機制（改善 3）
 
