@@ -183,6 +183,52 @@ function createActivityLogInterceptor(deps) {
   }
 
   /**
+   * 建立最小可用的版本化詳情結構。
+   *
+   * @param {string} action - action 名稱
+   * @returns {Object} 最小詳情物件
+   */
+  function createMinimalDetail_(action) {
+    return { 版本: 1, 動作: action, 指標: {}, 變動: [] };
+  }
+
+  /**
+   * 正規化失敗請求的詳情：保留統計指標、清空變動並標記未執行。
+   * 失敗請求（例如 CSRF 驗證失敗）未實際執行寫入，不得留下基於 payload 推導的誤導變動；
+   * importCourseCodes 的統計標記（指標）仍須保留，以利稽核失敗原因。
+   *
+   * @param {*} detail - 詳情產生器回傳值
+   * @param {string} action - action 名稱
+   * @returns {Object} 正規化後的詳情物件
+   */
+  function normalizeFailureDetail_(detail, action) {
+    let normalized = detail;
+    if (!normalized || typeof normalized !== "object" || Array.isArray(normalized)) {
+      normalized = createMinimalDetail_(action);
+    }
+    if (!normalized.指標 || typeof normalized.指標 !== "object" || Array.isArray(normalized.指標)) {
+      normalized.指標 = {};
+    }
+    normalized.變動 = [];
+    normalized.指標.執行 = "未執行";
+    return normalized;
+  }
+
+  /**
+   * 以 Asia/Taipei 時區產生 `yyyy-MM-dd HH:mm:ss` 時間戳記。
+   * GAS 使用 Utilities，Node 測試採固定 +8 偏移，不依賴機器時區。
+   *
+   * @param {Date} now - 時間點
+   * @returns {string} 格式化後的時間戳記
+   */
+  function formatActivityLogTimestamp_(now) {
+    if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+      return Utilities.formatDate(now, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+    }
+    return new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
+  }
+
+  /**
    * 建立操作日誌寫入紀錄。
    *
    * @param {Object} context - 日誌 context
@@ -194,7 +240,7 @@ function createActivityLogInterceptor(deps) {
    */
   function buildRecord(context, meta, payload, result, before) {
     const builders = resolveBuilders();
-    let detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
+    let detail = createMinimalDetail_(context.action);
     if (builders && typeof builders.describe === "function") {
       try {
         // 產生器自行以欄位級白名單挑選可記錄欄位；此處必須傳入原始 payload，
@@ -204,27 +250,11 @@ function createActivityLogInterceptor(deps) {
         // 詳情產生失敗時保留最小可用的版本化結構
       }
     }
-    // 失敗請求（例如 CSRF 驗證失敗）未實際執行寫入，不得留下基於 payload 推導的誤導變動。
-    // importCourseCodes 的統計標記（指標）仍須保留，以利稽核失敗原因。
     if (result && result.ok === false) {
-      if (!detail || typeof detail !== "object" || Array.isArray(detail)) {
-        detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
-      }
-      if (!detail.指標 || typeof detail.指標 !== "object" || Array.isArray(detail.指標)) {
-        detail.指標 = {};
-      }
-      detail.變動 = [];
-      detail.指標.執行 = "未執行";
-    }
-    const now = new Date();
-    let timestamp;
-    if (typeof Utilities !== "undefined" && Utilities.formatDate) {
-      timestamp = Utilities.formatDate(now, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
-    } else {
-      timestamp = new Date(now.getTime() + 8 * 60 * 60 * 1000).toISOString().replace("T", " ").slice(0, 19);
+      detail = normalizeFailureDetail_(detail, context.action);
     }
     return {
-      timestamp: timestamp,
+      timestamp: formatActivityLogTimestamp_(new Date()),
       requestId: context.requestId,
       category: meta.category,
       action: meta.label || context.action || "未識別動作",
