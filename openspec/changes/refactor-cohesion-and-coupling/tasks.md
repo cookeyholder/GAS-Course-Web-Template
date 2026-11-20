@@ -13,7 +13,7 @@
 ### 1. 建立安全網與相依分析基線
 
 - [x] 1.1 建立後端相依圖快照測試：新增 `tests/moduleDependencyGraph.test.js`，以靜態掃描 `require()` 與 `resolveDependency_` 呼叫列出後端模組相依邊，驗證目前三節點環（`databaseInitializer → activityLogger → activityLogBuilders → databaseInitializer`）被正確偵測；並加入「人為注入一條環時測試必須失敗」的反向斷言。驗證：`node tests/moduleDependencyGraph.test.js` 通過，且注入人造環時結束碼為失敗。
-- [ ] 1.2 補上 OpenSpec 既有但缺失的「不覆寫同名全域」測試：紅燈測試先置於 `scripts/fixtures/gasRuntimeNoOverwrite.fixture.js`（檔名不以 `.test.js` 結尾，`scripts/run-tests.js` 只探索 `tests/**/*.test.js`，故不影響 `npm test`）。測試先定義與後端匯出同名的全域函式，再載入 `webApi.js`，證明目前會覆寫；3.3 完成後搬入 `tests/gasRuntime.test.js` 並轉為綠燈。驗證：1.2 完成至 3.3 完成期間 `npm test` 保持全綠，3.3 後該測試轉綠。
+- [x] 1.2 補上 OpenSpec 既有但缺失的「不覆寫同名全域」測試：紅燈測試先置於 `scripts/fixtures/gasRuntimeNoOverwrite.fixture.js`（檔名不以 `.test.js` 結尾，`scripts/run-tests.js` 只探索 `tests/**/*.test.js`，故不影響 `npm test`）。測試先定義與後端匯出同名的全域函式，再載入 `webApi.js`，證明目前會覆寫；3.3 完成後搬入 `tests/gasRuntime.test.js` 並轉為綠燈。驗證：1.2 完成至 3.3 完成期間 `npm test` 保持全綠，3.3 後該測試轉綠。
 - [ ] 1.3 記錄重構前量測基線與 golden snapshot：執行 `npm run check:complexity` 與 `npm run test:coverage`，記錄 `reports/quality/complexity.json` 與 `coverage/coverage-summary.json` 的量測值作為方向性 ratchet 的「既有值」（現行參考值：CRAP 最高 30、超標 0、MI 最低 83.666；覆蓋率 94.75／94.75／92.15／83.67；實際以執行結果為準）；另擷取代表性請求的日誌 golden snapshot 供 4.2 比對。驗證：兩指令結束碼為 0，報告檔存在且數值已記錄於本任務備註。
 
 ### 2. 打斷三節點循環相依（改善 1）
