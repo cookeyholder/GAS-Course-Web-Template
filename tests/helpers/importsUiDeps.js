@@ -6,6 +6,7 @@
  */
 
 const uiModule = require("../../webapp/js/ui.js");
+const safeErrors = require("./safeErrorsDeps.js").safeErrors;
 const importsModule = require("../../webapp/js/imports.js");
 
 /**
@@ -267,6 +268,7 @@ function createUiDeps(overrides) {
   const MEA = {
     state: state,
     config: config,
+    safeErrors: safeErrors,
     setState: function (patch) {
       Object.assign(state, patch);
       calls.setState.push(Object.assign({}, patch));
@@ -350,6 +352,7 @@ function createImportsDeps(overrides) {
   const MEA = {
     state: state,
     config: config,
+    safeErrors: safeErrors,
     setState: function (patch) {
       Object.assign(state, patch);
       calls.setState.push(Object.assign({}, patch));

@@ -22,18 +22,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
-
-  function createSafeError(message) {
-    return globalThis.MEA.safeErrors.createSafeError(message);
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   const CSRF_STORAGE_KEY = "gas_tmpl.csrf.v1";
 
@@ -60,6 +50,7 @@
 
   function createApiClient(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const config = options.config || {};
     const storage = options.storage || {
       getItem: function () {
@@ -201,7 +192,7 @@
       return {
         ok: false,
         error: "server_error",
-        message: resolveSafeMessage(error, "後端執行失敗，請稍後再試")
+        message: safeErrors.resolveSafeMessage(error, "後端執行失敗，請稍後再試")
       };
     }
 
@@ -234,7 +225,7 @@
 
     function handleFetchResponse(response) {
       if (response.ok === false) {
-        const error = createSafeError("伺服器回應 HTTP " + response.status + "，請稍後再試");
+        const error = safeErrors.createSafeError("伺服器回應 HTTP " + response.status + "，請稍後再試");
         error.status = response.status;
         throw error;
       }
@@ -248,7 +239,7 @@
       return {
         ok: false,
         error: "network_error",
-        message: resolveSafeMessage(error, "無法連線至 Google Apps Script 伺服器，請確認網路連線或稍後再試")
+        message: safeErrors.resolveSafeMessage(error, "無法連線至 Google Apps Script 伺服器，請確認網路連線或稍後再試")
       };
     }
 
@@ -258,7 +249,7 @@
         return createMissingApiUrlError();
       }
       if (typeof fetchFn !== "function") {
-        return Promise.resolve(createNetworkError(createSafeError("尚未取得瀏覽器連線功能，請稍後再試")));
+        return Promise.resolve(createNetworkError(safeErrors.createSafeError("尚未取得瀏覽器連線功能，請稍後再試")));
       }
       return fetchFn(apiUrl, {
         method: "POST",
@@ -399,6 +390,7 @@
     };
     const client = createApiClient({
       config: MEA.config || {},
+      safeErrors: MEA.safeErrors,
       storage: storage,
       fetchFn: typeof browser.fetch === "function" ? browser.fetch.bind(browser) : null,
       google: browser.google || null,

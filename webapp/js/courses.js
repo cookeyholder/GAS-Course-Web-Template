@@ -24,14 +24,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   /**
    * 建立課程代碼模組控制器。
@@ -41,6 +35,7 @@
    */
   function createCoursesModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
     // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
@@ -132,7 +127,7 @@
      * @returns {string} 可顯示的錯誤訊息
      */
     function normalizeErrorMessage(error, fallback) {
-      return resolveSafeMessage(error, fallback);
+      return safeErrors.resolveSafeMessage(error, fallback);
     }
 
     /**

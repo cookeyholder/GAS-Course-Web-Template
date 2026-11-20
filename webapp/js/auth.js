@@ -28,18 +28,10 @@
   // 網域正規化規則單一來源（task 5.5）：瀏覽器由建置腳本先嵌入 gasRuntime，Node 由 require 取得。
   const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
-
-  function createSafeError(message) {
-    return globalThis.MEA.safeErrors.createSafeError(message);
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
+  // 模組級純函式無法取得工廠注入，故使用共用解析結果做為安全訊息來源。
+  const sharedSafeErrors = moduleHelpers.resolveSafeErrors();
 
   const GIS_SRC = "https://accounts.google.com/gsi/client";
   const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -73,7 +65,7 @@
     return {
       view: "login",
       loginBusy: false,
-      loginError: resolveSafeMessage(result, DEFAULT_LOGIN_ERROR)
+      loginError: sharedSafeErrors.resolveSafeMessage(result, DEFAULT_LOGIN_ERROR)
     };
   }
 
@@ -373,7 +365,7 @@
    * @returns {string} 顯示給使用者的訊息
    */
   function normalizeLogoutError(error) {
-    return resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
+    return sharedSafeErrors.resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
   }
 
   function buildSessionFailureState(result) {
@@ -386,6 +378,7 @@
 
   function createAuthController(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
     const win = options.window || (typeof window !== "undefined" ? window : null);
@@ -448,7 +441,7 @@
             resolve(host.google.accounts.id);
           });
           existing.addEventListener("error", function () {
-            reject(createSafeError("Google 登入服務載入失敗"));
+            reject(safeErrors.createSafeError("Google 登入服務載入失敗"));
           });
           return;
         }
@@ -461,11 +454,11 @@
           if (host.google && host.google.accounts && host.google.accounts.id) {
             resolve(host.google.accounts.id);
           } else {
-            reject(createSafeError("Google 登入服務載入失敗"));
+            reject(safeErrors.createSafeError("Google 登入服務載入失敗"));
           }
         };
         script.onerror = function () {
-          reject(createSafeError("Google 登入服務載入失敗，請檢查網路連線"));
+          reject(safeErrors.createSafeError("Google 登入服務載入失敗，請檢查網路連線"));
         };
         doc.head.appendChild(script);
       });
@@ -553,7 +546,7 @@
     }
 
     function handleGisFailure(error) {
-      MEA.setState({ loginError: resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
+      MEA.setState({ loginError: safeErrors.resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
     }
 
     /**
@@ -562,7 +555,7 @@
      * @param {*} error - 例外或錯誤物件
      */
     function handleAuthCallFailure(error) {
-      const message = resolveSafeMessage(error, DEFAULT_LOGIN_ERROR);
+      const message = safeErrors.resolveSafeMessage(error, DEFAULT_LOGIN_ERROR);
       MEA.setState({ loginBusy: false, loginError: message });
       MEA.ui.toast(message, "err");
     }

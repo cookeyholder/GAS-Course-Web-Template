@@ -24,9 +24,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   /** 後端已明確定義的錯誤代碼文案（查詢日誌專用） */
   const SAFE_ERROR_MESSAGES = {
@@ -46,10 +45,6 @@
   const DEFAULT_DAYS = 7;
   const DEFAULT_PAGE_SIZE = 50;
   const MAX_PAGE_SIZE = 500;
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
 
   /**
    * 以 Asia/Taipei 時區格式化日期為 yyyy-MM-dd。
@@ -96,6 +91,7 @@
    */
   function createActivityLogModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
     // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
@@ -219,7 +215,7 @@
       const fallback = fallbackMessage || "讀取操作日誌失敗";
       const code = value && (value.error || value.code);
       if (code && SAFE_ERROR_MESSAGES[code]) return SAFE_ERROR_MESSAGES[code];
-      return resolveSafeMessage(value, fallback);
+      return safeErrors.resolveSafeMessage(value, fallback);
     }
 
     /**

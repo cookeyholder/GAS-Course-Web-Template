@@ -5,6 +5,8 @@
  * @description webapp/js/accounts.js 與 webapp/js/courses.js 控制器測試共用的依賴模擬工廠。
  */
 
+const safeErrors = require("./safeErrorsDeps.js").safeErrors;
+
 const ROLE_NAMES = {
   admin: "系統管理員",
   staff: "業務人員",
@@ -64,6 +66,7 @@ function createAccountsDeps(overrides) {
   const MEA = {
     state: state,
     config: { roleNames: ROLE_NAMES },
+    safeErrors: safeErrors,
     setState: function (patch) {
       Object.assign(state, patch);
       calls.setState.push(Object.assign({}, patch));
@@ -146,6 +149,7 @@ function createCoursesDeps(overrides) {
 
   const MEA = {
     state: state,
+    safeErrors: safeErrors,
     courseData: {
       DEPARTMENT_CODE_NAMES: { 1: "資訊管理科", 2: "機械工程科" }
     },

@@ -5,6 +5,8 @@
  * @description webapp/js/auth.js 控制器測試共用的依賴模擬工廠。
  */
 
+const safeErrors = require("./safeErrorsDeps.js").safeErrors;
+
 /**
  * 將一般文字轉為 Base64，供測試環境模擬瀏覽器的 window.btoa。
  *
@@ -96,6 +98,7 @@ function createDeps(overrides) {
 
   const MEA = {
     state: state,
+    safeErrors: safeErrors,
     config: Object.assign(
       {
         mock: false,

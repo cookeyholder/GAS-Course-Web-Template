@@ -25,14 +25,8 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
-  // Node.js 環境載入共用模組；瀏覽器環境由 errorMessages.js 預先掛至 MEA。
-  if (typeof module !== "undefined" && module.exports) {
-    require("./errorMessages.js");
-  }
-
-  function resolveSafeMessage(value, fallback) {
-    return globalThis.MEA.safeErrors.resolveUserMessage(value, fallback);
-  }
+  // task 6.4：共用 Node require 相容墊片與 safeErrors 注入解析（Node 由 require 取得，瀏覽器由全域取得）。
+  const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   // SheetJS 自 0.19 起僅於官方 CDN 發布；固定單一版本並以 SRI 驗證完整性。
   const SHEETJS_VERSION = "0.20.3";
@@ -275,6 +269,7 @@
    */
   function createImportsModule(deps) {
     const options = deps || {};
+    const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const win = options.window || (typeof window !== "undefined" ? window : null) || {};
     const doc = options.document || (win && win.document) || (typeof document !== "undefined" ? document : null);
@@ -432,7 +427,7 @@
         })
         .catch(function (error) {
           MEA.setState({ importBusy: false });
-          MEA.ui.toast(resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
+          MEA.ui.toast(safeErrors.resolveSafeMessage(error, "解析檔案失敗，請稍後再試"), "err");
           return null;
         });
     }
@@ -517,7 +512,7 @@
 
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
-      const detail = resolveSafeMessage(error, "匯入失敗，請稍後再試");
+      const detail = safeErrors.resolveSafeMessage(error, "匯入失敗，請稍後再試");
       MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 

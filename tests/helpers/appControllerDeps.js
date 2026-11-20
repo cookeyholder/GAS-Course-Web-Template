@@ -5,6 +5,8 @@
  * @description webapp/js/app.js 控制器測試共用的依賴模擬工廠。
  */
 
+const safeErrors = require("./safeErrorsDeps.js").safeErrors;
+
 /**
  * 建立控制器測試所需的依賴與觀測紀錄。
  *
@@ -34,6 +36,7 @@ function createDeps(overrides) {
   const MEA = {
     state: state,
     config: { switchAccount: false },
+    safeErrors: safeErrors,
     setState: function (patch) {
       Object.assign(state, patch);
       calls.setState.push(Object.assign({}, patch));
