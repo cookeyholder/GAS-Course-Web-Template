@@ -127,7 +127,7 @@
 2. 建立回滾分支並回到前一批次：`git checkout -b rollback/batch-c f0022d0`。
 3. 執行安全網：`npm test`、`npm run build:webapp`、`npm run check:coverage`、`npm run check:complexity`、`npm run check:changed-coverage`（以 `CHANGED_COVERAGE_BASE` 指定回滾目標的父 commit）。
 4. 推送與部署：`npm run push`（自動先建置再 `clasp push`），接著 `npm run deploy -- -i <DEPLOYMENT_ID> -d "回滾至批次 C"`。**必須以 `--` 分隔 npm 旗標與腳本參數**，否則 `-i`／`-d` 會被 npm 自行解析而在 npm 10 被吃掉、在 npm 12 直接報錯，可能建立新的 deployment ID 與網址。若已有 `CLASP_DEPLOYMENT_ID` 環境變數，亦可改用 `node scripts/deploy.js -d "回滾至批次 C"` 直接呼叫部署腳本。部署後務必以 `npm run status` 確認 deployment ID 與退回前一致。
-5. 驗證同路徑 A 步驟 3；另執行 `node scripts/captureGoldenLogSnapshot.js /tmp/golden-after-rollback.json` 並與 `openspec/changes/refactor-cohesion-and-coupling/golden-log-snapshot.json` 比對，確認 `getPublicConfig` 與日誌寫入行為未漂移。
+5. 驗證同路徑 A 步驟 3；另執行 `node scripts/captureGoldenLogSnapshot.js /tmp/golden-after-rollback.json` 並與 `openspec/changes/archive/2026-11-20-refactor-cohesion-and-coupling/golden-log-snapshot.json` 比對，確認 `getPublicConfig` 與日誌寫入行為未漂移。
 
 #### 驗證方式與結果
 

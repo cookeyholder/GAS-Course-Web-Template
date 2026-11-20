@@ -41,7 +41,7 @@
     "crapOver30Count": 0
   },
   "ratchet": {
-    "source": "openspec/changes/refactor-cohesion-and-coupling/measurement-baseline-before-refactor.md",
+    "source": "openspec/changes/archive/2026-11-20-refactor-cohesion-and-coupling/measurement-baseline-before-refactor.md",
     "direction": {
       "higherIsBetter": ["lines", "statements", "functions", "branches", "miMin"],
       "lowerIsBetter": ["crapMax", "crapOver30Count"]

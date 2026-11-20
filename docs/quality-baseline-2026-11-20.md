@@ -114,7 +114,7 @@ CRAP 最高值恰等於硬門檻 30，未超標；MI 最低值遠高於硬門檻
 
 - 現行基準：`scripts/quality-baseline.json`
 - 過期快照：`scripts/quality-baseline.2026-11-18.json`
-- ratchet 既有值來源：`openspec/changes/refactor-cohesion-and-coupling/measurement-baseline-before-refactor.md`
+- ratchet 既有值來源：`openspec/changes/archive/2026-11-20-refactor-cohesion-and-coupling/measurement-baseline-before-refactor.md`
 - 覆蓋率報告：`coverage/coverage-summary.json`
 - 複雜度報告：`reports/quality/complexity.json`
 - 比較邏輯：`scripts/qualityConfig.js::compareWithBaseline`

@@ -222,7 +222,7 @@ npm run build:webapp
 - **CRAP**（`check:complexity`）：每個納管函式 **CRAP MUST NOT > 30**。
 - **Maintainability Index（MI）**（`check:complexity`）：每個納管模組 **MI MUST >= 20**。
 - **方向性 ratchet**：覆蓋率四維度與 MI 最低值為「越高越佳」，不得低於基準；CRAP 最高值與超標數為「越低越佳」，不得高於基準。比較邏輯集中於 `scripts/qualityConfig.js::compareWithBaseline`，由 `checkCoverage.js` 與 `checkComplexity.js` 共用。
-- **基準線**：現行基準（2026-11-20，Node v24.22.3）記錄於 `scripts/quality-baseline.json`，ratchet 既有值來源為 `openspec/changes/refactor-cohesion-and-coupling/measurement-baseline-before-refactor.md`；2026-11-18 過期快照另存為 `scripts/quality-baseline.2026-11-18.json`，僅供歷史比較，不作為 ratchet 來源。後續調整須可追溯且不得任意放寬。
+- **基準線**：現行基準（2026-11-20，Node v24.22.3）記錄於 `scripts/quality-baseline.json`，ratchet 既有值來源為 `openspec/changes/archive/2026-11-20-refactor-cohesion-and-coupling/measurement-baseline-before-refactor.md`；2026-11-18 過期快照另存為 `scripts/quality-baseline.2026-11-18.json`，僅供歷史比較，不作為 ratchet 來源。後續調整須可追溯且不得任意放寬。
 
 #### 基準新舊比較（方向性 ratchet）
 

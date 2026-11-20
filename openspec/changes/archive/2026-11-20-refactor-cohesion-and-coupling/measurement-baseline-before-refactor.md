@@ -35,7 +35,7 @@
 ## Golden 日誌快照
 
 - 擷取腳本：`scripts/captureGoldenLogSnapshot.js`
-- 快照檔：`openspec/changes/refactor-cohesion-and-coupling/golden-log-snapshot.json`
+- 快照檔：`openspec/changes/archive/2026-11-20-refactor-cohesion-and-coupling/golden-log-snapshot.json`
 - 代表性請求：7 個（含成功、失敗、不寫日誌與錯誤路徑），寫入日誌共 5 筆。
 - 動態欄位 `timestamp`／`requestId`／`durationMs` 已正規化，重複執行結果一致。
 - 用途：task 4.2 拆分 `activityLogInterceptor.js` 後，以相同腳本重新擷取並比對內容與筆數。
