@@ -153,7 +153,7 @@ function buildActivityLogRow_(record) {
  *
  * @param {Object|Array} record - 日誌紀錄
  * @param {*} [ss] - 明確指定的試算表物件
- * @param {Object} [deps] - 保留的相依參數（當前寫入路徑直接使用試算表）
+ * @param {Object} [deps] - 刻意保留以相容既有呼叫端；當前寫入路徑直接使用試算表，故此參數忽略
  * @returns {boolean} 是否成功寫入
  */
 function appendActivityLog_(record, ss, deps) {

@@ -16,7 +16,7 @@ console.log("開始執行覆蓋率量測腳本測試...\n");
 console.log("1. 驗證可由品質設定組裝 c8 量測參數...");
 {
   assert.strictEqual(typeof checkCoverage.buildC8Args, "function", "應提供 buildC8Args");
-  const args = checkCoverage.buildC8Args({ collectOnly: true });
+  const args = checkCoverage.buildC8Args();
   assert(Array.isArray(args), "buildC8Args 應回傳陣列");
 
   const joined = args.join(" ");

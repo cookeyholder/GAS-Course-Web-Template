@@ -225,6 +225,21 @@ console.log("6. buildRecord 應處理產生器擲錯、失敗請求與超長詳�
   const bad = badDetail.buildRecord(badDetail.createContext("x", 1), meta, {}, { ok: false });
   assert.strictEqual(JSON.parse(bad.detail).指標.執行, "未執行");
 
+  // 失敗請求且詳情指標為陣列時，應重建為空物件並標記未執行
+  const { interceptor: invalidMetrics } = makeInterceptor({
+    resolveBuilders: function () {
+      return {
+        describe: function () {
+          return { 版本: 1, 動作: "x", 指標: [], 變動: [{ 內容: "不應保留" }] };
+        }
+      };
+    }
+  });
+  const invalid = invalidMetrics.buildRecord(invalidMetrics.createContext("x", 1), meta, {}, { ok: false });
+  const invalidDetail = JSON.parse(invalid.detail);
+  assert.deepStrictEqual(invalidDetail.指標, { 執行: "未執行" }, "無效指標應重建為空物件");
+  assert.deepStrictEqual(invalidDetail.變動, [], "失敗請求不得保留變動");
+
   // 無截斷函式且詳情超長時應降級為最小 JSON
   const { interceptor: longDetail } = makeInterceptor({
     resolveBuilders: function () {
