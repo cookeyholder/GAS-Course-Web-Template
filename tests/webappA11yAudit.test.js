@@ -41,7 +41,7 @@ function createViolatingFixture() {
 
 async function run() {
   console.log("1. 夾具應涵蓋所有主要畫面與關鍵狀態，且淺色／深色各一份...");
-  assert(fixtures.length >= 18, "應至少有 9 種夾具 × 2 種主題");
+  assert(fixtures.length >= 26, "應至少涵蓋既有畫面與操作日誌夾具 × 2 種主題");
   ["light", "dark"].forEach(function (theme) {
     assert(
       fixtures.some(function (fixture) {
@@ -50,17 +50,41 @@ async function run() {
       "應包含 " + theme + " 主題夾具"
     );
   });
-  ["login", "login-error", "loading", "overview", "import", "courses", "settings", "forbidden", "modal"].forEach(
-    function (name) {
-      assert(
-        fixtures.some(function (fixture) {
-          return fixture.name === name;
-        }),
-        "應包含 " + name + " 夾具"
-      );
-    }
-  );
+  [
+    "login",
+    "login-error",
+    "loading",
+    "overview",
+    "import",
+    "courses",
+    "settings",
+    "forbidden",
+    "modal",
+    "activity-log",
+    "activity-log-expanded",
+    "activity-log-empty",
+    "activity-log-guard"
+  ].forEach(function (name) {
+    assert(
+      fixtures.some(function (fixture) {
+        return fixture.name === name;
+      }),
+      "應包含 " + name + " 夾具"
+    );
+  });
   console.log("   ✓ 共 " + fixtures.length + " 個夾具驗證通過！\n");
+
+  console.log("1.1 操作日誌夾具渲染後應含日誌表格標頭（非空字串）...");
+  const auditDom = harness.createA11yDocument("light");
+  const logFixture = fixtures.find(function (fixture) {
+    return fixture.name === "activity-log" && fixture.theme === "light";
+  });
+  assert(logFixture, "應存在操作日誌淺色夾具");
+  const logDoc = checkA11y.renderFixture(logFixture, auditDom);
+  const logHtml = logDoc.getElementById("app").innerHTML;
+  assert(logHtml.indexOf('<th scope="col">時間</th>') !== -1, "應渲染日誌表格標頭");
+  assert(logHtml.indexOf("操作日誌") !== -1, "應渲染操作日誌標題");
+  console.log("   ✓ 操作日誌夾具渲染內容驗證通過！\n");
 
   console.log("2. 明確停用 color-contrast（由 CSS 對比檢查互補）...");
   assert.strictEqual(checkA11y.RULES["color-contrast"].enabled, false);

@@ -142,6 +142,35 @@ console.log("5. 敏感欄位與原始資料不得寫入...");
   console.log("   ✓ 敏感欄位排除驗證通過！\n");
 }
 
+console.log("5.1 巢狀物件、陣列與大小寫變體敏感資料不得寫入日誌列...");
+{
+  const sheet = makeSheet();
+  const leaked = ["NESTED-TOKEN-LEAK", "ARRAY-CSRF-LEAK", "CASE-TOKEN-LEAK", "CASE-CSRF-LEAK"];
+  const ok = logger.appendActivityLog_(
+    sampleRecord({
+      TOKEN: "CASE-TOKEN-LEAK",
+      CsrfToken: "CASE-CSRF-LEAK",
+      summary: { nested: { token: "NESTED-TOKEN-LEAK" } },
+      name: ["使用者", { csrfToken: "ARRAY-CSRF-LEAK" }],
+      detail: JSON.stringify({
+        版本: 1,
+        動作: "login",
+        指標: {},
+        變動: []
+      })
+    }),
+    makeSpreadsheet(sheet)
+  );
+  assert.strictEqual(ok, true);
+  const row = sheet.rows[0];
+  assert.strictEqual(row.length, 12);
+  const text = JSON.stringify(row);
+  leaked.forEach(function (needle) {
+    assert.strictEqual(text.indexOf(needle), -1, "日誌列不得寫入 " + needle);
+  });
+  console.log("   ✓ 巢狀與大小寫變體敏感資料排除驗證通過！\n");
+}
+
 console.log("6. 陣列形式的紀錄亦應套用截斷...");
 {
   const row = Array(12).fill("");
@@ -151,7 +180,7 @@ console.log("6. 陣列形式的紀錄亦應套用截斷...");
   console.log("   ✓ 陣列紀錄截斷驗證通過！\n");
 }
 
-console.log("7. 寫入計數應每 100 次才取樣一次 getLastRow...");
+console.log("7. 寫入路徑不得掃描工作表列數或使用列數快取...");
 {
   const store = {};
   const cache = {
@@ -166,54 +195,19 @@ console.log("7. 寫入計數應每 100 次才取樣一次 getLastRow...");
   const sheet = Object.assign(makeSheet(), {
     getLastRow: function () {
       lastRowCalls += 1;
-      return 101;
+      return 5000;
     }
   });
   const ss = makeSpreadsheet(sheet);
-  for (let i = 0; i < logger.LAST_ROW_SAMPLE_INTERVAL; i += 1) {
+  for (let i = 0; i < 150; i += 1) {
     logger.appendActivityLog_(sampleRecord(), ss, { cache: cache });
   }
-  assert.strictEqual(store[logger.WRITE_COUNT_CACHE_KEY], "100");
-  assert.strictEqual(lastRowCalls, 1, "100 次寫入應只取樣一次");
-  assert.strictEqual(store[logger.ACTIVITY_LOG_CACHE_PREFIX + "last_row"], "101");
-  console.log("   ✓ 抽樣間隔與注入驗證通過！\n");
+  assert.strictEqual(lastRowCalls, 0, "寫入路徑不得呼叫 getLastRow");
+  assert.strictEqual(Object.keys(store).length, 0, "寫入路徑不得寫入列數快取");
+  console.log("   ✓ 寫入路徑不掃描列數驗證通過！\n");
 }
 
-console.log("8. 快取過期時計數重置且不誤觸取樣...");
-{
-  let lastRowCalls = 0;
-  const expiringCache = {
-    get: function () {
-      return null;
-    },
-    put: function () {}
-  };
-  const sheet = Object.assign(makeSheet(), {
-    getLastRow: function () {
-      lastRowCalls += 1;
-      return 10;
-    }
-  });
-  for (let i = 0; i < 10; i += 1) {
-    logger.appendActivityLog_(sampleRecord(), makeSpreadsheet(sheet), { cache: expiringCache });
-  }
-  assert.strictEqual(lastRowCalls, 0, "計數重置後不應取樣");
-  console.log("   ✓ 過期行為驗證通過！\n");
-}
-
-console.log("9. 未提供注入快取時應使用記憶體備援...");
-{
-  const cache = logger.getActivityLogCache();
-  assert.strictEqual(typeof cache.get, "function");
-  assert.strictEqual(typeof cache.put, "function");
-  const before = parseInt(cache.get(logger.WRITE_COUNT_CACHE_KEY), 10) || 0;
-  logger.appendActivityLog_(sampleRecord(), makeSpreadsheet(makeSheet()));
-  const after = parseInt(cache.get(logger.WRITE_COUNT_CACHE_KEY), 10) || 0;
-  assert.strictEqual(after, before + 1);
-  console.log("   ✓ 記憶體備援驗證通過！\n");
-}
-
-console.log("10. 未達上限時不清理...");
+console.log("8. 未達上限時不清理...");
 {
   const calls = [];
   const sheet = {
@@ -232,18 +226,9 @@ console.log("10. 未達上限時不清理...");
   console.log("   ✓ 未達上限驗證通過！\n");
 }
 
-console.log("11. 超過上限時刪除最舊資料至保留 15,000 筆...");
+console.log("9. 超過上限時刪除最舊資料至保留 15,000 筆...");
 {
   const calls = [];
-  const store = {};
-  const cache = {
-    get: function (key) {
-      return store[key] || null;
-    },
-    put: function (key, value) {
-      store[key] = String(value);
-    }
-  };
   const lastRow = logger.MAX_ACTIVITY_LOG_ROWS + 51;
   const sheet = {
     getLastRow: function () {
@@ -253,20 +238,16 @@ console.log("11. 超過上限時刪除最舊資料至保留 15,000 筆...");
       calls.push([start, count]);
     }
   };
-  const result = logger.cleanupActivityLogRows({
-    spreadsheet: makeSpreadsheet(sheet),
-    cache: cache
-  });
+  const result = logger.cleanupActivityLogRows({ spreadsheet: makeSpreadsheet(sheet) });
   assert.strictEqual(result.ok, true);
   assert.strictEqual(result.before, logger.MAX_ACTIVITY_LOG_ROWS + 50);
   assert.strictEqual(result.after, logger.TARGET_ACTIVITY_LOG_ROWS);
   assert.strictEqual(result.deleted, 5050);
   assert.deepStrictEqual(calls, [[2, 5050]]);
-  assert.strictEqual(store[logger.ACTIVITY_LOG_CACHE_PREFIX + "last_row"], String(lastRow - 5050));
   console.log("   ✓ 超量清理驗證通過！\n");
 }
 
-console.log("12. 清理失敗應回報失敗而非拋出...");
+console.log("10. 清理失敗應回報失敗而非拋出...");
 {
   const originalError = console.error;
   console.error = function () {};
@@ -287,6 +268,37 @@ console.log("12. 清理失敗應回報失敗而非拋出...");
     console.error = originalError;
   }
   console.log("   ✓ 清理失敗處理驗證通過！\n");
+}
+
+console.log("11. 詳情欄最後防線應降級為可解析 JSON，不得直接 slice...");
+{
+  const detailIndex = logger.ACTIVITY_LOG_FIELDS.indexOf("detail");
+  assert.strictEqual(detailIndex, 9, "詳情應為第 10 欄");
+
+  // 超長且不可解析的內容：直接 slice 會得到不可解析的 JSON
+  const brokenRow = logger.buildActivityLogRow({ detail: "x".repeat(900) });
+  const broken = brokenRow[detailIndex];
+  assert.strictEqual(typeof broken, "string");
+  assert.strictEqual(JSON.parse(broken).截斷, true, "應回退至最小合法 JSON 並標註截斷");
+
+  // 超長但可解析的詳情：應呼叫共用降級函式，而非粗暴截斷
+  const oversized = JSON.stringify({
+    版本: 1,
+    動作: "getActivityLog",
+    指標: { 篩選: "c".repeat(900) },
+    變動: []
+  });
+  const degradedRow = logger.buildActivityLogRow({ detail: oversized });
+  const degraded = degradedRow[detailIndex];
+  assert(degraded.length <= logger.MAX_FIELD_LENGTH, "降級後長度應 ≤ " + logger.MAX_FIELD_LENGTH);
+  const parsed = JSON.parse(degraded, null);
+  assert.strictEqual(parsed.指標.篩選, "已省略", "應由共用降級函式處理字串型指標");
+  assert.notStrictEqual(degraded, oversized.slice(0, logger.MAX_FIELD_LENGTH), "不得直接 slice");
+
+  // 正常詳情應原樣保留
+  const normal = JSON.stringify({ 版本: 1, 動作: "login", 指標: {} });
+  assert.strictEqual(logger.buildActivityLogRow({ detail: normal })[detailIndex], normal);
+  console.log("   ✓ 詳情最後防線驗證通過！\n");
 }
 
 console.log("✓ activityLogger.test.js 測試全數通過！\n");

@@ -138,26 +138,25 @@ console.log("5. 缺少 action 仍應建立 context...");
   console.log("   ✓ 缺少 action context 驗證通過！\n");
 }
 
-console.log("6. 被置換的 routeWebApiAction 應收到單次授權結果...");
+console.log("6. 受保護動作的授權注入點應被呼叫兩次且引數一致...");
 {
-  const seen = [];
+  const calls = [];
   withOverrides(
     {
-      routeWebApiAction: function (action, payload, event, authorization) {
-        seen.push({ action: action, authorization: authorization });
-        return { ok: true, replaced: true };
+      authorizeWebApiAction: function (action, payload) {
+        calls.push({ action: action, payload: payload });
+        return { ok: true, session: { role: "viewer", email: "viewer@example.com" } };
       }
     },
     function () {
-      const result = api.executeWebApi({ action: "ping" }, {});
-      assert.strictEqual(result.replaced, true);
+      api.executeWebApi({ action: "getSystemSettings" }, {});
     }
   );
-  assert.strictEqual(seen.length, 1);
-  assert.strictEqual(seen[0].action, "ping");
-  assert.strictEqual(seen[0].authorization.ok, true);
-  assert.strictEqual(seen[0].authorization.session, null);
-  console.log("   ✓ 路由置換情境驗證通過！\n");
+  assert.strictEqual(calls.length, 2, "應呼叫授權兩次：日誌 context 一次、路由自行驗證一次");
+  assert.strictEqual(calls[0].action, "getSystemSettings");
+  assert.strictEqual(calls[1].action, "getSystemSettings");
+  assert.deepStrictEqual(calls[0].payload, calls[1].payload, "兩次授權應收到相同的 payload");
+  console.log("   ✓ 雙次授權注入驗證通過！\n");
 }
 
 console.log("7. executeWebApi 應在登入成功後寫回 context 身分...");
@@ -345,16 +344,16 @@ console.log("13. 日誌附加失敗不影響原本回應...");
   console.log("   ✓ 附加失敗不阻斷驗證通過！\n");
 }
 
-console.log("14. 寫入動作應擷取 before/after 並只傳遞白名單投影 payload...");
+console.log("14. 寫入動作應擷取快照並傳遞原始 payload 給產生器...");
 {
   const calls = [];
   const rows = [];
   let captureIndex = 0;
   const fakeBuilders = {
-    captureBefore: function () {
+    captureBefore: function (detailKey) {
       const snapshot = "snap-" + captureIndex;
       captureIndex += 1;
-      calls.push(["capture", snapshot]);
+      calls.push(["capture", detailKey, snapshot]);
       return snapshot;
     },
     projectPayload: function (payload) {
@@ -362,8 +361,8 @@ console.log("14. 寫入動作應擷取 before/after 並只傳遞白名單投影 
       if (payload && payload.action) projected.action = payload.action;
       return projected;
     },
-    describe: function (detailKey, before, after, payload, result) {
-      calls.push(["describe", detailKey, before, after, payload]);
+    describe: function (detailKey, before, payload, result) {
+      calls.push(["describe", detailKey, before, payload]);
       return { 版本: 1, 動作: payload.action, 指標: {}, 變動: [] };
     }
   };
@@ -383,26 +382,37 @@ console.log("14. 寫入動作應擷取 before/after 並只傳遞白名單投影 
             action: "saveSystemSettings",
             token: "SECRET-TOKEN",
             rows: [["RAW-ROW"]],
-            settings: { schoolYear: "115" }
+            settings: { schoolYear: "115" },
+            accounts: [{ email: "new@example.com" }]
           },
           {}
         );
       }
     );
   });
-  assert.deepStrictEqual(calls[0], ["capture", "snap-0"]);
-  assert.deepStrictEqual(calls[1], ["capture", "snap-1"]);
-  assert.strictEqual(calls[2][0], "describe");
-  assert.strictEqual(calls[2][1], "systemSettings");
-  assert.strictEqual(calls[2][2], "snap-0");
-  assert.strictEqual(calls[2][3], "snap-1");
-  assert.deepStrictEqual(calls[2][4], { action: "saveSystemSettings" });
+  assert.deepStrictEqual(calls[0], ["capture", "systemSettings", "snap-0"]);
+  assert.strictEqual(calls.length, 2, "應只擷取一次 before 快照且 describe 不再接收 after 快照");
+  assert.strictEqual(calls[1][0], "describe");
+  assert.strictEqual(calls[1][1], "systemSettings");
+  assert.strictEqual(calls[1][2], "snap-0");
+  const describePayload = calls[1][3];
+  assert.strictEqual(describePayload.action, "saveSystemSettings");
+  assert.deepStrictEqual(
+    describePayload.settings,
+    { schoolYear: "115" },
+    "產生器應收到原始 settings，才能計算欄位變動"
+  );
+  assert.deepStrictEqual(
+    describePayload.accounts,
+    [{ email: "new@example.com" }],
+    "產生器應收到原始 accounts，才能計算成員變動"
+  );
   assert.strictEqual(rows.length, 1);
   const detailText = rows[0].detail;
   assert(detailText.indexOf("版本") !== -1);
   assert.strictEqual(detailText.indexOf("SECRET-TOKEN"), -1);
   assert.strictEqual(detailText.indexOf("RAW-ROW"), -1);
-  console.log("   ✓ before/after 與白名單投影驗證通過！\n");
+  console.log("   ✓ 原始 payload 送達產生器驗證通過！\n");
 }
 
 console.log("15. 例外動作不應擷取快照...");
@@ -588,6 +598,7 @@ console.log("17. 日誌清單應依時間遞減排序並分頁...");
     }
   );
   assert.strictEqual(result.total, 3);
+  assert.strictEqual(result.truncated, undefined, "未達掃描上限時不應標記 truncated");
   assert.strictEqual(result.pageSize, 2);
   assert.deepStrictEqual(
     result.rows.map(function (row) {
@@ -696,6 +707,724 @@ console.log("18. 預設僅回傳最近 7 天，且篩選與上限生效...");
   assert.strictEqual(filtered.total, 1);
   assert.strictEqual(filtered.rows[0].requestId, "recent");
   console.log("   ✓ 預設區間、篩選與上限驗證通過！\n");
+}
+
+console.log("19. 完整 executeWebApi 應為 saveSystemSettings 產生非空的變動明細...");
+{
+  const records = [];
+  const before = { schoolYear: "114", systemName: "舊系統" };
+  withGlobals(
+    {
+      readSystemSettings: function () {
+        return Object.assign({}, before);
+      }
+    },
+    function () {
+      withOverrides(
+        {
+          authorizeWebApiAction: function () {
+            return { ok: true, session: { role: "admin", email: "admin@example.com" } };
+          },
+          routeWebApiAction: function () {
+            return { ok: true };
+          },
+          appendActivityLog: function (record) {
+            records.push(record);
+          }
+        },
+        function () {
+          api.executeWebApi(
+            {
+              action: "saveSystemSettings",
+              settings: { schoolYear: "115", systemName: "舊系統", clientSecret: "SHOULD-NOT-APPEAR" }
+            },
+            {}
+          );
+        }
+      );
+    }
+  );
+  assert.strictEqual(records.length, 1);
+  const detail = JSON.parse(records[0].detail);
+  assert.strictEqual(detail.動作, "saveSystemSettings");
+  assert(Array.isArray(detail.變動));
+  assert(detail.變動.length >= 1, "應記錄學年度變動");
+  assert.deepStrictEqual(detail.變動[0], { 欄位: "學年度", 前: "114", 後: "115" });
+  assert.strictEqual(JSON.stringify(detail).indexOf("SHOULD-NOT-APPEAR"), -1, "敏感值不得外洩");
+  console.log("   ✓ 系統設定變動明細整合驗證通過！\n");
+}
+
+console.log("20. 完整 executeWebApi 應為 saveWhitelist 同時記錄新增與移除成員...");
+{
+  const records = [];
+  const before = [{ email: "a@example.com" }, { email: "b@example.com" }];
+  withGlobals(
+    {
+      readWhitelist: function () {
+        return before.map(function (item) {
+          return Object.assign({}, item);
+        });
+      }
+    },
+    function () {
+      withOverrides(
+        {
+          authorizeWebApiAction: function () {
+            return { ok: true, session: { role: "admin", email: "admin@example.com" } };
+          },
+          routeWebApiAction: function () {
+            return { ok: true, count: 2 };
+          },
+          appendActivityLog: function (record) {
+            records.push(record);
+          }
+        },
+        function () {
+          api.executeWebApi(
+            {
+              action: "saveWhitelist",
+              accounts: [{ email: "B@example.com" }, { email: "c@example.com" }]
+            },
+            {}
+          );
+        }
+      );
+    }
+  );
+  assert.strictEqual(records.length, 1);
+  const detail = JSON.parse(records[0].detail);
+  assert.strictEqual(detail.動作, "saveWhitelist");
+  assert.strictEqual(detail.變動.length, 2);
+  assert.deepStrictEqual(detail.變動[0], { 欄位: "新增成員", 前: "", 後: "c@example.com" });
+  assert.deepStrictEqual(detail.變動[1], { 欄位: "移除成員", 前: "a@example.com", 後: "" });
+  console.log("   ✓ 白名單新增與移除整合驗證通過！\n");
+}
+
+console.log("21. 假工作表回傳 Date 物件時仍能查到且排序正確...");
+{
+  const newer = new Date("2026-11-19T02:00:00.000Z"); // Asia/Taipei 2026-11-19 10:00:00
+  const older = new Date("2026-11-18T01:30:00.000Z"); // Asia/Taipei 2026-11-18 09:30:00
+  assert.strictEqual(api.normalizeActivityLogTimestamp(newer), "2026-11-19 10:00:00");
+  assert.strictEqual(api.normalizeActivityLogTimestamp("2026-11-19 10:00:00"), "2026-11-19 10:00:00");
+  assert.strictEqual(api.normalizeActivityLogTimestamp(null), "");
+  assert.strictEqual(api.normalizeActivityLogTimestamp(undefined), "");
+  withGlobals(
+    {
+      Utilities: {
+        formatDate: function (date, timezone, pattern) {
+          assert.strictEqual(timezone, "Asia/Taipei");
+          assert.strictEqual(pattern, "yyyy-MM-dd HH:mm:ss");
+          return "2026-11-19 10:00:00";
+        }
+      }
+    },
+    function () {
+      assert.strictEqual(api.normalizeActivityLogTimestamp(newer), "2026-11-19 10:00:00");
+    }
+  );
+
+  const rows = [
+    [older, "r-old", "query", "查詢", "success", "a@example.com", "甲", "檢視人員", "s1", "{}", 2, ""],
+    [newer, "r-new", "query", "查詢", "success", "a@example.com", "甲", "檢視人員", "s2", "{}", 1, ""]
+  ];
+  const sheet = {
+    getLastRow: function () {
+      return rows.length + 1;
+    },
+    getRange: function (r, c, numRows) {
+      return {
+        getValues: function () {
+          return rows.slice(r - 2, r - 2 + numRows).map(function (row) {
+            return row.slice();
+          });
+        }
+      };
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  const result = api.handleGetActivityLogWebApiAction(
+    { startDate: "2026-11-18", endDate: "2026-11-19", page: 1, pageSize: 50 },
+    { role: "admin" },
+    ss
+  );
+  assert.strictEqual(result.total, 2, "Date 物件仍應落在日期區間內");
+  assert.deepStrictEqual(
+    result.rows.map(function (row) {
+      return row.requestId;
+    }),
+    ["r-new", "r-old"],
+    "應依正規化後時間遞減排序"
+  );
+  assert.strictEqual(result.rows[0].timestamp, "2026-11-19 10:00:00");
+  console.log("   ✓ Date 物件正規化與排序驗證通過！\n");
+}
+
+console.log("22. 失敗請求應清除誤導變動並保留匯入統計標記...");
+{
+  const written = [];
+
+  // CSRF 失敗模擬：saveSystemSettings 依 payload 推導出變動，但寫入未實際執行
+  withGlobals(
+    {
+      readSystemSettings: function () {
+        return { schoolYear: "112", semester: "1", systemName: "舊系統" };
+      }
+    },
+    function () {
+      withOverrides(
+        {
+          authorizeWebApiAction: function () {
+            return {
+              session: { email: "admin@example.com", name: "管理員", role: "admin", csrfToken: "ok" }
+            };
+          },
+          routeWebApiAction: function () {
+            return { ok: false, error: "invalid_csrf_token", message: "CSRF 驗證失敗" };
+          },
+          appendActivityLog: function (record) {
+            written.push(record);
+          }
+        },
+        function () {
+          api.executeWebApi(
+            {
+              action: "saveSystemSettings",
+              token: "tok",
+              csrfToken: "bad",
+              settings: { schoolYear: "113", semester: "2", systemName: "新系統" }
+            },
+            {}
+          );
+        }
+      );
+    }
+  );
+  assert.strictEqual(written.length, 1, "應寫入一列失敗日誌");
+  const csrfDetail = JSON.parse(written[0].detail);
+  assert.deepStrictEqual(csrfDetail.變動, [], "CSRF 失敗不得保留變動明細");
+  assert.strictEqual(csrfDetail.指標.執行, "未執行", "失敗請求應標註未執行");
+  assert.strictEqual(csrfDetail.指標.變動欄數, 3, "失敗時仍可保留依快照推導出的指標數值");
+
+  // importCourseCodes 失敗時保留統計標記（指標）但清除變動並標註未執行
+  withOverrides(
+    {
+      authorizeWebApiAction: function () {
+        return {
+          session: { email: "admin@example.com", name: "管理員", role: "admin", csrfToken: "ok" }
+        };
+      },
+      routeWebApiAction: function () {
+        return {
+          ok: false,
+          error: "validation_failed",
+          message: "驗證失敗",
+          stats: { sourceRows: 10, excludedRows: 2, keptCourseRows: 8, expandedRows: 24, returnedRows: 0 }
+        };
+      },
+      appendActivityLog: function (record) {
+        written.push(record);
+      }
+    },
+    function () {
+      api.executeWebApi({ action: "importCourseCodes", token: "tok", csrfToken: "ok" }, {});
+    }
+  );
+  assert.strictEqual(written.length, 2, "應再寫入一列匯入失敗日誌");
+  const importDetail = JSON.parse(written[1].detail);
+  assert.deepStrictEqual(importDetail.變動, [], "失敗匯入不得保留變動");
+  assert.strictEqual(importDetail.指標.執行, "未執行");
+  assert.strictEqual(importDetail.指標.上傳筆數, 10, "應保留匯入統計標記");
+  assert.strictEqual(importDetail.指標.展開筆數, 24);
+  console.log("   ✓ 失敗請求變動清除與統計保留驗證通過！\n");
+}
+
+console.log("23. 無效日期區間應回傳明確錯誤且不回退預設值...");
+{
+  const emptySheet = {
+    getLastRow: function () {
+      return 1;
+    },
+    getRange: function () {
+      throw new Error("不應讀取工作表");
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return emptySheet;
+    }
+  };
+  const cases = [
+    { label: "月份與日期溢位", payload: { startDate: "2026-13-40", endDate: "2026-11-19" } },
+    { label: "不存在的日期", payload: { startDate: "2026-02-30", endDate: "2026-11-19" } },
+    { label: "起訖顛倒", payload: { startDate: "2026-11-20", endDate: "2026-11-10" } },
+    { label: "年份過小", payload: { startDate: "1969-12-31", endDate: "2026-11-19" } },
+    { label: "年份過大", payload: { startDate: "2026-11-19", endDate: "2101-01-01" } }
+  ];
+  cases.forEach(function (item) {
+    const result = api.handleGetActivityLogWebApiAction(item.payload, { role: "admin" }, ss);
+    assert.strictEqual(result.ok, false, item.label + " 應回傳失敗");
+    assert.strictEqual(result.error, "invalid_date_range", item.label + " 應回傳 invalid_date_range");
+    assert(result.message && result.message.indexOf("日期") !== -1, item.label + " 應提供明確訊息");
+  });
+
+  // 省略日期仍應回退預設值（含端點）
+  const fallback = api.handleGetActivityLogWebApiAction(
+    {},
+    { role: "admin" },
+    {
+      getSheetByName: function () {
+        return {
+          getLastRow: function () {
+            return 1;
+          }
+        };
+      }
+    }
+  );
+  assert.strictEqual(fallback.ok, true);
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(fallback.startDate));
+  assert(/^\d{4}-\d{2}-\d{2}$/.test(fallback.endDate));
+  console.log("   ✓ 無效日期區間驗證通過！\n");
+}
+
+console.log("24. 由最後一列往前分批讀取，跨出日期下界即停止且不標記 truncated...");
+{
+  const calls = [];
+  // 600 列資料（超過單批 500）：
+  // - 前 540 列在查詢區間下界之前（2026-10-*）
+  // - 後段含 3 列符合區間（2026-11-14~16）與少量較新資料
+  const dataRows = [];
+  for (let i = 0; i < 540; i += 1) {
+    dataRows.push([
+      "2026-10-01 08:00:00",
+      "old-" + i,
+      "auth",
+      "登入",
+      "success",
+      "a@example.com",
+      "甲",
+      "檢視人員",
+      "s",
+      "{}",
+      1,
+      ""
+    ]);
+  }
+  dataRows.push([
+    "2026-11-13 08:00:00",
+    "r5",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  dataRows.push([
+    "2026-11-14 08:00:00",
+    "r6",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  dataRows.push([
+    "2026-11-15 08:00:00",
+    "r7",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  dataRows.push([
+    "2026-11-16 08:00:00",
+    "r8",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  dataRows.push([
+    "2026-11-17 08:00:00",
+    "r9",
+    "auth",
+    "登入",
+    "success",
+    "a@example.com",
+    "甲",
+    "檢視人員",
+    "s",
+    "{}",
+    1,
+    ""
+  ]);
+  for (let i = dataRows.length; i < 600; i += 1) {
+    dataRows.push([
+      "2026-11-18 08:00:00",
+      "new-" + i,
+      "auth",
+      "登入",
+      "success",
+      "a@example.com",
+      "甲",
+      "檢視人員",
+      "s",
+      "{}",
+      1,
+      ""
+    ]);
+  }
+
+  const sheet = {
+    getLastRow: function () {
+      return dataRows.length + 1;
+    },
+    getRange: function (r, c, numRows, numCols) {
+      calls.push({ row: r, col: c, numRows: numRows, numCols: numCols });
+      return {
+        getValues: function () {
+          return dataRows.slice(r - 2, r - 2 + numRows).map(function (row) {
+            return row.slice();
+          });
+        }
+      };
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  const result = api.handleGetActivityLogWebApiAction(
+    { startDate: "2026-11-14", endDate: "2026-11-16", page: 1, pageSize: 50 },
+    { role: "admin" },
+    ss
+  );
+  assert.deepStrictEqual(
+    result.rows.map(function (row) {
+      return row.requestId;
+    }),
+    ["r8", "r7", "r6"],
+    "應回傳區間內資料並依時間遞減排序"
+  );
+  assert.strictEqual(result.total, 3, "跨出日期下界時 total 應精確");
+  assert.strictEqual(result.truncated, undefined, "未達掃描上限不應標記 truncated");
+  assert(
+    calls.every(function (c) {
+      return c.numRows <= 500 && c.numCols === 12;
+    }),
+    "單次讀取不得超過批次上限且應固定 12 欄"
+  );
+  assert(
+    calls.length >= 2 &&
+      calls.every(function (c) {
+        return c.numRows < dataRows.length;
+      }),
+    "不應一次讀取整表"
+  );
+  // 跨出 range.start 後會再多讀一批以容忍時間戳記錯置，但不應掃描至最舊區塊
+  assert(calls.length <= 3, "跨出日期下界後僅再多讀一批即可停止，實際 " + calls.length + " 批");
+  console.log("   ✓ 分批讀取與提前終止驗證通過！\n");
+}
+
+console.log("25. 達掃描上限時應回傳 truncated 且 total 為已掃描下限...");
+{
+  const totalDataRows = 5200; // 超過 ACTIVITY_LOG_MAX_SCAN_ROWS (5000)
+  const sheet = {
+    getLastRow: function () {
+      return totalDataRows + 1;
+    },
+    getRange: function (r, c, numRows) {
+      // 所有資料都在查詢區間內，迫使掃描達上限
+      const values = [];
+      for (let i = 0; i < numRows; i += 1) {
+        const rowNum = r + i;
+        values.push([
+          "2026-11-19 12:00:00",
+          "r" + rowNum,
+          "query",
+          "查詢",
+          "success",
+          "a@example.com",
+          "甲",
+          "檢視人員",
+          "s",
+          "{}",
+          1,
+          ""
+        ]);
+      }
+      return {
+        getValues: function () {
+          return values;
+        }
+      };
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  const result = api.handleGetActivityLogWebApiAction(
+    { startDate: "2000-01-01", endDate: "2099-12-31", page: 1, pageSize: 50 },
+    { role: "admin" },
+    ss
+  );
+  assert.strictEqual(result.truncated, true, "達掃描上限應標記 truncated");
+  assert(result.total <= 5000, "total 應為已掃描範圍的符合筆數（下限），實得 " + result.total);
+  assert(result.total > 0, "應有掃描到的符合列");
+  assert.strictEqual(result.rows.length, 50, "仍應依分頁回傳本頁資料");
+  console.log("   ✓ 掃描上限與 truncated 驗證通過！\n");
+}
+
+console.log("26. category 篩選應不分大小寫...");
+{
+  const rows = [
+    ["2026-11-19 10:00:00", "r1", "Auth", "登入", "success", "a@example.com", "甲", "檢視人員", "s", "{}", 1, ""],
+    ["2026-11-19 11:00:00", "r2", "WRITE", "寫入", "success", "a@example.com", "甲", "管理員", "s", "{}", 1, ""],
+    ["2026-11-19 12:00:00", "r3", "query", "查詢", "success", "a@example.com", "甲", "檢視人員", "s", "{}", 1, ""]
+  ];
+  const sheet = {
+    getLastRow: function () {
+      return rows.length + 1;
+    },
+    getRange: function () {
+      return {
+        getValues: function () {
+          return rows.map(function (r) {
+            return r.slice();
+          });
+        }
+      };
+    }
+  };
+  const ss = {
+    getSheetByName: function () {
+      return sheet;
+    }
+  };
+  ["auth", "AUTH", "Auth"].forEach(function (cat) {
+    const result = api.handleGetActivityLogWebApiAction(
+      { startDate: "2000-01-01", endDate: "2099-12-31", category: cat },
+      { role: "admin" },
+      ss
+    );
+    assert.strictEqual(result.total, 1, "category " + cat + " 應命中一筆");
+    assert.strictEqual(result.rows[0].requestId, "r1");
+  });
+  console.log("   ✓ category 大小寫不敏感驗證通過！\n");
+}
+
+console.log("27. beforeSnapshot 應於取得鎖後擷取，且連續請求以前次寫入後狀態為前值...");
+{
+  const events = [];
+  let sharedValue = "舊值";
+  const rows = [];
+  const fakeBuilders = {
+    captureBefore: function () {
+      events.push("capture:" + sharedValue);
+      return { value: sharedValue };
+    },
+    describe: function (detailKey, before, payload) {
+      return {
+        版本: 1,
+        動作: payload.action,
+        指標: {},
+        變動: [{ 欄位: "值", 前值: before ? before.value : "", 後值: payload.nextValue }]
+      };
+    }
+  };
+  withGlobals({ activityLogBuilders: fakeBuilders }, function () {
+    withOverrides(
+      {
+        appendActivityLog: function (record) {
+          rows.push(record);
+          events.push("log");
+        },
+        routeWebApiAction: function (action, payload) {
+          events.push("route:" + sharedValue);
+          sharedValue = payload.nextValue;
+          events.push("mutated:" + sharedValue);
+          return { ok: true };
+        }
+      },
+      function () {
+        withGlobals(
+          {
+            LockService: {
+              getScriptLock: function () {
+                return {
+                  tryLock: function () {
+                    events.push("lock");
+                    return true;
+                  },
+                  releaseLock: function () {
+                    events.push("unlock");
+                  }
+                };
+              }
+            }
+          },
+          function () {
+            api.executeWebApi({ action: "saveSystemSettings", nextValue: "第一次寫入" }, {});
+            api.executeWebApi({ action: "saveSystemSettings", nextValue: "第二次寫入" }, {});
+          }
+        );
+      }
+    );
+  });
+  assert.deepStrictEqual(
+    events.slice(0, 5),
+    ["lock", "capture:舊值", "route:舊值", "mutated:第一次寫入", "unlock"],
+    "鎖定動作應先取得鎖再擷取快照，最後解鎖後寫日誌"
+  );
+  assert.strictEqual(events[5], "log");
+  assert.deepStrictEqual(
+    events.slice(6, 11),
+    ["lock", "capture:第一次寫入", "route:第一次寫入", "mutated:第二次寫入", "unlock"],
+    "第二次請求的前值應為第一次寫入後狀態"
+  );
+  assert.strictEqual(rows.length, 2);
+  const firstDetail = JSON.parse(rows[0].detail);
+  const secondDetail = JSON.parse(rows[1].detail);
+  assert.strictEqual(firstDetail.變動[0].前值, "舊值");
+  assert.strictEqual(firstDetail.變動[0].後值, "第一次寫入");
+  assert.strictEqual(secondDetail.變動[0].前值, "第一次寫入");
+  assert.strictEqual(secondDetail.變動[0].後值, "第二次寫入");
+  console.log("   ✓ 鎖後擷取與連續請求前值驗證通過！\n");
+}
+
+console.log("28. 非鎖定動作的 beforeSnapshot 應在鎖判定後、路由前擷取...");
+{
+  const events = [];
+  const fakeBuilders = {
+    captureBefore: function () {
+      events.push("capture");
+      return { v: 1 };
+    },
+    describe: function () {
+      return { 版本: 1, 動作: "getCourseIndex", 指標: {}, 變動: [] };
+    }
+  };
+  // getCourseIndex 非鎖定但屬可記錄動作（query 類且 enabled）
+  withGlobals({ activityLogBuilders: fakeBuilders }, function () {
+    withOverrides(
+      {
+        appendActivityLog: function () {
+          events.push("log");
+        },
+        routeWebApiAction: function () {
+          events.push("route");
+          return { ok: true };
+        }
+      },
+      function () {
+        api.executeWebApi({ action: "getCourseIndex" }, {});
+      }
+    );
+  });
+  assert.deepStrictEqual(events.slice(0, 2), ["capture", "route"], "非鎖定動作應於鎖判定後、路由前擷取");
+  console.log("   ✓ 非鎖定動作擷取時機驗證通過！\n");
+}
+
+console.log("29. lock_timeout 應寫入失敗日誌且不呼叫 releaseLock...");
+{
+  const rows = [];
+  let releaseCalls = 0;
+  const result = withGlobals(
+    {
+      LockService: {
+        getScriptLock: function () {
+          return {
+            tryLock: function () {
+              return false;
+            },
+            releaseLock: function () {
+              releaseCalls += 1;
+            }
+          };
+        }
+      }
+    },
+    function () {
+      return withOverrides(
+        {
+          authorizeWebApiAction: function () {
+            return {
+              session: { email: "admin@example.com", name: "管理員", role: "admin", csrfToken: "ok" }
+            };
+          },
+          appendActivityLog: function (record) {
+            rows.push(record);
+          }
+        },
+        function () {
+          return api.executeWebApi({ action: "saveSystemSettings", token: "tok", csrfToken: "ok" }, {});
+        }
+      );
+    }
+  );
+  assert.strictEqual(result.ok, false);
+  assert.strictEqual(result.error, "lock_timeout");
+  assert.strictEqual(releaseCalls, 0, "未取得鎖時不得釋放鎖");
+  assert.strictEqual(rows.length, 1, "lock_timeout 應寫入一列日誌");
+  assert.strictEqual(rows[0].result, "failure");
+  assert.strictEqual(rows[0].errorCode, "lock_timeout");
+  console.log("   ✓ lock_timeout 日誌與鎖釋放驗證通過！\n");
+}
+
+console.log("30. CSRF 驗證失敗應寫入失敗日誌與 errorCode...");
+{
+  const rows = [];
+  withOverrides(
+    {
+      authorizeWebApiAction: function () {
+        return {
+          session: { email: "admin@example.com", name: "管理員", role: "admin", csrfToken: "ok" }
+        };
+      },
+      routeWebApiAction: function () {
+        return { ok: false, error: "invalid_csrf_token", message: "CSRF 驗證失敗" };
+      },
+      appendActivityLog: function (record) {
+        rows.push(record);
+      }
+    },
+    function () {
+      api.executeWebApi({ action: "saveSystemSettings", token: "tok", csrfToken: "bad" }, {});
+    }
+  );
+  assert.strictEqual(rows.length, 1);
+  assert.strictEqual(rows[0].result, "failure");
+  assert.strictEqual(rows[0].errorCode, "invalid_csrf_token");
+  console.log("   ✓ CSRF 失敗日誌驗證通過！\n");
 }
 
 console.log("✓ webApiActivityLog.test.js 測試全數通過！\n");

@@ -161,10 +161,14 @@ console.log("5. 缺少欄位、空耗時與相同時間戳記應正確處理...\
     }
   );
   assert.strictEqual(result.total, 2);
-  assert(Number.isNaN(result.rows[0].durationMs), "缺欄位耗時應為 NaN");
+  // 同時間戳記時應維持較早列在前（與既有穩定排序行為一致）
+  assert.strictEqual(result.rows[0].requestId, "r1");
+  assert.strictEqual(result.rows[0].durationMs, null, "缺欄位耗時應為 null");
   assert.strictEqual(result.rows[0].email, "");
   assert.strictEqual(result.rows[0].category, "");
-  assert.strictEqual(result.rows[1].durationMs, null, "空字串耗時應轉為 null");
+  assert.strictEqual(result.rows[1].requestId, "r2");
+  assert.strictEqual(result.rows[1].durationMs, null, "空字串耗時應為 null");
+  assert.strictEqual(result.truncated, undefined, "未達掃描上限時不應標記 truncated");
   console.log("   ✓ 缺損欄位與排序等價驗證通過！\n");
 }
 

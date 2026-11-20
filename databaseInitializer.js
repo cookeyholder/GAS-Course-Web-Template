@@ -219,22 +219,65 @@ function ensureInstructionsSheet_(ss, createdSheets) {
   createdSheets.push(SHEET_SYSTEM_INSTRUCTIONS);
 }
 
+/** 純文字格式期望覆蓋的資料列數；實際會再依工作表列數上限收斂，避免超出格線 */
+const ACTIVITY_LOG_TEXT_FORMAT_ROWS = 5000;
+
+/**
+ * 計算可安全套用純文字格式的資料列數（自第 2 列起）。
+ * 工作表提供 `getMaxRows` 時以「上限 - 1（保留標題列）」收斂；
+ * 否則（例如部分測試替身）採用期望值。
+ *
+ * @param {Object} sheet - 操作日誌工作表
+ * @returns {number} 可套用格式的資料列數
+ */
+function resolveActivityLogFormatRowCount_(sheet) {
+  if (sheet && typeof sheet.getMaxRows === "function") {
+    const maxRows = Number(sheet.getMaxRows());
+    if (isFinite(maxRows) && maxRows > 1) {
+      return Math.min(ACTIVITY_LOG_TEXT_FORMAT_ROWS, maxRows - 1);
+    }
+    if (isFinite(maxRows) && maxRows <= 1) return 0;
+  }
+  return ACTIVITY_LOG_TEXT_FORMAT_ROWS;
+}
+
+/**
+ * 對操作日誌第 1 欄（時間戳記）與第 10 欄（詳情 JSON）套用純文字格式 `@`。
+ * 僅調整格式、不讀寫任何資料，具冪等性；避免 `appendRow` 將日期字串轉為
+ * `Date` 物件，或將 JSON 內容誤判為公式、數字。
+ *
+ * @param {Object} sheet - 操作日誌工作表
+ */
+function applyActivityLogTextFormat_(sheet) {
+  if (!sheet || typeof sheet.getRange !== "function") return;
+  const rowCount = resolveActivityLogFormatRowCount_(sheet);
+  if (rowCount <= 0) return;
+  [1, 10].forEach(function (column) {
+    const range = sheet.getRange(2, column, rowCount, 1);
+    if (range && typeof range.setNumberFormat === "function") {
+      range.setNumberFormat("@");
+    }
+  });
+}
+
 function createActivityLogSheet_(ss) {
   const sheet = ss.insertSheet(SHEET_ACTIVITY_LOG);
   const headerRange = sheet.getRange(1, 1, 1, ACTIVITY_LOG_HEADERS.length);
   headerRange.setValues([ACTIVITY_LOG_HEADERS]);
   headerRange.setFontWeight("bold").setBackground("#e2e8f0");
   sheet.setFrozenRows(1);
-  // 詳情欄位（第 10 欄）預先套用純文字格式，避免 JSON 內容被誤判為公式或數字
-  const detailRange = sheet.getRange(2, 10, 1000, 1);
-  if (detailRange && typeof detailRange.setNumberFormat === "function") {
-    detailRange.setNumberFormat("@");
-  }
+  // 時間戳記（第 1 欄）與詳情（第 10 欄）預先套用純文字格式
+  applyActivityLogTextFormat_(sheet);
   return sheet;
 }
 
 function ensureActivityLogSheet_(ss, createdSheets) {
-  if (ss.getSheetByName(SHEET_ACTIVITY_LOG)) return;
+  const existing = ss.getSheetByName(SHEET_ACTIVITY_LOG);
+  if (existing) {
+    // 既有工作表亦補上純文字格式；僅調整格式、不覆寫既有資料，維持冪等
+    applyActivityLogTextFormat_(existing);
+    return;
+  }
   createActivityLogSheet_(ss);
   createdSheets.push(SHEET_ACTIVITY_LOG);
 }

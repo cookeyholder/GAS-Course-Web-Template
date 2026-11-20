@@ -982,6 +982,10 @@ function handleSaveWhitelistWebApiAction_(payload, session, ss) {
 const ACTIVITY_LOG_DEFAULT_DAYS = 7;
 const ACTIVITY_LOG_PAGE_SIZE_DEFAULT = 50;
 const ACTIVITY_LOG_PAGE_SIZE_MAX = 500;
+/** 單次查詢最多往前掃描的資料列數；超過上限回傳 truncated: true */
+const ACTIVITY_LOG_MAX_SCAN_ROWS = 5000;
+/** 每批往前讀取的列數 */
+const ACTIVITY_LOG_SCAN_BATCH_SIZE = 500;
 
 /**
  * 以 Asia/Taipei 時區格式化日期；GAS 使用 Utilities，Node 測試採固定 +8 偏移。
@@ -997,28 +1001,164 @@ function formatTaipeiDate_(date) {
 }
 
 /**
+ * 將操作日誌時間戳記正規化為 `yyyy-MM-dd HH:mm:ss` 字串。
+ * 試算表可能把日期字串隱含轉為 `Date` 物件，讀取端須先正規化才能正確比較與排序。
+ *
+ * @param {*} value - 原始時間戳記儲存格值
+ * @returns {string} 正規化後的時間戳記字串；非日期值一律轉字串
+ */
+function normalizeActivityLogTimestamp_(value) {
+  if (!(value instanceof Date)) {
+    return String(value === null || value === undefined ? "" : value);
+  }
+  const time = value.getTime();
+  if (!isFinite(time)) return "";
+  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    return Utilities.formatDate(value, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
+  }
+  // Node 測試環境無 Utilities：以固定 +8 小時偏移格式化，不依賴機器時區
+  const taipei = new Date(time + 8 * 60 * 60 * 1000);
+  return taipei.toISOString().replace("T", " ").slice(0, 19);
+}
+
+/**
+ * 驗證日期字串是否為真實存在的 yyyy-MM-dd 日期。
+ * 以 UTC 解析後比對回原字串，避免 2026-13-40 等溢位日期被接受。
+ *
+ * @param {string} dateStr - 日期字串
+ * @returns {boolean} 是否為有效日期
+ */
+function isValidActivityLogDate_(dateStr) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return false;
+  const parsed = new Date(dateStr + "T00:00:00Z");
+  if (isNaN(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== dateStr) return false;
+  const year = parseInt(dateStr.slice(0, 4), 10);
+  return year >= 1970 && year <= 2100;
+}
+
+/**
  * 解析操作日誌查詢的時間區間，預設最近 7 天（含端點）。
+ * 使用者提供的日期若格式或實際日期無效、或起訖顛倒，回傳明確錯誤，不回退預設值。
  *
  * @param {Object} payload - 請求 payload
- * @returns {Object} `{ startDate, endDate, start, end }`
+ * @returns {Object} `{ startDate, endDate, start, end }` 或 `webApiError` 物件
  */
 function resolveActivityLogDateRange_(payload) {
   const source = payload || {};
   const now = new Date();
-  const datePattern = /^\d{4}-\d{2}-\d{2}$/;
-  const requestedEnd = String(source.endDate || "").slice(0, 10);
-  const requestedStart = String(source.startDate || "").slice(0, 10);
-  const endDate = datePattern.test(requestedEnd) ? requestedEnd : formatTaipeiDate_(now);
-  const defaultStart = formatTaipeiDate_(
-    new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000)
-  );
-  const startDate = datePattern.test(requestedStart) ? requestedStart : defaultStart;
+  const rawEnd = source.endDate === undefined || source.endDate === null ? "" : String(source.endDate).trim();
+  const rawStart = source.startDate === undefined || source.startDate === null ? "" : String(source.startDate).trim();
+
+  let endDate;
+  if (rawEnd === "") {
+    endDate = formatTaipeiDate_(now);
+  } else {
+    const candidate = rawEnd.slice(0, 10);
+    if (!isValidActivityLogDate_(candidate)) {
+      return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
+    }
+    endDate = candidate;
+  }
+
+  let startDate;
+  if (rawStart === "") {
+    startDate = formatTaipeiDate_(new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000));
+  } else {
+    const candidate = rawStart.slice(0, 10);
+    if (!isValidActivityLogDate_(candidate)) {
+      return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
+    }
+    startDate = candidate;
+  }
+
+  if (startDate > endDate) {
+    return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
+  }
+
   return {
     startDate: startDate,
     endDate: endDate,
     start: startDate + " 00:00:00",
     end: endDate + " 23:59:59"
   };
+}
+
+function buildEmptyActivityLogResult_(range, page, pageSize) {
+  return {
+    ok: true,
+    rows: [],
+    total: 0,
+    page: page,
+    pageSize: pageSize,
+    startDate: range.startDate,
+    endDate: range.endDate
+  };
+}
+
+function normalizeActivityLogDuration_(rawDuration) {
+  if (rawDuration === "" || rawDuration === null || rawDuration === undefined) return null;
+  const parsedDuration = Number(rawDuration);
+  return isFinite(parsedDuration) ? parsedDuration : null;
+}
+
+function buildActivityLogRowItem_(cells, rowIndex) {
+  return {
+    _rowIndex: rowIndex,
+    timestamp: normalizeActivityLogTimestamp_(cells[0]),
+    requestId: String(cells[1] || ""),
+    category: String(cells[2] || ""),
+    action: String(cells[3] || ""),
+    result: String(cells[4] || ""),
+    email: String(cells[5] || ""),
+    name: String(cells[6] || ""),
+    role: String(cells[7] || ""),
+    summary: String(cells[8] || ""),
+    detail: String(cells[9] || ""),
+    durationMs: normalizeActivityLogDuration_(cells[10]),
+    errorCode: String(cells[11] || "")
+  };
+}
+
+function matchActivityLogRow_(item, range, filters, state) {
+  if (item.timestamp < range.start) {
+    state.crossedRangeStart = true;
+    return false;
+  }
+  if (item.timestamp > range.end) return false;
+  if (filters.categoryFilter && item.category.toLowerCase() !== filters.categoryFilter) return false;
+  if (filters.emailFilter && item.email.toLowerCase().indexOf(filters.emailFilter) === -1) return false;
+  return true;
+}
+
+function collectActivityLogMatches_(sheet, lastRow, range, filters) {
+  const dataRowCount = lastRow - 1;
+  const maxScanRows = Math.min(dataRowCount, ACTIVITY_LOG_MAX_SCAN_ROWS);
+  const state = {
+    scannedRows: 0,
+    cursor: lastRow,
+    crossedRangeStart: false,
+    readAfterCross: false,
+    matched: []
+  };
+
+  while (state.cursor >= 2 && state.scannedRows < maxScanRows && !(state.crossedRangeStart && state.readAfterCross)) {
+    const batchSize = Math.min(ACTIVITY_LOG_SCAN_BATCH_SIZE, state.cursor - 1, maxScanRows - state.scannedRows);
+    const batchStart = state.cursor - batchSize + 1;
+    const values = sheet.getRange(batchStart, 1, batchSize, 12).getValues() || [];
+    state.scannedRows += batchSize;
+    state.cursor = batchStart - 1;
+    if (state.crossedRangeStart) state.readAfterCross = true;
+
+    for (let i = values.length - 1; i >= 0; i -= 1) {
+      const cells = Array.isArray(values[i]) ? values[i] : [];
+      const item = buildActivityLogRowItem_(cells, batchStart + i);
+      if (matchActivityLogRow_(item, range, filters, state)) {
+        state.matched.push(item);
+      }
+    }
+  }
+
+  return { matched: state.matched, scannedRows: state.scannedRows, dataRowCount: dataRowCount };
 }
 
 /**
@@ -1031,20 +1171,13 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
   }
   const source = payload || {};
   const range = resolveActivityLogDateRange_(source);
+  if (range && range.ok === false) return range;
   const page = Math.max(1, parseInt(source.page, 10) || 1);
   const pageSize = Math.min(
     ACTIVITY_LOG_PAGE_SIZE_MAX,
     Math.max(1, parseInt(source.pageSize, 10) || ACTIVITY_LOG_PAGE_SIZE_DEFAULT)
   );
-  const emptyResult = {
-    ok: true,
-    rows: [],
-    total: 0,
-    page: page,
-    pageSize: pageSize,
-    startDate: range.startDate,
-    endDate: range.endDate
-  };
+  const emptyResult = buildEmptyActivityLogResult_(range, page, pageSize);
   const targetSs = ss || getRouteSpreadsheet_();
   const sheet =
     targetSs && typeof targetSs.getSheetByName === "function"
@@ -1055,53 +1188,43 @@ function handleGetActivityLogWebApiAction_(payload, session, ss) {
   }
   const lastRow = Math.max(0, Number(sheet.getLastRow()) || 0);
   if (lastRow < 2) return emptyResult;
-  const values = sheet.getRange(2, 1, lastRow - 1, 12).getValues() || [];
-  const emailFilter = String(source.email || "")
-    .trim()
-    .toLowerCase();
-  const categoryFilter = String(source.category || "").trim();
-  const matched = [];
-  values.forEach(function (row) {
-    const cells = Array.isArray(row) ? row : [];
-    const timestamp = String(cells[0] || "");
-    if (timestamp < range.start || timestamp > range.end) return;
-    if (categoryFilter && String(cells[2] || "") !== categoryFilter) return;
-    if (
-      emailFilter &&
-      String(cells[5] || "")
-        .toLowerCase()
-        .indexOf(emailFilter) === -1
-    )
-      return;
-    matched.push({
-      timestamp: timestamp,
-      requestId: String(cells[1] || ""),
-      category: String(cells[2] || ""),
-      action: String(cells[3] || ""),
-      result: String(cells[4] || ""),
-      email: String(cells[5] || ""),
-      name: String(cells[6] || ""),
-      role: String(cells[7] || ""),
-      summary: String(cells[8] || ""),
-      detail: String(cells[9] || ""),
-      durationMs: cells[10] === "" || cells[10] === null ? null : Number(cells[10]),
-      errorCode: String(cells[11] || "")
-    });
-  });
+
+  const filters = {
+    emailFilter: String(source.email || "")
+      .trim()
+      .toLowerCase(),
+    categoryFilter: String(source.category || "")
+      .trim()
+      .toLowerCase()
+  };
+  const collected = collectActivityLogMatches_(sheet, lastRow, range, filters);
+  const matched = collected.matched;
+
   matched.sort(function (a, b) {
     if (a.timestamp < b.timestamp) return 1;
     if (a.timestamp > b.timestamp) return -1;
-    return 0;
+    // 同時間戳記維持原始列順序（較早列在前），與既有穩定排序行為一致
+    return a._rowIndex - b._rowIndex;
   });
-  return {
+  const rows = matched.slice((page - 1) * pageSize, page * pageSize).map(function (row) {
+    const copy = Object.assign({}, row);
+    delete copy._rowIndex;
+    return copy;
+  });
+
+  const truncated =
+    collected.scannedRows >= ACTIVITY_LOG_MAX_SCAN_ROWS && collected.dataRowCount > ACTIVITY_LOG_MAX_SCAN_ROWS;
+  const result = {
     ok: true,
-    rows: matched.slice((page - 1) * pageSize, page * pageSize),
+    rows: rows,
     total: matched.length,
     page: page,
     pageSize: pageSize,
     startDate: range.startDate,
     endDate: range.endDate
   };
+  if (truncated) result.truncated = true;
+  return result;
 }
 
 /** 將所有 action 的處理函式註冊至 ACTION_REGISTRY，消除獨立 switch 造成的漂移。 */
@@ -1211,7 +1334,7 @@ function routeProtectedWebApiAction_(name, payload, session, ss) {
   return handler(payload, session, ss);
 }
 
-function routeWebApiAction(action, payload, event, authorizationOverride) {
+function routeWebApiAction(action, payload, event) {
   const name = String(action || "").trim();
   if (name === "") return webApiError("missing_action", "缺少 action 參數");
   if (!ACTION_REGISTRY.hasAction(name)) {
@@ -1221,8 +1344,9 @@ function routeWebApiAction(action, payload, event, authorizationOverride) {
   const publicResult = routePublicWebApiAction_(name, payload);
   if (publicResult !== null) return publicResult;
 
-  const authorization =
-    authorizationOverride || getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
+  // 路由一律自行向伺服器端 session 驗證；GAS 全域函式可經 google.script.run
+  // 直接呼叫，任何由呼叫端傳入的授權結果都不得作為信任依據。
+  const authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
   if (!authorization.ok) return authorization;
 
   const session = authorization.session;
@@ -1375,6 +1499,32 @@ function buildActivityLogSummary_(context, meta, result) {
   return label + "成功";
 }
 
+/** 詳情序列化失敗或降級模組不可用時的最小合法 JSON */
+const MINIMAL_ACTIVITY_DETAIL_JSON = '{"版本":1,"動作":"","指標":{},"截斷":true}';
+
+/** 詳情欄位字元上限（與 activityLogBuilders 一致） */
+const ACTIVITY_DETAIL_MAX_LENGTH = 500;
+
+/**
+ * 序列化詳情並在必要時呼叫共用降級函式，保證寫入的 JSON 可解析且長度合規。
+ *
+ * @param {Object} detail - 版本化詳情物件
+ * @param {Object|null} builders - 詳情模組 API
+ * @returns {string} 合格的詳情 JSON 字串
+ */
+function serializeActivityLogDetail_(detail, builders) {
+  let text;
+  try {
+    text = JSON.stringify(detail);
+  } catch (error) {
+    return MINIMAL_ACTIVITY_DETAIL_JSON;
+  }
+  if (builders && typeof builders.truncateDetailToLimit === "function") {
+    return builders.truncateDetailToLimit(text, ACTIVITY_DETAIL_MAX_LENGTH);
+  }
+  return text.length <= ACTIVITY_DETAIL_MAX_LENGTH ? text : MINIMAL_ACTIVITY_DETAIL_JSON;
+}
+
 /**
  * 建立操作日誌寫入紀錄。
  *
@@ -1383,23 +1533,31 @@ function buildActivityLogSummary_(context, meta, result) {
  * @param {Object} payload - 請求 payload（僅供詳情產生器取白名單欄位）
  * @param {Object} result - action 回傳結果
  * @param {*} [before] - 變動前快照
- * @param {*} [after] - 變動後快照
  * @returns {Object} 12 欄日誌紀錄
  */
-function buildActivityLogRecord_(context, meta, payload, result, before, after) {
+function buildActivityLogRecord_(context, meta, payload, result, before) {
   const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
   let detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
   if (builders && typeof builders.describe === "function") {
     try {
-      // 攔截器只傳遞白名單投影，即使產生器日後改變也不會接觸敏感欄位。
-      const safePayload =
-        builders && typeof builders.projectPayload === "function"
-          ? builders.projectPayload(payload || {})
-          : payload || {};
-      detail = builders.describe(meta.detailKey, before, after, safePayload, result || {});
+      // 產生器自行以欄位級白名單挑選可記錄欄位；此處必須傳入原始 payload，
+      // 否則 settings／accounts 會被通用投影折疊而丟失變動明細。
+      detail = builders.describe(meta.detailKey, before, payload || {}, result || {});
     } catch (error) {
       // 詳情產生失敗時保留最小可用的版本化結構
     }
+  }
+  // 失敗請求（例如 CSRF 驗證失敗）未實際執行寫入，不得留下基於 payload 推導的誤導變動。
+  // importCourseCodes 的統計標記（指標）仍須保留，以利稽核失敗原因。
+  if (result && result.ok === false) {
+    if (!detail || typeof detail !== "object" || Array.isArray(detail)) {
+      detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
+    }
+    if (!detail.指標 || typeof detail.指標 !== "object" || Array.isArray(detail.指標)) {
+      detail.指標 = {};
+    }
+    detail.變動 = [];
+    detail.指標.執行 = "未執行";
   }
   const now = new Date();
   let timestamp;
@@ -1418,7 +1576,7 @@ function buildActivityLogRecord_(context, meta, payload, result, before, after) 
     name: context.name,
     role: context.role,
     summary: buildActivityLogSummary_(context, meta, result),
-    detail: JSON.stringify(detail),
+    detail: serializeActivityLogDetail_(detail, builders),
     durationMs: Date.now() - context.startTime,
     errorCode: context.errorCode || ""
   };
@@ -1474,20 +1632,10 @@ function acquireWebApiLock_(action) {
  * @param {Object|string} payload - 原始請求資料
  * @param {Object|null} finalResult - 最終 API 回應
  * @param {Object|null} beforeSnapshot - 寫入前快照
- * @param {Object|null} afterSnapshot - 寫入後快照
  * @param {Object|null} lock - 已取得的鎖
  * @param {boolean} hasLock - 是否成功取得鎖
  */
-function finalizeWebApiRequest_(
-  context,
-  actionMeta,
-  payload,
-  finalResult,
-  beforeSnapshot,
-  afterSnapshot,
-  lock,
-  hasLock
-) {
+function finalizeWebApiRequest_(context, actionMeta, payload, finalResult, beforeSnapshot, lock, hasLock) {
   if (hasLock && lock) {
     try {
       lock.releaseLock();
@@ -1504,7 +1652,7 @@ function finalizeWebApiRequest_(
   if (typeof appendFn !== "function") return;
   try {
     appendFn(
-      buildActivityLogRecord_(context, actionMeta, payload, finalResult, beforeSnapshot, afterSnapshot),
+      buildActivityLogRecord_(context, actionMeta, payload, finalResult, beforeSnapshot),
       getRouteSpreadsheet_()
     );
   } catch (error) {
@@ -1521,7 +1669,6 @@ function executeWebApi(payload, event) {
   let finalResult = null;
   let actionMeta = null;
   let beforeSnapshot = null;
-  let afterSnapshot = null;
   const finish_ = function (result) {
     finalResult = result;
     if (result && result.ok === false && !context.errorCode) {
@@ -1551,11 +1698,9 @@ function executeWebApi(payload, event) {
     }
 
     actionMeta = getActivityLogMeta_(action);
-    if (shouldLogActivity_(action, actionMeta)) {
-      beforeSnapshot = captureActivityLogSnapshot_(actionMeta);
-    }
 
-    // 先取得一次授權結果供日誌 context 使用，並直接交給路由，避免重複授權。
+    // 取得一次授權結果僅供日誌 context 使用；路由會自行再次授權，
+    // 兩次都讀取伺服器端 session，避免把授權結果作為公開參數傳入路由。
     let authorization = null;
     try {
       authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(action, payload);
@@ -1570,14 +1715,16 @@ function executeWebApi(payload, event) {
       context.errorCode = "lock_timeout";
       return finish_(webApiError("lock_timeout", "系統繁忙中，請稍候片刻再試"));
     }
+    // beforeSnapshot 必須在成功取得鎖之後（鎖定動作）或鎖判定完成之後（非鎖定動作）、
+    // 路由實際寫入之前擷取，避免併發請求讀到過期前值。
+    if (shouldLogActivity_(action, actionMeta)) {
+      beforeSnapshot = captureActivityLogSnapshot_(actionMeta);
+    }
     const routeFn =
       typeof module !== "undefined" && module.exports && typeof module.exports.routeWebApiAction === "function"
         ? module.exports.routeWebApiAction
         : routeWebApiAction;
-    const result = routeFn(action, payload, event, authorization);
-    if (actionMeta && shouldLogActivity_(action, actionMeta)) {
-      afterSnapshot = captureActivityLogSnapshot_(actionMeta);
-    }
+    const result = routeFn(action, payload, event);
     if ((action === "login" || action === "loginWithActiveUser") && result && result.ok) {
       recordWebApiIdentity_(context, null, result);
     }
@@ -1593,7 +1740,6 @@ function executeWebApi(payload, event) {
       payload,
       finalResult,
       beforeSnapshot,
-      afterSnapshot,
       lockState.lock,
       lockState.hasLock
     );
@@ -1673,22 +1819,17 @@ function doGet(e) {
 }
 
 function doPost(e) {
-  let payload;
+  let payload = null;
   try {
     const parseFn = getOverridableApiFn_("parseWebApiPayload", parseWebApiPayload);
     payload = parseFn(e);
   } catch (error) {
-    return jsonResponse(webApiError("invalid_json", "請求 JSON 格式錯誤"));
-  }
-  if (payload === null) {
-    return jsonResponse(webApiError("invalid_json", "請求 JSON 格式錯誤"));
+    // 解析例外不提前回傳；改由 executeWebApi 的 try／finally 統一寫入失敗日誌
+    payload = null;
   }
 
-  const action = String(payload.action || (e && e.parameter && e.parameter.action) || "").trim();
-  if (action === "") {
-    return jsonResponse(webApiError("missing_action", "缺少 action 參數"));
-  }
-
+  // null／非物件 payload 與缺少 action 皆由 executeWebApi 判定並回傳對應錯誤，
+  // 如此兩條 HTTP 失敗路徑也能進入最外層日誌攔截。
   const execFn = getOverridableApiFn_("executeWebApi", executeWebApi);
   return jsonResponse(execFn(payload, e));
 }
@@ -1734,6 +1875,7 @@ if (typeof module !== "undefined" && module.exports) {
     routeWebApiAction: routeWebApiAction,
     handleGetActivityLogWebApiAction: handleGetActivityLogWebApiAction_,
     formatTaipeiDate: formatTaipeiDate_,
+    normalizeActivityLogTimestamp: normalizeActivityLogTimestamp_,
     getPublicConfig: getPublicConfig,
     executeWebApi: executeWebApi,
     createWebApiLogContext: createWebApiLogContext_,

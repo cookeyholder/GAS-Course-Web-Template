@@ -27,6 +27,13 @@
     require("./errorMessages.js");
   }
 
+  /** 後端已明確定義的錯誤代碼文案（查詢日誌專用） */
+  const SAFE_ERROR_MESSAGES = {
+    invalid_date_range: "日期格式不正確或日期區間無效",
+    forbidden: "您的帳號沒有存取操作日誌的權限",
+    unauthorized: "登入狀態已失效，請重新登入"
+  };
+
   /** 事件類別顯示名稱（與後端 logCategory 一致） */
   const CATEGORY_LABELS = {
     auth: "身份驗證",
@@ -118,6 +125,13 @@
       return doc && typeof doc.getElementById === "function" ? doc.getElementById(id) : null;
     }
 
+    function resolveLogError(value, fallbackMessage) {
+      const fallback = fallbackMessage || "讀取操作日誌失敗";
+      const code = value && (value.error || value.code);
+      if (code && SAFE_ERROR_MESSAGES[code]) return SAFE_ERROR_MESSAGES[code];
+      return resolveSafeMessage(value, fallback);
+    }
+
     /**
      * 由目前狀態與目標頁碼建立 API 查詢參數。
      *
@@ -163,7 +177,8 @@
      */
     function fetchList(page) {
       const before = currentState();
-      const targetPage = page || before.page || 1;
+      const requestedPage = page || before.page || 1;
+      const targetPage = Math.max(1, requestedPage);
       const query = buildQuery(before, targetPage);
       if (!MEA.api || typeof MEA.api.call !== "function") return Promise.resolve(null);
 
@@ -177,19 +192,21 @@
           const cur = currentState();
           if (!result || result.ok !== true) {
             MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
-            MEA.ui.toast((result && result.message) || "讀取操作日誌失敗", "err");
+            MEA.ui.toast(resolveLogError(result, "讀取操作日誌失敗"), "err");
             return result || null;
           }
           const total = Number(result.total) || 0;
           const pageSize = Math.min(MAX_PAGE_SIZE, Number(result.pageSize) || DEFAULT_PAGE_SIZE);
+          const totalPages = Math.max(1, Math.ceil(total / pageSize));
+          const resolvedPage = Math.min(Math.max(1, Number(result.page) || targetPage), totalPages);
           MEA.setState({
             activityLog: Object.assign({}, cur, {
               loading: false,
               list: result.rows || [],
               total: total,
-              page: Number(result.page) || targetPage,
+              page: resolvedPage,
               pageSize: pageSize,
-              totalPages: Math.max(1, Math.ceil(total / pageSize))
+              totalPages: totalPages
             })
           });
           return result;
@@ -197,7 +214,7 @@
         .catch(function (error) {
           const cur = currentState();
           MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
-          MEA.ui.toast(resolveSafeMessage(error, "讀取操作日誌失敗，請稍後再試"), "err");
+          MEA.ui.toast(resolveLogError(error, "讀取操作日誌失敗，請稍後再試"), "err");
           return null;
         });
     }
@@ -239,6 +256,45 @@
       MEA.setState({ activityLog: Object.assign({}, cur, { expanded: expanded }) });
     }
 
+    function bindEventsOnce() {
+      if (!doc || typeof doc.addEventListener !== "function") return;
+      if (doc.__meaActivityLogBound) return;
+      doc.__meaActivityLogBound = true;
+
+      doc.addEventListener("submit", function (event) {
+        const target = event && event.target;
+        if (target && target.getAttribute("data-activity-form") === "search") handleSearch(event);
+      });
+
+      function handleDocumentClick(event) {
+        const target = event && event.target;
+        const button = target && typeof target.closest === "function" ? target.closest("[data-activity-action]") : null;
+        if (!button) return;
+        const action = button.getAttribute("data-activity-action");
+        const handlers = {
+          refresh: function () {
+            return fetchList(currentState().page);
+          },
+          reset: function () {
+            return resetSearch();
+          },
+          page: function () {
+            const page = parseInt(button.getAttribute("data-page"), 10);
+            return Number.isFinite(page) ? fetchList(page) : undefined;
+          },
+          "toggle-detail": function () {
+            return toggleDetail(button.getAttribute("data-request-id"));
+          }
+        };
+        const handler = handlers[action];
+        if (handler) handler();
+      }
+
+      doc.addEventListener("click", handleDocumentClick);
+    }
+
+    bindEventsOnce();
+
     /**
      * 產生事件類別下拉選項。
      *
@@ -270,7 +326,7 @@
     function renderFilterFormHtml(state) {
       return (
         '<div class="filter-bar">' +
-        '  <form class="filter-form" onsubmit="MEA.activityLog.handleSearch(event)">' +
+        '  <form class="filter-form" data-activity-form="search">' +
         '    <label class="sr-only" for="activityLogStartDate">開始日期</label>' +
         '    <input type="date" id="activityLogStartDate" class="input" value="' +
         MEA.ui.escapeHtml(state.startDate) +
@@ -287,8 +343,12 @@
         '    <select id="activityLogCategory" class="select">' +
         renderCategoryOptionsHtml(state.category) +
         "    </select>" +
-        '    <button type="submit" class="btn primary">搜尋</button>' +
-        '    <button type="button" class="btn secondary" onclick="MEA.activityLog.resetSearch()">重設</button>' +
+        '    <button type="submit" class="btn primary"' +
+        (state.loading ? " disabled" : "") +
+        ">搜尋</button>" +
+        '    <button type="button" class="btn secondary" data-activity-action="reset"' +
+        (state.loading ? " disabled" : "") +
+        ">重設</button>" +
         "  </form>" +
         "</div>"
       );
@@ -335,9 +395,9 @@
         (expanded ? "true" : "false") +
         '" aria-controls="' +
         detailId +
-        '" onclick="MEA.activityLog.toggleDetail(\'' +
+        '" data-activity-action="toggle-detail" data-request-id="' +
         MEA.ui.escapeHtml(requestId) +
-        "')\">" +
+        '">' +
         (expanded ? "收起" : "展開") +
         "</button></td>" +
         "</tr>" +
@@ -381,8 +441,8 @@
      * @returns {string} HTML 字串
      */
     function renderPaginationHtml(state) {
-      const totalPages = state.totalPages || 1;
-      const currentPage = state.page || 1;
+      const totalPages = Math.max(1, state.totalPages || 1);
+      const currentPage = Math.min(Math.max(1, state.page || 1), totalPages);
       return (
         '<div class="pagination-bar">' +
         '  <span class="pagination-info">共 ' +
@@ -393,14 +453,14 @@
         totalPages +
         " 頁</span>" +
         '  <div class="pagination-buttons">' +
-        '    <button type="button" class="btn secondary compact" onclick="MEA.activityLog.fetchList(' +
+        '    <button type="button" class="btn secondary compact" data-activity-action="page" data-page="' +
         (currentPage - 1) +
-        ')"' +
+        '"' +
         (currentPage <= 1 || state.loading ? " disabled" : "") +
         ">上一頁</button>" +
-        '    <button type="button" class="btn secondary compact" onclick="MEA.activityLog.fetchList(' +
+        '    <button type="button" class="btn secondary compact" data-activity-action="page" data-page="' +
         (currentPage + 1) +
-        ')"' +
+        '"' +
         (currentPage >= totalPages || state.loading ? " disabled" : "") +
         ">下一頁</button>" +
         "  </div>" +
@@ -417,9 +477,9 @@
         '    <h2 class="panel-title">操作日誌</h2>' +
         '    <p class="panel-sub">查詢系統操作紀錄，僅系統管理員可見</p>' +
         "  </div>" +
-        '  <button type="button" class="btn secondary compact" onclick="MEA.activityLog.fetchList(' +
-        state.page +
-        ')">🔄 重新整理</button>' +
+        '  <button type="button" class="btn secondary compact" data-activity-action="refresh"' +
+        (state.loading ? " disabled" : "") +
+        ">🔄 重新整理</button>" +
         "</div>" +
         renderFilterFormHtml(state) +
         '<div class="table-responsive mt-3">' +
