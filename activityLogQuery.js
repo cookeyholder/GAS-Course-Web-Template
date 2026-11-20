@@ -220,6 +220,45 @@ function createActivityLogQuery(deps) {
   }
 
   /**
+   * 從請求 payload 正規化日誌篩選條件（小寫、去前後空白）。
+   *
+   * @param {Object} source - 請求 payload
+   * @returns {Object} `{ emailFilter, categoryFilter }`
+   */
+  function resolveLogFilters_(source) {
+    return {
+      emailFilter: String(source.email || "")
+        .trim()
+        .toLowerCase(),
+      categoryFilter: String(source.category || "")
+        .trim()
+        .toLowerCase()
+    };
+  }
+
+  /**
+   * 依時間遞減排序匹配列、分頁投影，並移除暫存 `_rowIndex`。
+   * 同一時間戳記維持原始列順序（較早列在前），與既有穩定排序行為一致。
+   *
+   * @param {Array<Object>} matched - 匹配列
+   * @param {number} page - 頁碼（由 1 起）
+   * @param {number} pageSize - 每頁筆數
+   * @returns {Array<Object>} 分頁後且不含 `_rowIndex` 的列
+   */
+  function sortAndProjectRows_(matched, page, pageSize) {
+    matched.sort(function (a, b) {
+      if (a.timestamp < b.timestamp) return 1;
+      if (a.timestamp > b.timestamp) return -1;
+      return a._rowIndex - b._rowIndex;
+    });
+    return matched.slice((page - 1) * pageSize, page * pageSize).map(function (row) {
+      const copy = Object.assign({}, row);
+      delete copy._rowIndex;
+      return copy;
+    });
+  }
+
+  /**
    * 受保護 action：getActivityLog（僅管理員）。
    * 回傳依時間遞減排序的分頁日誌，單次最多 500 筆。
    */
@@ -244,28 +283,10 @@ function createActivityLogQuery(deps) {
     const lastRow = Math.max(0, Number(sheet.getLastRow()) || 0);
     if (lastRow < 2) return emptyResult;
 
-    const filters = {
-      emailFilter: String(source.email || "")
-        .trim()
-        .toLowerCase(),
-      categoryFilter: String(source.category || "")
-        .trim()
-        .toLowerCase()
-    };
+    const filters = resolveLogFilters_(source);
     const collected = collectActivityLogMatches(sheet, lastRow, range, filters);
     const matched = collected.matched;
-
-    matched.sort(function (a, b) {
-      if (a.timestamp < b.timestamp) return 1;
-      if (a.timestamp > b.timestamp) return -1;
-      // 同時間戳記維持原始列順序（較早列在前），與既有穩定排序行為一致
-      return a._rowIndex - b._rowIndex;
-    });
-    const rows = matched.slice((page - 1) * pageSize, page * pageSize).map(function (row) {
-      const copy = Object.assign({}, row);
-      delete copy._rowIndex;
-      return copy;
-    });
+    const rows = sortAndProjectRows_(matched, page, pageSize);
 
     const truncated =
       collected.scannedRows >= ACTIVITY_LOG_MAX_SCAN_ROWS && collected.dataRowCount > ACTIVITY_LOG_MAX_SCAN_ROWS;
