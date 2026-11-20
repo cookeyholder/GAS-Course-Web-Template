@@ -24,13 +24,27 @@ const ACTIVITY_LOG_SCAN_BATCH_SIZE = 500;
  * 以 Asia/Taipei 時區格式化日期；GAS 使用 Utilities，Node 測試採固定 +8 偏移。
  *
  * @param {Date} date - 日期物件
+ * @param {string} pattern - Utilities.formatDate 使用的格式字串
+ * @param {Function} fallbackTransform - Node 環境將 +8 偏移後的 ISO 字串轉為目標格式的函式
+ * @returns {string} 格式化後的字串
+ */
+function formatTaipei_(date, pattern, fallbackTransform) {
+  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    return Utilities.formatDate(date, "Asia/Taipei", pattern);
+  }
+  return fallbackTransform(new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString());
+}
+
+/**
+ * 以 Asia/Taipei 時區格式化日期為 `yyyy-MM-dd`。
+ *
+ * @param {Date} date - 日期物件
  * @returns {string} yyyy-MM-dd
  */
 function formatTaipeiDate(date) {
-  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
-    return Utilities.formatDate(date, "Asia/Taipei", "yyyy-MM-dd");
-  }
-  return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return formatTaipei_(date, "yyyy-MM-dd", function (iso) {
+    return iso.slice(0, 10);
+  });
 }
 
 /**
@@ -46,12 +60,10 @@ function normalizeActivityLogTimestamp(value) {
   }
   const time = value.getTime();
   if (!isFinite(time)) return "";
-  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
-    return Utilities.formatDate(value, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
-  }
   // Node 測試環境無 Utilities：以固定 +8 小時偏移格式化，不依賴機器時區
-  const taipei = new Date(time + 8 * 60 * 60 * 1000);
-  return taipei.toISOString().replace("T", " ").slice(0, 19);
+  return formatTaipei_(value, "yyyy-MM-dd HH:mm:ss", function (iso) {
+    return iso.replace("T", " ").slice(0, 19);
+  });
 }
 
 /**
