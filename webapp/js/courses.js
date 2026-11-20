@@ -45,6 +45,55 @@
     const doc = options.document || (typeof document !== "undefined" ? document : null);
     // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
     const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+    // task 6.3：列表控制流程由共用控制器提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const listControllerModule =
+      typeof require === "function" ? require("./listController.js") : globalThis.MEA.listController;
+
+    const listCtl = listControllerModule.createListController({
+      apiAction: "getCourseIndex",
+      getState: function () {
+        return MEA.state.courses || {};
+      },
+      setState: function (next) {
+        MEA.setState({ courses: next });
+      },
+      callApi: function (action, payload) {
+        return MEA.api.call(action, payload);
+      },
+      toast: function (message, kind) {
+        MEA.ui.toast(message, kind);
+      },
+      buildQuery: buildCourseQuery,
+      buildFetchKey: buildCourseFetchKey,
+      buildSuccessPatch: buildCoursesSuccessPatch,
+      readFilters: readSearchFormValues,
+      buildResetPatch: function () {
+        return { keyword: "", department: "", academicYear: "", semester: "" };
+      },
+      resolveErrorMessage: normalizeErrorMessage,
+      normalizePage: function (requested, state) {
+        return requested || state.page || 1;
+      },
+      failureFallback: "讀取課程資料失敗",
+      errorFallback: "讀取課程資料失敗，請稍後再試",
+      pagination: {
+        actionAttribute: "data-course-action",
+        number: function (value) {
+          return MEA.ui.number(value);
+        },
+        normalize: function (state) {
+          return {
+            total: state.total,
+            currentPage: state.page || 1,
+            totalPages: state.totalPages || 1
+          };
+        }
+      }
+    });
+
+    const fetchList = listCtl.fetchList;
+    const handleSearch = listCtl.handleSearch;
+    const resetSearch = listCtl.resetSearch;
 
     /** 以 document 委派綁定搜尋表單、分頁與重設事件。 */
     function bindEventsOnce() {
@@ -124,11 +173,12 @@
     /**
      * 由成功回應建構課程狀態更新片段。
      *
-     * @param {number} targetPage - 目標頁碼
+     * @param {Object} state - 目前課程狀態
      * @param {Object} result - API 回應
+     * @param {number} targetPage - 目標頁碼
      * @returns {Object} courses 更新片段
      */
-    function buildCoursesSuccessPatch(targetPage, result) {
+    function buildCoursesSuccessPatch(state, result, targetPage) {
       return {
         loading: false,
         list: result.list || [],
@@ -137,77 +187,6 @@
         pageSize: result.pageSize || 30,
         totalPages: result.totalPages || 1
       };
-    }
-
-    /**
-     * 處理課程清單讀取結果（原 fetchList 的 then 回呼）。
-     *
-     * @param {Object} cur - 請求前的課程狀態快照
-     * @param {Object} result - API 回應
-     * @param {number} targetPage - 目標頁碼
-     */
-    function handleFetchListSuccess(cur, result, targetPage) {
-      if (!result || result.ok !== true) {
-        MEA.setState({
-          courses: Object.assign({}, cur, { loading: false })
-        });
-        MEA.ui.toast((result && result.message) || "讀取課程資料失敗", "err");
-        return;
-      }
-
-      MEA.setState({
-        courses: Object.assign({}, cur, buildCoursesSuccessPatch(targetPage, result))
-      });
-    }
-
-    const inflightListFetches = {};
-    let listRequestSeq = 0;
-
-    /** 只接受最新一次清單請求的回應，避免過期回應覆蓋新篩選結果。 */
-    function isCurrentListRequest(seq) {
-      return seq === listRequestSeq;
-    }
-
-    function fetchList(page) {
-      const targetPage = page || (MEA.state.courses && MEA.state.courses.page) || 1;
-      const cur = MEA.state.courses || {};
-      const query = buildCourseQuery(cur, targetPage);
-      const fetchKey = buildCourseFetchKey(query);
-      if (Object.prototype.hasOwnProperty.call(inflightListFetches, fetchKey)) {
-        return inflightListFetches[fetchKey];
-      }
-
-      const requestSeq = ++listRequestSeq;
-      MEA.setState({
-        courses: Object.assign({}, cur, { loading: true, page: targetPage })
-      });
-
-      const pending = MEA.api
-        .call("getCourseIndex", query)
-        .then(function (result) {
-          if (!isCurrentListRequest(requestSeq)) return;
-          handleFetchListSuccess(cur, result, targetPage);
-        })
-        .catch(function (error) {
-          if (!isCurrentListRequest(requestSeq)) return;
-          MEA.setState({
-            courses: Object.assign({}, cur, { loading: false })
-          });
-          MEA.ui.toast(normalizeErrorMessage(error, "讀取課程資料失敗，請稍後再試"), "err");
-        });
-
-      const tracked = pending.then(
-        function (value) {
-          delete inflightListFetches[fetchKey];
-          return value;
-        },
-        function (error) {
-          delete inflightListFetches[fetchKey];
-          throw error;
-        }
-      );
-      inflightListFetches[fetchKey] = tracked;
-      return tracked;
     }
 
     /**
@@ -258,29 +237,6 @@
         academicYear: yearInput ? yearInput.value.trim() : "",
         semester: semSelect ? semSelect.value.trim() : ""
       };
-    }
-
-    function handleSearch(e) {
-      if (e && e.preventDefault) e.preventDefault();
-      const cur = MEA.state.courses || {};
-      MEA.setState({
-        courses: Object.assign({}, cur, readSearchFormValues())
-      });
-
-      fetchList(1);
-    }
-
-    function resetSearch() {
-      const cur = MEA.state.courses || {};
-      MEA.setState({
-        courses: Object.assign({}, cur, {
-          keyword: "",
-          department: "",
-          academicYear: "",
-          semester: ""
-        })
-      });
-      fetchList(1);
     }
 
     /**
@@ -373,41 +329,6 @@
     }
 
     /**
-     * 產生分頁列。
-     *
-     * @param {Object} courses - 課程狀態
-     * @param {boolean} loading - 是否載入中
-     * @returns {string} HTML 字串
-     */
-    function renderPaginationHtml(courses, loading) {
-      const totalPages = courses.totalPages || 1;
-      const currentPage = courses.page || 1;
-      return (
-        '<div class="pagination-bar">' +
-        '  <span class="pagination-info">共 ' +
-        MEA.ui.number(courses.total) +
-        " 筆紀錄 · 第 " +
-        currentPage +
-        " / " +
-        totalPages +
-        " 頁</span>" +
-        '  <div class="pagination-buttons">' +
-        '    <button type="button" class="btn secondary compact" data-course-action="page" data-page="' +
-        (currentPage - 1) +
-        '"' +
-        (currentPage <= 1 || loading ? " disabled" : "") +
-        ">上一頁</button>" +
-        '    <button type="button" class="btn secondary compact" data-course-action="page" data-page="' +
-        (currentPage + 1) +
-        '"' +
-        (currentPage >= totalPages || loading ? " disabled" : "") +
-        ">下一頁</button>" +
-        "  </div>" +
-        "</div>"
-      );
-    }
-
-    /**
      * 產生搜尋表單。
      *
      * @param {Object} courses - 課程狀態
@@ -455,7 +376,7 @@
 
       const deptOptionsHtml = renderDeptOptionsHtml(depts, courses.department);
       const rowsHtml = renderCourseRowsHtml(list, loading);
-      const paginationHtml = renderPaginationHtml(courses, loading);
+      const paginationHtml = listCtl.renderPagination(courses, loading);
       const currentPage = courses.page || 1;
 
       return (

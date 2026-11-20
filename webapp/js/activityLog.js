@@ -100,6 +100,93 @@
     const doc = options.document || (typeof document !== "undefined" ? document : null);
     // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
     const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+    // task 6.3：列表控制流程由共用控制器提供（Node 由 require 取得，瀏覽器由全域取得）。
+    const listControllerModule =
+      typeof require === "function" ? require("./listController.js") : globalThis.MEA.listController;
+
+    const listCtl = listControllerModule.createListController({
+      apiAction: "getActivityLog",
+      getState: currentState,
+      setState: function (next) {
+        MEA.setState({ activityLog: next });
+      },
+      canCallApi: function () {
+        return !!(MEA.api && typeof MEA.api.call === "function");
+      },
+      callApi: function (action, payload) {
+        return MEA.api.call(action, payload);
+      },
+      toast: function (message, kind) {
+        MEA.ui.toast(message, kind);
+      },
+      buildQuery: function (state, page) {
+        return {
+          startDate: state.startDate,
+          endDate: state.endDate,
+          email: state.email,
+          category: state.category,
+          page: page,
+          pageSize: state.pageSize
+        };
+      },
+      buildSuccessPatch: function (state, result, page) {
+        const total = Number(result.total) || 0;
+        const pageSize = Math.min(MAX_PAGE_SIZE, Number(result.pageSize) || DEFAULT_PAGE_SIZE);
+        const totalPages = Math.max(1, Math.ceil(total / pageSize));
+        const resolvedPage = Math.min(Math.max(1, Number(result.page) || page), totalPages);
+        return {
+          loading: false,
+          list: result.rows || [],
+          total: total,
+          page: resolvedPage,
+          pageSize: pageSize,
+          totalPages: totalPages
+        };
+      },
+      readFilters: readFilterFormValues,
+      buildResetPatch: function () {
+        const range = defaultDateRange();
+        return {
+          startDate: range.startDate,
+          endDate: range.endDate,
+          email: "",
+          category: "",
+          expanded: {}
+        };
+      },
+      buildSearchExtraPatch: function () {
+        return { expanded: {} };
+      },
+      resolveFailureMessage: function (result, fallback) {
+        return resolveLogError(result, fallback);
+      },
+      resolveErrorMessage: function (error, fallback) {
+        return resolveLogError(error, fallback);
+      },
+      normalizePage: function (requested, state) {
+        return Math.max(1, requested || state.page || 1);
+      },
+      failureFallback: "讀取操作日誌失敗",
+      errorFallback: "讀取操作日誌失敗，請稍後再試",
+      pagination: {
+        actionAttribute: "data-activity-action",
+        number: function (value) {
+          return MEA.ui.number(value);
+        },
+        normalize: function (state) {
+          const totalPages = Math.max(1, state.totalPages || 1);
+          return {
+            total: state.total,
+            currentPage: Math.min(Math.max(1, state.page || 1), totalPages),
+            totalPages: totalPages
+          };
+        }
+      }
+    });
+
+    const fetchList = listCtl.fetchList;
+    const handleSearch = listCtl.handleSearch;
+    const resetSearch = listCtl.resetSearch;
 
     /**
      * 取得目前日誌狀態，缺損時回傳含預設值的物件。
@@ -136,24 +223,6 @@
     }
 
     /**
-     * 由目前狀態與目標頁碼建立 API 查詢參數。
-     *
-     * @param {Object} state - 日誌狀態
-     * @param {number} targetPage - 目標頁碼
-     * @returns {Object} API payload
-     */
-    function buildQuery(state, targetPage) {
-      return {
-        startDate: state.startDate,
-        endDate: state.endDate,
-        email: state.email,
-        category: state.category,
-        page: targetPage,
-        pageSize: state.pageSize
-      };
-    }
-
-    /**
      * 讀取篩選表單欄位值。
      *
      * @returns {Object} 表單值快照
@@ -170,80 +239,6 @@
         email: emailInput ? String(emailInput.value || "").trim() : "",
         category: categorySelect ? String(categorySelect.value || "").trim() : ""
       };
-    }
-
-    /**
-     * 讀取操作日誌分頁資料。
-     *
-     * @param {number} [page] - 目標頁碼
-     * @returns {Promise<Object|null>} API 回應或失敗時的 null
-     */
-    function fetchList(page) {
-      const before = currentState();
-      const requestedPage = page || before.page || 1;
-      const targetPage = Math.max(1, requestedPage);
-      const query = buildQuery(before, targetPage);
-      if (!MEA.api || typeof MEA.api.call !== "function") return Promise.resolve(null);
-
-      MEA.setState({
-        activityLog: Object.assign({}, before, { loading: true, page: targetPage })
-      });
-
-      return MEA.api
-        .call("getActivityLog", query)
-        .then(function (result) {
-          const cur = currentState();
-          if (!result || result.ok !== true) {
-            MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
-            MEA.ui.toast(resolveLogError(result, "讀取操作日誌失敗"), "err");
-            return result || null;
-          }
-          const total = Number(result.total) || 0;
-          const pageSize = Math.min(MAX_PAGE_SIZE, Number(result.pageSize) || DEFAULT_PAGE_SIZE);
-          const totalPages = Math.max(1, Math.ceil(total / pageSize));
-          const resolvedPage = Math.min(Math.max(1, Number(result.page) || targetPage), totalPages);
-          MEA.setState({
-            activityLog: Object.assign({}, cur, {
-              loading: false,
-              list: result.rows || [],
-              total: total,
-              page: resolvedPage,
-              pageSize: pageSize,
-              totalPages: totalPages
-            })
-          });
-          return result;
-        })
-        .catch(function (error) {
-          const cur = currentState();
-          MEA.setState({ activityLog: Object.assign({}, cur, { loading: false }) });
-          MEA.ui.toast(resolveLogError(error, "讀取操作日誌失敗，請稍後再試"), "err");
-          return null;
-        });
-    }
-
-    function handleSearch(event) {
-      if (event && event.preventDefault) event.preventDefault();
-      const cur = currentState();
-      MEA.setState({
-        activityLog: Object.assign({}, cur, readFilterFormValues(), { expanded: {} })
-      });
-      return fetchList(1);
-    }
-
-    function resetSearch() {
-      const range = defaultDateRange();
-      const cur = currentState();
-      MEA.setState({
-        activityLog: Object.assign({}, cur, {
-          startDate: range.startDate,
-          endDate: range.endDate,
-          email: "",
-          category: "",
-          expanded: {}
-        })
-      });
-      return fetchList(1);
     }
 
     /**
@@ -427,40 +422,6 @@
       return html;
     }
 
-    /**
-     * 產生分頁列。
-     *
-     * @param {Object} state - 日誌狀態
-     * @returns {string} HTML 字串
-     */
-    function renderPaginationHtml(state) {
-      const totalPages = Math.max(1, state.totalPages || 1);
-      const currentPage = Math.min(Math.max(1, state.page || 1), totalPages);
-      return (
-        '<div class="pagination-bar">' +
-        '  <span class="pagination-info">共 ' +
-        MEA.ui.number(state.total) +
-        " 筆紀錄 · 第 " +
-        currentPage +
-        " / " +
-        totalPages +
-        " 頁</span>" +
-        '  <div class="pagination-buttons">' +
-        '    <button type="button" class="btn secondary compact" data-activity-action="page" data-page="' +
-        (currentPage - 1) +
-        '"' +
-        (currentPage <= 1 || state.loading ? " disabled" : "") +
-        ">上一頁</button>" +
-        '    <button type="button" class="btn secondary compact" data-activity-action="page" data-page="' +
-        (currentPage + 1) +
-        '"' +
-        (currentPage >= totalPages || state.loading ? " disabled" : "") +
-        ">下一頁</button>" +
-        "  </div>" +
-        "</div>"
-      );
-    }
-
     function renderView() {
       const state = currentState();
       return (
@@ -494,7 +455,7 @@
         "    </tbody>" +
         "  </table>" +
         "</div>" +
-        renderPaginationHtml(state) +
+        listCtl.renderPagination(state, state.loading) +
         "</div>"
       );
     }
