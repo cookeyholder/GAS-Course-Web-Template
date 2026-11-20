@@ -107,6 +107,7 @@
 
 - [x] 9.1 完整品質閘門回歸：執行 `npm test`、`npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`、`npm run check:coverage`、`npm run check:changed-coverage`、`npm run check:complexity`。驗證：全部指令結束碼為 0，且無任何維度違反方向性 ratchet。
   - 實作備註：九個指令結束碼全數為 0；以 `CHANGED_COVERAGE_BASE=f0022d0`（CI 注入的 PR base）量測變更覆蓋率 Lines 100.00%（158/158）、Branches 97.22%（35/36）。`check:coverage` 與 `check:complexity` 均回報方向性 ratchet 無回退，CRAP 最高 30／超標 0、MI 最低 83.666 持平，四項覆蓋率皆高於重構前既有值。
-- [ ] 9.2 打包與離線模式驗證：執行 `npm run build:webapp`，開啟 `index.html?mock=true` 驗證主要頁籤（概覽、匯入、課程、設定、操作日誌）與登入／登出流程正常；確認新增後端模組隨 `npm run push` 上傳且未被 `.claspignore` 排除。驗證：`index.html` 成功重建且內嵌順序正確，mock 模式無主控台錯誤。
+- [x] 9.2 打包與離線模式驗證：執行 `npm run build:webapp`，開啟 `index.html?mock=true` 驗證主要頁籤（概覽、匯入、課程、設定、操作日誌）與登入／登出流程正常；確認新增後端模組隨 `npm run push` 上傳且未被 `.claspignore` 排除。驗證：`index.html` 成功重建且內嵌順序正確，mock 模式無主控台錯誤。
+  - 實作備註：`npm run build:webapp` 成功（內嵌 20 個腳本、順序正確、套件版本 1.1.0），`git diff --exit-code -- index.html` 通過。**正式建置含 `window.MEA_PRODUCTION_BUILD = true` 旗標，刻意忽略 `?mock=true`（安全設計，避免正式環境繞過登入）**；因此另以移除該旗標的暫存開發版（不進版本控制）如實驗證離線模式：五個頁籤皆可切換（標題依序為「系統概覽儀表板」「課程代碼匯入與 1NF 正規化」「正規化課程代碼清單」「系統設定與授權 (RBAC)」「操作日誌」），操作日誌表格含 3 筆紀錄與分頁，登出後出現「本地測試身分登入 (Mock Mode)」、再登入回到管理員，主控台無錯誤。部署規則部分：`.claspignore` 以 `!*.js` 允許根目錄 JS 上傳且無特定 JS 排除，`tests/backendModuleDeployment.test.js`（已於 9.1 執行通過）驗證 `activityLogQuery.js`／`activityLogInterceptor.js` 可隨 `npm run push` 部署，並同時支援 Node `module.exports` 與 GAS `globalThis` 掛載。
 - [ ] 9.3 規格一致性驗證：執行 `openspec validate refactor-cohesion-and-coupling --strict`，確認本變更的 proposal、specs、design、tasks 結構與內容一致。驗證：驗證指令無錯誤輸出。
 - [ ] 9.4 部署與回滾程序記錄：依 `design.md` 決策 8 驗證回滾程序可行（GAS 部署版本記錄退回前一批次、部署 ID 保持不變），並記錄 `getPublicConfig` 與操作日誌寫入的驗證方式。驗證：文件中記載可執行的回滾步驟與驗證結果。
