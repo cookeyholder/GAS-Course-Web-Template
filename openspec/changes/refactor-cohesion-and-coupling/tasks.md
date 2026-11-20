@@ -29,7 +29,7 @@
 - [x] 3.1 統一解析入口：刪除 `webApi.js` 的 `getOverridableApiFn_` 與 `resolveActivityLogModule_`，全部改呼叫 `GAS_RUNTIME.resolveDependency_`；解析順序明確為 `module.exports → globalThis → fallback` 並接受可選 overrides 參數，保留以 `api[key] = stub` 注入的測試接縫；移除空 catch，載入失敗時 fail-fast 並拋出含模組名稱的錯誤。`subjectCodeTransformer.js` 已轉發單一入口者維持並補回歸測試。驗證：grep 確認僅剩 `gasRuntime.resolveDependency_` 一個解析實作，`tests/gasRuntime.test.js`、`tests/webApiExecuteWebApi.test.js` 通過，且新增「同時存在同名全域與 module.exports 時以 module.exports 為準」的測試。
   - 實作備註：解析順序為 overrides（呼叫端 module.exports）→ globalThis → 明確模組 module.exports → fallback；新增可選 `requireModule` 旗標解析整包模組本體，重現活動日誌模組舊 `resolveActivityLogModule_` 語意，確保 golden snapshot 一致。新增 gasRuntime 測試 7（overrides 優先）與 8（subjectCodeTransformer 單一入口回歸）。
 - [x] 3.2 移除死注入：將 `webApi.js:25-43` 的注入白名單由 15 個修剪為實際被呼叫的 11 個，移除 `initializeDatabaseSheets`、`safeApplySheetFontSize`、`safeSetNumberFormat`、`sanitizeRowMatrix`。驗證：新增雙向一致性測試（每個注入名稱至少被呼叫一次，且每個被呼叫的外部注入函式皆已注入）；`npm test` 通過。
-- [ ] 3.3 讓注入不覆寫全域：修改 `gasRuntime.js` 的 `injectGlobals_`，僅在 `globalThis[name]` 不存在時寫入；將 1.2 的 fixture 搬入 `tests/gasRuntime.test.js` 並轉綠燈。驗證：`node tests/gasRuntime.test.js` 通過，`npm test` 全數通過。
+- [x] 3.3 讓注入不覆寫全域：修改 `gasRuntime.js` 的 `injectGlobals_`，僅在 `globalThis[name]` 不存在時寫入；將 1.2 的 fixture 搬入 `tests/gasRuntime.test.js` 並轉綠燈。驗證：`node tests/gasRuntime.test.js` 通過，`npm test` 全數通過。
 
 ### 4. 拆分 `webApi.js` God Module（改善 2）
 

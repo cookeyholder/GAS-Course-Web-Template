@@ -9,6 +9,7 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const { execFileSync } = require("child_process");
 const runtime = require("../gasRuntime.js");
 
 function run() {
@@ -103,6 +104,28 @@ function run() {
       backend.NORMALIZED_COURSE_HEADERS
     );
     console.log("   ✓ subjectCodeTransformer 單一入口回歸驗證通過！\n");
+  }
+
+  console.log("9. injectGlobals_ 不應覆寫已存在的同名全域（task 1.2 紅燈轉綠燈）...");
+  {
+    // 以全新子行程執行，確保全域尚未被其他測試或 webApi 載入時注入。
+    const script =
+      "const assert = require('assert');" +
+      "const path = require('path');" +
+      "const root = " +
+      JSON.stringify(path.join(__dirname, "..")) +
+      ";" +
+      "const sentinel = function () { return 'SENTINEL'; };" +
+      "globalThis.normalizeRole = sentinel;" +
+      "require(path.join(root, 'webApi.js'));" +
+      "assert.strictEqual(globalThis.normalizeRole, sentinel, '既有同名全域不應被 injectGlobals_ 覆寫');" +
+      "process.stdout.write('NOT_OVERWRITTEN');";
+    const output = execFileSync(process.execPath, ["-e", script], {
+      cwd: path.join(__dirname, ".."),
+      encoding: "utf8"
+    });
+    assert.strictEqual(output, "NOT_OVERWRITTEN");
+    console.log("   ✓ 不覆寫同名全域驗證通過！\n");
   }
 
   console.log("✓ gasRuntime.js 測試全數通過！\n");

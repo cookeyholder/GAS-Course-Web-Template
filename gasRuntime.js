@@ -143,6 +143,7 @@
   /**
    * 白名單注入全域（僅 Node.js 測試環境需要）。
    * 任一要求的匯出不存在即 fail-fast，避免拼字錯誤被靜默忽略。
+   * 僅在全域不存在時寫入，避免覆寫測試預先設定的同名 sentinel。
    *
    * @param {string} modulePath - Node.js require 路徑
    * @param {Array<string>} whitelist - 允許注入的匯出名稱
@@ -157,8 +158,10 @@
       if (!hasOwn(moduleExports, name)) {
         throw new Error("相依模組 " + modulePath + " 未匯出 " + name);
       }
-      if (typeof globalThis !== "undefined") globalThis[name] = moduleExports[name];
-      injected[name] = moduleExports[name];
+      if (typeof globalThis !== "undefined" && !hasOwn(globalThis, name)) {
+        globalThis[name] = moduleExports[name];
+        injected[name] = moduleExports[name];
+      }
     });
     return injected;
   }
