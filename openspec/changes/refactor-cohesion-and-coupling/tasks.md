@@ -39,7 +39,9 @@
   - 實作備註：`activityLogInterceptor.js` 採 `createActivityLogInterceptor(deps)` 注入生成權杖、角色解析、中繼資料、排除清單、詳情產生器解析、快照提供者解析、試算表取得、日誌寫入解析與錯誤記錄等九項相依；webApi.js 保留五處薄 facade 並注入解析函式，測試以 `module.exports` 替換 `createWebApiLogContext`／`appendActivityLog` 的接縫不變。新增 `tests/activityLogInterceptor.test.js`（8 組案例）使新模組覆蓋率達 lines 98.63%／branches 93.67%／functions 100%；全域覆蓋率上升至 lines 95.11%／branches 84.41%，ratchet 未回退。Golden snapshot 比對一致。
 - [x] 4.3 合併鎖模板：新增單一 `withScriptLock_({ lockService?, skipLock?, onLockFailure }, fn)` helper，取代 `runBootstrapWithLock_`、`runOAuthCallbackWriteLock_`、`acquireWebApiLock_`／`finalizeWebApiRequest_` 中重複的 `getScriptLock → tryLock(15000) → finally releaseLock`；保留「先釋放鎖再寫日誌」與 `lock_timeout` 錯誤碼。驗證：`node tests/webApiOAuthCallbackLock.test.js`、`tests/webApiAuthorizationOverride.test.js` 通過，新增 LockService 不存在、tryLock 失敗、tryLock 拋錯、解鎖後才寫日誌的測試，且 grep 確認僅一處 `tryLock` 模板。
   - 實作備註：`withScriptLock_` 統一處理無鎖服務／skipLock 直執行、tryLock 失敗或擲錯呼叫 onLockFailure（預設回傳 lock_timeout）、finally 釋放鎖並隔離解鎖例外。`runBootstrapWithLock_`（空選項）與 `runOAuthCallbackWriteLock_`（注入 deps.lockService）改為轉發；`executeWebApi` 移除 `acquireWebApiLock_`，改由 withScriptLock_ 包住快照擷取與路由呼叫，鎖於 fn 的 finally 釋放，外層 finally 才寫日誌；`finalizeWebApiRequest_` 與 `activityLogInterceptor.finalize` 移除鎖參數與解鎖邏輯。新增 `tests/withScriptLock.test.js`（8 組案例，含事件順序斷言 `tryLock→route→releaseLock→writeLog`）；webApi.js 僅剩一處 tryLock。Golden snapshot 比對一致，ratchet 上升。
-- [ ] 4.4 確認部署相容：檢查 `activityLogQuery.js`、`activityLogInterceptor.js` 未被 `.claspignore` 排除，並隨 `npm run push` 上傳至 GAS。驗證：`npm run build:webapp` 成功，GAS Web App 無找不到模組的執行期錯誤。
+- [x] 4.4 確認部署相容：檢查 `activityLogQuery.js`、`activityLogInterceptor.js` 未被 `.claspignore` 排除，並隨 `npm run push` 上傳至 GAS。驗證：`npm run build:webapp` 成功，GAS Web App 無找不到模組的執行期錯誤。
+  - 實作備註：`.claspignore` 以 `!*.js` 允許所有根目錄 JS 上傳，兩新模組皆未被排除；二者採 `module.exports` + `globalThis.activityLogQuery`／`globalThis.activityLogInterceptor`（含 `MEA.*`）掛載，與既有後端模組一致，webApi facade 優先取用 globalThis、require 僅作 Node 備援。新增 `tests/backendModuleDeployment.test.js`（4 組案例：claspignore 規則、Node 匯出、GAS 無 require 環境掛載、facade 解析順序）回歸驗證。`npm run build:webapp` 成功（16 個內嵌腳本），golden snapshot 一致，ratchet 未回退。"})
+
 
 ## 批次 B：單一來源收斂（任務 5）
 
