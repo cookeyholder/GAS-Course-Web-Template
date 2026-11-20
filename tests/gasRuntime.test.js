@@ -66,6 +66,45 @@ function run() {
   assert.strictEqual(typeof gasSandbox.gasRuntime.getActiveSpreadsheetSafe_, "function");
   console.log("   ✓ GAS 環境驗證通過！\n");
 
+  console.log("7. 同名全域與 overrides 並存時應以 overrides（module.exports）為準...");
+  {
+    const fakeName = "gasRuntimeTestOverridePrecedence";
+    globalThis[fakeName] = { marker: "from-global" };
+    const overrides = {};
+    overrides[fakeName] = { marker: "from-overrides" };
+    try {
+      assert.deepStrictEqual(
+        runtime.resolveDependency_(fakeName, null, "fallback", overrides),
+        { marker: "from-overrides" },
+        "overrides 應優先於 globalThis"
+      );
+      // 值為 null 時應視為未提供，退回 globalThis（沿用 appendActivityLog facade 語意）。
+      overrides[fakeName] = null;
+      assert.deepStrictEqual(
+        runtime.resolveDependency_(fakeName, null, "fallback", overrides),
+        { marker: "from-global" },
+        "overrides 為 null 時應退回 globalThis"
+      );
+    } finally {
+      delete globalThis[fakeName];
+    }
+    console.log("   ✓ overrides 優先順序驗證通過！\n");
+  }
+
+  console.log("8. subjectCodeTransformer 應維持轉發單一解析入口...");
+  {
+    const source = fs.readFileSync(path.join(__dirname, "..", "subjectCodeTransformer.js"), "utf8");
+    assert(source.indexOf("GAS_RUNTIME.resolveDependency_(") !== -1, "應呼叫單一解析入口");
+    assert.strictEqual(source.indexOf("function resolveDependency_"), -1, "不得自訂解析實作");
+    // 回歸：單一入口仍可解析模組既有匯出（task 1 既有行為）。
+    const backend = require("../subjectCodeTransformer.js");
+    assert.strictEqual(
+      runtime.resolveDependency_("NORMALIZED_COURSE_HEADERS", "./subjectCodeTransformer.js"),
+      backend.NORMALIZED_COURSE_HEADERS
+    );
+    console.log("   ✓ subjectCodeTransformer 單一入口回歸驗證通過！\n");
+  }
+
   console.log("✓ gasRuntime.js 測試全數通過！\n");
 }
 

@@ -65,27 +65,58 @@
   }
 
   /**
-   * 解析相依：優先 module.exports，其次 globalThis，最後 fallback。
-   * 未提供 fallback 時採 fail-fast，避免靜默取得 undefined。
+   * 唯一的相依解析入口，順序為：overrides（呼叫端 module.exports）→ globalThis → 模組 module.exports → fallback。
+   *
+   * overrides 由呼叫端傳入自身的 module.exports（例如 webApi），保留以
+   * `api[key] = stub` 注入測試替身的接縫；值為 null／undefined 視為未提供。
+   * globalThis 涵蓋 GAS 全域命名空間與 Node 白名單注入，兩者皆優先於
+   * 明確指定 modulePath 時的模組匯出（向後相容既有注入行為）。
+   * 模組載入失敗不得被空 catch 靜默吞沒：若無其他來源可解析，
+   * 即 fail-fast 並拋出含匯出名稱與模組路徑的錯誤。
+   *
+   * requireModule 供「解析整個模組本體」使用：活動日誌等模組的全域與
+   * module.exports 即為 API 本體，並無與模組同名的具名匯出；此模式下
+   * require 成功即回傳整包模組，重現既有 resolveActivityLogModule_ 語意。
    *
    * @param {string} name - 相依匯出名稱
-   * @param {string} modulePath - Node.js require 路徑
+   * @param {string} [modulePath] - Node.js require 路徑
    * @param {*} [fallback] - 選用備援值
+   * @param {Object} [overrides] - 呼叫端 module.exports（測試注入接縫）
+   * @param {boolean} [requireModule] - 是否解析整包模組本體
    * @returns {*} 解析後的相依
    */
-  function resolveDependency_(name, modulePath, fallback) {
+  function resolveDependency_(name, modulePath, fallback, overrides, requireModule) {
+    // 1. 呼叫端注入的 module.exports 最優先（測試接縫）。
+    if (overrides && hasOwn(overrides, name) && overrides[name] !== null && overrides[name] !== undefined) {
+      return overrides[name];
+    }
+
+    // 2. globalThis（GAS 全域命名空間或 Node 白名單注入）。
     if (typeof globalThis !== "undefined" && hasOwn(globalThis, name)) return globalThis[name];
+
+    // 3. 明確指定模組路徑時，取用其 module.exports；載入失敗僅記錄，
+    //    讓 fallback 仍有機會解析，最後才 fail-fast。
+    let loadError = null;
     if (typeof require === "function" && modulePath) {
       let moduleExports;
       try {
         moduleExports = require(modulePath);
       } catch (error) {
-        if (arguments.length >= 3) return fallback;
-        throw new Error("找不到相依匯出：" + name + "（無法載入 " + modulePath + "：" + error.message + "）");
+        loadError = error;
       }
-      if (hasOwn(moduleExports, name)) return moduleExports[name];
+      if (moduleExports) {
+        if (requireModule) return moduleExports;
+        if (hasOwn(moduleExports, name)) return moduleExports[name];
+      }
     }
+
+    // 4. 明確提供的備援值。
     if (arguments.length >= 3) return fallback;
+
+    // 5. 全數失敗：fail-fast，載入失敗時一併帶出模組名稱。
+    if (loadError) {
+      throw new Error("找不到相依匯出：" + name + "（無法載入 " + modulePath + "：" + loadError.message + "）");
+    }
     throw new Error("找不到相依匯出：" + name);
   }
 

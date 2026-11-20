@@ -413,11 +413,11 @@ function loginWithGoogleIdToken(idToken, options) {
   const settings = readSettingsFn(ss) || {};
   const expectedClientId = resolvedOptions.clientId || settings.clientId || "";
 
-  const verifyFn = getOverridableApiFn_("verifyGoogleIdToken", verifyGoogleIdToken);
+  const verifyFn = resolveRouteDependency_("verifyGoogleIdToken", verifyGoogleIdToken);
   const verify = verifyFn(idToken, expectedClientId, settings.allowedLoginDomain);
   if (!verify.ok) return verify;
 
-  const createSessionFn = getOverridableApiFn_("createSessionForEmail", createSessionForEmail);
+  const createSessionFn = resolveRouteDependency_("createSessionForEmail", createSessionForEmail);
   return createSessionFn(verify.email, verify.name, {
     spreadsheet: ss,
     allowBootstrap: resolvedOptions.allowBootstrap === true
@@ -456,7 +456,7 @@ function loginWithActiveUser(options) {
     );
   }
 
-  const createSessionFn = getOverridableApiFn_("createSessionForEmail", createSessionForEmail);
+  const createSessionFn = resolveRouteDependency_("createSessionForEmail", createSessionForEmail);
   return createSessionFn(email, email, {
     spreadsheet: ss,
     allowBootstrap: !!(options && options.allowBootstrap === true)
@@ -826,7 +826,7 @@ function getPublicConfig() {
 
   let needsBootstrap = false;
   try {
-    needsBootstrap = (getOverridableApiFn_("readWhitelist", readWhitelist)(ss) || []).length === 0;
+    needsBootstrap = (resolveRouteDependency_("readWhitelist", readWhitelist)(ss) || []).length === 0;
   } catch (error) {
     needsBootstrap = false;
   }
@@ -864,12 +864,22 @@ function getPublicConfig() {
   };
 }
 
-function resolveRouteDependency_(name, fallback) {
-  // 向後相容：測試可透過 module.exports 覆寫單一 action 的相依。
-  if (typeof module !== "undefined" && module.exports && typeof module.exports[name] === "function") {
-    return module.exports[name];
+/**
+ * 單一相依解析轉發入口：統一呼叫 gasRuntime.resolveDependency_。
+ * 傳入 module.exports 作為 overrides，保留以 api[key] = stub 注入的測試接縫。
+ *
+ * @param {string} name - 相依匯出名稱
+ * @param {*} [fallback] - 選用備援值
+ * @param {string} [modulePath] - Node.js require 路徑（日誌模組使用）
+ * @param {boolean} [requireModule] - 是否解析整包模組本體（日誌模組使用）
+ * @returns {*} 解析後的相依
+ */
+function resolveRouteDependency_(name, fallback, modulePath, requireModule) {
+  if (GAS_RUNTIME) {
+    // GAS 環境無 module 全域，僅 Node.js 測試環境傳入 module.exports 做為注入接縫。
+    const overrides = typeof module !== "undefined" && module.exports ? module.exports : null;
+    return GAS_RUNTIME.resolveDependency_(name, modulePath || null, fallback, overrides, requireModule === true);
   }
-  if (GAS_RUNTIME) return GAS_RUNTIME.resolveDependency_(name, null, fallback);
   return fallback;
 }
 
@@ -884,12 +894,12 @@ function handlePingWebApiAction_() {
 
 /** 公開 action：getPublicConfig */
 function handleGetPublicConfigWebApiAction_() {
-  return getOverridableApiFn_("getPublicConfig", getPublicConfig)();
+  return resolveRouteDependency_("getPublicConfig", getPublicConfig)();
 }
 
 /** 公開 action：login */
 function handleLoginWebApiAction_(payload) {
-  return getOverridableApiFn_("loginWithGoogleIdToken", loginWithGoogleIdToken)(
+  return resolveRouteDependency_("loginWithGoogleIdToken", loginWithGoogleIdToken)(
     payload ? payload.idToken || payload.credential : "",
     { allowBootstrap: !!(payload && payload.bootstrap === true) }
   );
@@ -897,7 +907,7 @@ function handleLoginWebApiAction_(payload) {
 
 /** 公開 action：loginWithActiveUser */
 function handleLoginWithActiveUserWebApiAction_(payload) {
-  return getOverridableApiFn_(
+  return resolveRouteDependency_(
     "loginWithActiveUser",
     loginWithActiveUser
   )({
@@ -907,12 +917,12 @@ function handleLoginWithActiveUserWebApiAction_(payload) {
 
 /** 受保護 action：getSession */
 function handleGetSessionWebApiAction_(payload) {
-  return getOverridableApiFn_("getSessionState", getSessionState)(payload.token);
+  return resolveRouteDependency_("getSessionState", getSessionState)(payload.token);
 }
 
 /** 受保護 action：logout */
 function handleLogoutWebApiAction_(payload) {
-  return getOverridableApiFn_("logoutSession", logoutSession)(payload.token);
+  return resolveRouteDependency_("logoutSession", logoutSession)(payload.token);
 }
 
 /** 受保護 action：importCourseCodes */
@@ -1346,7 +1356,7 @@ function routeWebApiAction(action, payload, event) {
 
   // 路由一律自行向伺服器端 session 驗證；GAS 全域函式可經 google.script.run
   // 直接呼叫，任何由呼叫端傳入的授權結果都不得作為信任依據。
-  const authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
+  const authorization = resolveRouteDependency_("authorizeWebApiAction", authorizeWebApiAction)(name, payload || {});
   if (!authorization.ok) return authorization;
 
   const session = authorization.session;
@@ -1359,25 +1369,6 @@ function routeWebApiAction(action, payload, event) {
 // ============================================================================
 // GAS 進入點
 // ============================================================================
-
-/**
- * 解析操作日誌模組：GAS 全域命名空間優先，Node 則以 require 載入。
- *
- * @param {string} name - 全域命名空間名稱
- * @param {string} modulePath - Node.js 模組路徑
- * @returns {Object|null} 模組 API
- */
-function resolveActivityLogModule_(name, modulePath) {
-  if (typeof globalThis !== "undefined" && globalThis[name]) return globalThis[name];
-  if (typeof require === "function") {
-    try {
-      return require(modulePath);
-    } catch (error) {
-      return null;
-    }
-  }
-  return null;
-}
 
 /** 不寫入日誌的例外動作（高頻心跳與日誌查詢本身） */
 const ACTIVITY_LOG_EXCLUDED_ACTIONS = ["ping", "getPublicConfig", "getActivityLog"];
@@ -1417,7 +1408,7 @@ function shouldLogActivity_(action, meta) {
  * @returns {*} 變動前／後快照或 null
  */
 function captureActivityLogSnapshot_(meta) {
-  const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
+  const builders = resolveRouteDependency_("activityLogBuilders", null, "./activityLogBuilders.js", true);
   if (!builders || typeof builders.captureBefore !== "function") return null;
   try {
     // 由呼叫端傳入已解析的快照提供者，使 activityLogBuilders 無須自行解析
@@ -1542,7 +1533,7 @@ function serializeActivityLogDetail_(detail, builders) {
  * @returns {Object} 12 欄日誌紀錄
  */
 function buildActivityLogRecord_(context, meta, payload, result, before) {
-  const builders = resolveActivityLogModule_("activityLogBuilders", "./activityLogBuilders.js");
+  const builders = resolveRouteDependency_("activityLogBuilders", null, "./activityLogBuilders.js", true);
   let detail = { 版本: 1, 動作: context.action, 指標: {}, 變動: [] };
   if (builders && typeof builders.describe === "function") {
     try {
@@ -1653,8 +1644,8 @@ function finalizeWebApiRequest_(context, actionMeta, payload, finalResult, befor
   // 解析失敗或缺少 action 時仍須寫入，故補上預設中繼資料。
   if (!actionMeta) actionMeta = getActivityLogMeta_(context.action);
   if (!actionMeta || !shouldLogActivity_(context.action, actionMeta)) return;
-  const loggerModule = resolveActivityLogModule_("activityLogger", "./activityLogger.js");
-  const appendFn = getOverridableApiFn_("appendActivityLog", loggerModule ? loggerModule.appendActivityLog : null);
+  const loggerModule = resolveRouteDependency_("activityLogger", null, "./activityLogger.js", true);
+  const appendFn = resolveRouteDependency_("appendActivityLog", loggerModule ? loggerModule.appendActivityLog : null);
   if (typeof appendFn !== "function") return;
   try {
     appendFn(
@@ -1667,7 +1658,7 @@ function finalizeWebApiRequest_(context, actionMeta, payload, finalResult, befor
 }
 
 function executeWebApi(payload, event) {
-  const context = getOverridableApiFn_("createWebApiLogContext", createWebApiLogContext_)(
+  const context = resolveRouteDependency_("createWebApiLogContext", createWebApiLogContext_)(
     getWebApiAction_(payload, event, false),
     Date.now()
   );
@@ -1709,7 +1700,7 @@ function executeWebApi(payload, event) {
     // 兩次都讀取伺服器端 session，避免把授權結果作為公開參數傳入路由。
     let authorization = null;
     try {
-      authorization = getOverridableApiFn_("authorizeWebApiAction", authorizeWebApiAction)(action, payload);
+      authorization = resolveRouteDependency_("authorizeWebApiAction", authorizeWebApiAction)(action, payload);
     } catch (error) {
       // 授權函式本身的例外交由路由再次觸發，維持既有 server_error 行為。
       authorization = null;
@@ -1752,13 +1743,6 @@ function executeWebApi(payload, event) {
   }
 }
 
-function getOverridableApiFn_(name, fallback) {
-  if (typeof module !== "undefined" && module.exports && typeof module.exports[name] === "function") {
-    return module.exports[name];
-  }
-  return fallback;
-}
-
 function handleDoGetActionRequest_(action, event) {
   if (action !== "ping" && action !== "getPublicConfig") {
     return jsonResponse(
@@ -1767,7 +1751,7 @@ function handleDoGetActionRequest_(action, event) {
   }
   try {
     const payload = parseWebApiPayload(event);
-    const routeFn = getOverridableApiFn_("routeWebApiAction", routeWebApiAction);
+    const routeFn = resolveRouteDependency_("routeWebApiAction", routeWebApiAction);
     return jsonResponse(routeFn(action, payload, event));
   } catch (error) {
     return jsonResponse(webApiError("server_error", "系統發生未預期的錯誤，請稍後再試"));
@@ -1778,7 +1762,7 @@ function resolveDoGetInitialAuth_(parameter, event) {
   const authorizationCode = String(parameter.code || "").trim();
   if (authorizationCode === "") return null;
   try {
-    const callbackFn = getOverridableApiFn_("handleOAuthCodeCallback", handleOAuthCodeCallback);
+    const callbackFn = resolveRouteDependency_("handleOAuthCodeCallback", handleOAuthCodeCallback);
     return callbackFn(authorizationCode, event);
   } catch (error) {
     return webApiError("oauth_callback_failed", "Google 登入回傳處理失敗，請重新發起登入");
@@ -1827,7 +1811,7 @@ function doGet(e) {
 function doPost(e) {
   let payload = null;
   try {
-    const parseFn = getOverridableApiFn_("parseWebApiPayload", parseWebApiPayload);
+    const parseFn = resolveRouteDependency_("parseWebApiPayload", parseWebApiPayload);
     payload = parseFn(e);
   } catch (error) {
     // 解析例外不提前回傳；改由 executeWebApi 的 try／finally 統一寫入失敗日誌
@@ -1836,7 +1820,7 @@ function doPost(e) {
 
   // null／非物件 payload 與缺少 action 皆由 executeWebApi 判定並回傳對應錯誤，
   // 如此兩條 HTTP 失敗路徑也能進入最外層日誌攔截。
-  const execFn = getOverridableApiFn_("executeWebApi", executeWebApi);
+  const execFn = resolveRouteDependency_("executeWebApi", executeWebApi);
   return jsonResponse(execFn(payload, e));
 }
 
