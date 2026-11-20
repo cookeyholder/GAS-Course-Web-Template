@@ -109,6 +109,47 @@ console.log("3. 驗證全部符合門檻時檢查成功...");
   console.log("   ✓ 全數達標成功驗證通過！\n");
 }
 
+console.log("3.5 驗證缺少檔案與函式名稱欄位時正確 fallback...\n");
+{
+  const report = checkComplexity.evaluateComplexity({
+    analyses: [
+      {
+        absolutePath: "/abs/anonymous.js",
+        maintainability: 10,
+        methods: [{ cyclomatic: 20, lineStart: 1, lineEnd: 5 }]
+      },
+      {
+        maintainability: 5,
+        methods: [{ cyclomatic: 30, lineStart: 1, lineEnd: 2 }]
+      }
+    ],
+    coverageByFile: {},
+    thresholds: { crap: 30, maintainability: 20 }
+  });
+
+  assert.strictEqual(report.ok, false, "門檻違規時應失敗");
+  assert.strictEqual(report.summary.miMinFile, null, "檔案標籤全缺時 miMinFile 應為 null");
+  assert(
+    report.violations.some(function (v) {
+      return v.type === "mi" && v.file === "/abs/anonymous.js";
+    }),
+    "無 file 時應以 absolutePath 定位違規模組"
+  );
+  assert(
+    report.violations.some(function (v) {
+      return v.type === "mi" && v.file === "";
+    }),
+    "檔案標籤全缺時違規 file 應為空字串"
+  );
+  assert(
+    report.violations.some(function (v) {
+      return v.type === "crap" && v.functionName === "<anonymous>";
+    }),
+    "無 name 時應以 <anonymous> 標記違規函式"
+  );
+  console.log("   ✓ 缺失欄位 fallback 驗證通過！\n");
+}
+
 console.log("4. 驗證 runComplexityCheck 會輸出 JSON 報告並依結果回傳結束碼...");
 {
   assert.strictEqual(typeof checkComplexity.runComplexityCheck, "function", "應提供 runComplexityCheck");
