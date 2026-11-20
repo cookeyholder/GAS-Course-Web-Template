@@ -9,24 +9,11 @@
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    const controller = api.createAppController({
-      MEA: MEA,
-      document: window.document,
-      window: window,
-      setTimeoutFn: function (fn, ms) {
-        return window.setTimeout(fn, ms);
-      }
-    });
-
-    MEA.setTab = controller.setTab;
-    MEA.render = controller.render;
-    MEA.init = controller.init;
-
-    if (window.document.readyState === "loading") {
-      window.document.addEventListener("DOMContentLoaded", controller.init);
-    } else {
-      controller.init();
+    // task 6.1：僅註冊工廠，實例建立、全域別名回填與 init 由 wiring.js 集中處理。
+    if (!MEA.factories) {
+      MEA.factories = {};
     }
+    MEA.factories.app = api.createAppController;
   }
 
   if (typeof module !== "undefined" && module.exports) {
@@ -50,10 +37,6 @@
     '  <div class="text-muted">正在初始化系統連線與設定...</div>' +
     "</div>" +
     "</div>";
-
-  function invoke(module, method) {
-    return module && typeof module[method] === "function" ? module[method]() : undefined;
-  }
 
   /**
    * 依頁籤的管理員旗標與目前使用者角色判定頁籤是否可見。
@@ -135,16 +118,28 @@
     const effectiveTab = allowed ? tab : "overview";
     switch (effectiveTab) {
       case "import":
-        return invoke(MEA.imports, "renderView") || "";
+        return (
+          (MEA.imports && typeof MEA.imports.renderView === "function" ? MEA.imports.renderView() : undefined) || ""
+        );
       case "courses":
-        return invoke(MEA.courses, "renderView") || "";
+        return (
+          (MEA.courses && typeof MEA.courses.renderView === "function" ? MEA.courses.renderView() : undefined) || ""
+        );
       case "settings":
-        return invoke(MEA.accounts, "renderView") || "";
+        return (
+          (MEA.accounts && typeof MEA.accounts.renderView === "function" ? MEA.accounts.renderView() : undefined) || ""
+        );
       case "activityLog":
-        return invoke(MEA.activityLog, "renderView") || "";
+        return (
+          (MEA.activityLog && typeof MEA.activityLog.renderView === "function"
+            ? MEA.activityLog.renderView()
+            : undefined) || ""
+        );
       case "overview":
       default:
-        return invoke(MEA.ui, "renderOverviewView") || "";
+        return (
+          (MEA.ui && typeof MEA.ui.renderOverviewView === "function" ? MEA.ui.renderOverviewView() : undefined) || ""
+        );
     }
   }
 
@@ -171,11 +166,13 @@
         MEA.setState({ tab: effectiveTab });
       }
       if (effectiveTab === "courses") {
-        invoke(MEA.courses, "fetchList");
+        MEA.courses && typeof MEA.courses.fetchList === "function" ? MEA.courses.fetchList() : undefined;
       } else if (effectiveTab === "settings") {
-        invoke(MEA.accounts, "loadSettingsAndAccounts");
+        MEA.accounts && typeof MEA.accounts.loadSettingsAndAccounts === "function"
+          ? MEA.accounts.loadSettingsAndAccounts()
+          : undefined;
       } else if (effectiveTab === "activityLog") {
-        invoke(MEA.activityLog, "fetchList");
+        MEA.activityLog && typeof MEA.activityLog.fetchList === "function" ? MEA.activityLog.fetchList() : undefined;
       }
     }
 
@@ -208,7 +205,7 @@
       }
 
       if (MEA.api && typeof MEA.api.getToken === "function" && MEA.api.getToken()) {
-        invoke(MEA.auth, "restore");
+        MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
         if (initial.message && typeof MEA.setState === "function") {
           MEA.setState({ loginError: initial.message });
         }
@@ -230,7 +227,7 @@
       cleanUrlQuery();
       if (MEA.api && typeof MEA.api.setToken === "function") MEA.api.setToken("");
       if (MEA.api && typeof MEA.api.setCsrfToken === "function") MEA.api.setCsrfToken("");
-      invoke(MEA.auth, "loginActiveUser");
+      MEA.auth && typeof MEA.auth.loginActiveUser === "function" ? MEA.auth.loginActiveUser() : undefined;
       return true;
     }
 
@@ -249,9 +246,10 @@
       }
 
       if (state.view === "login") {
-        mount.innerHTML = invoke(MEA.ui, "renderLoginView") || "";
+        mount.innerHTML =
+          (MEA.ui && typeof MEA.ui.renderLoginView === "function" ? MEA.ui.renderLoginView() : undefined) || "";
         setTimeoutFn(function () {
-          invoke(MEA.auth, "renderGoogleButton");
+          MEA.auth && typeof MEA.auth.renderGoogleButton === "function" ? MEA.auth.renderGoogleButton() : undefined;
         }, 50);
         restoreFocusState(doc, focusSnapshot);
         return;
@@ -260,8 +258,8 @@
       const tab = state.tab || "overview";
       mount.innerHTML =
         '<div class="app-layout">' +
-        (invoke(MEA.ui, "renderHeader") || "") +
-        (invoke(MEA.ui, "renderNavbar") || "") +
+        ((MEA.ui && typeof MEA.ui.renderHeader === "function" ? MEA.ui.renderHeader() : undefined) || "") +
+        ((MEA.ui && typeof MEA.ui.renderNavbar === "function" ? MEA.ui.renderNavbar() : undefined) || "") +
         '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +
@@ -271,12 +269,12 @@
 
     function finishAuth() {
       if (!applyInitialAuth() && !applyAccountSwitch()) {
-        invoke(MEA.auth, "restore");
+        MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
       }
     }
 
     function init() {
-      invoke(MEA.ui, "initThemeAndStyle");
+      MEA.ui && typeof MEA.ui.initThemeAndStyle === "function" ? MEA.ui.initThemeAndStyle() : undefined;
       if (typeof MEA.subscribe === "function") {
         MEA.subscribe(render);
       }

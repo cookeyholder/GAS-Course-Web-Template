@@ -12,14 +12,11 @@
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.auth = api.createAuthController({
-      MEA: MEA,
-      document: window.document,
-      window: window,
-      setTimeoutFn: function (fn, ms) {
-        return window.setTimeout(fn, ms);
-      }
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.auth = api.createAuthController;
   }
 
   if (typeof module !== "undefined" && module.exports) {

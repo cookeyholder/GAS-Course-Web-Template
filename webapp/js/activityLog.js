@@ -11,10 +11,11 @@
 
   if (typeof window !== "undefined") {
     const MEA = (root.MEA = root.MEA || {});
-    MEA.activityLog = api.createActivityLogModule({
-      MEA: MEA,
-      document: window.document
-    });
+    // task 6.1：僅註冊工廠，實例由 wiring.js 集中建立並注入最小介面。
+    if (!MEA.factories) {
+      MEA.factories = {};
+    }
+    MEA.factories.activityLog = api.createActivityLogModule;
   }
 
   if (typeof module !== "undefined" && module.exports) {
