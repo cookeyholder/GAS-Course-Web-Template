@@ -66,13 +66,107 @@ const THRESHOLDS = {
 };
 
 /**
- * 讀取基準線快照。
+ * 方向性 ratchet 的指標方向對照。
+ * - higher-is-better：實際值不得低於基準值（覆蓋率四維度與 MI 最低值）。
+ * - lower-is-better：實際值不得高於基準值（CRAP 最高值與超標數）。
+ */
+const RATCHET_DIRECTIONS = Object.freeze({
+  lines: "higher-is-better",
+  statements: "higher-is-better",
+  functions: "higher-is-better",
+  branches: "higher-is-better",
+  miMin: "higher-is-better",
+  crapMax: "lower-is-better",
+  crapOver30Count: "lower-is-better"
+});
+
+/**
+ * ratchet 比較所需的基準欄位路徑；缺任一欄位即視為基準無效。
+ */
+const REQUIRED_BASELINE_PATHS = Object.freeze([
+  ["coverage", "totals", "lines", "pct"],
+  ["coverage", "totals", "statements", "pct"],
+  ["coverage", "totals", "functions", "pct"],
+  ["coverage", "totals", "branches", "pct"],
+  ["crap", "crapMax"],
+  ["crap", "crapOver30Count"],
+  ["maintainability", "miMin"]
+]);
+
+/**
+ * 驗證基準線的必要欄位皆為有限數字，避免欄位被誤刪時 ratchet 被靜默關閉。
+ *
+ * @param {Object} baseline - 基準線資料
+ * @returns {Object} 通過驗證的基準線資料
+ * @throws {Error} 必要欄位缺失或非有限數字時
+ */
+function validateBaseline(baseline) {
+  const source = baseline || {};
+  REQUIRED_BASELINE_PATHS.forEach(function (parts) {
+    let value = source;
+    for (let i = 0; i < parts.length; i += 1) {
+      value = value === null || value === undefined ? undefined : value[parts[i]];
+    }
+    if (!Number.isFinite(value)) {
+      throw new Error("基準線缺少必要數值欄位：" + parts.join("."));
+    }
+  });
+  return source;
+}
+
+/**
+ * 讀取基準線快照並驗證必要欄位。
  *
  * @returns {Object} 基準線資料
+ * @throws {Error} 檔案讀取失敗或必要欄位缺失時
  */
 function loadBaseline() {
   const baselinePath = path.join(PROJECT_ROOT, PATHS.qualityBaseline);
-  return JSON.parse(fs.readFileSync(baselinePath, "utf8"));
+  return validateBaseline(JSON.parse(fs.readFileSync(baselinePath, "utf8")));
+}
+
+/**
+ * 以方向性 ratchet 比較實際量測值與基準值。
+ * 僅比較雙方皆為有限數值且方向合法的指標；缺少或無效的指標視為無可比對，不視為回退。
+ *
+ * @param {Object} options - 比較選項
+ * @param {Object} [options.actual] - 實際量測值（鍵為指標名稱）
+ * @param {Object} [options.baseline] - 基準值（鍵為指標名稱）
+ * @param {Object} [options.directions] - 方向對照，預設 RATCHET_DIRECTIONS
+ * @returns {{ok: boolean, regressions: Array<{metric: string, actual: number, baseline: number, direction: string, reason: string}>}}
+ */
+function compareWithBaseline(options) {
+  const settings = options || {};
+  const actual = settings.actual || {};
+  const baseline = settings.baseline || {};
+  const directions = settings.directions || RATCHET_DIRECTIONS;
+  const regressions = [];
+
+  Object.keys(directions).forEach(function (metric) {
+    const actualValue = actual[metric];
+    const baselineValue = baseline[metric];
+    if (!Number.isFinite(actualValue) || !Number.isFinite(baselineValue)) return;
+
+    const direction = directions[metric];
+    if (direction !== "higher-is-better" && direction !== "lower-is-better") return;
+
+    const regressed = direction === "lower-is-better" ? actualValue > baselineValue : actualValue < baselineValue;
+    if (regressed) {
+      regressions.push({
+        metric: metric,
+        actual: actualValue,
+        baseline: baselineValue,
+        direction: direction,
+        reason:
+          direction === "lower-is-better" ? "高於基準值（方向性 ratchet 回退）" : "低於基準值（方向性 ratchet 回退）"
+      });
+    }
+  });
+
+  return {
+    ok: regressions.length === 0,
+    regressions: regressions
+  };
 }
 
 module.exports = {
@@ -80,5 +174,9 @@ module.exports = {
   SCOPE: SCOPE,
   PATHS: PATHS,
   THRESHOLDS: THRESHOLDS,
-  loadBaseline: loadBaseline
+  RATCHET_DIRECTIONS: RATCHET_DIRECTIONS,
+  REQUIRED_BASELINE_PATHS: REQUIRED_BASELINE_PATHS,
+  validateBaseline: validateBaseline,
+  loadBaseline: loadBaseline,
+  compareWithBaseline: compareWithBaseline
 };

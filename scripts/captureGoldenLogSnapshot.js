@@ -11,7 +11,7 @@
  * 使快照可跨執行、跨重構穩定比對。
  *
  * 用法：node scripts/captureGoldenLogSnapshot.js [輸出路徑]
- * 預設輸出：openspec/changes/refactor-cohesion-and-coupling/golden-log-snapshot.json
+ * 預設輸出：openspec/changes/archive/2026-11-20-refactor-cohesion-and-coupling/golden-log-snapshot.json
  */
 
 const fs = require("fs");
@@ -22,7 +22,8 @@ const defaultOutput = path.join(
   root,
   "openspec",
   "changes",
-  "refactor-cohesion-and-coupling",
+  "archive",
+  "2026-11-20-refactor-cohesion-and-coupling",
   "golden-log-snapshot.json"
 );
 const outputPath = process.argv[2] ? path.resolve(process.argv[2]) : defaultOutput;

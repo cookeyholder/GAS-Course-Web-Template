@@ -7,7 +7,7 @@
 - 後端運行於 GAS V8，根目錄 `*.js` 共享全域命名空間；Node 測試則仰賴 `module.exports` 與白名單注入。任何拆分都必須維持雙環境相容，且新增後端模組必須隨 `npm run push` 上傳、不得被 `.claspignore` 排除。
 - `index.html` 為 `build-webapp.js` 依 `webapp/index.html` 的 `<script>` 順序內嵌的單一產物；新增前端模組必須更新樣板順序，建置腳本不另維護模組清單。
 - 操作日誌已通過稽核測試與 RBAC 測試，拆分時必須保持日誌內容、寫入時機與錯誤不阻斷主流程的語意；既有 facade 匯出被大量測試直接使用，需保留向後相容轉發。
-- 品質閘門已綠燈（CRAP > 30 為 0、MI 最低 83.666、覆蓋率 94.75／94.75／92.15／83.67），但 `scripts/quality-baseline.json` 為 2026-11-18 過期快照（CRAP 最高 1482、超標 56、MI 最低 69.134、覆蓋率 27.37／27.37／58.82／37.87）。ratchet 以重構前量測值為準，採方向性比較：CRAP／超標數取低、MI／覆蓋率取高。
+- 品質閘門在重構前的量測既有值為 CRAP 最高 30／超標 0、MI 最低 83.666、覆蓋率 94.8／94.8／92.15／83.79（見 `measurement-baseline-before-refactor.md`；早期文件的 94.75／94.75／92.15／83.67 與 MI 83.67 僅為量測前參考值，不得作為 ratchet 來源），但 `scripts/quality-baseline.json` 為 2026-11-18 過期快照（CRAP 最高 1482、超標 56、MI 最低 69.134、覆蓋率 27.37／27.37／58.82／37.87）。ratchet 以重構前量測既有值為準，採方向性比較：CRAP／超標數取低、MI／覆蓋率取高。
 
 ## Goals / Non-Goals
 
@@ -111,6 +111,33 @@
 | D | 8–9 | 基準更新與最終回歸 | 方向性 ratchet、完整品質閘門、打包與部署驗證 |
 
 各批次皆為行為不變重構，可獨立部署，不需特性開關。回滾程序：GAS 部署版本記錄中選擇前一批次版本重新部署，部署 ID 保持不變；程式碼層面則 checkout 前一批次的相鄰 commit 後執行 `npm run push` 與 `npm run deploy`，並驗證 `getPublicConfig` 與操作日誌寫入正常。
+
+#### 可執行的回滾步驟
+
+**路徑 A：GAS 部署版本退回（推薦，不需重新推送程式碼）**
+
+1. 記錄現況：`npm run status`（等價 `clasp version && clasp deployments`），記下目前 deployment ID 與版本號。
+2. 在 GAS 編輯器開啟專案（`npm run open`），點「部署」→「管理部署作業」，選取既有 Web App deployment，按「編輯」，在版本下拉清單選擇前一批次所對應的版本後重新部署。**Deployment ID 與 Web App 網址保持不變**；此路徑只切換版本，不改動原始碼。
+3. 驗證：以 `npm run open-webapp` 開啟 Web App，確認首頁可載入且標題版本為 `1.1.0`；執行一筆寫入（例如「系統設定與授權」儲存）後，至管理員「操作日誌」頁籤確認出現新列；必要時以 `npm run logs` 檢視 StackDriver 執行日誌有無例外。
+4. 若需再次回到批次 D，重複步驟 2 並選取批次 D 的版本即可，不需變更 deployment ID。
+
+**路徑 B：程式碼層面回滾（需要重新推送）**
+
+1. 確認目前位置：`git log --oneline -5`；批次 D 的起點（即前一批次 A–C 的合併 commit）為 `f0022d0`。
+2. 建立回滾分支並回到前一批次：`git checkout -b rollback/batch-c f0022d0`。
+3. 執行安全網：`npm test`、`npm run build:webapp`、`npm run check:coverage`、`npm run check:complexity`、`npm run check:changed-coverage`（以 `CHANGED_COVERAGE_BASE` 指定回滾目標的父 commit）。
+4. 推送與部署：`npm run push`（自動先建置再 `clasp push`），接著 `npm run deploy -- -i <DEPLOYMENT_ID> -d "回滾至批次 C"`。**必須以 `--` 分隔 npm 旗標與腳本參數**，否則 `-i`／`-d` 會被 npm 自行解析而在 npm 10 被吃掉、在 npm 12 直接報錯，可能建立新的 deployment ID 與網址。若已有 `CLASP_DEPLOYMENT_ID` 環境變數，亦可改用 `node scripts/deploy.js -d "回滾至批次 C"` 直接呼叫部署腳本。部署後務必以 `npm run status` 確認 deployment ID 與退回前一致。
+5. 驗證同路徑 A 步驟 3；另執行 `node scripts/captureGoldenLogSnapshot.js /tmp/golden-after-rollback.json` 並與 `openspec/changes/archive/2026-11-20-refactor-cohesion-and-coupling/golden-log-snapshot.json` 比對，確認 `getPublicConfig` 與日誌寫入行為未漂移。
+
+#### 驗證方式與結果
+
+- **`getPublicConfig`**：後端可直接執行
+  `node -e "console.log(require('./webApi.js').getPublicConfig().version)"`，預期輸出 `1.1.0`；線上則由前端啟動時呼叫 `getPublicConfig` 取得的公開設定驗證（系統名稱、版本、是否需開通），且不得回傳 Client Secret 明文。
+  **本機結果**：實測輸出 `version=1.1.0`、`ok=true`、`hasClientSecret=false`，與重構前一致。
+- **操作日誌寫入**：前端執行寫入動作後於管理員「操作日誌」頁籤確認新列；`ping`、`getPublicConfig`、`getActivityLog` 三項 MUST NOT 寫入日誌，由 `tests/webApiActivityLog.test.js` 驗證。
+- **Golden log snapshot**：`node scripts/captureGoldenLogSnapshot.js <輸出路徑>` 產生 7 個代表性請求、5 筆日誌的快照。
+  **本機結果**：與 `golden-log-snapshot.json` 逐位元組比對一致（`cmp` 結束碼 0），顯示 `getPublicConfig` 不寫日誌、寫入與查詢動作新增日誌、失敗情境仍記錄錯誤代碼等行為在重構前後完全一致。
+- **GAS 線上部署回滾**：本機不具備 GAS 部署憑證，未實際執行路徑 A／B 的線上部署步驟；上述為可直接在具備權限環境執行的程序，線上也必須由操作者依序確認 deployment ID 未變、Web App 可連線、`getPublicConfig` 回傳 `1.1.0`、操作日誌有新寫入。此限制如實記錄，不宣稱已完成線上回滾。
 
 ## Risks / Trade-offs
 

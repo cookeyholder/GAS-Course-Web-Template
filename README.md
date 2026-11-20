@@ -221,7 +221,22 @@ npm run build:webapp
 - **變更覆蓋率**（`check:changed-coverage`）：相對比較基準之 Lines >= 80%、Branches >= 70%；無可量測變更時明確成功/略過。
 - **CRAP**（`check:complexity`）：每個納管函式 **CRAP MUST NOT > 30**。
 - **Maintainability Index（MI）**（`check:complexity`）：每個納管模組 **MI MUST >= 20**。
-- **基準線**：2026-11-18 量測基準與門檻、納管範圍記錄於 `scripts/quality-baseline.json`、`scripts/qualityConfig.js` 與 `openspec/changes/archive/2026-11-19-2026-11-18-quality-gates-and-test-expansion/proposal.md`（已封存變更）；後續調整須可追溯且不得任意放寬（不回退）。
+- **方向性 ratchet**：覆蓋率四維度與 MI 最低值為「越高越佳」，不得低於基準；CRAP 最高值與超標數為「越低越佳」，不得高於基準。比較邏輯集中於 `scripts/qualityConfig.js::compareWithBaseline`，由 `checkCoverage.js` 與 `checkComplexity.js` 共用。
+- **基準線**：現行基準（2026-11-20，Node v24.22.3）記錄於 `scripts/quality-baseline.json`，ratchet 既有值來源為 `openspec/changes/archive/2026-11-20-refactor-cohesion-and-coupling/measurement-baseline-before-refactor.md`；2026-11-18 過期快照另存為 `scripts/quality-baseline.2026-11-18.json`，僅供歷史比較，不作為 ratchet 來源。後續調整須可追溯且不得任意放寬。
+
+#### 基準新舊比較（方向性 ratchet）
+
+| 指標              | 2026-11-18 過期快照 | 重構前既有值（1.3） | 現行基準（2026-11-20） | 方向與結果       |
+| ----------------- | ------------------- | ------------------- | ---------------------- | ---------------- |
+| Lines 覆蓋率      | 27.37%              | 94.8%               | 96.28%                 | 越高越佳，未回退 |
+| Statements 覆蓋率 | 27.37%              | 94.8%               | 96.28%                 | 越高越佳，未回退 |
+| Functions 覆蓋率  | 58.82%              | 92.15%              | 94.25%                 | 越高越佳，未回退 |
+| Branches 覆蓋率   | 37.87%              | 83.79%              | 85.62%                 | 越高越佳，未回退 |
+| CRAP 最高值       | 1482.0              | 30                  | 30                     | 越低越佳，未回退 |
+| CRAP > 30 超標數  | 56                  | 0                   | 0                      | 越低越佳，未回退 |
+| MI 最低值         | 69.134              | 83.666              | 83.666                 | 越高越佳，未回退 |
+
+完整量測環境、模組行數變化與新舊比較詳見 `docs/quality-baseline-2026-11-20.md`。
 
 ### CI 品質閘門行為
 

@@ -187,10 +187,51 @@ function evaluateComplexity(options) {
     miMinFile: miMinFile
   };
 
+  // 方向性 ratchet：CRAP 最高值與超標數取低，MI 最低值取高。
+  const baseline = settings.baseline || {};
+  const baselineCrap = baseline.crap || {};
+  const baselineMaintainability = baseline.maintainability || {};
+  const ratchet = qualityConfig.compareWithBaseline({
+    actual: {
+      crapMax: summary.crapMax,
+      crapOver30Count: summary.crapOverThreshold,
+      miMin: summary.miMin
+    },
+    baseline: {
+      crapMax: baselineCrap.crapMax,
+      crapOver30Count: baselineCrap.crapOver30Count,
+      miMin: baselineMaintainability.miMin
+    }
+  });
+
+  ratchet.regressions.forEach(function (regression) {
+    violations.push({
+      type: "ratchet",
+      metric: regression.metric,
+      actual: regression.actual,
+      baseline: regression.baseline,
+      direction: regression.direction,
+      message:
+        "方向性 ratchet 回退：" +
+        regression.metric +
+        " " +
+        regression.actual +
+        "（基準 " +
+        regression.baseline +
+        "，" +
+        regression.direction +
+        "）"
+    });
+  });
+
+  summary.ratchetOk = ratchet.ok;
+  summary.ratchetRegressionCount = ratchet.regressions.length;
+
   return {
     ok: violations.length === 0,
     summary: summary,
-    violations: violations
+    violations: violations,
+    ratchet: ratchet
   };
 }
 
@@ -294,6 +335,7 @@ function runComplexityCheck(options) {
   const readCov = settings.readCoverage || readCoverage;
   const collect = settings.collectAnalyses || collectAnalyses;
   const write = settings.writeReport || writeReport;
+  const loadBaseline = settings.loadBaseline || qualityConfig.loadBaseline;
 
   let coverageByFile;
   try {
@@ -303,13 +345,26 @@ function runComplexityCheck(options) {
     return 1;
   }
 
+  let baseline;
+  try {
+    baseline = loadBaseline();
+  } catch (error) {
+    log("[checkComplexity] 無法讀取基準線：" + error.message);
+    return 1;
+  }
+
   const analyses = collect();
   const report = evaluateComplexity({
     analyses: analyses,
     coverageByFile: coverageByFile,
-    thresholds: thresholds
+    thresholds: thresholds,
+    baseline: baseline
   });
   report.generatedAt = new Date().toISOString();
+  report.baseline = {
+    measuredAt: baseline.measuredAt || null,
+    ratchetSource: (baseline.ratchet && baseline.ratchet.source) || null
+  };
 
   const reportPath = path.join(PROJECT_ROOT, qualityConfig.PATHS.complexityReport);
   write(reportPath, JSON.stringify(report, null, 2));
@@ -326,7 +381,9 @@ function runComplexityCheck(options) {
       " 數 " +
       report.summary.crapOverThreshold +
       "；CRAP 最高 " +
-      report.summary.crapMax.toFixed(2)
+      report.summary.crapMax.toFixed(2) +
+      "；方向性 ratchet " +
+      (report.ratchet.ok ? "無回退" : "回退 " + report.ratchet.regressions.length + " 項")
   );
   if (!report.ok) {
     log("[checkComplexity] 發現違規項目 " + report.violations.length + "：");
@@ -339,7 +396,7 @@ function runComplexityCheck(options) {
     return 1;
   }
 
-  log("[checkComplexity] CRAP 與 MI 檢查通過。報告：" + reportPath);
+  log("[checkComplexity] CRAP 與 MI 檢查通過（含方向性 ratchet）。報告：" + reportPath);
   return 0;
 }
 
