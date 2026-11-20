@@ -51,10 +51,13 @@
    * - locked：需全域 Script Lock 保護
    * - roles：允許呼叫的角色代碼（public action 不需填寫）
    * - logCategory／logLabel／logDetailKey／logEnabled：操作日誌宣告式中繼資料
+   * - doGet：明確允許以 GET 呼叫（public 不會自動放行）
+   * - backfillIdentity：成功地登入後補寫日誌身分（僅限公開且寫入日誌的登入動作）
    */
   const ACTIONS = {
     ping: {
       public: true,
+      doGet: true,
       logCategory: "query",
       logLabel: "心跳檢查",
       logDetailKey: "none",
@@ -62,6 +65,7 @@
     },
     getPublicConfig: {
       public: true,
+      doGet: true,
       logCategory: "query",
       logLabel: "取得公開設定",
       logDetailKey: "none",
@@ -69,6 +73,7 @@
     },
     login: {
       public: true,
+      backfillIdentity: true,
       logCategory: "auth",
       logLabel: "登入",
       logDetailKey: "auth",
@@ -76,6 +81,7 @@
     },
     loginWithActiveUser: {
       public: true,
+      backfillIdentity: true,
       logCategory: "auth",
       logLabel: "使用現存帳號登入",
       logDetailKey: "auth",
@@ -216,6 +222,39 @@
   }
 
   /**
+   * 列出明確允許以 GET 呼叫的 action（由 doGet: true 衍生，public 不自動放行）。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listDoGetAllowedActions() {
+    return filterActionsByFlag_("doGet");
+  }
+
+  /**
+   * 列出不寫入操作日誌的 action（由 logEnabled === false 衍生）。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listLogExcludedActions() {
+    if (!CACHED_LISTS.logExcluded) {
+      CACHED_LISTS.logExcluded = Object.keys(ACTIONS).filter(function (name) {
+        return ACTIONS[name].logEnabled === false;
+      });
+    }
+    return CACHED_LISTS.logExcluded.slice();
+  }
+
+  /**
+   * 列出成功登入後需補寫日誌身分的 action（由 backfillIdentity: true 衍生）。
+   * 該旗標僅能標記於公開且寫入日誌的 action，由 actionRegistry.test.js 驗證此約束。
+   *
+   * @returns {Array<string>} action 名稱陣列
+   */
+  function listIdentityBackfillActions() {
+    return filterActionsByFlag_("backfillIdentity");
+  }
+
+  /**
    * 判斷 action 是否已登錄。
    *
    * @param {string} name - action 名稱
@@ -319,6 +358,9 @@
     listPublicActions: listPublicActions,
     listWriteActions: listWriteActions,
     listLockedActions: listLockedActions,
+    listDoGetAllowedActions: listDoGetAllowedActions,
+    listLogExcludedActions: listLogExcludedActions,
+    listIdentityBackfillActions: listIdentityBackfillActions,
     hasAction: hasAction,
     setHandler: setHandler,
     getHandler: getHandler,

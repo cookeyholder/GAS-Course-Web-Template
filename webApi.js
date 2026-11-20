@@ -84,6 +84,9 @@ const WEB_API_MEMORY_NONCES = {};
 const WEB_API_PUBLIC_ACTIONS = ACTION_REGISTRY.listPublicActions();
 const WEB_API_WRITE_ACTIONS = ACTION_REGISTRY.listWriteActions();
 const WEB_API_LOCKED_ACTIONS = ACTION_REGISTRY.listLockedActions();
+const WEB_API_DO_GET_ACTIONS = ACTION_REGISTRY.listDoGetAllowedActions();
+const ACTIVITY_LOG_EXCLUDED_ACTIONS = ACTION_REGISTRY.listLogExcludedActions();
+const WEB_API_IDENTITY_BACKFILL_ACTIONS = ACTION_REGISTRY.listIdentityBackfillActions();
 
 const GOOGLE_TOKENINFO_URL = "https://oauth2.googleapis.com/tokeninfo";
 const WEB_API_SESSION_PREFIX = "gas_tmpl_session_";
@@ -1183,9 +1186,6 @@ function routeWebApiAction(action, payload, event) {
 // GAS 進入點
 // ============================================================================
 
-/** 不寫入日誌的例外動作（高頻心跳與日誌查詢本身） */
-const ACTIVITY_LOG_EXCLUDED_ACTIONS = ["ping", "getPublicConfig", "getActivityLog"];
-
 /**
  * 操作日誌攔截器實例（task 4.2）：實際邏輯移入 activityLogInterceptor.js，
  * 此處僅注入 webApi 專有的解析函式（保留以 module.exports 注入的測試接縫）。
@@ -1396,7 +1396,7 @@ function executeWebApi(payload, event) {
             ? module.exports.routeWebApiAction
             : routeWebApiAction;
         const result = routeFn(action, payload, event);
-        if ((action === "login" || action === "loginWithActiveUser") && result && result.ok) {
+        if (WEB_API_IDENTITY_BACKFILL_ACTIONS.indexOf(action) !== -1 && result && result.ok) {
           recordWebApiIdentity_(context, null, result);
         }
         return result;
@@ -1413,9 +1413,12 @@ function executeWebApi(payload, event) {
 }
 
 function handleDoGetActionRequest_(action, event) {
-  if (action !== "ping" && action !== "getPublicConfig") {
+  if (WEB_API_DO_GET_ACTIONS.indexOf(action) === -1) {
     return jsonResponse(
-      webApiError("method_not_allowed", "為保障安全性，除 ping 與 getPublicConfig 外之操作一律必須使用 POST 方法發送")
+      webApiError(
+        "method_not_allowed",
+        "為保障安全性，除 " + WEB_API_DO_GET_ACTIONS.join(" 與 ") + " 外之操作一律必須使用 POST 方法發送"
+      )
     );
   }
   try {
@@ -1500,6 +1503,9 @@ if (typeof module !== "undefined" && module.exports) {
     WEB_API_PUBLIC_ACTIONS: WEB_API_PUBLIC_ACTIONS,
     WEB_API_WRITE_ACTIONS: WEB_API_WRITE_ACTIONS,
     WEB_API_LOCKED_ACTIONS: WEB_API_LOCKED_ACTIONS,
+    WEB_API_DO_GET_ACTIONS: WEB_API_DO_GET_ACTIONS,
+    ACTIVITY_LOG_EXCLUDED_ACTIONS: ACTIVITY_LOG_EXCLUDED_ACTIONS,
+    WEB_API_IDENTITY_BACKFILL_ACTIONS: WEB_API_IDENTITY_BACKFILL_ACTIONS,
     WEB_API_IMPORT_MAX_ROWS: WEB_API_IMPORT_MAX_ROWS,
     WEB_API_IMPORT_RAW_COLUMNS: WEB_API_IMPORT_RAW_COLUMNS,
     WEB_API_IMPORT_NORMALIZED_COLUMNS: WEB_API_IMPORT_NORMALIZED_COLUMNS,

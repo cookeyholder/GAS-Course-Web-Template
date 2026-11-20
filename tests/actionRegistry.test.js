@@ -21,6 +21,29 @@ function run() {
   assert.strictEqual(api.WEB_API_LOCKED_ACTIONS.indexOf("loginWithActiveUser"), -1);
   console.log("   ✓ 清單一致性驗證通過！\n");
 
+  console.log("1.1 特殊清單應由 ACTION_REGISTRY 明確旗標衍生...");
+  assert.deepStrictEqual(api.WEB_API_DO_GET_ACTIONS, registry.listDoGetAllowedActions());
+  assert.deepStrictEqual(api.ACTIVITY_LOG_EXCLUDED_ACTIONS, registry.listLogExcludedActions());
+  assert.deepStrictEqual(api.WEB_API_IDENTITY_BACKFILL_ACTIONS, registry.listIdentityBackfillActions());
+  assert.deepStrictEqual(registry.listDoGetAllowedActions(), ["ping", "getPublicConfig"]);
+  assert.deepStrictEqual(registry.listLogExcludedActions(), ["ping", "getPublicConfig", "getActivityLog"]);
+  assert.deepStrictEqual(registry.listIdentityBackfillActions(), ["login", "loginWithActiveUser"]);
+  // backfillIdentity 旗標僅能標記於公開且寫入日誌的 action。
+  registry.listIdentityBackfillActions().forEach(function (action) {
+    assert.strictEqual(registry.isPublicAction(action), true, action + " 應為公開 action");
+    assert.strictEqual(registry.getActionMeta(action).enabled, true, action + " 應寫入日誌");
+  });
+  // doGet 白名單不由 public 自動放行：仍有公開 action 未標記 doGet。
+  registry.listPublicActions().forEach(function (action) {
+    if (registry.listDoGetAllowedActions().indexOf(action) === -1) {
+      assert(
+        action === "login" || action === "loginWithActiveUser",
+        "未標記 doGet 的公開 action 應為登入動作：" + action
+      );
+    }
+  });
+  console.log("   ✓ 特殊清單衍生驗證通過！\n");
+
   console.log("2. RBAC 權限矩陣應由 ACTION_REGISTRY 產生...");
   assert.deepStrictEqual(api.ROLE_PERMISSIONS, registry.buildRolePermissions());
   ["getSession", "logout", "getCourseIndex", "getCourseIndexStats", "getSystemSettings"].forEach(function (action) {
