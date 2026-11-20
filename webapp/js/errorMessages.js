@@ -48,15 +48,11 @@
     return safeFallback;
   }
 
-  /** 相容既有呼叫端：轉發至唯一的轉譯定義。 */
-  function resolveUserMessage(value, fallback) {
-    return resolveSafeMessage(value, fallback);
-  }
-
   return {
     DEFAULT_MESSAGE: DEFAULT_MESSAGE,
     createSafeError: createSafeError,
     resolveSafeMessage: resolveSafeMessage,
-    resolveUserMessage: resolveUserMessage
+    // 相容既有呼叫端：直接指向唯一的轉譯定義，避免額外轉發函式。
+    resolveUserMessage: resolveSafeMessage
   };
 });

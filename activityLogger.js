@@ -157,7 +157,6 @@ function buildActivityLogRow_(record) {
  * @returns {boolean} 是否成功寫入
  */
 function appendActivityLog_(record, ss, deps) {
-  const options = deps || {};
   try {
     const spreadsheet = resolveSpreadsheet_(ss);
     if (!spreadsheet || typeof spreadsheet.getSheetByName !== "function") return false;
