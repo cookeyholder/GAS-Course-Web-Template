@@ -7353,23 +7353,18 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
 
   /**
    * gasRuntime 單一來源解析（task 5.3）：GAS 全域優先，Node 由 require 取得。
-   * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，故採延遲解析；
-   * 隔離環境無 gasRuntime 時退回同值常數，維持雙環境載入相容。
+   * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，無 gasRuntime 時
+   * 退回同值常數，維持雙環境載入相容。
    */
   function resolveRoleCodes_() {
-    const runtime =
-      typeof globalThis !== "undefined" && globalThis.gasRuntime
-        ? globalThis.gasRuntime
-        : typeof require === "function"
-          ? require("./gasRuntime.js")
-          : null;
-    return (
-      (runtime && runtime.ROLE_CODES) || {
-        ADMIN: "admin",
-        STAFF: "staff",
-        VIEWER: "viewer"
-      }
-    );
+    const fallback = { ADMIN: "admin", STAFF: "staff", VIEWER: "viewer" };
+    let runtime = null;
+    if (typeof globalThis !== "undefined" && globalThis.gasRuntime) {
+      runtime = globalThis.gasRuntime;
+    } else if (typeof require === "function") {
+      runtime = require("./gasRuntime.js");
+    }
+    return (runtime && runtime.ROLE_CODES) || fallback;
   }
 
   /** 所有角色的代碼（由 gasRuntime.ROLE_CODES 衍生，單一來源） */
@@ -7437,7 +7432,7 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     importCourseCodes: {
       write: true,
       locked: true,
-      roles: ["admin", "staff"],
+      roles: [ROLE_CODES.ADMIN, ROLE_CODES.STAFF],
       logCategory: "write",
       logLabel: "匯入課程代碼",
       logDetailKey: "importCourseCodes",
@@ -7467,14 +7462,14 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     saveSystemSettings: {
       write: true,
       locked: true,
-      roles: ["admin"],
+      roles: [ROLE_CODES.ADMIN],
       logCategory: "write",
       logLabel: "儲存系統設定",
       logDetailKey: "systemSettings",
       logEnabled: true
     },
     getAccounts: {
-      roles: ["admin"],
+      roles: [ROLE_CODES.ADMIN],
       logCategory: "query",
       logLabel: "查詢授權成員",
       logDetailKey: "query",
@@ -7483,14 +7478,14 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     saveWhitelist: {
       write: true,
       locked: true,
-      roles: ["admin"],
+      roles: [ROLE_CODES.ADMIN],
       logCategory: "write",
       logLabel: "儲存授權名單",
       logDetailKey: "whitelist",
       logEnabled: true
     },
     getActivityLog: {
-      roles: ["admin"],
+      roles: [ROLE_CODES.ADMIN],
       logCategory: "query",
       logLabel: "查詢操作日誌",
       logDetailKey: "none",
@@ -8787,16 +8782,12 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     return safeFallback;
   }
 
-  /** 相容既有呼叫端：轉發至唯一的轉譯定義。 */
-  function resolveUserMessage(value, fallback) {
-    return resolveSafeMessage(value, fallback);
-  }
-
   return {
     DEFAULT_MESSAGE: DEFAULT_MESSAGE,
     createSafeError: createSafeError,
     resolveSafeMessage: resolveSafeMessage,
-    resolveUserMessage: resolveUserMessage
+    // 相容既有呼叫端：直接指向唯一的轉譯定義，避免額外轉發函式。
+    resolveUserMessage: resolveSafeMessage
   };
 });
   </script>
@@ -13526,6 +13517,31 @@ window.MEA = window.MEA || {};
     "</div>";
 
   /**
+   * 頁籤與控制器的對應關係（buildBodyHtml 與 setTab 共用，避免路由漂移）。
+   * 以 Object.create(null) 隔離原型鏈，避免 "toString" 等屬性誤判為有效頁籤。
+   * render 為畫面產生器；load 為切換頁籤時的資料載入，無則省略。
+   */
+  const TAB_CONTROLLERS = Object.assign(Object.create(null), {
+    import: { module: "imports", render: "renderView" },
+    courses: { module: "courses", render: "renderView", load: "fetchList" },
+    settings: { module: "accounts", render: "renderView", load: "loadSettingsAndAccounts" },
+    activityLog: { module: "activityLog", render: "renderView", load: "fetchList" },
+    overview: { module: "ui", render: "renderOverviewView" }
+  });
+
+  /**
+   * 安全呼叫物件方法：方法不存在時回傳 undefined，並保留原本的 this 綁定。
+   *
+   * @param {Object} owner - 方法所屬物件
+   * @param {string} methodName - 方法名稱
+   * @returns {*} 方法回傳值，或 undefined
+   */
+  function invokeIfFunction_(owner, methodName) {
+    if (!owner || typeof owner[methodName] !== "function") return undefined;
+    return owner[methodName].call(owner);
+  }
+
+  /**
    * 依頁籤的管理員旗標與目前使用者角色判定頁籤是否可見。
    * 與 webapp/js/ui.js 的守門邏輯一致，防止直接竄改 state 進入管理員頁籤。
    *
@@ -13603,31 +13619,8 @@ window.MEA = window.MEA || {};
   function buildBodyHtml(MEA, tab) {
     const allowed = isTabAllowed(findTab(MEA, tab), MEA.state && MEA.state.user);
     const effectiveTab = allowed ? tab : "overview";
-    switch (effectiveTab) {
-      case "import":
-        return (
-          (MEA.imports && typeof MEA.imports.renderView === "function" ? MEA.imports.renderView() : undefined) || ""
-        );
-      case "courses":
-        return (
-          (MEA.courses && typeof MEA.courses.renderView === "function" ? MEA.courses.renderView() : undefined) || ""
-        );
-      case "settings":
-        return (
-          (MEA.accounts && typeof MEA.accounts.renderView === "function" ? MEA.accounts.renderView() : undefined) || ""
-        );
-      case "activityLog":
-        return (
-          (MEA.activityLog && typeof MEA.activityLog.renderView === "function"
-            ? MEA.activityLog.renderView()
-            : undefined) || ""
-        );
-      case "overview":
-      default:
-        return (
-          (MEA.ui && typeof MEA.ui.renderOverviewView === "function" ? MEA.ui.renderOverviewView() : undefined) || ""
-        );
-    }
+    const controller = TAB_CONTROLLERS[effectiveTab] || TAB_CONTROLLERS.overview;
+    return invokeIfFunction_(MEA[controller.module], controller.render) || "";
   }
 
   function createAppController(deps) {
@@ -13652,14 +13645,9 @@ window.MEA = window.MEA || {};
       if (typeof MEA.setState === "function") {
         MEA.setState({ tab: effectiveTab });
       }
-      if (effectiveTab === "courses") {
-        MEA.courses && typeof MEA.courses.fetchList === "function" ? MEA.courses.fetchList() : undefined;
-      } else if (effectiveTab === "settings") {
-        MEA.accounts && typeof MEA.accounts.loadSettingsAndAccounts === "function"
-          ? MEA.accounts.loadSettingsAndAccounts()
-          : undefined;
-      } else if (effectiveTab === "activityLog") {
-        MEA.activityLog && typeof MEA.activityLog.fetchList === "function" ? MEA.activityLog.fetchList() : undefined;
+      const controller = TAB_CONTROLLERS[effectiveTab];
+      if (controller && controller.load) {
+        invokeIfFunction_(MEA[controller.module], controller.load);
       }
     }
 
@@ -13692,7 +13680,7 @@ window.MEA = window.MEA || {};
       }
 
       if (MEA.api && typeof MEA.api.getToken === "function" && MEA.api.getToken()) {
-        MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
+        invokeIfFunction_(MEA.auth, "restore");
         if (initial.message && typeof MEA.setState === "function") {
           MEA.setState({ loginError: initial.message });
         }
@@ -13714,7 +13702,7 @@ window.MEA = window.MEA || {};
       cleanUrlQuery();
       if (MEA.api && typeof MEA.api.setToken === "function") MEA.api.setToken("");
       if (MEA.api && typeof MEA.api.setCsrfToken === "function") MEA.api.setCsrfToken("");
-      MEA.auth && typeof MEA.auth.loginActiveUser === "function" ? MEA.auth.loginActiveUser() : undefined;
+      invokeIfFunction_(MEA.auth, "loginActiveUser");
       return true;
     }
 
@@ -13733,10 +13721,9 @@ window.MEA = window.MEA || {};
       }
 
       if (state.view === "login") {
-        mount.innerHTML =
-          (MEA.ui && typeof MEA.ui.renderLoginView === "function" ? MEA.ui.renderLoginView() : undefined) || "";
+        mount.innerHTML = invokeIfFunction_(MEA.ui, "renderLoginView") || "";
         setTimeoutFn(function () {
-          MEA.auth && typeof MEA.auth.renderGoogleButton === "function" ? MEA.auth.renderGoogleButton() : undefined;
+          invokeIfFunction_(MEA.auth, "renderGoogleButton");
         }, 50);
         restoreFocusState(doc, focusSnapshot);
         return;
@@ -13745,8 +13732,8 @@ window.MEA = window.MEA || {};
       const tab = state.tab || "overview";
       mount.innerHTML =
         '<div class="app-layout">' +
-        ((MEA.ui && typeof MEA.ui.renderHeader === "function" ? MEA.ui.renderHeader() : undefined) || "") +
-        ((MEA.ui && typeof MEA.ui.renderNavbar === "function" ? MEA.ui.renderNavbar() : undefined) || "") +
+        (invokeIfFunction_(MEA.ui, "renderHeader") || "") +
+        (invokeIfFunction_(MEA.ui, "renderNavbar") || "") +
         '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +

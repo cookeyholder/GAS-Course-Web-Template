@@ -39,6 +39,31 @@
     "</div>";
 
   /**
+   * 頁籤與控制器的對應關係（buildBodyHtml 與 setTab 共用，避免路由漂移）。
+   * 以 Object.create(null) 隔離原型鏈，避免 "toString" 等屬性誤判為有效頁籤。
+   * render 為畫面產生器；load 為切換頁籤時的資料載入，無則省略。
+   */
+  const TAB_CONTROLLERS = Object.assign(Object.create(null), {
+    import: { module: "imports", render: "renderView" },
+    courses: { module: "courses", render: "renderView", load: "fetchList" },
+    settings: { module: "accounts", render: "renderView", load: "loadSettingsAndAccounts" },
+    activityLog: { module: "activityLog", render: "renderView", load: "fetchList" },
+    overview: { module: "ui", render: "renderOverviewView" }
+  });
+
+  /**
+   * 安全呼叫物件方法：方法不存在時回傳 undefined，並保留原本的 this 綁定。
+   *
+   * @param {Object} owner - 方法所屬物件
+   * @param {string} methodName - 方法名稱
+   * @returns {*} 方法回傳值，或 undefined
+   */
+  function invokeIfFunction_(owner, methodName) {
+    if (!owner || typeof owner[methodName] !== "function") return undefined;
+    return owner[methodName].call(owner);
+  }
+
+  /**
    * 依頁籤的管理員旗標與目前使用者角色判定頁籤是否可見。
    * 與 webapp/js/ui.js 的守門邏輯一致，防止直接竄改 state 進入管理員頁籤。
    *
@@ -116,31 +141,8 @@
   function buildBodyHtml(MEA, tab) {
     const allowed = isTabAllowed(findTab(MEA, tab), MEA.state && MEA.state.user);
     const effectiveTab = allowed ? tab : "overview";
-    switch (effectiveTab) {
-      case "import":
-        return (
-          (MEA.imports && typeof MEA.imports.renderView === "function" ? MEA.imports.renderView() : undefined) || ""
-        );
-      case "courses":
-        return (
-          (MEA.courses && typeof MEA.courses.renderView === "function" ? MEA.courses.renderView() : undefined) || ""
-        );
-      case "settings":
-        return (
-          (MEA.accounts && typeof MEA.accounts.renderView === "function" ? MEA.accounts.renderView() : undefined) || ""
-        );
-      case "activityLog":
-        return (
-          (MEA.activityLog && typeof MEA.activityLog.renderView === "function"
-            ? MEA.activityLog.renderView()
-            : undefined) || ""
-        );
-      case "overview":
-      default:
-        return (
-          (MEA.ui && typeof MEA.ui.renderOverviewView === "function" ? MEA.ui.renderOverviewView() : undefined) || ""
-        );
-    }
+    const controller = TAB_CONTROLLERS[effectiveTab] || TAB_CONTROLLERS.overview;
+    return invokeIfFunction_(MEA[controller.module], controller.render) || "";
   }
 
   function createAppController(deps) {
@@ -165,14 +167,9 @@
       if (typeof MEA.setState === "function") {
         MEA.setState({ tab: effectiveTab });
       }
-      if (effectiveTab === "courses") {
-        MEA.courses && typeof MEA.courses.fetchList === "function" ? MEA.courses.fetchList() : undefined;
-      } else if (effectiveTab === "settings") {
-        MEA.accounts && typeof MEA.accounts.loadSettingsAndAccounts === "function"
-          ? MEA.accounts.loadSettingsAndAccounts()
-          : undefined;
-      } else if (effectiveTab === "activityLog") {
-        MEA.activityLog && typeof MEA.activityLog.fetchList === "function" ? MEA.activityLog.fetchList() : undefined;
+      const controller = TAB_CONTROLLERS[effectiveTab];
+      if (controller && controller.load) {
+        invokeIfFunction_(MEA[controller.module], controller.load);
       }
     }
 
@@ -205,7 +202,7 @@
       }
 
       if (MEA.api && typeof MEA.api.getToken === "function" && MEA.api.getToken()) {
-        MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
+        invokeIfFunction_(MEA.auth, "restore");
         if (initial.message && typeof MEA.setState === "function") {
           MEA.setState({ loginError: initial.message });
         }
@@ -227,7 +224,7 @@
       cleanUrlQuery();
       if (MEA.api && typeof MEA.api.setToken === "function") MEA.api.setToken("");
       if (MEA.api && typeof MEA.api.setCsrfToken === "function") MEA.api.setCsrfToken("");
-      MEA.auth && typeof MEA.auth.loginActiveUser === "function" ? MEA.auth.loginActiveUser() : undefined;
+      invokeIfFunction_(MEA.auth, "loginActiveUser");
       return true;
     }
 
@@ -246,10 +243,9 @@
       }
 
       if (state.view === "login") {
-        mount.innerHTML =
-          (MEA.ui && typeof MEA.ui.renderLoginView === "function" ? MEA.ui.renderLoginView() : undefined) || "";
+        mount.innerHTML = invokeIfFunction_(MEA.ui, "renderLoginView") || "";
         setTimeoutFn(function () {
-          MEA.auth && typeof MEA.auth.renderGoogleButton === "function" ? MEA.auth.renderGoogleButton() : undefined;
+          invokeIfFunction_(MEA.auth, "renderGoogleButton");
         }, 50);
         restoreFocusState(doc, focusSnapshot);
         return;
@@ -258,8 +254,8 @@
       const tab = state.tab || "overview";
       mount.innerHTML =
         '<div class="app-layout">' +
-        ((MEA.ui && typeof MEA.ui.renderHeader === "function" ? MEA.ui.renderHeader() : undefined) || "") +
-        ((MEA.ui && typeof MEA.ui.renderNavbar === "function" ? MEA.ui.renderNavbar() : undefined) || "") +
+        (invokeIfFunction_(MEA.ui, "renderHeader") || "") +
+        (invokeIfFunction_(MEA.ui, "renderNavbar") || "") +
         '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +

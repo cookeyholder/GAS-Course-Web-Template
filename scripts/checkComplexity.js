@@ -111,25 +111,27 @@ function evaluateComplexity(options) {
   let methodCount = 0;
 
   analyses.forEach(function (analysis) {
+    const fileLabel = analysis.file || analysis.absolutePath;
     const mi = typeof analysis.maintainability === "number" ? analysis.maintainability : 100;
     if (miMin === null || mi < miMin) {
       miMin = mi;
-      miMinFile = analysis.file || analysis.absolutePath || null;
+      miMinFile = fileLabel || null;
     }
     if (mi < miThreshold) {
       miUnderThreshold += 1;
       violations.push({
         type: "mi",
-        file: analysis.file || analysis.absolutePath || "",
+        file: fileLabel || "",
         maintainability: mi,
         threshold: miThreshold,
-        message: "MI " + mi.toFixed(2) + " < " + miThreshold + "：" + (analysis.file || analysis.absolutePath)
+        message: "MI " + mi.toFixed(2) + " < " + miThreshold + "：" + fileLabel
       });
     }
 
     const methods = Array.isArray(analysis.methods) ? analysis.methods : [];
     const entry = findCoverageEntry(coverageByFile, analysis);
     methods.forEach(function (method) {
+      const methodName = method.name || "<anonymous>";
       methodCount += 1;
       const complexity = typeof method.cyclomatic === "number" ? method.cyclomatic : 1;
       const coverage = computeFunctionCoverage(entry, method);
@@ -137,8 +139,8 @@ function evaluateComplexity(options) {
       if (crap > crapMax) {
         crapMax = crap;
         crapMaxRef = {
-          file: analysis.file || analysis.absolutePath || "",
-          functionName: method.name || "<anonymous>",
+          file: fileLabel || "",
+          functionName: methodName,
           lineStart: method.lineStart
         };
       }
@@ -146,8 +148,8 @@ function evaluateComplexity(options) {
         crapOverThreshold += 1;
         violations.push({
           type: "crap",
-          file: analysis.file || analysis.absolutePath || "",
-          functionName: method.name || "<anonymous>",
+          file: fileLabel || "",
+          functionName: methodName,
           lineStart: method.lineStart,
           cyclomatic: complexity,
           coverage: coverage,
@@ -159,9 +161,9 @@ function evaluateComplexity(options) {
             " > " +
             crapThreshold +
             "：" +
-            (analysis.file || analysis.absolutePath) +
+            fileLabel +
             " :: " +
-            (method.name || "<anonymous>") +
+            methodName +
             " (行 " +
             method.lineStart +
             ", comp " +

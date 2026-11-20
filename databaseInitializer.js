@@ -48,8 +48,9 @@ const DEFAULT_SYSTEM_PARAMS = [
 /** 授權白名單表頭（區塊 B，D1:G1） */
 const WHITELIST_HEADERS = ["Email", "姓名/職稱", "角色", "啟用狀態"];
 
-/** 授權角色定義統一由 gasRuntime 提供（單一來源） */
+/** 授權角色定義與代碼統一由 gasRuntime 提供（單一來源） */
 const ROLE_DEFINITIONS = GAS_RUNTIME.ROLE_DEFINITIONS;
+const ROLE_CODES = GAS_RUNTIME.ROLE_CODES;
 
 /** Node.js 單元測試用記憶體備援資料庫 */
 const MEMORY_SYSTEM_CONFIG = {
@@ -63,21 +64,31 @@ const MEMORY_SYSTEM_CONFIG = {
 };
 const MEMORY_WHITELIST = [];
 
-/** 角色名稱轉代碼對照 */
-function normalizeRole(role) {
-  const r = String(role || "")
+/**
+ * 將輸入值轉為小寫並去除前後空白（Email 與角色正規化共用）。
+ *
+ * @param {*} value - 原始值
+ * @returns {string} 正規化後的字串
+ */
+function normalizeLowerTrim_(value) {
+  return String(value || "")
     .trim()
     .toLowerCase();
-  if (r === ROLE_DEFINITIONS.admin || r === "admin") return "admin";
-  if (r === ROLE_DEFINITIONS.staff || r === "staff") return "staff";
-  if (r === ROLE_DEFINITIONS.viewer || r === "viewer") return "viewer";
-  return r || "viewer";
+}
+
+/** 角色名稱轉代碼對照 */
+function normalizeRole(role) {
+  const r = normalizeLowerTrim_(role);
+  if (r === ROLE_DEFINITIONS[ROLE_CODES.ADMIN] || r === ROLE_CODES.ADMIN) return ROLE_CODES.ADMIN;
+  if (r === ROLE_DEFINITIONS[ROLE_CODES.STAFF] || r === ROLE_CODES.STAFF) return ROLE_CODES.STAFF;
+  if (r === ROLE_DEFINITIONS[ROLE_CODES.VIEWER] || r === ROLE_CODES.VIEWER) return ROLE_CODES.VIEWER;
+  return r || ROLE_CODES.VIEWER;
 }
 
 /** 代碼轉角色名稱對照 */
 function getRoleDisplayName(role) {
   const r = normalizeRole(role);
-  return ROLE_DEFINITIONS[r] || ROLE_DEFINITIONS.viewer;
+  return ROLE_DEFINITIONS[r] || ROLE_DEFINITIONS[ROLE_CODES.VIEWER];
 }
 
 // ============================================================================
@@ -490,9 +501,7 @@ function parseWhitelistEnabledFlag_(value) {
 }
 
 function normalizeWhitelistAccountRow_(row) {
-  const email = String((row && row[0]) || "")
-    .trim()
-    .toLowerCase();
+  const email = normalizeLowerTrim_(row && row[0]);
   if (!email) return null;
   return {
     email: email,
@@ -538,9 +547,7 @@ function readWhitelist(ss) {
 }
 
 function normalizeWhitelistInputEmail_(item) {
-  return String((item && item.email) || "")
-    .trim()
-    .toLowerCase();
+  return normalizeLowerTrim_(item && item.email);
 }
 
 function normalizeWhitelistMemoryAccount_(item) {
@@ -625,9 +632,7 @@ function saveWhitelist(accounts, ss) {
  * @returns {Object} `{ role, name, enabled, found }`
  */
 function getAccountRole(email, ss) {
-  const cleanEmail = String(email || "")
-    .trim()
-    .toLowerCase();
+  const cleanEmail = normalizeLowerTrim_(email);
   const accounts = readWhitelist(ss);
 
   for (let i = 0; i < accounts.length; i++) {
@@ -643,8 +648,8 @@ function getAccountRole(email, ss) {
   }
 
   return {
-    role: "viewer",
-    roleName: "檢視人員",
+    role: ROLE_CODES.VIEWER,
+    roleName: ROLE_DEFINITIONS[ROLE_CODES.VIEWER],
     name: cleanEmail,
     enabled: true,
     found: false
@@ -660,9 +665,7 @@ function getAccountRole(email, ss) {
  * @returns {boolean} 是否觸發管理員開通
  */
 function bootstrapAdminIfNeeded(email, name, ss) {
-  const cleanEmail = String(email || "")
-    .trim()
-    .toLowerCase();
+  const cleanEmail = normalizeLowerTrim_(email);
   if (!cleanEmail) return false;
 
   const accounts = readWhitelist(ss);
@@ -672,7 +675,7 @@ function bootstrapAdminIfNeeded(email, name, ss) {
         {
           email: cleanEmail,
           name: name || cleanEmail,
-          role: "admin",
+          role: ROLE_CODES.ADMIN,
           enabled: true
         }
       ],

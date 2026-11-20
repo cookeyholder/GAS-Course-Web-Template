@@ -24,13 +24,27 @@ const ACTIVITY_LOG_SCAN_BATCH_SIZE = 500;
  * 以 Asia/Taipei 時區格式化日期；GAS 使用 Utilities，Node 測試採固定 +8 偏移。
  *
  * @param {Date} date - 日期物件
+ * @param {string} pattern - Utilities.formatDate 使用的格式字串
+ * @param {Function} fallbackTransform - Node 環境將 +8 偏移後的 ISO 字串轉為目標格式的函式
+ * @returns {string} 格式化後的字串
+ */
+function formatTaipei_(date, pattern, fallbackTransform) {
+  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
+    return Utilities.formatDate(date, "Asia/Taipei", pattern);
+  }
+  return fallbackTransform(new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString());
+}
+
+/**
+ * 以 Asia/Taipei 時區格式化日期為 `yyyy-MM-dd`。
+ *
+ * @param {Date} date - 日期物件
  * @returns {string} yyyy-MM-dd
  */
 function formatTaipeiDate(date) {
-  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
-    return Utilities.formatDate(date, "Asia/Taipei", "yyyy-MM-dd");
-  }
-  return new Date(date.getTime() + 8 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  return formatTaipei_(date, "yyyy-MM-dd", function (iso) {
+    return iso.slice(0, 10);
+  });
 }
 
 /**
@@ -46,12 +60,10 @@ function normalizeActivityLogTimestamp(value) {
   }
   const time = value.getTime();
   if (!isFinite(time)) return "";
-  if (typeof Utilities !== "undefined" && Utilities.formatDate) {
-    return Utilities.formatDate(value, "Asia/Taipei", "yyyy-MM-dd HH:mm:ss");
-  }
   // Node 測試環境無 Utilities：以固定 +8 小時偏移格式化，不依賴機器時區
-  const taipei = new Date(time + 8 * 60 * 60 * 1000);
-  return taipei.toISOString().replace("T", " ").slice(0, 19);
+  return formatTaipei_(value, "yyyy-MM-dd HH:mm:ss", function (iso) {
+    return iso.replace("T", " ").slice(0, 19);
+  });
 }
 
 /**
@@ -74,6 +86,7 @@ function isValidActivityLogDate(dateStr) {
  *
  * @param {Object} deps - 相依
  * @param {Function} deps.webApiError - 產生錯誤回應的函式
+ * @param {string} deps.adminRoleCode - 系統管理員角色代碼（由 gasRuntime.ROLE_CODES.ADMIN 注入）
  * @param {string} deps.adminRoleName - 系統管理員顯示名稱
  * @param {string} deps.sheetName - 操作日誌工作表名稱
  * @param {Function} deps.getSpreadsheet - 取得試算表的函式
@@ -83,10 +96,30 @@ function isValidActivityLogDate(dateStr) {
 function createActivityLogQuery(deps) {
   const config = deps || {};
   const webApiError = config.webApiError;
+  const adminRoleCode = config.adminRoleCode || "admin";
   const adminRoleName = config.adminRoleName || "";
   const sheetName = config.sheetName || "";
   const getSpreadsheet = config.getSpreadsheet;
   const fieldIndex = config.fieldIndex || {};
+
+  /**
+   * 解析單一日期邊界：空值使用預設日期，非空值驗證格式後取前 10 碼。
+   *
+   * @param {*} rawValue - 原始日期值
+   * @param {string} fallbackDate - 空值時的預設日期（yyyy-MM-dd）
+   * @returns {string|Object} yyyy-MM-dd 字串或 webApiError 物件
+   */
+  function resolveBoundaryDate_(rawValue, fallbackDate) {
+    const value = rawValue === undefined || rawValue === null ? "" : String(rawValue).trim();
+    if (value === "") {
+      return fallbackDate;
+    }
+    const candidate = value.slice(0, 10);
+    if (!isValidActivityLogDate(candidate)) {
+      return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
+    }
+    return candidate;
+  }
 
   /**
    * 解析操作日誌查詢的時間區間，預設最近 7 天（含端點）。
@@ -98,30 +131,13 @@ function createActivityLogQuery(deps) {
   function resolveActivityLogDateRange(payload) {
     const source = payload || {};
     const now = new Date();
-    const rawEnd = source.endDate === undefined || source.endDate === null ? "" : String(source.endDate).trim();
-    const rawStart = source.startDate === undefined || source.startDate === null ? "" : String(source.startDate).trim();
-
-    let endDate;
-    if (rawEnd === "") {
-      endDate = formatTaipeiDate(now);
-    } else {
-      const candidate = rawEnd.slice(0, 10);
-      if (!isValidActivityLogDate(candidate)) {
-        return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
-      }
-      endDate = candidate;
-    }
-
-    let startDate;
-    if (rawStart === "") {
-      startDate = formatTaipeiDate(new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000));
-    } else {
-      const candidate = rawStart.slice(0, 10);
-      if (!isValidActivityLogDate(candidate)) {
-        return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
-      }
-      startDate = candidate;
-    }
+    const endDate = resolveBoundaryDate_(source.endDate, formatTaipeiDate(now));
+    if (endDate && endDate.ok === false) return endDate;
+    const startDate = resolveBoundaryDate_(
+      source.startDate,
+      formatTaipeiDate(new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000))
+    );
+    if (startDate && startDate.ok === false) return startDate;
 
     if (startDate > endDate) {
       return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
@@ -218,11 +234,50 @@ function createActivityLogQuery(deps) {
   }
 
   /**
+   * 從請求 payload 正規化日誌篩選條件（小寫、去前後空白）。
+   *
+   * @param {Object} source - 請求 payload
+   * @returns {Object} `{ emailFilter, categoryFilter }`
+   */
+  function resolveLogFilters_(source) {
+    return {
+      emailFilter: String(source.email || "")
+        .trim()
+        .toLowerCase(),
+      categoryFilter: String(source.category || "")
+        .trim()
+        .toLowerCase()
+    };
+  }
+
+  /**
+   * 依時間遞減排序匹配列、分頁投影，並移除暫存 `_rowIndex`。
+   * 同一時間戳記維持原始列順序（較早列在前），與既有穩定排序行為一致。
+   *
+   * @param {Array<Object>} matched - 匹配列
+   * @param {number} page - 頁碼（由 1 起）
+   * @param {number} pageSize - 每頁筆數
+   * @returns {Array<Object>} 分頁後且不含 `_rowIndex` 的列
+   */
+  function sortAndProjectRows_(matched, page, pageSize) {
+    matched.sort(function (a, b) {
+      if (a.timestamp < b.timestamp) return 1;
+      if (a.timestamp > b.timestamp) return -1;
+      return a._rowIndex - b._rowIndex;
+    });
+    return matched.slice((page - 1) * pageSize, page * pageSize).map(function (row) {
+      const copy = Object.assign({}, row);
+      delete copy._rowIndex;
+      return copy;
+    });
+  }
+
+  /**
    * 受保護 action：getActivityLog（僅管理員）。
    * 回傳依時間遞減排序的分頁日誌，單次最多 500 筆。
    */
   function handleGetActivityLog(payload, session, ss) {
-    if (!session || session.role !== "admin") {
+    if (!session || session.role !== adminRoleCode) {
       return webApiError("forbidden", "僅" + adminRoleName + "可查閱操作日誌");
     }
     const source = payload || {};
@@ -242,28 +297,10 @@ function createActivityLogQuery(deps) {
     const lastRow = Math.max(0, Number(sheet.getLastRow()) || 0);
     if (lastRow < 2) return emptyResult;
 
-    const filters = {
-      emailFilter: String(source.email || "")
-        .trim()
-        .toLowerCase(),
-      categoryFilter: String(source.category || "")
-        .trim()
-        .toLowerCase()
-    };
+    const filters = resolveLogFilters_(source);
     const collected = collectActivityLogMatches(sheet, lastRow, range, filters);
     const matched = collected.matched;
-
-    matched.sort(function (a, b) {
-      if (a.timestamp < b.timestamp) return 1;
-      if (a.timestamp > b.timestamp) return -1;
-      // 同時間戳記維持原始列順序（較早列在前），與既有穩定排序行為一致
-      return a._rowIndex - b._rowIndex;
-    });
-    const rows = matched.slice((page - 1) * pageSize, page * pageSize).map(function (row) {
-      const copy = Object.assign({}, row);
-      delete copy._rowIndex;
-      return copy;
-    });
+    const rows = sortAndProjectRows_(matched, page, pageSize);
 
     const truncated =
       collected.scannedRows >= ACTIVITY_LOG_MAX_SCAN_ROWS && collected.dataRowCount > ACTIVITY_LOG_MAX_SCAN_ROWS;
