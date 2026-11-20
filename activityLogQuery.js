@@ -91,6 +91,25 @@ function createActivityLogQuery(deps) {
   const fieldIndex = config.fieldIndex || {};
 
   /**
+   * 解析單一日期邊界：空值使用預設日期，非空值驗證格式後取前 10 碼。
+   *
+   * @param {*} rawValue - 原始日期值
+   * @param {string} fallbackDate - 空值時的預設日期（yyyy-MM-dd）
+   * @returns {string|Object} yyyy-MM-dd 字串或 webApiError 物件
+   */
+  function resolveBoundaryDate_(rawValue, fallbackDate) {
+    const value = rawValue === undefined || rawValue === null ? "" : String(rawValue).trim();
+    if (value === "") {
+      return fallbackDate;
+    }
+    const candidate = value.slice(0, 10);
+    if (!isValidActivityLogDate(candidate)) {
+      return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
+    }
+    return candidate;
+  }
+
+  /**
    * 解析操作日誌查詢的時間區間，預設最近 7 天（含端點）。
    * 使用者提供的日期若格式或實際日期無效、或起訖顛倒，回傳明確錯誤，不回退預設值。
    *
@@ -100,30 +119,13 @@ function createActivityLogQuery(deps) {
   function resolveActivityLogDateRange(payload) {
     const source = payload || {};
     const now = new Date();
-    const rawEnd = source.endDate === undefined || source.endDate === null ? "" : String(source.endDate).trim();
-    const rawStart = source.startDate === undefined || source.startDate === null ? "" : String(source.startDate).trim();
-
-    let endDate;
-    if (rawEnd === "") {
-      endDate = formatTaipeiDate(now);
-    } else {
-      const candidate = rawEnd.slice(0, 10);
-      if (!isValidActivityLogDate(candidate)) {
-        return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
-      }
-      endDate = candidate;
-    }
-
-    let startDate;
-    if (rawStart === "") {
-      startDate = formatTaipeiDate(new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000));
-    } else {
-      const candidate = rawStart.slice(0, 10);
-      if (!isValidActivityLogDate(candidate)) {
-        return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
-      }
-      startDate = candidate;
-    }
+    const endDate = resolveBoundaryDate_(source.endDate, formatTaipeiDate(now));
+    if (endDate.ok === false) return endDate;
+    const startDate = resolveBoundaryDate_(
+      source.startDate,
+      formatTaipeiDate(new Date(now.getTime() - (ACTIVITY_LOG_DEFAULT_DAYS - 1) * 24 * 60 * 60 * 1000))
+    );
+    if (startDate.ok === false) return startDate;
 
     if (startDate > endDate) {
       return webApiError("invalid_date_range", "日期格式不正確或日期區間無效");
