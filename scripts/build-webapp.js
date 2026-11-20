@@ -101,15 +101,14 @@ function createBuilder(options) {
   }
 
   /**
-   * 注入前端版本全域標記（task 5.1）。
+   * 在 `<head>` 後插入標記片段；最終排列順序由呼叫端組裝的字串決定。
    *
    * @param {string} html - 原始 HTML
-   * @param {string} version - 套件版本號
+   * @param {string} snippet - 待插入片段（多段以 `\n  ` 串接）
    * @returns {string} 注入後的 HTML
    */
-  function insertVersionFlag(html, version) {
-    const flag = "<script>window." + VERSION_GLOBAL_NAME + " = " + JSON.stringify(version) + ";</script>";
-    return html.replace("<head>", "<head>\n  " + flag);
+  function insertHeadFlag(html, snippet) {
+    return html.replace("<head>", "<head>\n  " + snippet);
   }
 
   function readTemplate() {
@@ -165,15 +164,6 @@ function createBuilder(options) {
     };
   }
 
-  function insertBuildComment(html) {
-    return html.replace("<head>", "<head>\n  " + BUILD_COMMENT);
-  }
-
-  /** 標記此檔為正式建置產物；前端 config.js 據此忽略 ?mock=true。 */
-  function insertProductionFlag(html) {
-    return html.replace("<head>", "<head>\n  " + PRODUCTION_FLAG);
-  }
-
   function build() {
     const version = readPackageVersion();
     let html = readTemplate();
@@ -185,7 +175,10 @@ function createBuilder(options) {
     }
 
     const jsResult = replaceJs(html, match);
-    html = insertVersionFlag(insertProductionFlag(insertBuildComment(jsResult.html)), version);
+    // 版本標記（task 5.1）、正式建置標記（前端 config.js 據此忽略 ?mock=true）與建置註解
+    // 依序注入 <head>；順序即為最終 HTML 中的排列，與既有建置產物位元組一致。
+    const versionFlag = "<script>window." + VERSION_GLOBAL_NAME + " = " + JSON.stringify(version) + ";</script>";
+    html = insertHeadFlag(jsResult.html, [versionFlag, PRODUCTION_FLAG, BUILD_COMMENT].join("\n  "));
     fsApi.mkdirSync(path.dirname(outputPath), { recursive: true });
     fsApi.writeFileSync(outputPath, html, "utf8");
     // 後端可讀取的版本來源需與前端同一版本，並隨 push 上傳（task 5.1）。

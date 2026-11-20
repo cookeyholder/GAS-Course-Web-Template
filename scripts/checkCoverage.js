@@ -30,12 +30,9 @@ function resolveLocalC8() {
 /**
  * 組裝 c8 量測參數。
  *
- * @param {Object} [options] - 選項
- * @param {boolean} [options.collectOnly] - 僅量測不檢查門檻
  * @returns {Array<string>} c8 參數
  */
-function buildC8Args(options) {
-  const settings = options || {};
+function buildC8Args() {
   const args = ["--all"];
 
   (qualityConfig.SCOPE.include || []).forEach(function (pattern) {
@@ -71,7 +68,7 @@ function runCoverageCheck(options) {
   const log = settings.log || console.log;
   const collectOnly = argv.indexOf("--collect-only") !== -1;
 
-  const c8Args = buildC8Args({ collectOnly: collectOnly });
+  const c8Args = buildC8Args();
   const localC8 = resolveLocalC8();
   let cmd;
   let cmdArgs;
