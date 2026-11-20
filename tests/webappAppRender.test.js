@@ -55,6 +55,11 @@ function run() {
   assert(ctx.elements.app.innerHTML.indexOf("settings-view") !== -1);
   console.log("3. 各頁籤主體與外殼組合輸出 ✓\n");
 
+  ctx.state.tab = "unknown-tab";
+  app.render();
+  assert(ctx.elements.app.innerHTML.indexOf("overview-view") !== -1, "未知頁籤應退回概覽畫面");
+  console.log("3.1 未知頁籤退回概覽 ✓\n");
+
   const missing = createDeps();
   missing.deps.document.getElementById = function () {
     return null;
