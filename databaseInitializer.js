@@ -326,22 +326,14 @@ function initializeDatabaseSheets(options) {
 // ============================================================================
 
 /**
- * 將系統設定布林旗標正規化為布林值。
+ * 將系統設定布林旗標正規化為布林值（向後相容轉發至 systemConfigCodec）。
  *
  * @param {*} value - 設定值
  * @returns {boolean} 是否啟用
  */
 function parseConfigBoolean(value) {
-  const normalized = String(value === null || value === undefined ? "" : value)
-    .trim()
-    .toLowerCase();
-  return (
-    normalized === "true" || normalized === "1" || normalized === "yes" || normalized === "是" || normalized === "啟用"
-  );
-}
-
-function normalizeAllowedLoginDomain_(value) {
-  return GAS_RUNTIME.normalizeAllowedDomain(value);
+  const codec = getSystemConfigCodec_();
+  return codec ? codec.parseConfigBoolean(value) : String(value).toLowerCase() === "true";
 }
 
 function getSystemConfigCodec_() {
@@ -351,24 +343,9 @@ function getSystemConfigCodec_() {
   return typeof systemConfigCodec !== "undefined" ? systemConfigCodec : null;
 }
 
-function applySystemSettingConvenienceFields_(config) {
-  const target = config || {};
-  target.schoolYear = target["學年度"] || "114";
-  target.semester = target["學期"] || "1";
-  target.systemName = target["系統名稱"] || "Google Apps Script 應用程式範本";
-  target.clientId = target["OAuth Client ID"] || "";
-  target.clientSecret = target["OAuth Client Secret"] || "";
-  target.allowedLoginDomain = normalizeAllowedLoginDomain_(target["Google 登入允許網域"]);
-  target.restrictWhitelist = parseConfigBoolean(target["登入白名單限制啟用"]);
-  return target;
-}
-
 function readSystemSettingsFromMemory_() {
   const codec = getSystemConfigCodec_();
-  if (codec) {
-    return codec.normalizeSystemSettings(MEMORY_SYSTEM_CONFIG);
-  }
-  return applySystemSettingConvenienceFields_(Object.assign({}, MEMORY_SYSTEM_CONFIG));
+  return codec ? codec.normalizeSystemSettings(MEMORY_SYSTEM_CONFIG) : Object.assign({}, MEMORY_SYSTEM_CONFIG);
 }
 
 function readSystemSettingsRows_(sheet) {
@@ -376,28 +353,12 @@ function readSystemSettingsRows_(sheet) {
   return sheet.getRange(1, 1, lastRow, 2).getValues();
 }
 
-function buildSystemSettingsConfigFromRows_(values) {
-  const config = {};
-  const rows = values || [];
-  for (let i = 1; i < rows.length; i++) {
-    const key = String((rows[i] && rows[i][0]) || "").trim();
-    if (!key) continue;
-    const raw = rows[i] ? rows[i][1] : "";
-    config[key] = raw === null || raw === undefined ? "" : String(raw).trim();
-  }
-  return config;
-}
-
 function readSystemSettingsFromSheet_(ss) {
   const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
   if (!sheet) return {};
   const rows = readSystemSettingsRows_(sheet);
   const codec = getSystemConfigCodec_();
-  if (codec) {
-    return codec.parseSystemSettingsRows(rows);
-  }
-  const config = buildSystemSettingsConfigFromRows_(rows);
-  return applySystemSettingConvenienceFields_(config);
+  return codec ? codec.parseSystemSettingsRows(rows) : {};
 }
 
 /**
@@ -419,43 +380,6 @@ function readSystemSettings(ss) {
  * @param {Spreadsheet} [ss] - 試算表物件
  * @returns {Object} `{ ok: true }`
  */
-const SYSTEM_SETTING_KEY_MAP = {
-  schoolYear: "學年度",
-  semester: "學期",
-  systemName: "系統名稱",
-  clientId: "OAuth Client ID",
-  clientSecret: "OAuth Client Secret",
-  restrictWhitelist: "登入白名單限制啟用",
-  allowedLoginDomain: "Google 登入允許網域",
-  學年度: "學年度",
-  學期: "學期",
-  系統名稱: "系統名稱",
-  "OAuth Client ID": "OAuth Client ID",
-  "OAuth Client Secret": "OAuth Client Secret",
-  登入白名單限制啟用: "登入白名單限制啟用",
-  "Google 登入允許網域": "Google 登入允許網域"
-};
-
-function normalizeSystemSettingValue_(targetKey, value) {
-  if (targetKey === "登入白名單限制啟用") {
-    return parseConfigBoolean(value) ? "true" : "false";
-  }
-  if (targetKey === "Google 登入允許網域") {
-    return GAS_RUNTIME.normalizeAllowedDomain(value);
-  }
-  return String(value === null || value === undefined ? "" : value);
-}
-
-function buildSystemSettingUpdates_(settings) {
-  const updates = {};
-  const source = settings || {};
-  for (const k in source) {
-    const targetKey = SYSTEM_SETTING_KEY_MAP[k] || k;
-    updates[targetKey] = normalizeSystemSettingValue_(targetKey, source[k]);
-  }
-  return updates;
-}
-
 function saveSystemSettingsToMemory_(updates) {
   const codec = getSystemConfigCodec_();
   const source = updates || {};
@@ -484,60 +408,32 @@ function getSystemConfigSheet_(ss) {
   return sheet;
 }
 
-function applySystemSettingUpdatesToRows_(values, updates) {
-  for (let i = 0; i < values.length; i++) {
-    const key = String(values[i][0] || "").trim();
-    if (key && typeof updates[key] !== "undefined") {
-      values[i][1] = updates[key];
-      delete updates[key];
-    }
-  }
-  return values;
-}
-
-function appendRemainingSystemSettings_(sheet, updates) {
-  const toAppend = [];
-  for (const key in updates) {
-    toAppend.push([key, updates[key]]);
-  }
-  if (toAppend.length === 0) return;
-  const nextRow = sheet.getLastRow() + 1;
-  const safeAppend = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(toAppend) : toAppend;
-  sheet.getRange(nextRow, 1, safeAppend.length, 2).setValues(safeAppend);
-}
-
 function saveSystemSettingsToSheet_(ss, updates) {
   const sheet = getSystemConfigSheet_(ss);
   const range = sheet.getRange("A2:B30");
   const codec = getSystemConfigCodec_();
-  if (codec) {
-    const existingValues = range.getValues();
-    const mergedValues = codec.mergeSystemSettingsRows(existingValues, updates, { targetRowCount: 29 });
-    if (mergedValues.length > 29) {
-      const baseRows = mergedValues.slice(0, 29);
-      const extraRows = mergedValues.slice(29);
-      const safeBase = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(baseRows) : baseRows;
-      range.setValues(safeBase);
-      const safeExtra = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(extraRows) : extraRows;
-      const nextRow = sheet.getLastRow() + 1;
-      sheet.getRange(nextRow, 1, safeExtra.length, 2).setValues(safeExtra);
-    } else {
-      const safeValues = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(mergedValues) : mergedValues;
-      range.setValues(safeValues);
-    }
-    return { ok: true };
+  const existingValues = range.getValues();
+  const mergedValues = codec
+    ? codec.mergeSystemSettingsRows(existingValues, updates, { targetRowCount: 29 })
+    : existingValues;
+  if (mergedValues.length > 29) {
+    const baseRows = mergedValues.slice(0, 29);
+    const extraRows = mergedValues.slice(29);
+    const safeBase = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(baseRows) : baseRows;
+    range.setValues(safeBase);
+    const safeExtra = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(extraRows) : extraRows;
+    const nextRow = sheet.getLastRow() + 1;
+    sheet.getRange(nextRow, 1, safeExtra.length, 2).setValues(safeExtra);
+  } else {
+    const safeValues = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(mergedValues) : mergedValues;
+    range.setValues(safeValues);
   }
-  const values = applySystemSettingUpdatesToRows_(range.getValues(), updates);
-  const safeValues = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(values) : values;
-  range.setValues(safeValues);
-  appendRemainingSystemSettings_(sheet, updates);
   return { ok: true };
 }
 
 function saveSystemSettings(settings, ss) {
   const targetSs = GAS_RUNTIME.getActiveSpreadsheetSafe_({ spreadsheet: ss });
-  const codec = getSystemConfigCodec_();
-  const updates = codec ? Object.assign({}, settings) : buildSystemSettingUpdates_(settings);
+  const updates = Object.assign({}, settings);
   if (!targetSs) return saveSystemSettingsToMemory_(updates);
   return saveSystemSettingsToSheet_(targetSs, updates);
 }
@@ -545,32 +441,6 @@ function saveSystemSettings(settings, ss) {
 // ============================================================================
 // 授權白名單讀寫
 // ============================================================================
-
-function parseWhitelistEnabledFlag_(value) {
-  return value === true || String(value || "").toLowerCase() === "true" || String(value || "").trim() === "是";
-}
-
-function normalizeWhitelistAccountRow_(row) {
-  const email = normalizeLowerTrim_(row && row[0]);
-  if (!email) return null;
-  return {
-    email: email,
-    name: String((row && row[1]) || "").trim(),
-    role: normalizeRole(row && row[2]),
-    roleName: getRoleDisplayName(row && row[2]),
-    enabled: parseWhitelistEnabledFlag_(row && row[3])
-  };
-}
-
-function mapWhitelistRows_(values) {
-  const accounts = [];
-  const rows = values || [];
-  for (let i = 0; i < rows.length; i++) {
-    const account = normalizeWhitelistAccountRow_(rows[i]);
-    if (account) accounts.push(account);
-  }
-  return accounts;
-}
 
 function getWhitelistSheet_(ss) {
   return ss.getSheetByName(SHEET_SYSTEM_CONFIG);
@@ -594,56 +464,17 @@ function readWhitelist(ss) {
   if (!targetSs) return MEMORY_WHITELIST.slice();
   const codec = getSystemConfigCodec_();
   const values = readWhitelistRowsFromSheet_(getWhitelistSheet_(targetSs));
-  if (codec) {
-    return codec.parseWhitelistRows(values);
-  }
-  return mapWhitelistRows_(values);
-}
-
-function normalizeWhitelistInputEmail_(item) {
-  return normalizeLowerTrim_(item && item.email);
-}
-
-function normalizeWhitelistMemoryAccount_(item) {
-  const email = normalizeWhitelistInputEmail_(item);
-  if (!email) return null;
-  return {
-    email: email,
-    name: String((item && item.name) || "").trim(),
-    role: normalizeRole(item && item.role),
-    roleName: getRoleDisplayName(item && item.role),
-    enabled: (item && item.enabled) !== false
-  };
+  return codec ? codec.parseWhitelistRows(values) : [];
 }
 
 function saveWhitelistToMemory_(list) {
   MEMORY_WHITELIST.length = 0;
   const codec = getSystemConfigCodec_();
   for (let i = 0; i < list.length; i++) {
-    const account = codec ? codec.normalizeWhitelistAccount(list[i]) : normalizeWhitelistMemoryAccount_(list[i]);
+    const account = codec ? codec.normalizeWhitelistAccount(list[i]) : null;
     if (account) MEMORY_WHITELIST.push(account);
   }
   return { ok: true, count: MEMORY_WHITELIST.length };
-}
-
-function normalizeWhitelistSheetRow_(item) {
-  const email = normalizeWhitelistInputEmail_(item);
-  if (!email) return null;
-  return [
-    email,
-    String((item && item.name) || "").trim(),
-    getRoleDisplayName(item && item.role),
-    item && item.enabled === false ? "否" : "是"
-  ];
-}
-
-function buildWhitelistSheetRows_(list) {
-  const rows = [];
-  for (let i = 0; i < list.length; i++) {
-    const row = normalizeWhitelistSheetRow_(list[i]);
-    if (row) rows.push(row);
-  }
-  return rows;
 }
 
 function clearWhitelistSheetRange_(sheet) {
@@ -660,7 +491,7 @@ function writeWhitelistSheetRows_(sheet, rows) {
 function saveWhitelistToSheet_(ss, list) {
   const sheet = getSystemConfigSheet_(ss);
   const codec = getSystemConfigCodec_();
-  const rows = codec ? codec.serializeWhitelistRows(list) : buildWhitelistSheetRows_(list);
+  const rows = codec ? codec.serializeWhitelistRows(list) : [];
   clearWhitelistSheetRange_(sheet);
   writeWhitelistSheetRows_(sheet, rows);
   return { ok: true, count: rows.length };

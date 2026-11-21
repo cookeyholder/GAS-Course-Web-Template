@@ -82,6 +82,13 @@ function run() {
     });
     assert.deepStrictEqual(empty, []);
     console.log("   ✓ 空白 Email 防護驗證通過！\n");
+
+    console.log("4. parseConfigBoolean 向後相容轉發驗證...");
+    assert.strictEqual(db.parseConfigBoolean("true"), true);
+    assert.strictEqual(db.parseConfigBoolean("1"), true);
+    assert.strictEqual(db.parseConfigBoolean("false"), false);
+    assert.strictEqual(db.parseConfigBoolean(null), false);
+    console.log("   ✓ parseConfigBoolean 向後相容轉發驗證通過！\n");
   } finally {
     resetMemoryWhitelist();
   }
