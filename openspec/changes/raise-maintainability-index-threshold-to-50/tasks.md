@@ -17,7 +17,7 @@
   - [x] 3.2 更新 `README.md` 第 223 行品質指標清單項（`MI MUST >= 50`）與第 253 行疑難排解文字（`MI < 50`）
   - [x] 3.3 同步更新 main spec `openspec/specs/coverage-and-complexity-gates/spec.md`
 
-- [ ] 4. 本地完整 CI 品質閘門驗證
-  - [ ] 4.1 執行單元測試 `npm test` 確認全數通過
-  - [ ] 4.2 執行靜態檢查 `npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`
-  - [ ] 4.3 執行品質門檻 `npm run check:coverage`、`npm run check:complexity`、`CHANGED_COVERAGE_BASE=origin/main npm run check:changed-coverage`
+- [x] 4. 本地完整 CI 品質閘門驗證
+  - [x] 4.1 執行單元測試 `npm test` 確認全數通過
+  - [x] 4.2 執行靜態檢查 `npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`
+  - [x] 4.3 執行品質門檻 `npm run check:coverage`、`npm run check:complexity`、`CHANGED_COVERAGE_BASE=origin/main npm run check:changed-coverage`
