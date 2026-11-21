@@ -10,6 +10,27 @@ Always check `@/openspec/` or repository documentation when the request:
 - Introduces new capabilities, breaking changes, or big performance/security work
 - Sounds ambiguous and you need the authoritative spec before coding
 
+## 代理工作流程不可逾越之硬性規則清單 (Non-Negotiable Hard Gates Checklist)
+
+在進行任何提案、架構變更或程式碼修改時，所有 AI 代理必須嚴格遵守以下 5 大硬性紅線（完整操作細節請參閱文末「代理協作與 OpenSpec 開發工作流程規範」）：
+
+1. **提案雙代理雙輪審查（Two-Round Dual Review）**：
+   - 使用 `openspec-ff-change` 產出提案文件後，必須指派「一致性與完整性審查代理（Completeness & Consistency Reviewer）」與「挑戰與詰問代理（Grilling & Challenge Reviewer）」進行審查。
+   - **必須嚴格執行完整的 2 輪審查與修訂週期**，確認規格周全且雙方無重大疑慮後方可放行實作。
+2. **獨立分支與提案先行落盤（Branching & Proposal Commit First）**：
+   - 實作必須在另外獨立的開發分支或 git worktree 進行（如 `git checkout -b feature/<change-id>`）。
+   - **動手撰寫或修改任何實際功能程式碼前，必須先將定案之 OpenSpec 提案文件獨立提交（commit）1 次至該分支**。
+3. **任務原子化逐項提交（Atomic Commits per Task）**：
+   - 依照 `tasks.md` 實作時，**每完成 1 個 task 就必須執行驗證並獨立提交（commit）1 次**，嚴禁將多個 tasks 混雜於單一 commit。
+4. **全數完成封存與發起 PR 前本地端完整 CI 預跑（Local CI Gate Before PR）**：
+   - 完成所有 tasks 並通過驗證後，立即執行 `openspec-archive-change` 封存並提交。
+   - **發起 PR 前，必須在本地端預跑完整 CI 檢查全數通過**（格式、語言、CSS 類別、對比度、無障礙、測試、覆蓋率、複雜度、變更覆蓋率與打包產物一致性）。
+5. **PR 雙代理審查、未解意見禁合、Squash Merge 與正式部署（Post-PR Review, Squash & Deploy）**：
+   - 發起 PR 後指派「程式碼品質與規格審查代理（Code Quality & Spec Reviewer）」與「潛在缺陷與安全性審查代理（Defects & Security Reviewer）」審查，**盡量以 1 個 commit 集中修復所有審查意見**。
+   - **若有任何待解決之審查意見（含外部 Reviewer 或機器人意見未解決，或 Reviewer 處於 CHANGES_REQUESTED 狀態），絕對嚴禁 Squash Merge 該 PR**。
+   - CI 通過且意見全數妥善解決後，以 Squash Merge 合併至 `main`，同步本地 `main` 分支並依序移除 worktree 與分支。
+   - 合併後必須在 `main` 執行 `npm run build:webapp` 並**以固定 Deployment ID 執行 `npm run deploy` 發布新版至 GAS 雲端**。
+
 <!-- OPENSPEC:END -->
 
 # Repository Guidelines
@@ -122,7 +143,7 @@ npm run push
 # 4. 監聽模式：本地存檔時自動推送
 npm run watch
 
-# 5. 從雲端拉取線上變更
+# 5. 從雲端取得線上變更
 npm run pull
 
 # 6. 發布與更新 Web App 部署
@@ -274,38 +295,82 @@ PR 內文應包含以下五大核心區塊：
 
 ## 代理協作與 OpenSpec 開發工作流程規範 (Agent & OpenSpec Workflow Guidelines)
 
-本專案之 AI 代理協作、提案規劃、實作交付與 PR 流程，必須嚴格遵守以下工作流程規範：
+本專案之 AI 代理協作、提案規劃、實作交付與 PR 流程，必須嚴格遵守以下標準生命週期之 4 大階段操作手冊：
 
-### 1. 提案審查雙重雙輪機制（Two-Round, Two-Agent Proposal Review）
+### 階段一：提案規劃與雙代理雙輪審查（Proposal Planning & Two-Round Dual-Agent Review）
 
-在執行 `openspec-ff-change` 快速建立提案文件（包含 `proposal.md`、`design.md`、`tasks.md`、`specs/**/*.md`）之後，進入實作前必須執行**兩輪、雙代理**的嚴格審查：
+在執行 `openspec-ff-change` 快速建立提案文件（包含 `proposal.md`、`design.md`、`tasks.md` 與視需求建立之 `specs/**/*.md`）後，進入實作前必須執行**兩輪、雙代理**的嚴格審查：
 
-- **派出 2 個獨立子代理（Sub-agents）平行審查**：
-  1. **完整性與一致性審查員**：比對提案、規格、設計、任務與現行程式碼，檢查是否有所遺漏、考慮不足或前後矛盾。
-  2. **批判詰問專家**：對提案架構、設計決策、邊界相容性與潛在實作陷阱提出嚴格詰問與挑戰。
-- **雙輪審查與整合修訂要求**：
-  - 由主代理彙整 2 個子代理的審查意見並修訂提案內容。
-  - **這樣的審查與修訂流程必須嚴格執行 2 輪**（第 1 輪審查 ➔ 主代理整合修改 ➔ 第 2 輪複審 ➔ 主代理二次收斂定案），確認雙方無重大疑慮且提案完整後方可放行實作。
+1. **指派 2 個獨立子代理（Sub-agents）平行審查**：
+   - **一致性與完整性審查代理（Completeness & Consistency Reviewer）**：
+     - 仔細比對提案、規格（spec.md）、架構設計（design.md）、任務清單（tasks.md）與現行程式碼，檢查是否存在遺漏、未定義的邊界條件或前後矛盾。
+   - **挑戰與詰問代理（Grilling & Challenge Reviewer）**：
+     - 針對現有提案內容、技術選型、相容性衝擊、業務邊界與風險假設進行深度詰問，提出潛在盲點、替代方案考量與極限壓力測試。
+2. **雙輪審查與整合修訂要求（Two-Round Review Cycle）**：
+   - **第 1 輪審查**：指派 2 個獨立子代理進行全面審查與詰問；主要代理彙整 2 個子代理的審查與詰問結果，修訂完善提案檔案。
+   - **第 2 輪複審**：再次指派 2 個獨立子代理複審修訂後的提案，驗證第 1 輪發現的漏洞是否妥善解決，並做最後的極限邊界壓力測試；主要代理依據第 2 輪回饋再次修訂完善提案檔案。
+   - 經過完整的 2 輪審查與修訂後，確認規格嚴謹、周全且具備可執行性，方可進入實作階段。
 
-### 2. 獨立分支開發、任務實作與提案封存流程（Branching, Task-by-Task Commit & Archive）
+### 階段二：獨立分支開發、任務逐項提交與封存（Branching, Atomic Commits & Archive）
 
-- **獨立開發分支與提案先行提交**：
-  - 執行 `openspec-apply-change` 實作提案前，必須建立並切換至另外的獨立開發分支（或使用 git worktree 建立獨立工作區）。
-  - 在開始撰寫任何實作程式碼之前，**必須先將審查定案之提案文件（包含 proposal.md、design.md、tasks.md 與 specs/**/*.md）獨立提交（Git Commit）1 次**，確保變更規劃歷程先行落盤。
-- **單一任務獨立提交**：在使用 `openspec-apply-change` 實作提案時，必須嚴格遵守**每完成一個 task 就提交（Git Commit）1 次**的增量交付原則，禁止累積多個 task 一次性提交。
-- **全數完成後封存與本地預跑 CI**：
-  - 在完成所有 task 並通過各項檢驗後，執行提案封存（`openspec-archive-change`）。
-  - **發起 PR 前必須在本地端預跑完整 CI 品質閘門**（包含 `npm run format:check`、`npm run check:lang`、`npm test`、`npm run check:contrast`、`npm run check:a11y`、`npm run check:coverage`、`npm run check:complexity`、`CHANGED_COVERAGE_BASE=origin/main npm run check:changed-coverage`），確定本地預跑 CI 全數通過後，方可將分支推送至遠端並發起 GitHub Pull Request（PR）。
+1. **獨立分支與前置提案提交**：
+   - 實作提案（`openspec-apply-change`）時，**必須在另外獨立的開發分支進行**（例如 `git checkout -b feature/<change-id>` 或使用 `git worktree` 建立獨立工作區）。
+   - 在開始撰寫或修改任何實際功能程式碼前，**必須先將審查定案之提案文件（包含 proposal.md、design.md、tasks.md 與 specs/**/*.md）獨立提交（Git Commit）1 次**，確保變更規劃歷程先行落盤。
+2. **任務微粒化逐項提交（Atomic Commits）**：
+   - 依照 `tasks.md` 實作提案時，必須嚴格遵守**每完成一個 task 就執行驗證並提交（Git Commit）1 次**的增量交付原則，確保每次提交具備原子性、清晰之變更脈絡與可追蹤性，嚴禁累積多個 tasks 混雜在單一 commit 中。
+3. **完成封存與發起 PR 前本地端完整 CI 預跑**：
+   - 在完成所有 task 並通過各項檢驗後，立即執行提案封存（`openspec-archive-change`）並將封存成果提交。
+   - **在發起 PR 前，必須先在本地端預跑完整 CI 品質閘門**，確保完全通過 CI 後方可將分支推送至遠端並發起 Pull Request（PR）。
+   - **本地端 CI 完整預跑指令鏈（與 GitHub Actions CI 完全同構）**：
+     ```bash
+     npm run format:check && \
+     npm run check:lang && \
+     npm run check:ui-classes && \
+     npm run check:contrast && \
+     npm run check:a11y && \
+     npm test && \
+     npm run check:coverage && \
+     npm run check:complexity && \
+     CHANGED_COVERAGE_BASE=origin/main npm run check:changed-coverage && \
+     npm run build:webapp && \
+     git diff --exit-code -- index.html
+     ```
 
-### 3. PR 雙重審查與集中改進（PR Review & Consolidated Commit）
+### 階段三：發起 PR、雙代理審查與集中改進（Post-PR Dual-Agent Review & Consolidated Fix）
 
-- **發起 PR 後派雙代理審查**：PR 發起後，必須派出 2 個獨立的子代理（Sub-agents）全面審查整個 PR 的程式碼品質、規範遵循與回歸風險。
-- **集中改進原則**：主代理依據 2 個子代理的審查結果，並結合其他 PR 審查意見（含 CI 狀態、外部 Reviewer 意見）進行改進；所有改進**盡量濃縮為 1 個 commit 來解決**，避免零散提交污染 Git 歷程。
+發起 Pull Request (PR) 後，**必須指派 2 個獨立的子代理（Sub-agents）對該 PR 之完整變更進行審查**：
 
-### 4. PR 合併與環境清理流程（Squash Merge & Cleanup）
+1. **指派 2 個獨立 PR 審查子代理**：
+   - **程式碼品質與規格審查代理（Code Quality & Spec Reviewer）**：
+     - 審查變更是否嚴格符合專案業務規格、OpenSpec 規範、品質標準（CRAP $\le 25$、MI $\ge 50$、全域覆蓋率基準線方向性 ratchet、變更行/分支覆蓋率 $\ge 80\%$）以及臺灣繁體中文用語守則。
+   - **潛在缺陷與安全性審查代理（Defects & Security Reviewer）**：
+     - 審查變更是否存在邊界缺陷、競態條件、授權漏洞（BOLA/BFLA）、例外處理遺漏或潛在迴歸風險。
+2. **主要代理（Main Agent）改進流程**：
+   - **彙整審查結果並集中單一 Commit 修復**：仔細彙整 2 個子代理提出的問題與改進建議，並結合其他 PR 的審查意見（含外部 Reviewer 或機器人提出的 Review Comments / Review Threads），**盡量集中使用 1 個 commit 完成所有問題的修正**，避免零散提交污染 Git 歷程。
+   - **妥善處理所有審查意見**：檢查 PR 是否存在任何待解決之審查意見，**必須逐一妥善處理完畢所有審查意見**。
+   - **未解審查意見嚴禁 Merge 鐵律**：確認 GitHub PR 上的所有 Review Threads 皆已標記為 Resolved，且所有 Reviewers 的審查狀態均已轉為 APPROVED（無任何殘留的 CHANGES_REQUESTED），方可放行 Squash Merge。若有任何審查意見未處理完成，**絕對嚴禁 Squash Merge 該 PR**。
+   - **本地驗證與提交推送**：再次執行本地完整 CI 預跑指令鏈通過後，將修正提交（commit）並推送到遠端分支。
 
-- **壓扁合併（Squash Merge）**：確認解決所有審查發現的問題且 CI 品質閘門全數通過後，以 Squash Merge 方式合併 PR。
-- **本地分支同步與清理**：
-  - 合併完成後，必須立即將本地端 `main` 分支同步更新至最新狀態（`git checkout main && git pull`）。
-  - 安全移除已合併的本地分支與遠端分支。
-  - 移除開發時所建立的對應 git worktree（`git worktree remove`），保持乾淨的本機開發環境。
+### 階段四：Squash Merge、環境清理與版本化部署（Squash Merge, Cleanup & Production Deployment）
+
+1. **壓扁合併（Squash Merge）**：
+   - 確認遠端 GitHub Actions CI 檢查全數通過（全綠燈）、且所有審查意見均已妥善處理完畢後，執行 Squash Merge 將該 PR 合併至 `main` 分支。
+2. **本地分支同步與清理**：
+   - **同步最新 `main` 分支**：切換至本地 `main` 分支並取得最新變更（`git checkout main && git pull origin main`）。
+   - **解除 Worktree 鎖定與分支清理（順序不可顛倒）**：
+     1. 若該分支使用了 git worktree 進行開發，**必須先移除對應的 worktree**（`git worktree remove <worktree-path>`），解除分支簽出鎖定。
+     2. 刪除本地開發分支：因 PR 採用 Squash Merge，Git 本地可能提示未完全合併（not fully merged），確認 `main` 已整入最新成果後執行 `git branch -D <branch-name>` 完成刪除。
+     3. 刪除遠端分支：執行 `git push origin --delete <branch-name>`（若遠端分支已由 GitHub 自動刪除，可改執行 `git fetch --prune origin` 同步）。
+3. **主分支版本化部署（Production Deployment）**：
+   - 當 `main` 分支整合了新變更（PR Squash Merge）並完成本地同步後，必須在 `main` 分支執行以下作業：
+     1. **重新打包前端產物**：執行 `npm run build:webapp`，確認打包產出最新且無缺漏的根目錄 `index.html`（且工作區保持乾淨）。
+     2. **以固定 Deployment ID 發布新版本**：為防止建立全新 Deployment 導致既有 Web App 網址失效，**必須指定既有的固定 Deployment ID** 進行更新：
+        ```bash
+        # 1. 查看既有 Web App 之 Deployment ID：
+        npm run status
+        # 2. 以固定 Deployment ID 更新部署（二選一）：
+        npm run deploy -- -i <DEPLOYMENT_ID>
+        # 或預先設定環境變數後執行：
+        # CLASP_DEPLOYMENT_ID=<DEPLOYMENT_ID> npm run deploy
+        ```
+        確保既有 Web App 服務網址維持不變，雲端線上環境與 `main` 分支最新成果同步。
