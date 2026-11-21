@@ -19,8 +19,8 @@
   - [x] 3.3 更新 `tests/qualityDocumentation.test.js`：更新文件關鍵字比對 Token（包含 `"25"`, `"60%"`, `"80%"`）
   - [x] 3.4 更新 `tests/qualityRatchet.test.js`：更新測試案例門檻設定
 
-- [ ] 4. 同步專案手冊、OpenSpec 規格與本地完整 CI 驗證
-  - [ ] 4.1 更新 `AGENTS.md` 品質門檻摘要（Lines >= 60%、Branches >= 60%、Changed Branches >= 80%、CRAP MUST NOT > 25）
-  - [ ] 4.2 更新 `README.md` 的 6 處門檻指標與說明文字（第 220 行、第 221 行、第 222 行、第 236 行標題、第 253 行與第 254 行疑難排解段落）
-  - [ ] 4.3 同步更新 main spec `openspec/specs/coverage-and-complexity-gates/spec.md`
-  - [ ] 4.4 執行本地完整 CI 品質閘門預跑（格式、語言、測試、無障礙、覆蓋率、CRAP/MI 複雜度、變更覆蓋率）全數綠燈
+- [x] 4. 同步專案手冊、OpenSpec 規格與本地完整 CI 驗證
+  - [x] 4.1 更新 `AGENTS.md` 品質門檻摘要（Lines >= 60%、Branches >= 60%、Changed Branches >= 80%、CRAP MUST NOT > 25）
+  - [x] 4.2 更新 `README.md` 的 6 處門檻指標與說明文字（第 220 行、第 221 行、第 222 行、第 236 行標題、第 253 行與第 254 行疑難排解段落）
+  - [x] 4.3 同步更新 main spec `openspec/specs/coverage-and-complexity-gates/spec.md`
+  - [x] 4.4 執行本地完整 CI 品質閘門預跑（格式、語言、測試、無障礙、覆蓋率、CRAP/MI 複雜度、變更覆蓋率）全數綠燈

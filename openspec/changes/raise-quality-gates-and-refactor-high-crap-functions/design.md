@@ -66,7 +66,7 @@
 | 變更分支覆蓋率（Changed Branches） | >= 70% | **>= 80%** | 100.00% | +20.00% |
 | CRAP 複雜度上限（CRAP Max） | <= 30 | **<= 25** | 重構後最高 20.000 | 5 分充足緩衝 |
 
-### 2. SSOT 與配置連動
+### 2. SSOT 與設定連動
 - `scripts/qualityConfig.js`：
   - `THRESHOLDS.global.lines`: 60
   - `THRESHOLDS.global.branches`: 60
