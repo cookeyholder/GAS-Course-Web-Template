@@ -286,4 +286,81 @@ assert.deepStrictEqual(serializedRows[0], ["usera@edu.tw", "張老師", "系統�
 assert.deepStrictEqual(serializedRows[1], ["userb@edu.tw", "李老師", "業務人員", "否"]);
 console.log("   ✓ 白名單序列化驗證通過！\n");
 
-console.log("=== systemConfigCodec Task 1.1 & 1.2 單元測試全數通過！ ===");
+// ----------------------------------------------------------------------------
+// 9. 極端邊界條件、大小寫變體與防反轉專屬測試 (Task 1.3)
+// ----------------------------------------------------------------------------
+console.log("9. 極端邊界條件、大小寫變體與防反轉專屬測試...");
+
+// 9.1 null / undefined / 空陣列容錯
+const defaultNullParsed = codec.parseSystemSettingsRows(null);
+assert.strictEqual(defaultNullParsed.systemName, "Google Apps Script 應用程式範本");
+assert.strictEqual(defaultNullParsed.schoolYear, "114");
+
+const emptyMerged = codec.mergeSystemSettingsRows(null, null, { targetRowCount: 5 });
+assert.strictEqual(emptyMerged.length, 5);
+assert.deepStrictEqual(emptyMerged[0], ["", ""]);
+
+assert.deepStrictEqual(codec.parseWhitelistRows(null), []);
+assert.deepStrictEqual(codec.parseWhitelistRows([]), []);
+assert.deepStrictEqual(codec.serializeWhitelistRows(null), []);
+assert.deepStrictEqual(codec.serializeWhitelistRows([]), []);
+
+// 9.2 多元表頭辨識與非表頭首列保護
+const altHeaders = [
+  ["設定名稱", "數值"],
+  ["自訂鍵A", "值A"]
+];
+assert.strictEqual(codec.parseSystemSettingsRows(altHeaders)["自訂鍵A"], "值A");
+
+const nonHeaderRows = [
+  ["正常設定鍵", "正常值"],
+  ["學年度", "115"]
+];
+const nonHeaderParsed = codec.parseSystemSettingsRows(nonHeaderRows);
+assert.strictEqual(nonHeaderParsed["正常設定鍵"], "正常值");
+assert.strictEqual(nonHeaderParsed.schoolYear, "115");
+
+const altWhitelistHeaders = [
+  ["使用者 Email", "姓名", "角色", "狀態"],
+  ["teacher@school.edu", "陳老師", "業務人員", "是"]
+];
+assert.strictEqual(codec.parseWhitelistRows(altWhitelistHeaders).length, 1);
+assert.strictEqual(codec.parseWhitelistRows(altWhitelistHeaders)[0].email, "teacher@school.edu");
+
+// 9.3 角色與網域大小寫變體
+assert.strictEqual(codec.normalizeRole("ADMIN"), "admin");
+assert.strictEqual(codec.normalizeRole("StAfF"), "staff");
+assert.strictEqual(codec.normalizeRole("ViEwEr"), "viewer");
+assert.strictEqual(codec.normalizeRole("UNKNOWN_ROLE"), "viewer");
+assert.strictEqual(codec.normalizeAllowedDomain("  @UPPER.CASE.ORG  "), "upper.case.org");
+
+// 9.4 白名單 enabled 防反轉嚴格驗證（字串 "false", "0", 數字 0, "否", "停用"）
+const testFalsyInputs = ["false", "FALSE", 0, "0", "否", "停用", false];
+testFalsyInputs.forEach((input) => {
+  const acc = codec.normalizeWhitelistAccount({
+    email: "test@domain.com",
+    enabled: input
+  });
+  assert.strictEqual(acc.enabled, false, `輸入 ${JSON.stringify(input)} 時 enabled 絕不能被誤轉為 true！`);
+});
+
+// 9.5 中間含空行與 undefined 之雜亂矩陣過濾並補齊
+const messyMatrix = [
+  ["設定項目", "數值"],
+  ["", ""],
+  [null, undefined],
+  [],
+  ["學年度", "116"],
+  ["  ", "   "],
+  ["學期", "2"]
+];
+const cleanMerged = codec.mergeSystemSettingsRows(messyMatrix, {}, { targetRowCount: 10 });
+assert.strictEqual(cleanMerged[0][0], "設定項目");
+assert.strictEqual(cleanMerged[1][0], "學年度");
+assert.strictEqual(cleanMerged[1][1], "116");
+assert.strictEqual(cleanMerged[2][0], "學期");
+assert.strictEqual(cleanMerged[2][1], "2");
+assert.strictEqual(cleanMerged.length, 10, "中間雜亂空列過濾後，依然正確補齊至 10 列");
+console.log("   ✓ 極端邊界條件與防反轉驗證通過！\n");
+
+console.log("=== systemConfigCodec 全部單元測試 (Task 1.1 ~ 1.3) 通過！ ===");
