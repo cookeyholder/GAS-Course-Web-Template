@@ -8,7 +8,7 @@
 
 - [x] 2.1 重構 `databaseInitializer.js` 的系統設定讀寫（`readSystemSettings` 與 `saveSystemSettingsToSheet_`），移除 `delete updates[key]` 與二次附加寫入，以惰性解析接入 `systemConfigCodec`，保留 `sanitizeRowMatrix` 防禦。執行 `npm test` 確認全專案 131 份測試（含 1 份新測試）全數通過。
 - [x] 2.2 重構 `databaseInitializer.js` 的白名單讀寫（`readWhitelist` 與 `saveWhitelistToSheet_`），以惰性解析接入 `systemConfigCodec` 並統一記憶體模式正規化。執行 `npm test` 確認全專案 131 份測試全數通過。
-- [ ] 2.3 確保 `repairSystemConfigBlockA_` 與 `bootstrapAdminIfNeeded` 之既有行為與中文鍵名相容性維持正常。執行 `node tests/databaseInitializerBootstrap.test.js && node tests/databaseInitializerInitializeDatabaseSheets.test.js` 驗證通過。
+- [x] 2.3 確保 `repairSystemConfigBlockA_` 與 `bootstrapAdminIfNeeded` 之既有行為與中文鍵名相容性維持正常。執行 `node tests/databaseInitializerBootstrap.test.js && node tests/databaseInitializerInitializeDatabaseSheets.test.js` 驗證通過。
 
 ## 3. 全量整合驗證與品質閘門守門
 
