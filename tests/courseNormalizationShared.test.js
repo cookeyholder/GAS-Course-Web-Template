@@ -38,7 +38,7 @@ function createSampleRow() {
 
 function run() {
   console.log("1. 共用模組應匯出完整對照表與正規化函式...");
-  const names = [
+  const syncedNames = [
     "GROUP_CODE_NAMES",
     "DEPARTMENT_CODE_NAMES",
     "SUBJECT_TYPE_NAMES",
@@ -48,12 +48,21 @@ function run() {
     "EXCLUDED_SUBJECT_ATTRIBUTES",
     "NORMALIZED_COURSE_HEADERS"
   ];
-  names.forEach(function (name) {
+  const allNames = syncedNames.concat([
+    "MINISTRY_DEPARTMENT_CODE_NAMES",
+    "DEPARTMENT_ALIASES",
+    "COMMON_DEPARTMENT_CODES",
+    "DEPARTMENT_NAME_TO_CODE"
+  ]);
+  allNames.forEach(function (name) {
     assert(shared[name], "共用模組應匯出 " + name);
   });
   [
     "getGroupName",
     "getDepartmentNameByCode",
+    "getDepartmentCode",
+    "getDepartmentSortKey",
+    "compareDepartmentsByCode",
     "getSubjectType",
     "getOpenWay",
     "getSubjectAttribution",
@@ -68,7 +77,7 @@ function run() {
   console.log("   ✓ 共用模組 API 驗證通過！\n");
 
   console.log("2. 後端與前端應直接轉發同一來源的常數...");
-  names.forEach(function (name) {
+  syncedNames.forEach(function (name) {
     assert.strictEqual(backend[name], shared[name], "後端 " + name + " 應共用同一物件");
     assert.strictEqual(frontend[name], shared[name], "前端 " + name + " 應共用同一物件");
   });
@@ -169,6 +178,70 @@ function run() {
     shared.EXCLUDED_SUBJECT_ATTRIBUTES.pop();
   }
   console.log("   ✓ 邊界與篩選分支驗證通過！\n");
+
+  console.log("8. 科別代碼萃取、四層排序鍵與比較器分支應完整覆蓋...");
+  // 8.1 getDepartmentCode
+  assert.strictEqual(shared.getDepartmentCode(null), "");
+  assert.strictEqual(shared.getDepartmentCode(undefined), "");
+  assert.strictEqual(shared.getDepartmentCode(""), "");
+  assert.strictEqual(shared.getDepartmentCode("   "), "");
+  assert.strictEqual(shared.getDepartmentCode(301), "301");
+  assert.strictEqual(shared.getDepartmentCode("301"), "301");
+  assert.strictEqual(shared.getDepartmentCode("21b"), "21B");
+  assert.strictEqual(shared.getDepartmentCode("a01"), "A01");
+  assert.strictEqual(shared.getDepartmentCode("(301)機械科"), "301");
+  assert.strictEqual(shared.getDepartmentCode("（301）機械科"), "301");
+  assert.strictEqual(shared.getDepartmentCode("[A01]機械技術學程"), "A01");
+  assert.strictEqual(shared.getDepartmentCode("301 機械科"), "301");
+  assert.strictEqual(shared.getDepartmentCode("301-機械科"), "301");
+  assert.strictEqual(shared.getDepartmentCode("機械科(301)"), "301");
+  assert.strictEqual(shared.getDepartmentCode("冷凍空調科（309）"), "309");
+  assert.strictEqual(shared.getDepartmentCode("汽車技術學程[B01]"), "B01");
+  assert.strictEqual(shared.getDepartmentCode("冷凍科"), "309");
+  assert.strictEqual(shared.getDepartmentCode("機械科（夜間部）"), "301");
+  assert.strictEqual(shared.getDepartmentCode("不分科[機械群]"), "21B");
+  assert.strictEqual(shared.getDepartmentCode("國文"), "CHI");
+  assert.strictEqual(shared.getDepartmentCode("國文科（正課）"), "CHI");
+  assert.strictEqual(shared.getDepartmentCode("神秘幽靈科"), "");
+
+  // 8.2 getDepartmentSortKey
+  assert.strictEqual(shared.getDepartmentSortKey(null), "3_");
+  assert.strictEqual(shared.getDepartmentSortKey(undefined), "3_");
+  assert.strictEqual(shared.getDepartmentSortKey(""), "3_");
+  assert.strictEqual(shared.getDepartmentSortKey("   "), "3_");
+  assert.strictEqual(shared.getDepartmentSortKey("國文"), "1_CHI");
+  assert.strictEqual(shared.getDepartmentSortKey("CHI"), "1_CHI");
+  assert.strictEqual(shared.getDepartmentSortKey("機械科"), "0_301");
+  assert.strictEqual(shared.getDepartmentSortKey("301"), "0_301");
+  assert.strictEqual(shared.getDepartmentSortKey("21B"), "0_21B");
+  assert.strictEqual(shared.getDepartmentSortKey("A01"), "0_A01");
+  assert.strictEqual(shared.getDepartmentSortKey("機械技術學程"), "0_A01");
+  assert.strictEqual(shared.getDepartmentSortKey("神秘幽靈科"), "2_神秘幽靈科");
+  assert.strictEqual(shared.getDepartmentSortKey("神秘幽靈科（進修部）"), "2_神秘幽靈科");
+
+  // 8.3 compareDepartmentsByCode
+  // 同鍵平手次級比對
+  assert.strictEqual(shared.compareDepartmentsByCode("機械科", "機械科"), 0);
+  assert(shared.compareDepartmentsByCode("機械科", "(301)機械科") !== 0);
+  // 跨 Tier 升冪
+  assert(shared.compareDepartmentsByCode("機械科", "國文") < 0);
+  assert(shared.compareDepartmentsByCode("國文", "機械科") > 0);
+  assert(shared.compareDepartmentsByCode("國文", "神秘幽靈科") < 0);
+  assert(shared.compareDepartmentsByCode("神秘幽靈科", "國文") > 0);
+  assert(shared.compareDepartmentsByCode("神秘幽靈科", null) < 0);
+  assert(shared.compareDepartmentsByCode(null, "神秘幽靈科") > 0);
+  // Tier 0 內部升冪
+  assert(shared.compareDepartmentsByCode("217", "21B") < 0);
+  assert(shared.compareDepartmentsByCode("21B", "301") < 0);
+  assert(shared.compareDepartmentsByCode("301", "303") < 0);
+  assert(shared.compareDepartmentsByCode("303", "301") > 0);
+  assert(shared.compareDepartmentsByCode("301", "A01") < 0);
+  assert(shared.compareDepartmentsByCode("A01", "B01") < 0);
+  // Tier 1 內部升冪
+  assert(shared.compareDepartmentsByCode("國文", "英文") < 0); // CHI < ENG
+  // Tier 2 內部中文自然排序
+  assert(shared.compareDepartmentsByCode("甲未知科", "乙未知科") !== 0);
+  console.log("   ✓ 科別代碼與排序純函式全分支驗證通過！\n");
 
   console.log("✓ courseNormalizationShared.js 測試全數通過！\n");
 }
