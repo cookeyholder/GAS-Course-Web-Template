@@ -76,19 +76,14 @@ function normalizeLowerTrim_(value) {
     .toLowerCase();
 }
 
-/** 角色名稱轉代碼對照 */
+/** 角色名稱轉代碼對照（委派至 systemConfigCodec） */
 function normalizeRole(role) {
-  const r = normalizeLowerTrim_(role);
-  if (r === ROLE_DEFINITIONS[ROLE_CODES.ADMIN] || r === ROLE_CODES.ADMIN) return ROLE_CODES.ADMIN;
-  if (r === ROLE_DEFINITIONS[ROLE_CODES.STAFF] || r === ROLE_CODES.STAFF) return ROLE_CODES.STAFF;
-  if (r === ROLE_DEFINITIONS[ROLE_CODES.VIEWER] || r === ROLE_CODES.VIEWER) return ROLE_CODES.VIEWER;
-  return r || ROLE_CODES.VIEWER;
+  return getSystemConfigCodec_().normalizeRole(role);
 }
 
-/** 代碼轉角色名稱對照 */
+/** 代碼轉角色名稱對照（委派至 systemConfigCodec） */
 function getRoleDisplayName(role) {
-  const r = normalizeRole(role);
-  return ROLE_DEFINITIONS[r] || ROLE_DEFINITIONS[ROLE_CODES.VIEWER];
+  return getSystemConfigCodec_().getRoleDisplayName(role);
 }
 
 // ============================================================================
@@ -488,6 +483,17 @@ function saveWhitelist(accounts, ss) {
 }
 
 /**
+ * 於白名單清單中查詢指定 Email（委派至 systemConfigCodec）
+ *
+ * @param {Array<Object>} accounts - 帳號陣列
+ * @param {string} email - 使用者 Email
+ * @returns {Object|null}
+ */
+function findAccountInWhitelist(accounts, email) {
+  return getSystemConfigCodec_().findAccountInWhitelist(accounts, email);
+}
+
+/**
  * 取得指定 Email 之角色權限
  *
  * @param {string} email - 使用者 Email
@@ -497,17 +503,16 @@ function saveWhitelist(accounts, ss) {
 function getAccountRole(email, ss) {
   const cleanEmail = normalizeLowerTrim_(email);
   const accounts = readWhitelist(ss);
+  const matched = findAccountInWhitelist(accounts, cleanEmail);
 
-  for (let i = 0; i < accounts.length; i++) {
-    if (accounts[i].email === cleanEmail) {
-      return {
-        role: accounts[i].role,
-        roleName: accounts[i].roleName,
-        name: accounts[i].name,
-        enabled: accounts[i].enabled,
-        found: true
-      };
-    }
+  if (matched) {
+    return {
+      role: matched.role,
+      roleName: matched.roleName,
+      name: matched.name,
+      enabled: matched.enabled,
+      found: true
+    };
   }
 
   return {
@@ -568,6 +573,7 @@ if (typeof module !== "undefined" && module.exports) {
     saveSystemSettings: saveSystemSettings,
     readWhitelist: readWhitelist,
     saveWhitelist: saveWhitelist,
+    findAccountInWhitelist: findAccountInWhitelist,
     getAccountRole: getAccountRole,
     bootstrapAdminIfNeeded: bootstrapAdminIfNeeded
   };
