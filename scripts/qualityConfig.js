@@ -52,16 +52,16 @@ const PATHS = {
  */
 const THRESHOLDS = {
   global: {
-    lines: 30,
+    lines: 60,
     statements: 30,
     functions: 60,
-    branches: 40
+    branches: 60
   },
   changed: {
     lines: 80,
-    branches: 70
+    branches: 80
   },
-  crap: 30,
+  crap: 25,
   maintainability: 50
 };
 

@@ -9,9 +9,9 @@
   - [x] 1.4 重構 `webapp/js/errorMessages.js` 中的 `resolveSafeMessage`：抽出 `resolveFromCodeMap_` 與 `resolveFromErrorObject_`，確保循環複雜度 <= 6
   - [x] 1.5 重新建置前端打包產物 `npm run build:webapp` 並執行單元測試確認行為不變
 
-- [ ] 2. 升級品質門檻設定與檢查腳本
-  - [ ] 2.1 修改 `scripts/qualityConfig.js`：`THRESHOLDS.global.lines` 改為 `60`、`THRESHOLDS.global.branches` 改為 `60`、`THRESHOLDS.changed.branches` 改為 `80`、`THRESHOLDS.crap` 改為 `25`
-  - [ ] 2.2 修改 `scripts/checkComplexity.js`：更新 JSDoc 說明與 `evaluateComplexity` fallback 之 `crapThreshold` 為 `25`
+- [x] 2. 升級品質門檻設定與檢查腳本
+  - [x] 2.1 修改 `scripts/qualityConfig.js`：`THRESHOLDS.global.lines` 改為 `60`、`THRESHOLDS.global.branches` 改為 `60`、`THRESHOLDS.changed.branches` 改為 `80`、`THRESHOLDS.crap` 改為 `25`
+  - [x] 2.2 修改 `scripts/checkComplexity.js`：更新 JSDoc 說明與 `evaluateComplexity` fallback 之 `crapThreshold` 為 `25`
 
 - [ ] 3. 更新品質相關單元測試套件
   - [ ] 3.1 更新 `tests/qualityConfig.test.js`：斷言 Lines 60、Branches 60、Changed Branches 80、CRAP 25
