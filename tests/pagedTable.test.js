@@ -140,7 +140,7 @@ console.log("5. 驗證 renderPagedTable 高階組合容器與相容性...");
     }
   });
   assert.match(loadingHtml, /<table [^>]*aria-busy="true"/, "載入狀態 table 應標註 aria-busy=true");
-  assert.match(loadingHtml, /disabled/, "載入狀態下分頁導航按鈕應帶有 disabled 停用防呆");
+  assert.match(loadingHtml, /disabled/, "載入狀態下分頁導覽按鈕應帶有 disabled 停用防呆");
 
   // 自訂 theadHtml 自動補齊 scope="col" 防呆
   const customTheadHtml = ui.renderPagedTable({

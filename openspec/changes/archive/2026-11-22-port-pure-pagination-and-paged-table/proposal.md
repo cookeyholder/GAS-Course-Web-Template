@@ -15,9 +15,9 @@
   - 新增 `renderTableHead(columns)`：自動生成 `<thead>` 並補齊 `<th scope="col">`。
   - 新增 `renderTableStatusRow(options)`：載入中（含 spinner 圖示）與查無資料提示列，將 `role="status"` 與 `aria-live="polite"` 置於內層容器以保護 `<td>` 之原生 table cell 語意，支援 `colspan` 防呆。
   - 新增 `renderTableBody(options)`：支援宣告式欄位（`columns` 搭配 XSS 自動跳脫或自訂 `formatter`）與自訂資料列渲染回呼（`rowRenderer`）雙模式。
-  - 新增 `renderPagedTable(options)`：一鍵組裝前後插槽（`beforeTableHtml` / `afterTableHtml`）、頂部分頁列、橫向捲動容器（預設包含 `table-responsive table-container` 以完整相容本專案 7 大主題點陣邊框）、標準資料表格、底部分頁列，並自動於載入時標註 `aria-busy="true"` 與停用分頁導航。
+  - 新增 `renderPagedTable(options)`：一鍵組裝前後插槽（`beforeTableHtml` / `afterTableHtml`）、頂部分頁列、橫向捲動容器（預設包含 `table-responsive table-container` 以完整相容本專案 7 大主題點陣邊框）、標準資料表格、底部分頁列，並自動於載入時標註 `aria-busy="true"` 與停用分頁導覽。
   - 雙層 UMD 工廠匯出：所有純函式同時於 `createUiModule` 內部實例與外部工廠返回值完整匯出，確保 Node.js 測試與瀏覽器執行期皆無縫存取。
-- **移植通用表格樣式類別與優化控制項排版（`webapp/styles.css`）**：
+- **移植通用表格樣式類別與最佳化控制項排版（`webapp/styles.css`）**：
   - 新增通用資料表格語意樣式：`.data-table`、`.table-container`、`.pagination-bar-top`、`.pagination-bar-bottom`、`.table-centered`（表頭與內容垂直水平置中）、`.table-hover`（平滑背景過渡與列懸停高對比底色）、`.table-striped`（斑馬紋底色）與紅白機（NES）等主題特色 hover 反饋。
   - 調升標題字級：`.panel-title`（由 18px 升至 19.5px）、`.panel-sub`（由 13px 升至 14px）。
   - 新增緊湊型表單控制項樣式：`.form-select`、`.form-input`、以及專供分頁與密集表格工具列使用的 `.form-select-sm`、`.form-input-sm`（字級 13.5px、最小高度 30px），既有 `.input` 與 `.select` 維持 15px/42px 標準尺寸不變。

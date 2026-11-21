@@ -405,7 +405,7 @@
                 page: currentPage,
                 pageSize: courses.pageSize || 20,
                 idPrefix: "course-page",
-                navAriaLabel: "課程代碼分頁導航",
+                navAriaLabel: "課程代碼分頁導覽",
                 itemLabel: "筆紀錄",
                 actionAttribute: "data-course-action"
               }

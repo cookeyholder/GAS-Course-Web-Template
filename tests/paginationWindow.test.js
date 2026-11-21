@@ -119,14 +119,14 @@ console.log("6. 驗證 renderPaginationBar 雙向渲染與屬性生成...");
     position: "top",
     idPrefix: "test-pager",
     itemLabel: "門課程",
-    navAriaLabel: "課程代碼分頁導航",
+    navAriaLabel: "課程代碼分頁導覽",
     actionAttribute: "data-course-action",
     onPageSizeChange: "changeSize({pageSize})"
   });
 
   assert.ok(topHtml.includes('id="test-pager-top-size"'), "上方每頁筆數 ID 應包含 -top");
   assert.ok(topHtml.includes('id="test-pager-top-jump"'), "上方跳頁 ID 應包含 -top");
-  assert.ok(topHtml.includes('aria-label="課程代碼分頁導航（上方）"'), "上方分頁導航地標應包含（上方）方位標示");
+  assert.ok(topHtml.includes('aria-label="課程代碼分頁導覽（上方）"'), "上方分頁導覽地標應包含（上方）方位標示");
   assert.ok(topHtml.includes('data-course-action="page" data-page="1"'), "第一頁按鈕應包含事件委派屬性");
   assert.ok(topHtml.includes('data-course-action="page" data-page="3"'), "下一頁按鈕應包含事件委派屬性");
   assert.ok(topHtml.includes("共 100 門課程 · 第 2 / 5 頁"), "應正確呈現統計字樣");
@@ -138,14 +138,14 @@ console.log("6. 驗證 renderPaginationBar 雙向渲染與屬性生成...");
     position: "bottom",
     idPrefix: "test-pager",
     itemLabel: "門課程",
-    navAriaLabel: "課程代碼分頁導航",
+    navAriaLabel: "課程代碼分頁導覽",
     onPageChange: "gotoPage({page})",
     onPageSizeChange: "changeSize({pageSize})"
   });
 
   assert.ok(bottomHtml.includes('id="test-pager-bottom-size"'), "下方每頁筆數 ID 應包含 -bottom");
   assert.ok(bottomHtml.includes('id="test-pager-bottom-jump"'), "下方跳頁 ID 應包含 -bottom");
-  assert.ok(bottomHtml.includes('aria-label="課程代碼分頁導航（下方）"'), "下方分頁導航地標應包含（下方）方位標示");
+  assert.ok(bottomHtml.includes('aria-label="課程代碼分頁導覽（下方）"'), "下方分頁導覽地標應包含（下方）方位標示");
   assert.ok(bottomHtml.includes('onclick="gotoPage(1)"'), "第一頁按鈕樣板應代入 1");
   assert.ok(bottomHtml.includes('onclick="gotoPage(3)"'), "下一頁按鈕樣板應代入 3");
   console.log("   ✓ renderPaginationBar 雙向渲染與唯一 ID 驗證通過！");

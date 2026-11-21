@@ -453,7 +453,7 @@
                 page: state.page,
                 pageSize: state.pageSize,
                 idPrefix: "activity-log-page",
-                navAriaLabel: "操作日誌分頁導航",
+                navAriaLabel: "操作日誌分頁導覽",
                 itemLabel: "筆紀錄",
                 actionAttribute: "data-activity-action"
               }

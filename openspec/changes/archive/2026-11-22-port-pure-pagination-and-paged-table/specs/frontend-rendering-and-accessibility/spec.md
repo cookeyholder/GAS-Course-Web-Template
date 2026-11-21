@@ -2,7 +2,7 @@
 
 ### Requirement: 通用純函式雙向分頁導覽元件
 前端 UI 模組 MUST 提供通用無副作用之純函式分頁運算器與分頁工具列渲染器（`MEA.ui.calculatePaginationWindow` 與 `MEA.ui.renderPaginationBar`）。
-運算器 MUST 支援除零防禦、負數校正、切片起訖計算與邊界校正；渲染器 MUST 支援上下雙向獨立前綴 DOM ID（如 `-top-size`, `-bottom-size`, `-top-jump`, `-bottom-jump`）、自訂每頁筆數選單、快速跳頁選單、第一頁／上一頁／下一頁／最末頁導航按鈕，並符合 WCAG 2.1 AA 無障礙規範：具備 `role="navigation"`、依方位可區隔之 `aria-label`（如「上方分頁導航」／「下方分頁導航」）、統計資訊 `aria-live="polite"`、當前頁 `aria-current="page"`，並在總筆數為 0 或載入狀態（`loading`）時停用操作按鈕與下拉選單。
+運算器 MUST 支援除零防禦、負數校正、切片起訖計算與邊界校正；渲染器 MUST 支援上下雙向獨立前綴 DOM ID（如 `-top-size`, `-bottom-size`, `-top-jump`, `-bottom-jump`）、自訂每頁筆數選單、快速跳頁選單、第一頁／上一頁／下一頁／最末頁導覽按鈕，並符合 WCAG 2.1 AA 無障礙規範：具備 `role="navigation"`、依方位可區隔之 `aria-label`（如「上方分頁導覽」／「下方分頁導覽」）、統計資訊 `aria-live="polite"`、當前頁 `aria-current="page"`，並在總筆數為 0 或載入狀態（`loading`）時停用操作按鈕與下拉選單。
 渲染器 MUST 同時支援集中事件委派屬性模式（`actionAttribute` 與 `data-page`）與字串樣板模式（`onPageChange`），並支援統計文字格式化（`summaryFormatter`）。
 
 #### Scenario: 運算器防禦邊界與除零

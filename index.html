@@ -10146,7 +10146,7 @@ window.MEA = window.MEA || {};
   }
 
   /**
-   * 內部純輔助函式：產生單一導航按鈕 HTML（圈複雜度 <= 3）
+   * 內部純輔助函式：產生單一導覽按鈕 HTML（圈複雜度 <= 3）
    */
   function renderNavBtn_(label, targetPage, disabled, ariaLabel, opt) {
     const pageNum = Number.isFinite(Number(targetPage)) ? Math.floor(Number(targetPage)) : 1;
@@ -10172,7 +10172,7 @@ window.MEA = window.MEA || {};
   }
 
   /**
-   * 內部純輔助函式：產生導航按鈕組 HTML（圈複雜度 <= 4）
+   * 內部純輔助函式：產生導覽按鈕組 HTML（圈複雜度 <= 4）
    */
   function renderPaginationNavButtons_(opt, prefix, win, hasData, isSinglePage) {
     if (!opt.onPageChange && !opt.actionAttribute) return "";
@@ -10256,7 +10256,7 @@ window.MEA = window.MEA || {};
     win.hasPrev = win.currentPage > 1;
     const position = opt.position === "top" ? "top" : "bottom";
     const prefix = (opt.idPrefix ? String(opt.idPrefix).trim() : "pagination") + "-" + position;
-    const baseNavLabel = opt.navAriaLabel ? String(opt.navAriaLabel).trim() : "分頁導航";
+    const baseNavLabel = opt.navAriaLabel ? String(opt.navAriaLabel).trim() : "分頁導覽";
     const navAriaLabel = baseNavLabel + (position === "top" ? "（上方）" : "（下方）");
     const hasData = win.totalItems > 0;
     const isSinglePage = win.totalPages <= 1;
@@ -13009,7 +13009,7 @@ window.MEA = window.MEA || {};
                 page: currentPage,
                 pageSize: courses.pageSize || 20,
                 idPrefix: "course-page",
-                navAriaLabel: "課程代碼分頁導航",
+                navAriaLabel: "課程代碼分頁導覽",
                 itemLabel: "筆紀錄",
                 actionAttribute: "data-course-action"
               }
@@ -14370,7 +14370,7 @@ window.MEA = window.MEA || {};
                 page: state.page,
                 pageSize: state.pageSize,
                 idPrefix: "activity-log-page",
-                navAriaLabel: "操作日誌分頁導航",
+                navAriaLabel: "操作日誌分頁導覽",
                 itemLabel: "筆紀錄",
                 actionAttribute: "data-activity-action"
               }

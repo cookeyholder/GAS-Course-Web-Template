@@ -58,7 +58,7 @@
 ### 4. 無障礙契約深化：地標區隔與單元格語意保護
 
 - **決策**：
-  - 地標名稱：`renderPaginationBar` 之 `navAriaLabel` 依 `position` 自動標註方位後綴（例如「課程代碼分頁導航（上方）」與「課程代碼分頁導航（下方）」），消除重複 Landmark 警告。
+  - 地標名稱：`renderPaginationBar` 之 `navAriaLabel` 依 `position` 自動標註方位後綴（例如「課程代碼分頁導覽（上方）」與「課程代碼分頁導覽（下方）」），消除重複 Landmark 警告。
   - 單元格保護：提示列生成為 `<tr><td colspan="..."><div role="status" aria-live="polite">...</div></td></tr>`，維護 `<td>` 原生 table cell 語意。
 
 ### 5. 全站資料表格換裝與新增篩選下拉選單
@@ -72,7 +72,7 @@
 ### 6. UMD 工廠雙層匯出規範
 
 - **決策**：在 `webapp/js/ui.js` 中，7 個新純函式（`calculatePaginationWindow`, `renderPaginationBar`, `renderPagedTable`, `renderTableHead`, `renderTableBody`, `renderTableStatusRow`, `normalizeTableAlign`）必須同時掛載於：
-  - `createUiModule` 內部實例（`api` 物件，執行期供 `MEA.ui.*` 調用）。
+  - `createUiModule` 內部實例（`api` 物件，執行期供 `MEA.ui.*` 呼叫）。
   - 外層 UMD factory 回傳值（Node.js 環境供 `require("../webapp/js/ui.js")` 直接取用）。
 - **理由**：讓單元測試無需依賴 DOM 或完整 deps 即可進行 100% 覆蓋的純粹單元測試。
 

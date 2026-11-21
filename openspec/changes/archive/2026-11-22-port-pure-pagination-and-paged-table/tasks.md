@@ -1,4 +1,4 @@
-## 1. 樣式表更新與版面排版優化
+## 1. 樣式表更新與版面排版最佳化
 
 - [x] 1.1 在 `webapp/styles.css` 補齊通用資料表格與分頁控制項樣式類別（`.data-table`、`.table-container`、`.table-centered`、`.table-hover`、`.table-striped`、`.pagination-bar-top`、`.pagination-bar-bottom`、紅白機主題特色 hover 反饋），以 `npm run check:ui-classes` 驗證無缺漏。
 - [x] 1.2 在 `webapp/styles.css` 調升 `.panel-title`（19.5px）、`.panel-sub`（14px），新增緊湊型表單控制項（`.form-select`、`.form-input`、`.form-select-sm`、`.form-input-sm`，字級 13.5px、高度 30px），以 `npm run check:contrast` 驗證各主題色彩對比符合標準。

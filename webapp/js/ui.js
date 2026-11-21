@@ -301,7 +301,7 @@
   }
 
   /**
-   * 內部純輔助函式：產生單一導航按鈕 HTML（圈複雜度 <= 3）
+   * 內部純輔助函式：產生單一導覽按鈕 HTML（圈複雜度 <= 3）
    */
   function renderNavBtn_(label, targetPage, disabled, ariaLabel, opt) {
     const pageNum = Number.isFinite(Number(targetPage)) ? Math.floor(Number(targetPage)) : 1;
@@ -327,7 +327,7 @@
   }
 
   /**
-   * 內部純輔助函式：產生導航按鈕組 HTML（圈複雜度 <= 4）
+   * 內部純輔助函式：產生導覽按鈕組 HTML（圈複雜度 <= 4）
    */
   function renderPaginationNavButtons_(opt, prefix, win, hasData, isSinglePage) {
     if (!opt.onPageChange && !opt.actionAttribute) return "";
@@ -411,7 +411,7 @@
     win.hasPrev = win.currentPage > 1;
     const position = opt.position === "top" ? "top" : "bottom";
     const prefix = (opt.idPrefix ? String(opt.idPrefix).trim() : "pagination") + "-" + position;
-    const baseNavLabel = opt.navAriaLabel ? String(opt.navAriaLabel).trim() : "分頁導航";
+    const baseNavLabel = opt.navAriaLabel ? String(opt.navAriaLabel).trim() : "分頁導覽";
     const navAriaLabel = baseNavLabel + (position === "top" ? "（上方）" : "（下方）");
     const hasData = win.totalItems > 0;
     const isSinglePage = win.totalPages <= 1;
