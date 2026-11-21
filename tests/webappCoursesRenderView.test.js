@@ -24,6 +24,11 @@ function run() {
   assert(html.indexOf("目前尚無符合的課程紀錄") !== -1);
   assert(html.indexOf('<option value="">所有科別</option>') !== -1);
   assert(html.indexOf('<option value="資訊管理科">資訊管理科</option>') !== -1);
+  assert(html.indexOf('<option value="機械工程科">機械工程科</option>') !== -1);
+  assert(
+    html.indexOf('<option value="機械工程科">') < html.indexOf('<option value="資訊管理科">'),
+    "機械工程科 (代碼 301) 應排在資訊管理科 (代碼 305) 之前"
+  );
   assert(html.indexOf("共 0 筆紀錄 · 第 1 / 1 頁") !== -1);
   assert(html.indexOf('data-course-action="page" data-page="0"') !== -1);
   assert(html.indexOf('data-course-action="page" data-page="2"') !== -1);
@@ -100,6 +105,23 @@ function run() {
     assert(fbHtml.indexOf("FB-001") !== -1, "回退表格應渲染課程代碼");
     assert(fbHtml.indexOf("回退課程") !== -1, "回退表格應渲染課程名稱");
     console.log("   ✓ 回退表格渲染驗證通過！\n");
+  }
+
+  console.log("7. compareDepartmentsByCode 缺失或 depts 為無效值時應安全降級...");
+  {
+    const degCtx = createDeps();
+    degCtx.MEA.courseData = { DEPARTMENT_CODE_NAMES: { 1: "電機科", 2: "化工科" }, compareDepartmentsByCode: null };
+    degCtx.state.courses = { list: [], total: 0, page: 1, totalPages: 1 };
+    const degHtml = coursesModule.createCoursesModule(degCtx.deps).renderView();
+    assert(degHtml.indexOf('<option value="化工科">') !== -1, "降級時應包含化工科");
+    assert(degHtml.indexOf('<option value="電機科">') !== -1, "降級時應包含電機科");
+
+    const nullCtx = createDeps();
+    nullCtx.MEA.courseData = { DEPARTMENT_CODE_NAMES: null };
+    nullCtx.state.courses = { list: [], total: 0, page: 1, totalPages: 1 };
+    const nullHtml = coursesModule.createCoursesModule(nullCtx.deps).renderView();
+    assert(nullHtml.indexOf('<option value="">所有科別</option>') !== -1, "depts 為 null 時僅有預設選項");
+    console.log("   ✓ 安全降級與空值防護驗證通過！\n");
   }
 
   console.log("✓ webapp/js/courses.js renderView 測試全數通過！\n");

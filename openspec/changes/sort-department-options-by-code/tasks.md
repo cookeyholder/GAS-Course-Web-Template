@@ -5,7 +5,7 @@
 
 ## 2. 全站科別選單全面換裝依代碼升冪排序
 
-- [ ] 2.1 修改 `webapp/js/courses.js` 之 `renderDeptOptionsHtml`，將科別選項依代碼升冪排序並加入安全降級回退防護，更新 `tests/webappCoursesRenderView.test.js` 加入排序斷言，以 `node tests/webappCoursesRenderView.test.js` 驗證通過。
+- [x] 2.1 修改 `webapp/js/courses.js` 之 `renderDeptOptionsHtml`，將科別選項依代碼升冪排序並加入安全降級回退防護，更新 `tests/webappCoursesRenderView.test.js` 加入排序斷言，以 `node tests/webappCoursesRenderView.test.js` 驗證通過。
 - [ ] 2.2 修改 `webapp/js/imports.js` 之 `extractPreviewDepartments`，將萃取之科別清單依代碼升冪排序並加入安全降級回退防護，更新 `tests/webappImportsRenderView.test.js`，以 `node tests/webappImportsRenderView.test.js` 驗證通過。
 
 ## 3. 打包前端、擴充單元測試與通過完整品質閘門
