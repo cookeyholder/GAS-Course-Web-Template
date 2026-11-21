@@ -30,7 +30,7 @@ console.log("2. 驗證可由分析結果與覆蓋率評估 CRAP/MI 門檻...");
     analyses: [
       {
         file: "a.js",
-        maintainability: 25,
+        maintainability: 60,
         methods: [
           { name: "okFn", cyclomatic: 5, lineStart: 1, lineEnd: 10 },
           { name: "badFn", cyclomatic: 20, lineStart: 20, lineEnd: 40 }
@@ -59,7 +59,7 @@ console.log("2. 驗證可由分析結果與覆蓋率評估 CRAP/MI 門檻...");
         f: {}
       }
     },
-    thresholds: { crap: 30, maintainability: 20 }
+    thresholds: { crap: 30, maintainability: 50 }
   });
 
   assert.strictEqual(report.ok, false, "存在違規時應失敗");
@@ -100,7 +100,7 @@ console.log("3. 驗證全部符合門檻時檢查成功...");
         f: {}
       }
     },
-    thresholds: { crap: 30, maintainability: 20 }
+    thresholds: { crap: 30, maintainability: 50 }
   });
   assert.strictEqual(report.ok, true, "符合門檻應成功");
   assert.strictEqual(report.violations.length, 0, "不應有違規");
@@ -124,7 +124,7 @@ console.log("3.5 驗證缺少檔案與函式名稱欄位時正確 fallback...\n"
       }
     ],
     coverageByFile: {},
-    thresholds: { crap: 30, maintainability: 20 }
+    thresholds: { crap: 30, maintainability: 50 }
   });
 
   assert.strictEqual(report.ok, false, "門檻違規時應失敗");

@@ -6,11 +6,11 @@
   - [x] 1.1 修改 `scripts/qualityConfig.js` 中的 `THRESHOLDS.maintainability` 為 `50`
   - [x] 1.2 修改 `scripts/checkComplexity.js` 中 `evaluateComplexity` 的 fallback 預設門檻為 `50`
 
-- [ ] 2. 更新品質與複雜度相關單元測試
-  - [ ] 2.1 更新 `tests/qualityConfig.test.js` 斷言 `maintainability` 為 `50`
-  - [ ] 2.2 更新 `tests/checkComplexity.test.js` 中的預設門檻測試為 `50`，並將測試假資料 `a.js` 之 MI 值由 25 調升至 60
-  - [ ] 2.3 更新 `tests/qualityDocumentation.test.js` 中的文件比對斷言與預期門檻為 `50`
-  - [ ] 2.4 更新 `tests/qualityRatchet.test.js` 中的測試門檻設定為 `50`
+- [x] 2. 更新品質與複雜度相關單元測試
+  - [x] 2.1 更新 `tests/qualityConfig.test.js` 斷言 `maintainability` 為 `50`
+  - [x] 2.2 更新 `tests/checkComplexity.test.js` 中的預設門檻測試為 `50`，並將測試假資料 `a.js` 之 MI 值由 25 調升至 60
+  - [x] 2.3 更新 `tests/qualityDocumentation.test.js` 中的文件比對斷言與預期門檻為 `50`
+  - [x] 2.4 更新 `tests/qualityRatchet.test.js` 中的測試門檻設定為 `50`
 
 - [ ] 3. 同步專案文件與規範說明
   - [ ] 3.1 更新 `AGENTS.md` 中的 MI 門檻說明為 `MI MUST >= 50`

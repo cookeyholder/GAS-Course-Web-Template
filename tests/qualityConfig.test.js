@@ -40,7 +40,7 @@ console.log("2. 驗證門檻與報告路徑設定...");
   assert.strictEqual(t.changed.lines, 80, "變更覆蓋率 Lines 門檻應為 80");
   assert.strictEqual(t.changed.branches, 70, "變更覆蓋率 Branches 門檻應為 70");
   assert.strictEqual(t.crap, 30, "CRAP 門檻應為 30");
-  assert.strictEqual(t.maintainability, 20, "MI 門檻應為 20");
+  assert.strictEqual(t.maintainability, 50, "MI 門檻應為 50");
 
   assert.strictEqual(qualityConfig.PATHS.coverageSummary, "coverage/coverage-summary.json");
   assert.strictEqual(qualityConfig.PATHS.coverageFinal, "coverage/coverage-final.json");

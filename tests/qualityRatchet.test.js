@@ -166,7 +166,7 @@ function run() {
     const report = checkComplexity.evaluateComplexity({
       analyses: [makeAnalysis("a.js", 70, methods)],
       coverageByFile: { "a.js": makeUncoveredCoverage(methods) },
-      thresholds: { crap: 30, maintainability: 20 },
+      thresholds: { crap: 30, maintainability: 50 },
       baseline: {
         crap: { crapMax: 10, crapOver30Count: 0 },
         maintainability: { miMin: 80 }
@@ -183,7 +183,7 @@ function run() {
     const improved = checkComplexity.evaluateComplexity({
       analyses: [makeAnalysis("a.js", 85, methods)],
       coverageByFile: { "a.js": makeUncoveredCoverage(methods) },
-      thresholds: { crap: 30, maintainability: 20 },
+      thresholds: { crap: 30, maintainability: 50 },
       baseline: {
         crap: { crapMax: 20, crapOver30Count: 0 },
         maintainability: { miMin: 80 }
