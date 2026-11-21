@@ -87,6 +87,9 @@ function run() {
   [
     "getGroupName",
     "getDepartmentNameByCode",
+    "getDepartmentCode",
+    "getDepartmentSortKey",
+    "compareDepartmentsByCode",
     "isCourseCodeHeaderRow",
     "isExcludedCourseRow",
     "expandCourseRow",

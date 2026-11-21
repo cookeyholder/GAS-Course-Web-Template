@@ -7,6 +7,7 @@
 
 const uiModule = require("../../webapp/js/ui.js");
 const safeErrors = require("./safeErrorsDeps.js").safeErrors;
+const realCourseData = require("../../webapp/js/courseData.js");
 const importsModule = require("../../webapp/js/imports.js");
 
 /**
@@ -373,6 +374,7 @@ function createImportsDeps(overrides) {
       }
     },
     courseData: {
+      compareDepartmentsByCode: realCourseData.compareDepartmentsByCode,
       normalizeCourseCodes: function (rows, options) {
         calls.normalizeCalls.push({ rows: rows, options: options });
         const normalized = rows.map(function (row, index) {

@@ -1,7 +1,7 @@
 ## 1. 擴充教育部科別代碼資料字典與排序純函式
 
 - [x] 1.1 在 `courseNormalizationShared.js` 納入教育部 340 個標準科別代碼字典（`MINISTRY_DEPARTMENT_CODE_NAMES`，採用緊湊字串儲存以維護 MI）、常見別名池（`DEPARTMENT_ALIASES`）與共同科代碼字典（`COMMON_DEPARTMENT_CODES`），並實作 `getDepartmentCode`（支援 `/^[0-9A-Za-z]{3}$/` 與官方自帶方括號反查）、`getDepartmentSortKey`（四層排序鍵，空值賦予 `"3_"`）與 `compareDepartmentsByCode`（Tier 0/1 原生比對、Tier 2 中文比對）純函式；於 `tests/courseNormalizationShared.test.js` 擴充匯出清單與 100% 分支測試（驗證 CRAP $\le 25$ 與 MI $\ge 50$），以 `node tests/courseNormalizationShared.test.js` 驗證通過。
-- [ ] 1.2 在 `webapp/js/courseData.js` 中導出上述純函式與字典，更新 `subjectCodeTransformer.js` 同步引用，並在 `tests/helpers/accountsCoursesDeps.js` 與 `tests/helpers/importsUiDeps.js` 補齊 `compareDepartmentsByCode` 依賴，以 `npm test` 驗證前後端同構與既有測試無回退。
+- [x] 1.2 在 `webapp/js/courseData.js` 中導出上述純函式與字典，更新 `subjectCodeTransformer.js` 同步引用，並在 `tests/helpers/accountsCoursesDeps.js` 與 `tests/helpers/importsUiDeps.js` 補齊 `compareDepartmentsByCode` 依賴，以 `npm test` 驗證前後端同構與既有測試無回退。
 
 ## 2. 全站科別選單全面換裝依代碼升冪排序
 
