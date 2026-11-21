@@ -14,4 +14,4 @@
 
 - [x] 3.1 執行全專案單元測試與完整回歸測試，確認 131 份測試全數通過。執行 `npm test` 驗證通過。
 - [x] 3.2 執行複雜度（CRAP <= 30, MI >= 20）與覆蓋率量測，確認無回退。執行 `npm run check:complexity && npm run check:coverage` 驗證通過。
-- [ ] 3.3 執行程式碼格式檢查、臺灣繁體中文語言純淨度檢查與無障礙稽核。執行 `npm run format:check && npm run check:lang && npm run check:a11y` 驗證通過。
+- [x] 3.3 執行程式碼格式檢查、臺灣繁體中文語言純淨度檢查與無障礙稽核。執行 `npm run format:check && npm run check:lang && npm run check:a11y` 驗證通過。
