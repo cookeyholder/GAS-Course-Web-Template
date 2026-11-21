@@ -190,7 +190,7 @@ npm run check:complexity
 
 - **全域覆蓋率**：初始門檻 Lines >= 30%、Statements >= 30%、Functions >= 60%、Branches >= 40%，且不得低於基準線（不回退）。
 - **變更覆蓋率**：Lines >= 80%、Branches >= 70%（無可量測變更時略過）。
-- **複雜度**：每個納管函式 **CRAP MUST NOT > 30**；每個納管模組 **MI MUST >= 20**。
+- **複雜度**：每個納管函式 **CRAP MUST NOT > 30**；每個納管模組 **MI MUST >= 50**。
 - **基準線與設定**：`scripts/quality-baseline.json`、`scripts/qualityConfig.js`（2026-11-18 基準）；CI 品質閘門見 `.github/workflows/quality-gates.yml`。
 
 ### CI 品質閘門與相依套件

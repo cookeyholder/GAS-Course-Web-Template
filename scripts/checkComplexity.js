@@ -4,7 +4,7 @@
 /**
  * @file checkComplexity.js
  * @description 計算模組 Maintainability Index 與函式 CRAP，輸出摘要與 JSON 報告，
- *              並強制 CRAP <= 30、MI >= 20 門檻。
+ *              並強制 CRAP <= 30、MI >= 50 門檻。
  */
 
 const fs = require("fs");
@@ -99,7 +99,7 @@ function evaluateComplexity(options) {
   const coverageByFile = settings.coverageByFile || {};
   const thresholds = settings.thresholds || {};
   const crapThreshold = typeof thresholds.crap === "number" ? thresholds.crap : 30;
-  const miThreshold = typeof thresholds.maintainability === "number" ? thresholds.maintainability : 20;
+  const miThreshold = typeof thresholds.maintainability === "number" ? thresholds.maintainability : 50;
 
   const violations = [];
   let crapOverThreshold = 0;

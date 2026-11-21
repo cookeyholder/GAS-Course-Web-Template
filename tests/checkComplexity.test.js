@@ -30,7 +30,7 @@ console.log("2. 驗證可由分析結果與覆蓋率評估 CRAP/MI 門檻...");
     analyses: [
       {
         file: "a.js",
-        maintainability: 25,
+        maintainability: 60,
         methods: [
           { name: "okFn", cyclomatic: 5, lineStart: 1, lineEnd: 10 },
           { name: "badFn", cyclomatic: 20, lineStart: 20, lineEnd: 40 }
@@ -59,7 +59,7 @@ console.log("2. 驗證可由分析結果與覆蓋率評估 CRAP/MI 門檻...");
         f: {}
       }
     },
-    thresholds: { crap: 30, maintainability: 20 }
+    thresholds: { crap: 30, maintainability: 50 }
   });
 
   assert.strictEqual(report.ok, false, "存在違規時應失敗");
@@ -100,13 +100,42 @@ console.log("3. 驗證全部符合門檻時檢查成功...");
         f: {}
       }
     },
-    thresholds: { crap: 30, maintainability: 20 }
+    thresholds: { crap: 30, maintainability: 50 }
   });
   assert.strictEqual(report.ok, true, "符合門檻應成功");
   assert.strictEqual(report.violations.length, 0, "不應有違規");
   assert.strictEqual(report.summary.crapOverThreshold, 0);
   assert.strictEqual(report.summary.miUnderThreshold, 0);
   console.log("   ✓ 全數達標成功驗證通過！\n");
+}
+
+console.log("3.2 驗證未提供 maintainability 門檻時正確 fallback 為 50...");
+{
+  const reportDefaultFallback = checkComplexity.evaluateComplexity({
+    analyses: [
+      {
+        file: "fallback-ok.js",
+        maintainability: 55,
+        methods: [{ name: "fn", cyclomatic: 1, lineStart: 1, lineEnd: 2 }]
+      },
+      {
+        file: "fallback-fail.js",
+        maintainability: 45,
+        methods: [{ name: "fn", cyclomatic: 1, lineStart: 1, lineEnd: 2 }]
+      }
+    ],
+    coverageByFile: {},
+    thresholds: { crap: 30 }
+  });
+  assert.strictEqual(reportDefaultFallback.ok, false, "MI 45 低於預設門檻 50 應判定違規");
+  assert.strictEqual(reportDefaultFallback.summary.miUnderThreshold, 1, "應統計 1 個 MI 違規模組");
+  assert(
+    reportDefaultFallback.violations.some(function (v) {
+      return v.type === "mi" && v.file === "fallback-fail.js";
+    }),
+    "應定位 fallback-fail.js 違規"
+  );
+  console.log("   ✓ 未提供 maintainability 時 fallback 預設門檻 50 驗證通過！\n");
 }
 
 console.log("3.5 驗證缺少檔案與函式名稱欄位時正確 fallback...\n");
@@ -124,7 +153,7 @@ console.log("3.5 驗證缺少檔案與函式名稱欄位時正確 fallback...\n"
       }
     ],
     coverageByFile: {},
-    thresholds: { crap: 30, maintainability: 20 }
+    thresholds: { crap: 30, maintainability: 50 }
   });
 
   assert.strictEqual(report.ok, false, "門檻違規時應失敗");
