@@ -110,18 +110,27 @@ function run() {
   console.log("7. compareDepartmentsByCode 缺失或 depts 為無效值時應安全降級...");
   {
     const degCtx = createDeps();
-    degCtx.MEA.courseData = { DEPARTMENT_CODE_NAMES: { 1: "電機科", 2: "化工科" }, compareDepartmentsByCode: null };
+    degCtx.MEA.courseData = {
+      DEPARTMENT_CODE_NAMES: { 1: "電機科", 2: "化工科", 3: "電機科", 4: "" },
+      compareDepartmentsByCode: null
+    };
     degCtx.state.courses = { list: [], total: 0, page: 1, totalPages: 1 };
     const degHtml = coursesModule.createCoursesModule(degCtx.deps).renderView();
     assert(degHtml.indexOf('<option value="化工科">') !== -1, "降級時應包含化工科");
     assert(degHtml.indexOf('<option value="電機科">') !== -1, "降級時應包含電機科");
+
+    const noCourseDataCtx = createDeps();
+    noCourseDataCtx.MEA.courseData = null;
+    noCourseDataCtx.state.courses = { list: [], total: 0, page: 1, totalPages: 1 };
+    const noCourseDataHtml = coursesModule.createCoursesModule(noCourseDataCtx.deps).renderView();
+    assert(noCourseDataHtml.indexOf('<option value="">所有科別</option>') !== -1, "無 courseData 時僅有預設選項");
 
     const nullCtx = createDeps();
     nullCtx.MEA.courseData = { DEPARTMENT_CODE_NAMES: null };
     nullCtx.state.courses = { list: [], total: 0, page: 1, totalPages: 1 };
     const nullHtml = coursesModule.createCoursesModule(nullCtx.deps).renderView();
     assert(nullHtml.indexOf('<option value="">所有科別</option>') !== -1, "depts 為 null 時僅有預設選項");
-    console.log("   ✓ 安全降級與空值防護驗證通過！\n");
+    console.log("   ✓ 安全降級、排除重複與空值防護驗證通過！\n");
   }
 
   console.log("✓ webapp/js/courses.js renderView 測試全數通過！\n");

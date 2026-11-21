@@ -250,7 +250,7 @@
      */
     function renderDeptOptionsHtml(depts, selectedDepartment) {
       let optionsHtml = '<option value="">所有科別</option>';
-      if (!depts || typeof depts !== "object") {
+      if (!depts) {
         return optionsHtml;
       }
       const names = [];
@@ -266,7 +266,7 @@
         MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
           ? MEA.courseData.compareDepartmentsByCode
           : function (a, b) {
-              return String(a || "").localeCompare(String(b || ""), "zh-TW");
+              return String(a).localeCompare(String(b), "zh-TW");
             };
       names.sort(comparator);
       for (let i = 0; i < names.length; i++) {
@@ -393,7 +393,7 @@
       const courses = MEA.state.courses || {};
       const list = courses.list || [];
       const loading = Boolean(courses.loading);
-      const depts = MEA.courseData.DEPARTMENT_CODE_NAMES || {};
+      const depts = (MEA.courseData && MEA.courseData.DEPARTMENT_CODE_NAMES) || {};
 
       const deptOptionsHtml = renderDeptOptionsHtml(depts, courses.department);
       const currentPage = courses.page || 1;
