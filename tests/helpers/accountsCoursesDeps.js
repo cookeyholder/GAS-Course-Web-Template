@@ -6,6 +6,7 @@
  */
 
 const safeErrors = require("./safeErrorsDeps.js").safeErrors;
+const realUi = require("../../webapp/js/ui.js");
 
 const ROLE_NAMES = {
   admin: "系統管理員",
@@ -77,7 +78,7 @@ function createAccountsDeps(overrides) {
         return responder(action, payload);
       }
     },
-    ui: {
+    ui: Object.assign({}, realUi, {
       escapeHtml: function (value) {
         return String(value === undefined || value === null ? "" : value);
       },
@@ -90,7 +91,7 @@ function createAccountsDeps(overrides) {
       closeModal: function () {
         calls.closeModal++;
       }
-    }
+    })
   };
 
   const document = {
@@ -163,7 +164,7 @@ function createCoursesDeps(overrides) {
         return responder(action, payload);
       }
     },
-    ui: {
+    ui: Object.assign({}, realUi, {
       escapeHtml: function (value) {
         return String(value === undefined || value === null ? "" : value);
       },
@@ -180,7 +181,7 @@ function createCoursesDeps(overrides) {
           fn();
         };
       }
-    }
+    })
   };
 
   const document = {

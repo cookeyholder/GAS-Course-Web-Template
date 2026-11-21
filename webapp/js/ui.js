@@ -191,6 +191,429 @@
   }
 
   /**
+   * 通用分頁純運算函式（含除零防禦、負數校正與切片起訖計算）。
+   *
+   * @param {number} totalItems - 總筆數
+   * @param {number} currentPage - 目前頁碼
+   * @param {number} pageSize - 每頁筆數
+   * @returns {Object} 分頁視窗運算結果
+   */
+  function calculatePaginationWindow(totalItems, currentPage, pageSize) {
+    const rawTotal = parseInt(totalItems, 10);
+    const validTotal = Number.isFinite(rawTotal) && rawTotal > 0 ? rawTotal : 0;
+
+    const rawSize = parseInt(pageSize, 10);
+    const validSize = Number.isFinite(rawSize) && rawSize > 0 ? rawSize : 20;
+
+    const totalPages = Math.max(1, Math.ceil(validTotal / validSize));
+
+    const rawPage = parseInt(currentPage, 10);
+    const validPage = Number.isFinite(rawPage) ? rawPage : 1;
+    const clampedPage = Math.max(1, Math.min(totalPages, validPage));
+
+    const startIndex = (clampedPage - 1) * validSize;
+    const endIndex = Math.min(validTotal, startIndex + validSize);
+
+    return {
+      totalItems: validTotal,
+      pageSize: validSize,
+      totalPages: totalPages,
+      currentPage: clampedPage,
+      startIndex: startIndex,
+      endIndex: endIndex,
+      hasPrev: clampedPage > 1,
+      hasNext: clampedPage < totalPages
+    };
+  }
+
+  /**
+   * 內部純輔助函式：產生每頁筆數下拉選單 HTML（圈複雜度 <= 3）
+   */
+  function renderPageSizeSelect_(opt, prefix, win, hasData) {
+    if (!opt.onPageSizeChange && !opt.pageSizeAction) return "";
+    const pageSizeOptions =
+      Array.isArray(opt.pageSizeOptions) && opt.pageSizeOptions.length > 0 ? opt.pageSizeOptions : [10, 20, 50, 100];
+
+    let optionsHtml = "";
+    for (let i = 0; i < pageSizeOptions.length; i++) {
+      const sz = pageSizeOptions[i];
+      const sel = sz === win.pageSize ? " selected" : "";
+      optionsHtml += '<option value="' + sz + '"' + sel + ">每頁 " + sz + " 筆</option>";
+    }
+
+    const handlerAttr = opt.onPageSizeChange
+      ? ' onchange="' + escapeHtml(String(opt.onPageSizeChange).replace(/\{pageSize\}/g, "this.value")) + '"'
+      : " " + escapeHtml(opt.pageSizeAction) + '="size"';
+
+    const disabledAttr = !hasData || opt.disabled ? " disabled" : "";
+    return (
+      '<div style="display:inline-flex; align-items:center; gap:6px;">' +
+      '  <label for="' +
+      escapeHtml(prefix + "-size") +
+      '" style="font-size:13.5px; color:var(--ink-2); white-space:nowrap;">每頁：</label>' +
+      '  <select id="' +
+      escapeHtml(prefix + "-size") +
+      '" class="form-select form-select-sm" style="font-size:13px; padding:3px 6px; border-radius:4px;"' +
+      handlerAttr +
+      disabledAttr +
+      ">" +
+      optionsHtml +
+      "  </select>" +
+      "</div>"
+    );
+  }
+
+  /**
+   * 內部純輔助函式：產生快速跳頁下拉選單 HTML（圈複雜度 <= 3）
+   */
+  function renderPageJumpSelect_(opt, prefix, win, hasData, isSinglePage) {
+    if (!opt.onPageChange && !opt.actionAttribute) return "";
+    let optionsHtml = "";
+    if (hasData) {
+      for (let p = 1; p <= win.totalPages; p++) {
+        const sel = p === win.currentPage ? " selected" : "";
+        optionsHtml += '<option value="' + p + '"' + sel + ">第 " + p + " 頁</option>";
+      }
+    } else {
+      optionsHtml = '<option value="1" selected>第 1 頁</option>';
+    }
+
+    const handlerAttr = opt.onPageChange
+      ? ' onchange="' + escapeHtml(String(opt.onPageChange).replace(/\{page\}/g, "parseInt(this.value, 10)")) + '"'
+      : " " + escapeHtml(opt.actionAttribute) + '="jump"';
+
+    const disabledAttr = !hasData || isSinglePage || opt.disabled ? " disabled" : "";
+    return (
+      '<div style="display:inline-flex; align-items:center; gap:6px;">' +
+      '  <label for="' +
+      escapeHtml(prefix + "-jump") +
+      '" style="font-size:13.5px; color:var(--ink-2); white-space:nowrap;">跳至：</label>' +
+      '  <select id="' +
+      escapeHtml(prefix + "-jump") +
+      '" class="form-select form-select-sm" style="font-size:13px; padding:3px 6px; border-radius:4px;"' +
+      handlerAttr +
+      disabledAttr +
+      ">" +
+      optionsHtml +
+      "  </select>" +
+      "</div>"
+    );
+  }
+
+  /**
+   * 內部純輔助函式：產生單一導覽按鈕 HTML（圈複雜度 <= 3）
+   */
+  function renderNavBtn_(label, targetPage, disabled, ariaLabel, opt) {
+    const pageNum = Number.isFinite(Number(targetPage)) ? Math.floor(Number(targetPage)) : 1;
+    let actionAttrs = "";
+    if (opt.actionAttribute) {
+      actionAttrs = " " + escapeHtml(opt.actionAttribute) + '="page" data-page="' + pageNum + '"';
+    } else if (opt.onPageChange) {
+      const handler = String(opt.onPageChange).replace(/\{page\}/g, String(pageNum));
+      actionAttrs = ' onclick="' + escapeHtml(handler) + '"';
+    }
+    const disAttr = disabled ? " disabled" : "";
+    return (
+      '<button type="button" class="btn secondary sm" style="font-size:13px; padding:4px 8px; line-height:1.2;"' +
+      ' aria-label="' +
+      escapeHtml(ariaLabel) +
+      '"' +
+      actionAttrs +
+      disAttr +
+      ">" +
+      label +
+      "</button>"
+    );
+  }
+
+  /**
+   * 內部純輔助函式：產生導覽按鈕組 HTML（圈複雜度 <= 4）
+   */
+  function renderPaginationNavButtons_(opt, prefix, win, hasData, isSinglePage) {
+    if (!opt.onPageChange && !opt.actionAttribute) return "";
+    const jumpSelectHtml = renderPageJumpSelect_(opt, prefix, win, hasData, isSinglePage);
+    const isDisabledPrev = !win.hasPrev || opt.disabled === true;
+    const isDisabledNext = !win.hasNext || opt.disabled === true;
+
+    const firstBtn = renderNavBtn_("第一頁", 1, isDisabledPrev, "前往第一頁，共 " + win.totalPages + " 頁", opt);
+    const prevBtn = renderNavBtn_(
+      "上一頁",
+      win.currentPage - 1,
+      isDisabledPrev,
+      "上一頁，目前第 " + win.currentPage + " 頁，共 " + win.totalPages + " 頁",
+      opt
+    );
+    const nextBtn = renderNavBtn_(
+      "下一頁",
+      win.currentPage + 1,
+      isDisabledNext,
+      "下一頁，目前第 " + win.currentPage + " 頁，共 " + win.totalPages + " 頁",
+      opt
+    );
+    const lastBtn = renderNavBtn_(
+      "最末頁",
+      win.totalPages,
+      isDisabledNext,
+      "前往最末頁，共 " + win.totalPages + " 頁",
+      opt
+    );
+
+    return (
+      '<div style="display:inline-flex; align-items:center; gap:4px;">' +
+      firstBtn +
+      prevBtn +
+      jumpSelectHtml +
+      nextBtn +
+      lastBtn +
+      "</div>"
+    );
+  }
+
+  /**
+   * 內部純輔助函式：產生統計字串 HTML（圈複雜度 <= 2）
+   */
+  function renderPaginationSummary_(win, itemLabel, opt) {
+    if (typeof opt.summaryFormatter === "function") {
+      return opt.summaryFormatter(win, itemLabel);
+    }
+    const label = itemLabel ? String(itemLabel).trim() : "筆紀錄";
+    return (
+      '<span class="pagination-info" style="font-size:13.5px; color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap;" aria-live="polite">' +
+      "共 " +
+      number(win.totalItems) +
+      " " +
+      escapeHtml(label) +
+      " · 第 " +
+      win.currentPage +
+      " / " +
+      win.totalPages +
+      " 頁" +
+      '<span class="sr-only" aria-current="page">，目前第 ' +
+      win.currentPage +
+      " 頁</span>" +
+      "</span>"
+    );
+  }
+
+  /**
+   * 通用純函式雙向分頁工具列元件
+   */
+  function renderPaginationBar(options) {
+    const opt = options || {};
+    const win = calculatePaginationWindow(opt.total, opt.page, opt.pageSize || 20);
+    if (Number.isFinite(parseInt(opt.totalPages, 10)) && parseInt(opt.totalPages, 10) > 0) {
+      win.totalPages = parseInt(opt.totalPages, 10);
+    }
+    if (Number.isFinite(parseInt(opt.page, 10)) && parseInt(opt.page, 10) > 0) {
+      win.currentPage = Math.max(1, Math.min(win.totalPages, parseInt(opt.page, 10)));
+    }
+    win.hasNext = win.currentPage < win.totalPages;
+    win.hasPrev = win.currentPage > 1;
+    const position = opt.position === "top" ? "top" : "bottom";
+    const prefix = (opt.idPrefix ? String(opt.idPrefix).trim() : "pagination") + "-" + position;
+    const baseNavLabel = opt.navAriaLabel ? String(opt.navAriaLabel).trim() : "分頁導覽";
+    const navAriaLabel = baseNavLabel + (position === "top" ? "（上方）" : "（下方）");
+    const hasData = win.totalItems > 0;
+    const isSinglePage = win.totalPages <= 1;
+
+    const summaryHtml = renderPaginationSummary_(win, opt.itemLabel, opt);
+    const pageSizeSelectHtml = renderPageSizeSelect_(opt, prefix, win, hasData);
+    const navButtonsHtml = renderPaginationNavButtons_(opt, prefix, win, hasData, isSinglePage);
+
+    const barClass = position === "top" ? "pagination-bar pagination-bar-top" : "pagination-bar pagination-bar-bottom";
+
+    return (
+      '<div class="' +
+      barClass +
+      '" role="navigation" aria-label="' +
+      escapeHtml(navAriaLabel) +
+      '" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin: 8px 0; font-size:13.5px;">' +
+      '  <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">' +
+      summaryHtml +
+      pageSizeSelectHtml +
+      "  </div>" +
+      navButtonsHtml +
+      "</div>"
+    );
+  }
+
+  /**
+   * 正規化表格欄位對齊方式（白名單防禦純函式）
+   */
+  function normalizeTableAlign(align) {
+    if (!align) return "";
+    const s = String(align).toLowerCase().trim();
+    return s === "left" || s === "center" || s === "right" || s === "justify" ? s : "";
+  }
+
+  /**
+   * 渲染表格表頭 HTML（純函式）
+   */
+  function renderTableHead(columns) {
+    if (!Array.isArray(columns) || columns.length === 0) return "";
+    let ths = "";
+    for (let i = 0; i < columns.length; i++) {
+      const col = columns[i] || {};
+      const title = escapeHtml(col.title || col.name || col.label || "");
+      const validAlign = normalizeTableAlign(col.align);
+      const align = validAlign ? ' style="text-align:' + validAlign + ';"' : "";
+      const width = col.width ? ' width="' + escapeHtml(col.width) + '"' : "";
+      ths += '<th scope="col"' + align + width + ">" + title + "</th>";
+    }
+    return "<thead><tr>" + ths + "</tr></thead>";
+  }
+
+  /**
+   * 渲染表格狀態提示列 HTML（保護 <td> 單元格語意，純函式）
+   */
+  function renderTableStatusRow(options) {
+    const opt = options || {};
+    const span = Number.isFinite(opt.colspan) && opt.colspan > 0 ? Math.floor(opt.colspan) : 1;
+    if (opt.loading) {
+      const loadingText = escapeHtml(opt.loadingText || "載入中...");
+      return (
+        '<tr><td colspan="' +
+        span +
+        '" style="text-align:center; padding:28px; color:var(--ink-2);">' +
+        '<div role="status" aria-live="polite">' +
+        '<span class="spinner" style="display:inline-block; margin-right:8px;" aria-hidden="true">⏳</span>' +
+        loadingText +
+        "</div></td></tr>"
+      );
+    }
+    const emptyText = escapeHtml(opt.emptyText || "查無資料");
+    return (
+      '<tr><td colspan="' +
+      span +
+      '" style="text-align:center; padding:28px; color:var(--ink-2);">' +
+      '<div role="status" aria-live="polite">' +
+      emptyText +
+      "</div></td></tr>"
+    );
+  }
+
+  /**
+   * 內部純輔助函式：產生宣告式欄位之資料列 HTML（圈複雜度 <= 4）
+   */
+  function renderDeclarativeRows_(items, columns) {
+    let rowsHtml = "";
+    for (let r = 0; r < items.length; r++) {
+      const row = items[r] || {};
+      let tds = "";
+      for (let c = 0; c < columns.length; c++) {
+        const col = columns[c] || {};
+        const key = col.key || col.field || "";
+        const rawVal = key ? row[key] : "";
+        const content =
+          typeof col.formatter === "function" ? col.formatter(rawVal, row, r) : escapeHtml(String(rawVal ?? ""));
+        const validAlign = normalizeTableAlign(col.align);
+        const align = validAlign ? ' style="text-align:' + validAlign + ';"' : "";
+        tds += "<td" + align + ">" + content + "</td>";
+      }
+      rowsHtml += "<tr>" + tds + "</tr>";
+    }
+    return rowsHtml;
+  }
+
+  /**
+   * 渲染表格主體資料列 HTML（純函式）
+   */
+  function renderTableBody(options) {
+    const opt = options || {};
+    const items = Array.isArray(opt.items) ? opt.items : [];
+    const columns = Array.isArray(opt.columns) ? opt.columns : [];
+    const span = Number.isFinite(opt.colspan) && opt.colspan > 0 ? Math.floor(opt.colspan) : columns.length || 1;
+
+    if (opt.loading) {
+      return (
+        "<tbody>" + renderTableStatusRow({ colspan: span, loading: true, loadingText: opt.loadingText }) + "</tbody>"
+      );
+    }
+    if (items.length === 0) {
+      return "<tbody>" + renderTableStatusRow({ colspan: span, loading: false, emptyText: opt.emptyText }) + "</tbody>";
+    }
+    if (typeof opt.rowRenderer === "function") {
+      let rows = "";
+      for (let i = 0; i < items.length; i++) {
+        const rowContent = opt.rowRenderer(items[i], i);
+        rows += rowContent != null ? rowContent : "";
+      }
+      return "<tbody>" + rows + "</tbody>";
+    }
+
+    return "<tbody>" + renderDeclarativeRows_(items, columns) + "</tbody>";
+  }
+
+  /**
+   * 高階純函式資料表格組合容器元件（paged-table-container）
+   */
+  function renderPagedTable(options) {
+    const opt = options || {};
+    const items = Array.isArray(opt.items) ? opt.items : [];
+    const columns = Array.isArray(opt.columns) ? opt.columns : [];
+    const span = Number.isFinite(opt.colspan) && opt.colspan > 0 ? Math.floor(opt.colspan) : columns.length || 1;
+    const isLoading = Boolean(opt.loading || opt.isLoading);
+    const hasPagination = opt.pagination && typeof renderPaginationBar === "function";
+
+    let topPager = "";
+    let bottomPager = "";
+    if (hasPagination) {
+      const basePagerOpts = Object.assign({}, opt.pagination, {
+        disabled: isLoading || opt.pagination.disabled === true
+      });
+      if (opt.pagination.showTop !== false) {
+        topPager = renderPaginationBar(Object.assign({}, basePagerOpts, { position: "top" }));
+      }
+      if (opt.pagination.showBottom !== false) {
+        bottomPager = renderPaginationBar(Object.assign({}, basePagerOpts, { position: "bottom" }));
+      }
+    }
+
+    const rawHeadHtml = opt.theadHtml || renderTableHead(columns);
+    const headHtml = rawHeadHtml
+      ? String(rawHeadHtml).replace(/<th\b(?![^>]*\bscope\s*=)([^>]*)>/gi, '<th scope="col"$1>')
+      : "";
+    const bodyHtml = renderTableBody({
+      items: items,
+      columns: columns,
+      rowRenderer: opt.rowRenderer,
+      loading: isLoading,
+      loadingText: opt.loadingText,
+      emptyText: opt.emptyText,
+      colspan: span
+    });
+
+    const tableClass = opt.className
+      ? "data-table " + escapeHtml(opt.className)
+      : "data-table table-centered table-hover";
+    const tableStyle = opt.tableStyle ? ' style="' + escapeHtml(opt.tableStyle) + '"' : ' style="width:100%;"';
+    const ariaBusy = isLoading ? ' aria-busy="true"' : "";
+    const beforeHtml = opt.beforeTableHtml || "";
+    const afterHtml = opt.afterTableHtml || "";
+
+    const containerClass = opt.containerClassName
+      ? escapeHtml(opt.containerClassName)
+      : "table-responsive table-container";
+
+    const tableHtml =
+      '<div class="' +
+      containerClass +
+      '" style="overflow-x:auto;">' +
+      '  <table class="' +
+      tableClass +
+      '"' +
+      tableStyle +
+      ariaBusy +
+      ">" +
+      headHtml +
+      bodyHtml +
+      "  </table>" +
+      "</div>";
+
+    return beforeHtml + topPager + tableHtml + bottomPager + afterHtml;
+  }
+
+  /**
    * 建立可注入依賴的 UI 模組實例。
    *
    * @param {Object} deps - MEA、window、document 與計時器依賴
@@ -769,6 +1192,13 @@
         return roleName(role, MEA.config);
       },
       debounce: debounce,
+      calculatePaginationWindow: calculatePaginationWindow,
+      renderPaginationBar: renderPaginationBar,
+      renderPagedTable: renderPagedTable,
+      renderTableHead: renderTableHead,
+      renderTableBody: renderTableBody,
+      renderTableStatusRow: renderTableStatusRow,
+      normalizeTableAlign: normalizeTableAlign,
       applyTheme: applyTheme,
       currentTheme: currentTheme,
       toggleTheme: toggleTheme,
@@ -816,6 +1246,13 @@
     escapeHtml: escapeHtml,
     number: number,
     roleName: roleName,
+    calculatePaginationWindow: calculatePaginationWindow,
+    renderPaginationBar: renderPaginationBar,
+    renderPagedTable: renderPagedTable,
+    renderTableHead: renderTableHead,
+    renderTableBody: renderTableBody,
+    renderTableStatusRow: renderTableStatusRow,
+    normalizeTableAlign: normalizeTableAlign,
     renderStyleOptions: renderStyleOptions,
     resolveToastKind: resolveToastKind,
     resolveToastRole: resolveToastRole,
