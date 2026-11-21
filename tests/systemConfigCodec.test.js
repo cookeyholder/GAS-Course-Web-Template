@@ -173,4 +173,117 @@ const hugeMerged = codec.mergeSystemSettingsRows([], hugeUpdates, { targetRowCou
 assert.strictEqual(hugeMerged.length, 35, "超過 29 項時動態延展");
 console.log("   ✓ 不可變合併與空白填補驗證通過！\n");
 
-console.log("=== systemConfigCodec Task 1.1 單元測試全數通過！ ===");
+// ----------------------------------------------------------------------------
+// 6. 白名單帳號物件純正規化 (normalizeWhitelistAccount)
+// ----------------------------------------------------------------------------
+console.log("6. 白名單帳號物件純正規化...");
+const validAdmin = codec.normalizeWhitelistAccount({
+  email: "  ADMIN@Example.COM ",
+  name: "管理員小明",
+  role: "admin",
+  enabled: true
+});
+assert.deepStrictEqual(validAdmin, {
+  email: "admin@example.com",
+  name: "管理員小明",
+  role: "admin",
+  roleName: "系統管理員",
+  enabled: true
+});
+
+// 中文角色名稱對照與預設 enabled
+const staffAccount = codec.normalizeWhitelistAccount({
+  email: "Staff@School.edu.tw",
+  name: "王組長",
+  role: "業務人員"
+});
+assert.strictEqual(staffAccount.email, "staff@school.edu.tw");
+assert.strictEqual(staffAccount.role, "staff");
+assert.strictEqual(staffAccount.roleName, "業務人員");
+assert.strictEqual(staffAccount.enabled, true, "未指定 enabled 應預設為 true");
+
+// 停用狀態解析（字串 false, 否, 數字 0）
+const disabled1 = codec.normalizeWhitelistAccount({
+  email: "user1@test.com",
+  enabled: false
+});
+assert.strictEqual(disabled1.enabled, false);
+
+const disabled2 = codec.normalizeWhitelistAccount({
+  email: "user2@test.com",
+  enabled: "false"
+});
+assert.strictEqual(disabled2.enabled, false);
+
+const disabled3 = codec.normalizeWhitelistAccount({
+  email: "user3@test.com",
+  enabled: 0
+});
+assert.strictEqual(disabled3.enabled, false);
+
+// 無效帳號回傳 null
+assert.strictEqual(codec.normalizeWhitelistAccount(null), null);
+assert.strictEqual(codec.normalizeWhitelistAccount({}), null);
+assert.strictEqual(codec.normalizeWhitelistAccount({ email: "   " }), null);
+console.log("   ✓ 白名單帳號正規化驗證通過！\n");
+
+// ----------------------------------------------------------------------------
+// 7. 解析 D:G 二維白名單矩陣 (parseWhitelistRows)
+// ----------------------------------------------------------------------------
+console.log("7. 解析 D:G 二維白名單矩陣...");
+const whitelistSheetMatrix = [
+  ["Email", "姓名/職稱", "角色", "啟用狀態"], // 表頭應略過
+  ["admin@school.edu", "校長", "系統管理員", "是"],
+  ["", "", "", ""], // 空行應略過
+  ["staff@school.edu", "主任", "業務人員", "是"],
+  ["viewer@school.edu", "工友", "檢視人員", "否"]
+];
+const parsedWhitelist = codec.parseWhitelistRows(whitelistSheetMatrix);
+assert.strictEqual(parsedWhitelist.length, 3);
+assert.deepStrictEqual(parsedWhitelist[0], {
+  email: "admin@school.edu",
+  name: "校長",
+  role: "admin",
+  roleName: "系統管理員",
+  enabled: true
+});
+assert.deepStrictEqual(parsedWhitelist[1], {
+  email: "staff@school.edu",
+  name: "主任",
+  role: "staff",
+  roleName: "業務人員",
+  enabled: true
+});
+assert.deepStrictEqual(parsedWhitelist[2], {
+  email: "viewer@school.edu",
+  name: "工友",
+  role: "viewer",
+  roleName: "檢視人員",
+  enabled: false
+});
+
+// 無表頭二維矩陣解析
+const noHeaderMatrix = [["direct@test.com", "訪客", "viewer", "true"]];
+const parsedNoHeaderWhitelist = codec.parseWhitelistRows(noHeaderMatrix);
+assert.strictEqual(parsedNoHeaderWhitelist.length, 1);
+assert.strictEqual(parsedNoHeaderWhitelist[0].email, "direct@test.com");
+assert.strictEqual(parsedNoHeaderWhitelist[0].enabled, true);
+console.log("   ✓ D:G 白名單矩陣解析驗證通過！\n");
+
+// ----------------------------------------------------------------------------
+// 8. 序列化白名單帳號陣列為 D:G 寫入矩陣 (serializeWhitelistRows)
+// ----------------------------------------------------------------------------
+console.log("8. 序列化白名單為 D:G 寫入矩陣...");
+const accountsToSerialize = [
+  { email: "userA@edu.tw", name: "張老師", role: "admin", enabled: true },
+  { email: "userB@edu.tw", name: "李老師", role: "staff", enabled: false },
+  null, // 無效元素應被過濾
+  { email: "  " } // 無 email 應被過濾
+];
+const serializedRows = codec.serializeWhitelistRows(accountsToSerialize);
+assert.strictEqual(serializedRows.length, 2);
+assert.deepStrictEqual(serializedRows[0], ["usera@edu.tw", "張老師", "系統管理員", "是"]);
+assert.deepStrictEqual(serializedRows[1], ["userb@edu.tw", "李老師", "業務人員", "否"]);
+console.log("   ✓ 白名單序列化驗證通過！\n");
+
+console.log("=== systemConfigCodec Task 1.1 & 1.2 單元測試全數通過！ ===");

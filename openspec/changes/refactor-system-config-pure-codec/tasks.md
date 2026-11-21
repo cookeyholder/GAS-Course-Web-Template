@@ -1,7 +1,7 @@
 ## 1. 獨立純編解碼模組實作與零 Mock 單元測試
 
 - [x] 1.1 建立 `systemConfigCodec.js` 模組骨架與雙棲匯出，實作 `normalizeSystemSettings`、`parseSystemSettingsRows` 與 `mergeSystemSettingsRows`。涵蓋雙軌鍵值（中文+駝峰）、布林正規化、不可變性（無 `delete`）與幽靈殘留列空白填補。執行 `node tests/systemConfigCodec.test.js` 驗證通過。
-- [ ] 1.2 於 `systemConfigCodec.js` 實作 `normalizeWhitelistAccount`、`parseWhitelistRows` 與 `serializeWhitelistRows`。涵蓋 Email trim、角色代碼與中文名稱對照、啟用狀態轉譯與空行過濾。執行 `node tests/systemConfigCodec.test.js` 驗證通過。
+- [x] 1.2 於 `systemConfigCodec.js` 實作 `normalizeWhitelistAccount`、`parseWhitelistRows` 與 `serializeWhitelistRows`。涵蓋 Email trim、角色代碼與中文名稱對照、啟用狀態轉譯與空行過濾。執行 `node tests/systemConfigCodec.test.js` 驗證通過。
 - [ ] 1.3 擴充 `tests/systemConfigCodec.test.js` 極端邊界測試（空陣列、首行表頭判定、未登錄未知鍵保留、大小寫變體、全空白列填補、字串 `"false"` 或數字 `0` 啟用狀態防反轉）。執行 `node tests/systemConfigCodec.test.js` 驗證通過。
 
 ## 2. 後端資料庫初始化模組重構與相容性接入
