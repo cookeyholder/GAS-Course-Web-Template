@@ -2,9 +2,9 @@
 
 ## 任務細分
 
-- [ ] 1. 更新品質設定與複雜度檢查腳本
-  - [ ] 1.1 修改 `scripts/qualityConfig.js` 中的 `THRESHOLDS.maintainability` 為 `50`
-  - [ ] 1.2 修改 `scripts/checkComplexity.js` 中 `evaluateComplexity` 的 fallback 預設門檻為 `50`
+- [x] 1. 更新品質設定與複雜度檢查腳本
+  - [x] 1.1 修改 `scripts/qualityConfig.js` 中的 `THRESHOLDS.maintainability` 為 `50`
+  - [x] 1.2 修改 `scripts/checkComplexity.js` 中 `evaluateComplexity` 的 fallback 預設門檻為 `50`
 
 - [ ] 2. 更新品質與複雜度相關單元測試
   - [ ] 2.1 更新 `tests/qualityConfig.test.js` 斷言 `maintainability` 為 `50`

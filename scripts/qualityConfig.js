@@ -62,7 +62,7 @@ const THRESHOLDS = {
     branches: 70
   },
   crap: 30,
-  maintainability: 20
+  maintainability: 50
 };
 
 /**
