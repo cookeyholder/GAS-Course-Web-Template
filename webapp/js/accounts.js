@@ -41,6 +41,85 @@
   const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   /**
+   * 純驗證函式：檢查新增帳號表單輸入值
+   *
+   * @param {Object} input - 輸入值 { email, role, name, enabled }
+   * @param {Array<Object>} existingAccounts - 現有帳號清單
+   * @returns {Object} `{ valid: boolean, errorKey?: string, message?: string }`
+   */
+  function validateNewAccountInput(input, existingAccounts) {
+    const source = input || {};
+    const email = String(source.email || "").trim().toLowerCase();
+    if (!email || email.indexOf("@") === -1) {
+      return {
+        valid: false,
+        errorKey: "invalid_email",
+        message: "請填寫有效的 Email"
+      };
+    }
+
+    const accounts = Array.isArray(existingAccounts) ? existingAccounts : [];
+    for (let i = 0; i < accounts.length; i++) {
+      const item = accounts[i];
+      if (item && String(item.email || "").trim().toLowerCase() === email) {
+        return {
+          valid: false,
+          errorKey: "duplicate_email",
+          message: "此 Email 已在白名單中"
+        };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * 不可變新增帳號至清單
+   *
+   * @param {Array<Object>} accounts - 現有帳號清單
+   * @param {Object} newAccount - 新帳號物件
+   * @returns {Array<Object>} 全新陣列
+   */
+  function appendAccountToList(accounts, newAccount) {
+    const list = Array.isArray(accounts) ? accounts.slice() : [];
+    if (!newAccount) return list;
+    return list.concat([Object.assign({}, newAccount)]);
+  }
+
+  /**
+   * 不可變自清單中移除指定 Email 帳號
+   *
+   * @param {Array<Object>} accounts - 現有帳號清單
+   * @param {string} email - 目標 Email
+   * @returns {Array<Object>} 全新陣列
+   */
+  function removeAccountFromList(accounts, email) {
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const list = Array.isArray(accounts) ? accounts : [];
+    return list.filter(function (a) {
+      return a && String(a.email || "").trim().toLowerCase() !== cleanEmail;
+    });
+  }
+
+  /**
+   * 不可變切換指定 Email 帳號之啟用狀態
+   *
+   * @param {Array<Object>} accounts - 現有帳號清單
+   * @param {string} email - 目標 Email
+   * @returns {Array<Object>} 全新陣列
+   */
+  function toggleAccountInList(accounts, email) {
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const list = Array.isArray(accounts) ? accounts : [];
+    return list.map(function (a) {
+      if (a && String(a.email || "").trim().toLowerCase() === cleanEmail) {
+        return Object.assign({}, a, { enabled: !a.enabled });
+      }
+      return a;
+    });
+  }
+
+  /**
    * 建立帳號與系統設定模組控制器。
    *
    * @param {Object} [deps] - 依賴注入（MEA、document）
@@ -324,18 +403,22 @@
     function handleAddAccountClick() {
       const values = readNewAccountValues();
       clearFieldError(getElementById("newAccountEmail"));
-      if (!values.email || values.email.indexOf("@") === -1) {
-        setFieldError("newAccountEmail", "請填寫有效的 Email");
-        return;
-      }
-
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
-      if (isDuplicateEmail(cur, values.email)) {
-        setFieldError("newAccountEmail", "此 Email 已在白名單中");
+      const validation = validateNewAccountInput(values, cur);
+      if (!validation.valid) {
+        setFieldError("newAccountEmail", validation.message);
         return;
       }
 
-      saveAccountsList(buildUpdatedAccounts(cur, values));
+      const roleName = (MEA.config && MEA.config.roleNames && MEA.config.roleNames[values.role]) || values.role;
+      const newAccount = {
+        email: values.email,
+        name: values.name || values.email,
+        role: values.role,
+        roleName: roleName,
+        enabled: true
+      };
+      saveAccountsList(appendAccountToList(cur, newAccount));
       MEA.ui.closeModal();
     }
 
@@ -391,9 +474,7 @@
 
     function removeAccount(email) {
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
-      const updated = cur.filter(function (a) {
-        return a.email !== email;
-      });
+      const updated = removeAccountFromList(cur, email);
       MEA.ui.modal(
         "確認刪除授權成員",
         '<p class="mb-2">確定要刪除 <strong>' +
@@ -415,12 +496,7 @@
 
     function toggleAccount(email) {
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
-      const updated = cur.map(function (a) {
-        if (a.email === email) {
-          return Object.assign({}, a, { enabled: !a.enabled });
-        }
-        return a;
-      });
+      const updated = toggleAccountInList(cur, email);
       saveAccountsList(updated);
     }
 
@@ -697,6 +773,10 @@
   }
 
   return {
-    createAccountsModule: createAccountsModule
+    createAccountsModule: createAccountsModule,
+    validateNewAccountInput: validateNewAccountInput,
+    appendAccountToList: appendAccountToList,
+    removeAccountFromList: removeAccountFromList,
+    toggleAccountInList: toggleAccountInList
   };
 });
