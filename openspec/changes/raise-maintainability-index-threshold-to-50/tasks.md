@@ -12,10 +12,10 @@
   - [x] 2.3 更新 `tests/qualityDocumentation.test.js` 中的文件比對斷言與預期門檻為 `50`
   - [x] 2.4 更新 `tests/qualityRatchet.test.js` 中的測試門檻設定為 `50`
 
-- [ ] 3. 同步專案文件與規範說明
-  - [ ] 3.1 更新 `AGENTS.md` 中的 MI 門檻說明為 `MI MUST >= 50`
-  - [ ] 3.2 更新 `README.md` 第 223 行品質指標清單項（`MI MUST >= 50`）與第 253 行疑難排解文字（`MI < 50`）
-  - [ ] 3.3 同步更新 main spec `openspec/specs/coverage-and-complexity-gates/spec.md`
+- [x] 3. 同步專案文件與規範說明
+  - [x] 3.1 更新 `AGENTS.md` 中的 MI 門檻說明為 `MI MUST >= 50`
+  - [x] 3.2 更新 `README.md` 第 223 行品質指標清單項（`MI MUST >= 50`）與第 253 行疑難排解文字（`MI < 50`）
+  - [x] 3.3 同步更新 main spec `openspec/specs/coverage-and-complexity-gates/spec.md`
 
 - [ ] 4. 本地完整 CI 品質閘門驗證
   - [ ] 4.1 執行單元測試 `npm test` 確認全數通過
