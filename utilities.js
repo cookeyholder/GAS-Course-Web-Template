@@ -50,6 +50,8 @@ function safeApplySheetFontSize(range, size) {
   }
 }
 
+const FORMULA_PREFIX_REGEX = /^[+=@\t\r-]/;
+
 /**
  * 試算表公式注入跳脫單一值 (Formula Immunization)
  * 若字串以 =, +, -, @, \t, \r 開頭，自動加上前置單引號跳脫
@@ -58,10 +60,8 @@ function safeApplySheetFontSize(range, size) {
  * @returns {*} 安全值
  */
 function sanitizeFormulaValue(val) {
-  if (typeof val !== "string") return val;
-  if (!val) return val;
-  const first = val.charAt(0);
-  if (first === "=" || first === "+" || first === "-" || first === "@" || first === "\t" || first === "\r") {
+  if (typeof val !== "string" || !val) return val;
+  if (FORMULA_PREFIX_REGEX.test(val)) {
     return "'" + val;
   }
   return val;

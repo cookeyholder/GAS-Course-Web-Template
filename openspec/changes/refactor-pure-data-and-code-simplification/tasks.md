@@ -3,7 +3,7 @@
 - [x] 1.1 在 `utilities.js` 實作通用純函式 `chunkArray`，並在 `subjectCodeTransformer.js` 實作純檢索函式 `queryCourseDataRows`（精確區隔無資料 totalPages 0 與查無結果 totalPages 1），於 `tests/courseDataPureQuery.test.js` 建立 100% 零 Mock 單元測試驗證通過
 - [x] 1.2 重構 `subjectCodeTransformer.js` 的 `getNormalizedCourses` 與分批寫入邏輯轉發至純函式核心，確認 `tests/subjectCodeTransformerGetNormalizedCourses.test.js` 與 `tests/subjectCodeTransformerFormulaInjection.test.js` 全數通過
 - [x] 1.3 在 `systemConfigCodec.js` 實作純函式 `findAccountInWhitelist`（具備容錯防護），`databaseInitializer.js` 的 `getAccountRole` 改用純查表並委派 `normalizeRole` 與 `getRoleDisplayName`（保留匯出相容性），於 `tests/findAccountInWhitelist.test.js`、`tests/cleanupSingleSource.test.js` 與 `tests/webApiDependencyInjection.test.js` 驗證通過
-- [ ] 1.4 簡化 `utilities.js` 的 `sanitizeFormulaValue` 防衛判斷為常數正則檢測，新建 `tests/utilitiesSanitizeFormulaValue.test.js` 驗證公式注入防範與普通文字不受影響
+- [x] 1.4 簡化 `utilities.js` 的 `sanitizeFormulaValue` 防衛判斷為常數正則檢測，新建 `tests/utilitiesSanitizeFormulaValue.test.js` 驗證公式注入防範與普通文字不受影響
 
 ## 2. 前端狀態不可變性與純表單驗證
 
