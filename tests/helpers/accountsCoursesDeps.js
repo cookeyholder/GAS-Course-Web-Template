@@ -7,6 +7,7 @@
 
 const safeErrors = require("./safeErrorsDeps.js").safeErrors;
 const realUi = require("../../webapp/js/ui.js");
+const realCourseData = require("../../webapp/js/courseData.js");
 
 const ROLE_NAMES = {
   admin: "系統管理員",
@@ -152,7 +153,8 @@ function createCoursesDeps(overrides) {
     state: state,
     safeErrors: safeErrors,
     courseData: {
-      DEPARTMENT_CODE_NAMES: { 1: "資訊管理科", 2: "機械工程科" }
+      DEPARTMENT_CODE_NAMES: { 1: "資訊管理科", 2: "機械工程科" },
+      compareDepartmentsByCode: realCourseData.compareDepartmentsByCode
     },
     setState: function (patch) {
       Object.assign(state, patch);

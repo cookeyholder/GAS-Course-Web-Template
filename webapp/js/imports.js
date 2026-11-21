@@ -161,12 +161,13 @@
   }
 
   /**
-   * 萃取預覽資料中所有不重複科別清單。
+   * 萃取預覽資料中所有不重複科別清單（依科別代碼升冪排序）。
    *
    * @param {Array<Array>} rows - 預覽列陣列
+   * @param {Function} [comparator] - 自訂比較器（未傳時自動依 MEA.courseData.compareDepartmentsByCode 或預設降級）
    * @returns {Array<string>} 已排序的不重複科別清單
    */
-  function extractPreviewDepartments(rows) {
+  function extractPreviewDepartments(rows, comparator) {
     const list = Array.isArray(rows) ? rows : [];
     const seen = {};
     const depts = [];
@@ -178,7 +179,23 @@
         depts.push(dept);
       }
     }
-    return depts.sort();
+    const cmp =
+      typeof comparator === "function"
+        ? comparator
+        : typeof MEA !== "undefined" &&
+            MEA &&
+            MEA.courseData &&
+            typeof MEA.courseData.compareDepartmentsByCode === "function"
+          ? MEA.courseData.compareDepartmentsByCode
+          : typeof window !== "undefined" &&
+              window.MEA &&
+              window.MEA.courseData &&
+              typeof window.MEA.courseData.compareDepartmentsByCode === "function"
+            ? window.MEA.courseData.compareDepartmentsByCode
+            : function (a, b) {
+                return String(a || "").localeCompare(String(b || ""), "zh-TW");
+              };
+    return depts.sort(cmp);
   }
 
   /**
@@ -254,11 +271,11 @@
    * @param {Object} [ui] - UI 模組
    * @returns {string} 預覽卡片 HTML
    */
-  function renderPreviewCardHtml(entry, busy, canImport, escapeHtml, number, ui) {
+  function renderPreviewCardHtml(entry, busy, canImport, escapeHtml, number, ui, comparator) {
     const stats = entry.stats || {};
     const sample = entry.sample || [];
     const payload = Array.isArray(entry.payload) ? entry.payload : [];
-    const departments = extractPreviewDepartments(payload.concat(sample));
+    const departments = extractPreviewDepartments(payload.concat(sample), comparator);
     const selectedDept = entry.deptFilter || "";
     const filterHtml = renderDeptFilterHtml(departments, selectedDept, escapeHtml);
 
@@ -700,7 +717,15 @@
       const user = MEA.state.user || {};
       const canImport = canImportCourseCodes(user);
       const contentHtml = entry
-        ? renderPreviewCardHtml(entry, busy, canImport, MEA.ui.escapeHtml, MEA.ui.number, MEA.ui)
+        ? renderPreviewCardHtml(
+            entry,
+            busy,
+            canImport,
+            MEA.ui.escapeHtml,
+            MEA.ui.number,
+            MEA.ui,
+            MEA.courseData && MEA.courseData.compareDepartmentsByCode
+          )
         : buildDropzoneHtml();
 
       return renderPanelHtml(contentHtml);

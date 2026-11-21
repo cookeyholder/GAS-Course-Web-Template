@@ -241,10 +241,36 @@
      * @param {string} selectedDepartment - 目前選中的科別名稱
      * @returns {string} HTML 字串
      */
+    /**
+     * 產生科別下拉選單選項 HTML（依科別代碼升冪排序）。
+     *
+     * @param {Object} depts - 科別代碼與名稱對照表
+     * @param {string} selectedDepartment - 目前選取的科別名稱
+     * @returns {string} 選項 HTML
+     */
     function renderDeptOptionsHtml(depts, selectedDepartment) {
       let optionsHtml = '<option value="">所有科別</option>';
+      if (!depts) {
+        return optionsHtml;
+      }
+      const names = [];
+      const seen = Object.create(null);
       for (const code in depts) {
         const name = depts[code];
+        if (name && !seen[name]) {
+          seen[name] = true;
+          names.push(name);
+        }
+      }
+      const comparator =
+        MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
+          ? MEA.courseData.compareDepartmentsByCode
+          : function (a, b) {
+              return String(a).localeCompare(String(b), "zh-TW");
+            };
+      names.sort(comparator);
+      for (let i = 0; i < names.length; i++) {
+        const name = names[i];
         const selected = selectedDepartment === name ? " selected" : "";
         optionsHtml +=
           '<option value="' + MEA.ui.escapeHtml(name) + '"' + selected + ">" + MEA.ui.escapeHtml(name) + "</option>";
@@ -367,7 +393,7 @@
       const courses = MEA.state.courses || {};
       const list = courses.list || [];
       const loading = Boolean(courses.loading);
-      const depts = MEA.courseData.DEPARTMENT_CODE_NAMES || {};
+      const depts = (MEA.courseData && MEA.courseData.DEPARTMENT_CODE_NAMES) || {};
 
       const deptOptionsHtml = renderDeptOptionsHtml(depts, courses.department);
       const currentPage = courses.page || 1;

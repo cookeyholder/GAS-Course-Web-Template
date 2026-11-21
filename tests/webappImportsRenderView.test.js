@@ -113,6 +113,10 @@ function run() {
     assert(filterHtml.indexOf('id="importDeptFilter"') !== -1, "應存在預覽科別篩選下拉選單");
     assert(filterHtml.indexOf('data-import-action="filter-dept"') !== -1, "應綁定 filter-dept 動作");
     assert(filterHtml.indexOf('value="資訊科" selected') !== -1, "資訊科選項應為選取狀態");
+    assert(
+      filterHtml.indexOf('value="資訊科"') < filterHtml.indexOf('value="數學科"'),
+      "資訊科 (代碼 305) 應排在數學科 (共同科 MAT) 之前"
+    );
     assert(filterHtml.indexOf("程式設計") !== -1, "應顯示資訊科課程列");
     assert(filterHtml.indexOf("微積分") === -1, "數學科課程列應被篩選排除");
     console.log("   ✓ 預覽科別篩選功能驗證通過！\n");
@@ -143,6 +147,23 @@ function run() {
       [],
       "空資料列應過濾"
     );
+
+    const realCourseData = require("../webapp/js/courseData.js");
+    const testRows = [
+      ["", "", "", "", "", "", "", "數學科"],
+      ["", "", "", "", "", "", "", "電子科"],
+      ["", "", "", "", "", "", "", "機械科"],
+      ["", "", "", "", "", "", "", "資訊科"]
+    ];
+    const sortedDepts = importsModule.extractPreviewDepartments(testRows, realCourseData.compareDepartmentsByCode);
+    assert.deepStrictEqual(
+      sortedDepts,
+      ["機械科", "資訊科", "電子科", "數學科"],
+      "extractPreviewDepartments 應依 301, 305, 306, MAT 順序排序"
+    );
+
+    const fallbackSorted = importsModule.extractPreviewDepartments(testRows, null);
+    assert.strictEqual(fallbackSorted.length, 4, "降級比較器應完整保留 4 筆科別");
 
     const filterHtml = importsModule.renderDeptFilterHtml([null, "", "資訊科", "電子科"], "資訊科", function (v) {
       return v;

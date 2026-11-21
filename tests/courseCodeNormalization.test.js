@@ -97,6 +97,10 @@ function createSampleRow(opts) {
   const tableNames = [
     "GROUP_CODE_NAMES",
     "DEPARTMENT_CODE_NAMES",
+    "MINISTRY_DEPARTMENT_CODE_NAMES",
+    "DEPARTMENT_ALIASES",
+    "COMMON_DEPARTMENT_CODES",
+    "DEPARTMENT_NAME_TO_CODE",
     "SUBJECT_TYPE_NAMES",
     "OPEN_WAY_NAMES",
     "SUBJECT_ATTRIBUTION_NAMES",
@@ -110,6 +114,21 @@ function createSampleRow(opts) {
     frontend.NORMALIZED_COURSE_HEADERS,
     backend.NORMALIZED_COURSE_HEADERS,
     "前後端 NORMALIZED_COURSE_HEADERS 應完全一致"
+  );
+  assert.strictEqual(
+    frontend.compareDepartmentsByCode,
+    backend.compareDepartmentsByCode,
+    "前後端 compareDepartmentsByCode 函式應共用同一來源"
+  );
+  assert.strictEqual(
+    frontend.getDepartmentCode,
+    backend.getDepartmentCode,
+    "前後端 getDepartmentCode 函式應共用同一來源"
+  );
+  assert.strictEqual(
+    frontend.getDepartmentSortKey,
+    backend.getDepartmentSortKey,
+    "前後端 getDepartmentSortKey 函式應共用同一來源"
   );
 }
 
