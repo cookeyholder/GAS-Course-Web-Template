@@ -37,10 +37,24 @@
    *
    * @param {*} value - 例外、API 結果或未知值
    * @param {string} [fallback] - 無法安全顯示時使用的文案
+   * @param {Object} [codeMap] - 可選之錯誤代碼對照表
    * @returns {string} 可顯示的錯誤訊息
    */
-  function resolveSafeMessage(value, fallback) {
+  function resolveSafeMessage(value, fallback, codeMap) {
     const safeFallback = typeof fallback === "string" && fallback ? fallback : DEFAULT_MESSAGE;
+
+    if (codeMap && typeof codeMap === "object") {
+      let code = null;
+      if (typeof value === "string") {
+        code = value;
+      } else if (value && typeof value === "object") {
+        code = value.code || value.error || null;
+      }
+      if (code && typeof codeMap[code] === "string" && codeMap[code]) {
+        return codeMap[code];
+      }
+    }
+
     if (!value || typeof value !== "object") return safeFallback;
     if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
     if (value instanceof Error) return safeFallback;
