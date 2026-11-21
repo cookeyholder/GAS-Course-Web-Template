@@ -46,70 +46,85 @@
    * @param {Object} config.pagination - 分頁渲染設定
    * @returns {Object} fetchList／handleSearch／resetSearch／renderPagination
    */
+  const DEFAULT_LIST_CONTROLLER_DEFAULTS = {
+    apiAction: "",
+    getState: function () {
+      return {};
+    },
+    setState: function () {},
+    callApi: function () {
+      return Promise.resolve(null);
+    },
+    toast: function () {},
+    buildQuery: function (state, page) {
+      return { page: page };
+    },
+    buildSuccessPatch: function () {
+      return { loading: false };
+    },
+    readFilters: function () {
+      return {};
+    },
+    buildResetPatch: function () {
+      return {};
+    },
+    buildSearchExtraPatch: function () {
+      return {};
+    },
+    resolveFailureMessage: function (result, fallback) {
+      return (result && result.message) || fallback;
+    },
+    resolveErrorMessage: function (error, fallback) {
+      return fallback;
+    },
+    normalizePage: function (requested, state) {
+      return requested || (state && state.page) || 1;
+    },
+    canCallApi: function () {
+      return true;
+    },
+    buildFetchKey: null,
+    failureFallback: "讀取資料失敗",
+    errorFallback: "讀取資料失敗，請稍後再試",
+    pagination: {}
+  };
+
+  /**
+   * 正規化清單控制器設定選項，採用常數字典集中指派預設值以消除語法樹分支膨脹。
+   */
+  function normalizeListControllerOptions_(config) {
+    const src = config || {};
+    const normalized = Object.assign({}, DEFAULT_LIST_CONTROLLER_DEFAULTS);
+    const keys = Object.keys(DEFAULT_LIST_CONTROLLER_DEFAULTS);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (src[k] !== undefined && src[k] !== null) {
+        normalized[k] = src[k];
+      }
+    }
+    return normalized;
+  }
+
   function createListController(config) {
-    const options = config || {};
-    const apiAction = options.apiAction || "";
-    const getState =
-      options.getState ||
-      function () {
-        return {};
-      };
-    const setState = options.setState || function () {};
-    const callApi =
-      options.callApi ||
-      function () {
-        return Promise.resolve(null);
-      };
-    const toast = options.toast || function () {};
-    const buildQuery =
-      options.buildQuery ||
-      function (state, page) {
-        return { page: page };
-      };
-    const buildSuccessPatch =
-      options.buildSuccessPatch ||
-      function () {
-        return { loading: false };
-      };
-    const readFilters =
-      options.readFilters ||
-      function () {
-        return {};
-      };
-    const buildResetPatch =
-      options.buildResetPatch ||
-      function () {
-        return {};
-      };
-    const buildSearchExtraPatch =
-      options.buildSearchExtraPatch ||
-      function () {
-        return {};
-      };
-    const resolveFailureMessage =
-      options.resolveFailureMessage ||
-      function (result, fallback) {
-        return (result && result.message) || fallback;
-      };
-    const resolveErrorMessage =
-      options.resolveErrorMessage ||
-      function (error, fallback) {
-        return fallback;
-      };
-    const normalizePage =
-      options.normalizePage ||
-      function (requested, state) {
-        return requested || state.page || 1;
-      };
-    const canCallApi =
-      options.canCallApi ||
-      function () {
-        return true;
-      };
-    const buildFetchKey = options.buildFetchKey || null;
-    const failureFallback = options.failureFallback || "讀取資料失敗";
-    const errorFallback = options.errorFallback || "讀取資料失敗，請稍後再試";
-    const pagination = options.pagination || {};
+    const options = normalizeListControllerOptions_(config);
+    const apiAction = options.apiAction;
+    const getState = options.getState;
+    const setState = options.setState;
+    const callApi = options.callApi;
+    const toast = options.toast;
+    const buildQuery = options.buildQuery;
+    const buildSuccessPatch = options.buildSuccessPatch;
+    const readFilters = options.readFilters;
+    const buildResetPatch = options.buildResetPatch;
+    const buildSearchExtraPatch = options.buildSearchExtraPatch;
+    const resolveFailureMessage = options.resolveFailureMessage;
+    const resolveErrorMessage = options.resolveErrorMessage;
+    const normalizePage = options.normalizePage;
+    const canCallApi = options.canCallApi;
+    const buildFetchKey = options.buildFetchKey;
+    const failureFallback = options.failureFallback;
+    const errorFallback = options.errorFallback;
+    const pagination = options.pagination;
 
     /** 進行中的請求，以避免重複鍵為索引；未提供 buildFetchKey 時不啟用。 */
     const inflight = Object.create(null);

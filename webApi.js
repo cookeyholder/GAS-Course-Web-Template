@@ -719,6 +719,43 @@ function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss, s
   }, deps);
 }
 
+function validateOAuthCredentials_(settings) {
+  const current = settings || {};
+  const clientId = String(current.clientId || "").trim();
+  const clientSecret = String(current.clientSecret || "").trim();
+
+  if (!clientId) {
+    return {
+      valid: false,
+      error: webApiError("server_misconfigured", "系統尚未設定 OAuth Client ID，請" + ADMIN_ROLE_NAME + "先完成系統設定")
+    };
+  }
+  if (!clientSecret) {
+    return {
+      valid: false,
+      error: webApiError("missing_client_secret", "系統尚未設定 OAuth Client Secret，無法完成 Google 帳號登入")
+    };
+  }
+  return { valid: true, clientId: clientId, clientSecret: clientSecret };
+}
+
+function evaluateTokenExchangeResponse_(rawResponse) {
+  if (rawResponse && rawResponse.unavailable) {
+    return webApiError("environment_error", "目前環境不支援交換 Google 授權碼");
+  }
+
+  const response = normalizeOAuthHttpResponse_(rawResponse);
+  const parsed = parseOAuthTokenData_(response.text);
+  if (!parsed.ok) return parsed;
+
+  const tokenData = parsed.data || {};
+  if (response.statusCode !== 200 || !tokenData.id_token) {
+    return buildTokenExchangeFailure_(response.statusCode, tokenData);
+  }
+
+  return { ok: true, tokenData: tokenData };
+}
+
 function handleOAuthCodeCallback(code, e, deps) {
   const authorizationCode = String(code || "").trim();
   if (!authorizationCode) {
@@ -728,41 +765,24 @@ function handleOAuthCodeCallback(code, e, deps) {
   const context = deps && typeof deps === "object" ? deps : {};
   const ss = getOAuthSpreadsheet_(context);
   const settings = getOAuthSettings_(context, ss) || {};
-  const clientId = String(settings.clientId || "").trim();
-  const clientSecret = String(settings.clientSecret || "").trim();
-
-  if (!clientId) {
-    return webApiError("server_misconfigured", "系統尚未設定 OAuth Client ID，請" + ADMIN_ROLE_NAME + "先完成系統設定");
-  }
-  if (!clientSecret) {
-    return webApiError("missing_client_secret", "系統尚未設定 OAuth Client Secret，無法完成 Google 帳號登入");
-  }
+  const credentials = validateOAuthCredentials_(settings);
+  if (!credentials.valid) return credentials.error;
 
   const redirectUri = resolveOAuthRedirectUri(e && e.parameter ? e.parameter.state : "", getOAuthWebAppUrl_(context));
   const payload = {
     code: authorizationCode,
-    client_id: clientId,
-    client_secret: clientSecret,
+    client_id: credentials.clientId,
+    client_secret: credentials.clientSecret,
     redirect_uri: redirectUri,
     grant_type: "authorization_code"
   };
 
   try {
     const rawResponse = getOAuthFetchResponse_(context, redirectUri, payload);
-    if (rawResponse && rawResponse.unavailable) {
-      return webApiError("environment_error", "目前環境不支援交換 Google 授權碼");
-    }
+    const tokenResult = evaluateTokenExchangeResponse_(rawResponse);
+    if (!tokenResult.ok) return tokenResult;
 
-    const response = normalizeOAuthHttpResponse_(rawResponse);
-    const parsed = parseOAuthTokenData_(response.text);
-    if (!parsed.ok) return parsed;
-
-    const tokenData = parsed.data || {};
-    if (response.statusCode !== 200 || !tokenData.id_token) {
-      return buildTokenExchangeFailure_(response.statusCode, tokenData);
-    }
-
-    return verifyAndCreateOAuthSession_(context, tokenData, clientId, settings, ss, {
+    return verifyAndCreateOAuthSession_(context, tokenResult.tokenData, credentials.clientId, settings, ss, {
       state: e && e.parameter ? e.parameter.state : "",
       expectedRedirectUri: getOAuthWebAppUrl_(context)
     });

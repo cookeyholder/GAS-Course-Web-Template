@@ -7737,24 +7737,27 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   /**
-   * 僅接受同源、明確設定的 GAS/代理端點、script.google.com Web App 網址，
-   * 以及本機開發頁面對應的本機端點；其餘 ?api= 值一律視為不可信。
+   * 安全解析候選端點字串，僅接受絕對 URL 或根相對路徑，且限定 http/https。
    */
-  function isTrustedApiEndpoint(candidate, env) {
+  function parseCandidateUrl_(candidate, baseHref) {
     const raw = String(candidate || "").trim();
-    if (!raw) return false;
-    // 僅接受絕對 URL 或根相對路徑，避免模糊字串被 URL 解析成同源路徑。
+    if (!raw) return null;
     const hasScheme = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(raw);
-    if (!hasScheme && raw.charAt(0) !== "/") return false;
-    const source = env || {};
-    let target;
+    if (!hasScheme && raw.charAt(0) !== "/") return null;
     try {
-      target = source.href ? new URL(raw, source.href) : new URL(raw);
+      const target = baseHref ? new URL(raw, baseHref) : new URL(raw);
+      if (target.protocol !== "http:" && target.protocol !== "https:") return null;
+      return target;
     } catch (e) {
-      return false;
+      return null;
     }
-    if (target.protocol !== "http:" && target.protocol !== "https:") return false;
+  }
 
+  /**
+   * 比對目標 URL 是否符合 GAS Web App、script.google.com、同源或本機白名單。
+   */
+  function isMatchingTrustedHostOrOrigin_(target, env) {
+    const source = env || {};
     const gasUrl = String(source.gasWebappUrl || "").trim();
     if (gasUrl) {
       try {
@@ -7783,6 +7786,17 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
     }
 
     return false;
+  }
+
+  /**
+   * 僅接受同源、明確設定的 GAS/代理端點、script.google.com Web App 網址，
+   * 以及本機開發頁面對應的本機端點；其餘 ?api= 值一律視為不可信。
+   */
+  function isTrustedApiEndpoint(candidate, env) {
+    const source = env || {};
+    const target = parseCandidateUrl_(candidate, source.href);
+    if (!target) return false;
+    return isMatchingTrustedHostOrOrigin_(target, source);
   }
 
   function resolveDefaultApiUrl(env) {
@@ -8767,6 +8781,34 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   }
 
   /**
+   * 嘗試從錯誤代碼對照表取得文案。
+   */
+  function resolveFromCodeMap_(value, codeMap) {
+    if (!codeMap || typeof codeMap !== "object") return null;
+    let code = null;
+    if (typeof value === "string") {
+      code = value;
+    } else if (value && typeof value === "object") {
+      code = value.code || value.error || null;
+    }
+    if (code && typeof codeMap[code] === "string" && codeMap[code]) {
+      return codeMap[code];
+    }
+    return null;
+  }
+
+  /**
+   * 嘗試從物件中安全提取 safeMessage 或 message。
+   */
+  function resolveFromErrorObject_(value, safeFallback) {
+    if (!value || typeof value !== "object") return safeFallback;
+    if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
+    if (value instanceof Error) return safeFallback;
+    if (typeof value.message === "string" && value.message) return value.message;
+    return safeFallback;
+  }
+
+  /**
    * 將任意錯誤值轉譯為可安全顯示的訊息（全前端唯一轉譯定義，task 6.4）。
    *
    * @param {*} value - 例外、API 結果或未知值
@@ -8776,24 +8818,9 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
    */
   function resolveSafeMessage(value, fallback, codeMap) {
     const safeFallback = typeof fallback === "string" && fallback ? fallback : DEFAULT_MESSAGE;
-
-    if (codeMap && typeof codeMap === "object") {
-      let code = null;
-      if (typeof value === "string") {
-        code = value;
-      } else if (value && typeof value === "object") {
-        code = value.code || value.error || null;
-      }
-      if (code && typeof codeMap[code] === "string" && codeMap[code]) {
-        return codeMap[code];
-      }
-    }
-
-    if (!value || typeof value !== "object") return safeFallback;
-    if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
-    if (value instanceof Error) return safeFallback;
-    if (typeof value.message === "string" && value.message) return value.message;
-    return safeFallback;
+    const mapped = resolveFromCodeMap_(value, codeMap);
+    if (mapped) return mapped;
+    return resolveFromErrorObject_(value, safeFallback);
   }
 
   return {
@@ -9504,70 +9531,85 @@ window.MEA = window.MEA || {};
    * @param {Object} config.pagination - 分頁渲染設定
    * @returns {Object} fetchList／handleSearch／resetSearch／renderPagination
    */
+  const DEFAULT_LIST_CONTROLLER_DEFAULTS = {
+    apiAction: "",
+    getState: function () {
+      return {};
+    },
+    setState: function () {},
+    callApi: function () {
+      return Promise.resolve(null);
+    },
+    toast: function () {},
+    buildQuery: function (state, page) {
+      return { page: page };
+    },
+    buildSuccessPatch: function () {
+      return { loading: false };
+    },
+    readFilters: function () {
+      return {};
+    },
+    buildResetPatch: function () {
+      return {};
+    },
+    buildSearchExtraPatch: function () {
+      return {};
+    },
+    resolveFailureMessage: function (result, fallback) {
+      return (result && result.message) || fallback;
+    },
+    resolveErrorMessage: function (error, fallback) {
+      return fallback;
+    },
+    normalizePage: function (requested, state) {
+      return requested || (state && state.page) || 1;
+    },
+    canCallApi: function () {
+      return true;
+    },
+    buildFetchKey: null,
+    failureFallback: "讀取資料失敗",
+    errorFallback: "讀取資料失敗，請稍後再試",
+    pagination: {}
+  };
+
+  /**
+   * 正規化清單控制器設定選項，採用常數字典集中指派預設值以消除語法樹分支膨脹。
+   */
+  function normalizeListControllerOptions_(config) {
+    const src = config || {};
+    const normalized = Object.assign({}, DEFAULT_LIST_CONTROLLER_DEFAULTS);
+    const keys = Object.keys(DEFAULT_LIST_CONTROLLER_DEFAULTS);
+    for (let i = 0; i < keys.length; i++) {
+      const k = keys[i];
+      if (src[k] !== undefined && src[k] !== null) {
+        normalized[k] = src[k];
+      }
+    }
+    return normalized;
+  }
+
   function createListController(config) {
-    const options = config || {};
-    const apiAction = options.apiAction || "";
-    const getState =
-      options.getState ||
-      function () {
-        return {};
-      };
-    const setState = options.setState || function () {};
-    const callApi =
-      options.callApi ||
-      function () {
-        return Promise.resolve(null);
-      };
-    const toast = options.toast || function () {};
-    const buildQuery =
-      options.buildQuery ||
-      function (state, page) {
-        return { page: page };
-      };
-    const buildSuccessPatch =
-      options.buildSuccessPatch ||
-      function () {
-        return { loading: false };
-      };
-    const readFilters =
-      options.readFilters ||
-      function () {
-        return {};
-      };
-    const buildResetPatch =
-      options.buildResetPatch ||
-      function () {
-        return {};
-      };
-    const buildSearchExtraPatch =
-      options.buildSearchExtraPatch ||
-      function () {
-        return {};
-      };
-    const resolveFailureMessage =
-      options.resolveFailureMessage ||
-      function (result, fallback) {
-        return (result && result.message) || fallback;
-      };
-    const resolveErrorMessage =
-      options.resolveErrorMessage ||
-      function (error, fallback) {
-        return fallback;
-      };
-    const normalizePage =
-      options.normalizePage ||
-      function (requested, state) {
-        return requested || state.page || 1;
-      };
-    const canCallApi =
-      options.canCallApi ||
-      function () {
-        return true;
-      };
-    const buildFetchKey = options.buildFetchKey || null;
-    const failureFallback = options.failureFallback || "讀取資料失敗";
-    const errorFallback = options.errorFallback || "讀取資料失敗，請稍後再試";
-    const pagination = options.pagination || {};
+    const options = normalizeListControllerOptions_(config);
+    const apiAction = options.apiAction;
+    const getState = options.getState;
+    const setState = options.setState;
+    const callApi = options.callApi;
+    const toast = options.toast;
+    const buildQuery = options.buildQuery;
+    const buildSuccessPatch = options.buildSuccessPatch;
+    const readFilters = options.readFilters;
+    const buildResetPatch = options.buildResetPatch;
+    const buildSearchExtraPatch = options.buildSearchExtraPatch;
+    const resolveFailureMessage = options.resolveFailureMessage;
+    const resolveErrorMessage = options.resolveErrorMessage;
+    const normalizePage = options.normalizePage;
+    const canCallApi = options.canCallApi;
+    const buildFetchKey = options.buildFetchKey;
+    const failureFallback = options.failureFallback;
+    const errorFallback = options.errorFallback;
+    const pagination = options.pagination;
 
     /** 進行中的請求，以避免重複鍵為索引；未提供 buildFetchKey 時不啟用。 */
     const inflight = Object.create(null);

@@ -2,12 +2,12 @@
 
 ## 任務細分
 
-- [ ] 1. 拆分高複雜度函式為純輔助函式（消除 CRAP 瓶頸）
-  - [ ] 1.1 重構 `webapp/js/config.js` 中的 `isTrustedApiEndpoint`：抽出 `parseCandidateUrl_` 與 `isMatchingTrustedHostOrOrigin_`，確保循環複雜度 <= 8
-  - [ ] 1.2 重構 `webapp/js/listController.js` 中的 `createListController`：抽出 `normalizeListControllerOptions_` 集中預設選項正規化，確保循環複雜度 <= 8
-  - [ ] 1.3 重構 `webApi.js` 中的 `handleOAuthCodeCallback`：抽出 `validateOAuthCredentials_` 與 `evaluateTokenExchangeResponse_`，確保循環複雜度 <= 8
-  - [ ] 1.4 重構 `webapp/js/errorMessages.js` 中的 `resolveSafeMessage`：抽出 `resolveFromCodeMap_` 與 `resolveFromErrorObject_`，確保循環複雜度 <= 6
-  - [ ] 1.5 重新建置前端打包產物 `npm run build:webapp` 並執行單元測試確認行為不變
+- [x] 1. 拆分高複雜度函式為純輔助函式（消除 CRAP 瓶頸）
+  - [x] 1.1 重構 `webapp/js/config.js` 中的 `isTrustedApiEndpoint`：抽出 `parseCandidateUrl_` 與 `isMatchingTrustedHostOrOrigin_`，確保循環複雜度 <= 8
+  - [x] 1.2 重構 `webapp/js/listController.js` 中的 `createListController`：抽出 `normalizeListControllerOptions_` 集中預設選項正規化，確保循環複雜度 <= 8
+  - [x] 1.3 重構 `webApi.js` 中的 `handleOAuthCodeCallback`：抽出 `validateOAuthCredentials_` 與 `evaluateTokenExchangeResponse_`，確保循環複雜度 <= 8
+  - [x] 1.4 重構 `webapp/js/errorMessages.js` 中的 `resolveSafeMessage`：抽出 `resolveFromCodeMap_` 與 `resolveFromErrorObject_`，確保循環複雜度 <= 6
+  - [x] 1.5 重新建置前端打包產物 `npm run build:webapp` 並執行單元測試確認行為不變
 
 - [ ] 2. 升級品質門檻設定與檢查腳本
   - [ ] 2.1 修改 `scripts/qualityConfig.js`：`THRESHOLDS.global.lines` 改為 `60`、`THRESHOLDS.global.branches` 改為 `60`、`THRESHOLDS.changed.branches` 改為 `80`、`THRESHOLDS.crap` 改為 `25`

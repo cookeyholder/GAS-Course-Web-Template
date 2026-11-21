@@ -34,24 +34,27 @@
   }
 
   /**
-   * 僅接受同源、明確設定的 GAS/代理端點、script.google.com Web App 網址，
-   * 以及本機開發頁面對應的本機端點；其餘 ?api= 值一律視為不可信。
+   * 安全解析候選端點字串，僅接受絕對 URL 或根相對路徑，且限定 http/https。
    */
-  function isTrustedApiEndpoint(candidate, env) {
+  function parseCandidateUrl_(candidate, baseHref) {
     const raw = String(candidate || "").trim();
-    if (!raw) return false;
-    // 僅接受絕對 URL 或根相對路徑，避免模糊字串被 URL 解析成同源路徑。
+    if (!raw) return null;
     const hasScheme = /^[A-Za-z][A-Za-z0-9+.-]*:/.test(raw);
-    if (!hasScheme && raw.charAt(0) !== "/") return false;
-    const source = env || {};
-    let target;
+    if (!hasScheme && raw.charAt(0) !== "/") return null;
     try {
-      target = source.href ? new URL(raw, source.href) : new URL(raw);
+      const target = baseHref ? new URL(raw, baseHref) : new URL(raw);
+      if (target.protocol !== "http:" && target.protocol !== "https:") return null;
+      return target;
     } catch (e) {
-      return false;
+      return null;
     }
-    if (target.protocol !== "http:" && target.protocol !== "https:") return false;
+  }
 
+  /**
+   * 比對目標 URL 是否符合 GAS Web App、script.google.com、同源或本機白名單。
+   */
+  function isMatchingTrustedHostOrOrigin_(target, env) {
+    const source = env || {};
     const gasUrl = String(source.gasWebappUrl || "").trim();
     if (gasUrl) {
       try {
@@ -80,6 +83,17 @@
     }
 
     return false;
+  }
+
+  /**
+   * 僅接受同源、明確設定的 GAS/代理端點、script.google.com Web App 網址，
+   * 以及本機開發頁面對應的本機端點；其餘 ?api= 值一律視為不可信。
+   */
+  function isTrustedApiEndpoint(candidate, env) {
+    const source = env || {};
+    const target = parseCandidateUrl_(candidate, source.href);
+    if (!target) return false;
+    return isMatchingTrustedHostOrOrigin_(target, source);
   }
 
   function resolveDefaultApiUrl(env) {

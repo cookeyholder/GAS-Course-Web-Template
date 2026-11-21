@@ -33,6 +33,34 @@
   }
 
   /**
+   * 嘗試從錯誤代碼對照表取得文案。
+   */
+  function resolveFromCodeMap_(value, codeMap) {
+    if (!codeMap || typeof codeMap !== "object") return null;
+    let code = null;
+    if (typeof value === "string") {
+      code = value;
+    } else if (value && typeof value === "object") {
+      code = value.code || value.error || null;
+    }
+    if (code && typeof codeMap[code] === "string" && codeMap[code]) {
+      return codeMap[code];
+    }
+    return null;
+  }
+
+  /**
+   * 嘗試從物件中安全提取 safeMessage 或 message。
+   */
+  function resolveFromErrorObject_(value, safeFallback) {
+    if (!value || typeof value !== "object") return safeFallback;
+    if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
+    if (value instanceof Error) return safeFallback;
+    if (typeof value.message === "string" && value.message) return value.message;
+    return safeFallback;
+  }
+
+  /**
    * 將任意錯誤值轉譯為可安全顯示的訊息（全前端唯一轉譯定義，task 6.4）。
    *
    * @param {*} value - 例外、API 結果或未知值
@@ -42,24 +70,9 @@
    */
   function resolveSafeMessage(value, fallback, codeMap) {
     const safeFallback = typeof fallback === "string" && fallback ? fallback : DEFAULT_MESSAGE;
-
-    if (codeMap && typeof codeMap === "object") {
-      let code = null;
-      if (typeof value === "string") {
-        code = value;
-      } else if (value && typeof value === "object") {
-        code = value.code || value.error || null;
-      }
-      if (code && typeof codeMap[code] === "string" && codeMap[code]) {
-        return codeMap[code];
-      }
-    }
-
-    if (!value || typeof value !== "object") return safeFallback;
-    if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
-    if (value instanceof Error) return safeFallback;
-    if (typeof value.message === "string" && value.message) return value.message;
-    return safeFallback;
+    const mapped = resolveFromCodeMap_(value, codeMap);
+    if (mapped) return mapped;
+    return resolveFromErrorObject_(value, safeFallback);
   }
 
   return {
