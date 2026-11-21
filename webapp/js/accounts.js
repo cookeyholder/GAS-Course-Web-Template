@@ -835,6 +835,7 @@
       saveSettings: saveSettings,
       addAccountPrompt: addAccountPrompt,
       clearFieldError: clearFieldError,
+      handleRoleFilter: handleRoleFilter,
       removeAccount: removeAccount,
       toggleAccount: toggleAccount,
       renderView: renderView

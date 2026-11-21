@@ -386,28 +386,42 @@
         { title: "學分/時數" }
       ];
 
-      const pagedTableHtml = MEA.ui.renderPagedTable({
-        className: "table table-centered table-hover",
-        columns: columns,
-        items: list,
-        rowRenderer: function (item) {
-          return renderCourseRowHtml(item);
-        },
-        loading: loading,
-        loadingText: "正在載入課程資料...",
-        emptyText: "目前尚無符合的課程紀錄",
-        colspan: 10,
-        pagination: {
-          total: courses.total || 0,
-          totalPages: totalPages,
-          page: currentPage,
-          pageSize: courses.pageSize || 20,
-          idPrefix: "course-page",
-          navAriaLabel: "課程代碼分頁導航",
-          itemLabel: "筆紀錄",
-          actionAttribute: "data-course-action"
-        }
-      });
+      const pagedTableHtml =
+        MEA.ui && typeof MEA.ui.renderPagedTable === "function"
+          ? MEA.ui.renderPagedTable({
+              className: "table table-centered table-hover",
+              columns: columns,
+              items: list,
+              rowRenderer: function (item) {
+                return renderCourseRowHtml(item);
+              },
+              loading: loading,
+              loadingText: "正在載入課程資料...",
+              emptyText: "目前尚無符合的課程紀錄",
+              colspan: 10,
+              pagination: {
+                total: courses.total || 0,
+                totalPages: totalPages,
+                page: currentPage,
+                pageSize: courses.pageSize || 20,
+                idPrefix: "course-page",
+                navAriaLabel: "課程代碼分頁導航",
+                itemLabel: "筆紀錄",
+                actionAttribute: "data-course-action"
+              }
+            })
+          : '<div class="table-responsive mt-3">' +
+            '  <table class="table">' +
+            "    <thead>" +
+            "      <tr>" +
+            '        <th scope="col">學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">課程類別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分/時數</th>' +
+            "      </tr>" +
+            "    </thead>" +
+            "    <tbody>" +
+            renderCourseRowsHtml(list) +
+            "</tbody>" +
+            "  </table>" +
+            "</div>";
 
       return (
         '<div class="panel">' +

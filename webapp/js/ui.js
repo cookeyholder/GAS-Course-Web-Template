@@ -232,9 +232,7 @@
   function renderPageSizeSelect_(opt, prefix, win, hasData) {
     if (!opt.onPageSizeChange && !opt.pageSizeAction) return "";
     const pageSizeOptions =
-      Array.isArray(opt.pageSizeOptions) && opt.pageSizeOptions.length > 0
-        ? opt.pageSizeOptions
-        : [10, 20, 50, 100];
+      Array.isArray(opt.pageSizeOptions) && opt.pageSizeOptions.length > 0 ? opt.pageSizeOptions : [10, 20, 50, 100];
 
     let optionsHtml = "";
     for (let i = 0; i < pageSizeOptions.length; i++) {
@@ -422,8 +420,7 @@
     const pageSizeSelectHtml = renderPageSizeSelect_(opt, prefix, win, hasData);
     const navButtonsHtml = renderPaginationNavButtons_(opt, prefix, win, hasData, isSinglePage);
 
-    const barClass =
-      position === "top" ? "pagination-bar pagination-bar-top" : "pagination-bar pagination-bar-bottom";
+    const barClass = position === "top" ? "pagination-bar pagination-bar-top" : "pagination-bar pagination-bar-bottom";
 
     return (
       '<div class="' +
@@ -533,9 +530,7 @@
       );
     }
     if (items.length === 0) {
-      return (
-        "<tbody>" + renderTableStatusRow({ colspan: span, loading: false, emptyText: opt.emptyText }) + "</tbody>"
-      );
+      return "<tbody>" + renderTableStatusRow({ colspan: span, loading: false, emptyText: opt.emptyText }) + "</tbody>";
     }
     if (typeof opt.rowRenderer === "function") {
       let rows = "";

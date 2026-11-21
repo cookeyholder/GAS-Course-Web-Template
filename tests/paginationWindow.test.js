@@ -166,7 +166,7 @@ console.log("7. 驗證 renderPaginationBar 0 筆與單頁停用防呆...");
   });
 
   assert.ok(emptyHtml.includes('id="empty-pager-bottom-size"'), "每頁筆數元素存在");
-  assert.ok(emptyHtml.includes('disabled'), "0 筆時控制項應包含 disabled");
+  assert.ok(emptyHtml.includes("disabled"), "0 筆時控制項應包含 disabled");
   assert.ok(emptyHtml.includes("共 0 筆紀錄 · 第 1 / 1 頁"), "0 筆時呈現正確文字");
 
   const singleHtml = ui.renderPaginationBar({

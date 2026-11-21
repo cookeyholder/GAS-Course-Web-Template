@@ -38,8 +38,16 @@ console.log("2. 驗證 renderTableHead 邊界與 scope=col 標註...");
     { field: "courseCode", label: "課程代碼", align: "left" }
   ]);
   assert.match(headHtml, /<thead><tr>/, "應包含 thead 與 tr");
-  assert.match(headHtml, /<th scope="col" style="text-align:center;" width="60px">序號<\/th>/, "應包含 scope 與置中樣式");
-  assert.match(headHtml, /<th scope="col" style="text-align:left;">課程代碼<\/th>/, "應支援 label 回退並標註 scope=col");
+  assert.match(
+    headHtml,
+    /<th scope="col" style="text-align:center;" width="60px">序號<\/th>/,
+    "應包含 scope 與置中樣式"
+  );
+  assert.match(
+    headHtml,
+    /<th scope="col" style="text-align:left;">課程代碼<\/th>/,
+    "應支援 label 回退並標註 scope=col"
+  );
   console.log("   ✓ renderTableHead 表頭產生通過！");
 }
 
@@ -111,7 +119,11 @@ console.log("5. 驗證 renderPagedTable 高階組合容器與相容性...");
 
   assert.match(pagedHtml, /class="alert"/, "應包含 beforeTableHtml 插槽");
   assert.match(pagedHtml, /class="footer"/, "應包含 afterTableHtml 插槽");
-  assert.match(pagedHtml, /class="table-responsive table-container"/, "容器應同時包含 table-responsive 與 table-container 類別以相容主題");
+  assert.match(
+    pagedHtml,
+    /class="table-responsive table-container"/,
+    "容器應同時包含 table-responsive 與 table-container 類別以相容主題"
+  );
   assert.match(pagedHtml, /class="data-table custom-table"/, "表格應包含 data-table 與自訂 class");
   assert.match(pagedHtml, /pagination-bar-top/, "預設應產生頂部分頁工具列");
   assert.match(pagedHtml, /pagination-bar-bottom/, "預設應產生底部分頁工具列");

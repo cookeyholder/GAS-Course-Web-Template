@@ -436,22 +436,22 @@
           ? MEA.ui.renderPagedTable({
               className: "table table-centered table-hover",
               columns: columns,
-              items: state.list || [],
+              items: state.list,
               rowRenderer: function (row, index) {
                 const item = Object.assign({}, row, {
                   expanded: state.expanded[String(row.requestId || "")] === true
                 });
                 return renderRowHtml(item, index);
               },
-              loading: Boolean(state.loading),
+              loading: state.loading,
               loadingText: "正在載入操作日誌...",
               emptyText: "目前沒有符合條件的操作日誌。",
               colspan: 8,
               pagination: {
-                total: state.total || 0,
-                totalPages: state.totalPages !== undefined ? state.totalPages : 1,
-                page: state.page || 1,
-                pageSize: state.pageSize || 50,
+                total: state.total,
+                totalPages: state.totalPages,
+                page: state.page,
+                pageSize: state.pageSize,
                 idPrefix: "activity-log-page",
                 navAriaLabel: "操作日誌分頁導航",
                 itemLabel: "筆紀錄",

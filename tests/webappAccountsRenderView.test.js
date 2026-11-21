@@ -125,6 +125,24 @@ function run() {
     console.log("   ✓ 角色篩選功能驗證通過！\n");
   }
 
+  console.log("8. handleRoleFilter 與 renderPagedTable 回退測試...");
+  {
+    const fbCtx = createDeps();
+    fbCtx.state.user = { role: "admin" };
+    fbCtx.state.settings = {
+      data: {},
+      accounts: [{ email: "fallback@example.com", name: "回退測試", role: "staff", enabled: true }]
+    };
+    const mod = accountsModule.createAccountsModule(fbCtx.deps);
+    mod.handleRoleFilter("staff");
+    assert.strictEqual(fbCtx.state.settings.roleFilter, "staff", "應更新 roleFilter 狀態");
+
+    fbCtx.MEA.ui = Object.assign({}, fbCtx.MEA.ui, { renderPagedTable: null });
+    const fbHtml = mod.renderView();
+    assert(fbHtml.indexOf("fallback@example.com") !== -1, "回退表格應渲染帳號資料");
+    console.log("   ✓ handleRoleFilter 與回退測試通過！\n");
+  }
+
   console.log("✓ webapp/js/accounts.js renderView 測試全數通過！\n");
 }
 

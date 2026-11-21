@@ -18,5 +18,5 @@
 
 ## 4. 前端打包與完整 CI 品質閘門驗證
 
-- [ ] 4.1 執行 `npm run build:webapp` 打包最新前端產物至根目錄 `index.html`。
-- [ ] 4.2 執行本地完整 CI 閘門（`npm run format:check`、`npm run check:lang`、`npm test`、`npm run check:contrast`、`npm run check:a11y`、`npm run check:coverage`、`npm run check:complexity`、`npm run check:changed-coverage`）驗證全數通過，確認單一函式 CRAP $\le 25$、模組 MI $\ge 50$ 且無回退。
+- [x] 4.1 執行 `npm run build:webapp` 打包最新前端產物至根目錄 `index.html`。
+- [x] 4.2 執行本地完整 CI 閘門（`npm run format:check`、`npm run check:lang`、`npm test`、`npm run check:contrast`、`npm run check:a11y`、`npm run check:coverage`、`npm run check:complexity`、`npm run check:changed-coverage`）驗證全數通過，確認單一函式 CRAP $\le 25$、模組 MI $\ge 50$ 且無回退。

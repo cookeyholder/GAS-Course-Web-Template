@@ -67,6 +67,13 @@ function run() {
   assert.strictEqual(init.ui.applyTheme("其他值"), "light");
   console.log("5. 主題與風格初始化、無效風格回退 ✓\n");
 
+  const utilCtx = createDeps();
+  assert.strictEqual(typeof utilCtx.ui.debounce, "function", "應提供 debounce 函式");
+  const debounced = utilCtx.ui.debounce(function () {}, 50);
+  assert.strictEqual(typeof debounced, "function", "應回傳防抖函式");
+  assert.strictEqual(utilCtx.ui.roleName("admin"), "系統管理員", "admin 應對應系統管理員");
+  console.log("6. debounce 與 roleName 輔助函式 ✓\n");
+
   console.log("✓ webapp/js/ui.js toggleTheme 測試全數通過！\n");
 }
 

@@ -87,6 +87,21 @@ function run() {
   assert(html.indexOf('data-page="2" disabled') !== -1);
   console.log("5. 學期選項與首頁分頁邊界 ✓\n");
 
+  console.log("6. renderPagedTable 不可用時回退表格渲染...");
+  {
+    const fallbackCtx = createDeps();
+    fallbackCtx.MEA.ui = Object.assign({}, fallbackCtx.MEA.ui, { renderPagedTable: null });
+    fallbackCtx.state.courses = {
+      list: [{ courseCode: "FB-001", subjectName: "回退課程", department: "科別", credits: "2" }],
+      page: 1,
+      totalPages: 1
+    };
+    const fbHtml = coursesModule.createCoursesModule(fallbackCtx.deps).renderView();
+    assert(fbHtml.indexOf("FB-001") !== -1, "回退表格應渲染課程代碼");
+    assert(fbHtml.indexOf("回退課程") !== -1, "回退表格應渲染課程名稱");
+    console.log("   ✓ 回退表格渲染驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/courses.js renderView 測試全數通過！\n");
 }
 
