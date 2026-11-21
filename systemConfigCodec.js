@@ -124,7 +124,7 @@
     if (lower === ROLE_CODES.ADMIN || raw === "系統管理員") return ROLE_CODES.ADMIN;
     if (lower === ROLE_CODES.STAFF || raw === "業務人員" || raw === "一般管理員") return ROLE_CODES.STAFF;
     if (lower === ROLE_CODES.VIEWER || raw === "檢視人員" || raw === "訪客") return ROLE_CODES.VIEWER;
-    return ROLE_CODES.VIEWER;
+    return lower || ROLE_CODES.VIEWER;
   }
 
   /**

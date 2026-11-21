@@ -335,7 +335,8 @@ assert.strictEqual(codec.parseWhitelistRows(altWhitelistHeaders)[0].email, "teac
 assert.strictEqual(codec.normalizeRole("ADMIN"), "admin");
 assert.strictEqual(codec.normalizeRole("StAfF"), "staff");
 assert.strictEqual(codec.normalizeRole("ViEwEr"), "viewer");
-assert.strictEqual(codec.normalizeRole("UNKNOWN_ROLE"), "viewer");
+assert.strictEqual(codec.normalizeRole("UNKNOWN_ROLE"), "unknown_role");
+assert.strictEqual(codec.getRoleDisplayName("UNKNOWN_ROLE"), "檢視人員");
 assert.strictEqual(codec.normalizeAllowedDomain("  @UPPER.CASE.ORG  "), "upper.case.org");
 
 // 9.4 白名單 enabled 防反轉嚴格驗證（字串 "false", "0", 數字 0, "否", "停用"）

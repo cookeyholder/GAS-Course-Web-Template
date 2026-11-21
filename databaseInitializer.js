@@ -592,7 +592,11 @@ function readWhitelistRowsFromSheet_(sheet) {
 function readWhitelist(ss) {
   const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
   if (!targetSs) return MEMORY_WHITELIST.slice();
+  const codec = getSystemConfigCodec_();
   const values = readWhitelistRowsFromSheet_(getWhitelistSheet_(targetSs));
+  if (codec) {
+    return codec.parseWhitelistRows(values);
+  }
   return mapWhitelistRows_(values);
 }
 
@@ -614,8 +618,9 @@ function normalizeWhitelistMemoryAccount_(item) {
 
 function saveWhitelistToMemory_(list) {
   MEMORY_WHITELIST.length = 0;
+  const codec = getSystemConfigCodec_();
   for (let i = 0; i < list.length; i++) {
-    const account = normalizeWhitelistMemoryAccount_(list[i]);
+    const account = codec ? codec.normalizeWhitelistAccount(list[i]) : normalizeWhitelistMemoryAccount_(list[i]);
     if (account) MEMORY_WHITELIST.push(account);
   }
   return { ok: true, count: MEMORY_WHITELIST.length };
@@ -654,7 +659,8 @@ function writeWhitelistSheetRows_(sheet, rows) {
 
 function saveWhitelistToSheet_(ss, list) {
   const sheet = getSystemConfigSheet_(ss);
-  const rows = buildWhitelistSheetRows_(list);
+  const codec = getSystemConfigCodec_();
+  const rows = codec ? codec.serializeWhitelistRows(list) : buildWhitelistSheetRows_(list);
   clearWhitelistSheetRange_(sheet);
   writeWhitelistSheetRows_(sheet, rows);
   return { ok: true, count: rows.length };
