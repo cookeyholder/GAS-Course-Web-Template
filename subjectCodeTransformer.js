@@ -116,9 +116,19 @@ function writeCourseIndexRowsInChunks_(sheet, rows) {
   const sanitize = resolveRouteDependency_("sanitizeRowMatrix", "./utilities.js", function (matrix) {
     return matrix;
   });
-  for (let start = 0; start < rows.length; start += COURSE_INDEX_WRITE_CHUNK_SIZE) {
-    const chunk = rows.slice(start, start + COURSE_INDEX_WRITE_CHUNK_SIZE);
-    sheet.getRange(start + 2, 1, chunk.length, colCount).setValues(sanitize(chunk));
+  const getChunkArray = resolveRouteDependency_("chunkArray", "./utilities.js", function (arr, size) {
+    if (!Array.isArray(arr) || arr.length === 0) return [];
+    const s = Math.max(1, parseInt(size, 10) || 1);
+    const res = [];
+    for (let i = 0; i < arr.length; i += s) res.push(arr.slice(i, i + s));
+    return res;
+  });
+  const chunks = getChunkArray(rows, COURSE_INDEX_WRITE_CHUNK_SIZE);
+  let currentRow = 2;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    sheet.getRange(currentRow, 1, chunk.length, colCount).setValues(sanitize(chunk));
+    currentRow += chunk.length;
   }
 }
 
@@ -345,11 +355,7 @@ function getNormalizedCourses(filter, ss) {
   const targetSs = resolveCourseIndexSpreadsheet_(ss);
   const dataRows = getCourseIndexDataRows_(targetSs);
   if (!dataRows) return createEmptyCourseQueryResult_();
-
-  const criteria = normalizeCourseQueryCriteria_(filter);
-  const matchedIndexes = collectMatchedCourseRowIndexes_(dataRows, criteria);
-  const paging = normalizeCoursePageParams_(filter);
-  return buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, paging.page, paging.pageSize);
+  return queryCourseDataRows(dataRows, filter);
 }
 
 if (typeof module !== "undefined" && module.exports) {
