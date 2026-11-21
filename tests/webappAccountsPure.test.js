@@ -4,12 +4,7 @@ const assert = require("node:assert/strict");
 const accountsModule = require("../webapp/js/accounts.js");
 
 test("webapp/js/accounts.js 純驗證與陣列操作純函式零 DOM 驗證", async (t) => {
-  const {
-    validateNewAccountInput,
-    appendAccountToList,
-    removeAccountFromList,
-    toggleAccountInList
-  } = accountsModule;
+  const { validateNewAccountInput, appendAccountToList, removeAccountFromList, toggleAccountInList } = accountsModule;
 
   const sampleAccounts = [
     { email: "admin@example.com", name: "管理員", role: "admin", enabled: true },

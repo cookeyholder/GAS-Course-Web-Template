@@ -49,7 +49,9 @@
    */
   function validateNewAccountInput(input, existingAccounts) {
     const source = input || {};
-    const email = String(source.email || "").trim().toLowerCase();
+    const email = String(source.email || "")
+      .trim()
+      .toLowerCase();
     if (!email || email.indexOf("@") === -1) {
       return {
         valid: false,
@@ -61,7 +63,12 @@
     const accounts = Array.isArray(existingAccounts) ? existingAccounts : [];
     for (let i = 0; i < accounts.length; i++) {
       const item = accounts[i];
-      if (item && String(item.email || "").trim().toLowerCase() === email) {
+      if (
+        item &&
+        String(item.email || "")
+          .trim()
+          .toLowerCase() === email
+      ) {
         return {
           valid: false,
           errorKey: "duplicate_email",
@@ -94,10 +101,17 @@
    * @returns {Array<Object>} 全新陣列
    */
   function removeAccountFromList(accounts, email) {
-    const cleanEmail = String(email || "").trim().toLowerCase();
+    const cleanEmail = String(email || "")
+      .trim()
+      .toLowerCase();
     const list = Array.isArray(accounts) ? accounts : [];
     return list.filter(function (a) {
-      return a && String(a.email || "").trim().toLowerCase() !== cleanEmail;
+      return (
+        a &&
+        String(a.email || "")
+          .trim()
+          .toLowerCase() !== cleanEmail
+      );
     });
   }
 
@@ -109,10 +123,17 @@
    * @returns {Array<Object>} 全新陣列
    */
   function toggleAccountInList(accounts, email) {
-    const cleanEmail = String(email || "").trim().toLowerCase();
+    const cleanEmail = String(email || "")
+      .trim()
+      .toLowerCase();
     const list = Array.isArray(accounts) ? accounts : [];
     return list.map(function (a) {
-      if (a && String(a.email || "").trim().toLowerCase() === cleanEmail) {
+      if (
+        a &&
+        String(a.email || "")
+          .trim()
+          .toLowerCase() === cleanEmail
+      ) {
         return Object.assign({}, a, { enabled: !a.enabled });
       }
       return a;

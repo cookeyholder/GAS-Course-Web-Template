@@ -59,22 +59,13 @@ console.log("5. 擴充代碼字典 codeMap 優先轉譯驗證...");
   );
 
   // 純字串 code 匹配
-  assert.strictEqual(
-    safeErrors.resolveSafeMessage("lock_timeout", "備援", customMap),
-    "系統忙碌中，請稍候重試"
-  );
+  assert.strictEqual(safeErrors.resolveSafeMessage("lock_timeout", "備援", customMap), "系統忙碌中，請稍候重試");
 
   // codeMap 未命中時安全回退
-  assert.strictEqual(
-    safeErrors.resolveSafeMessage("unknown_code", "備援", customMap),
-    "備援"
-  );
+  assert.strictEqual(safeErrors.resolveSafeMessage("unknown_code", "備援", customMap), "備援");
 
   // codeMap 命中但值為空時安全回退
-  assert.strictEqual(
-    safeErrors.resolveSafeMessage({ error: "empty_val" }, "備援", { empty_val: "" }),
-    "備援"
-  );
+  assert.strictEqual(safeErrors.resolveSafeMessage({ error: "empty_val" }, "備援", { empty_val: "" }), "備援");
 
   console.log("   ✓ 代碼字典優先轉譯與安全遮蔽驗證通過！\n");
 }
