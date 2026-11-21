@@ -420,6 +420,65 @@
 
     function renderView() {
       const state = currentState();
+      const columns = [
+        { title: "時間" },
+        { title: "事件類別" },
+        { title: "動作" },
+        { title: "結果" },
+        { title: "操作者" },
+        { title: "摘要" },
+        { title: "耗時（毫秒）" },
+        { title: "詳情" }
+      ];
+
+      const pagedTableHtml =
+        MEA.ui && typeof MEA.ui.renderPagedTable === "function"
+          ? MEA.ui.renderPagedTable({
+              className: "table table-centered table-hover",
+              columns: columns,
+              items: state.list || [],
+              rowRenderer: function (row, index) {
+                const item = Object.assign({}, row, {
+                  expanded: state.expanded[String(row.requestId || "")] === true
+                });
+                return renderRowHtml(item, index);
+              },
+              loading: Boolean(state.loading),
+              loadingText: "正在載入操作日誌...",
+              emptyText: "目前沒有符合條件的操作日誌。",
+              colspan: 8,
+              pagination: {
+                total: state.total || 0,
+                totalPages: state.totalPages !== undefined ? state.totalPages : 1,
+                page: state.page || 1,
+                pageSize: state.pageSize || 50,
+                idPrefix: "activity-log-page",
+                navAriaLabel: "操作日誌分頁導航",
+                itemLabel: "筆紀錄",
+                actionAttribute: "data-activity-action"
+              }
+            })
+          : '<div class="table-responsive mt-3">' +
+            '  <table class="table">' +
+            "    <thead>" +
+            "      <tr>" +
+            '        <th scope="col">時間</th>' +
+            '        <th scope="col">事件類別</th>' +
+            '        <th scope="col">動作</th>' +
+            '        <th scope="col">結果</th>' +
+            '        <th scope="col">操作者</th>' +
+            '        <th scope="col">摘要</th>' +
+            '        <th scope="col">耗時（毫秒）</th>' +
+            '        <th scope="col">詳情</th>' +
+            "      </tr>" +
+            "    </thead>" +
+            "    <tbody>" +
+            renderRowsHtml(state) +
+            "    </tbody>" +
+            "  </table>" +
+            "</div>" +
+            listCtl.renderPagination(state, state.loading);
+
       return (
         '<div class="panel">' +
         '<div class="panel-header">' +
@@ -432,26 +491,7 @@
         ">🔄 重新整理</button>" +
         "</div>" +
         renderFilterFormHtml(state) +
-        '<div class="table-responsive mt-3">' +
-        '  <table class="table">' +
-        "    <thead>" +
-        "      <tr>" +
-        '        <th scope="col">時間</th>' +
-        '        <th scope="col">事件類別</th>' +
-        '        <th scope="col">動作</th>' +
-        '        <th scope="col">結果</th>' +
-        '        <th scope="col">操作者</th>' +
-        '        <th scope="col">摘要</th>' +
-        '        <th scope="col">耗時（毫秒）</th>' +
-        '        <th scope="col">詳情</th>' +
-        "      </tr>" +
-        "    </thead>" +
-        "    <tbody>" +
-        renderRowsHtml(state) +
-        "    </tbody>" +
-        "  </table>" +
-        "</div>" +
-        listCtl.renderPagination(state, state.loading) +
+        pagedTableHtml +
         "</div>"
       );
     }

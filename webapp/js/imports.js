@@ -128,6 +128,24 @@
   }
 
   /**
+   * 輸出單列之所有 TD 單元格 HTML。
+   *
+   * @param {Array} row - 列資料
+   * @param {Function} escapeHtml - HTML 跳脫函式
+   * @returns {string} TD 標籤字串
+   */
+  function renderSampleRowCellsHtml(row, escapeHtml) {
+    const r = row || [];
+    let html = "";
+    for (let j = 0; j < SAMPLE_COLUMN_INDEXES.length; j++) {
+      const index = SAMPLE_COLUMN_INDEXES[j];
+      const cell = index === 5 ? "<strong>" + escapeHtml(r[index]) + "</strong>" : escapeHtml(r[index]);
+      html += "<td>" + cell + "</td>";
+    }
+    return html;
+  }
+
+  /**
    * 輸出正規化前五筆預覽列。
    *
    * @param {Array} sample - 預覽列資料
@@ -137,16 +155,57 @@
   function renderSampleRowsHtml(sample, escapeHtml) {
     let html = "";
     for (let i = 0; i < sample.length; i++) {
-      const row = sample[i] || [];
-      html += "<tr>";
-      for (let j = 0; j < SAMPLE_COLUMN_INDEXES.length; j++) {
-        const index = SAMPLE_COLUMN_INDEXES[j];
-        const cell = index === 5 ? "<strong>" + escapeHtml(row[index]) + "</strong>" : escapeHtml(row[index]);
-        html += "<td>" + cell + "</td>";
-      }
-      html += "</tr>";
+      html += "<tr>" + renderSampleRowCellsHtml(sample[i], escapeHtml) + "</tr>";
     }
     return html;
+  }
+
+  /**
+   * 萃取預覽資料中所有不重複科別清單。
+   *
+   * @param {Array<Array>} rows - 預覽列陣列
+   * @returns {Array<string>} 已排序的不重複科別清單
+   */
+  function extractPreviewDepartments(rows) {
+    const list = Array.isArray(rows) ? rows : [];
+    const seen = {};
+    const depts = [];
+    for (let i = 0; i < list.length; i++) {
+      const row = list[i] || [];
+      const dept = String(row[7] || "").trim();
+      if (dept && !seen[dept]) {
+        seen[dept] = true;
+        depts.push(dept);
+      }
+    }
+    return depts.sort();
+  }
+
+  /**
+   * 輸出預覽科別篩選下拉選單 HTML。
+   *
+   * @param {Array<string>} departments - 科別清單
+   * @param {string} selectedDept - 目前選定之科別
+   * @param {Function} escapeHtml - HTML 跳脫函式
+   * @returns {string} 下拉選單 HTML
+   */
+  function renderDeptFilterHtml(departments, selectedDept, escapeHtml) {
+    const list = Array.isArray(departments) ? departments : [];
+    let optionsHtml = '<option value="">全部科別</option>';
+    for (let i = 0; i < list.length; i++) {
+      const dept = list[i];
+      if (!dept) continue;
+      const sel = dept === selectedDept ? " selected" : "";
+      optionsHtml += '<option value="' + escapeHtml(dept) + '"' + sel + ">" + escapeHtml(dept) + "</option>";
+    }
+    return (
+      '<div style="display:inline-flex; align-items:center; gap:6px;">' +
+      '  <label for="importDeptFilter" style="font-size:13.5px; color:var(--ink-2); white-space:nowrap;">科別篩選：</label>' +
+      '  <select id="importDeptFilter" class="form-select form-select-sm" style="font-size:13px; padding:3px 8px; border-radius:4px;" data-import-action="filter-dept">' +
+      optionsHtml +
+      "  </select>" +
+      "</div>"
+    );
   }
 
   /**
@@ -192,14 +251,68 @@
    * @param {boolean} canImport - 是否具備匯入權限
    * @param {Function} escapeHtml - HTML 跳脫函式
    * @param {Function} number - 數字格式化函式
+   * @param {Object} [ui] - UI 模組
    * @returns {string} 預覽卡片 HTML
    */
-  function renderPreviewCardHtml(entry, busy, canImport, escapeHtml, number) {
+  function renderPreviewCardHtml(entry, busy, canImport, escapeHtml, number, ui) {
     const stats = entry.stats || {};
     const sample = entry.sample || [];
-    const sampleRowsHtml = renderSampleRowsHtml(sample, escapeHtml);
+    const payload = Array.isArray(entry.payload) ? entry.payload : [];
+    const departments = extractPreviewDepartments(payload.concat(sample));
+    const selectedDept = entry.deptFilter || "";
+    const filterHtml = renderDeptFilterHtml(departments, selectedDept, escapeHtml);
+
+    const displayRows = selectedDept
+      ? sample.filter(function (r) {
+          return r && r[7] === selectedDept;
+        })
+      : sample;
+
     const disabled = busy || !canImport || entry.imported ? " disabled" : "";
     const buttonText = entry.imported ? "✓ 已匯入完成" : busy ? "匯入中..." : "確認匯入至試算表";
+
+    const columns = [
+      { title: "開課學年" },
+      { title: "學期" },
+      { title: "年級" },
+      { title: "課程代碼" },
+      { title: "科目名稱" },
+      { title: "科別" },
+      { title: "科目屬性" },
+      { title: "必選修" },
+      { title: "學分" }
+    ];
+
+    const resolvedUi =
+      ui ||
+      (typeof MEA !== "undefined" && MEA.ui) ||
+      (typeof window !== "undefined" && window.MEA && window.MEA.ui) ||
+      null;
+
+    const pagedTableHtml =
+      resolvedUi && typeof resolvedUi.renderPagedTable === "function"
+        ? resolvedUi.renderPagedTable({
+            className: "table table-centered table-hover",
+            columns: columns,
+            items: displayRows,
+            rowRenderer: function (row) {
+              return renderSampleRowCellsHtml(row, escapeHtml);
+            },
+            emptyText: "無相符的預覽資料。",
+            colspan: 9
+          })
+        : '<div class="table-responsive mt-3">' +
+          '  <table class="table">' +
+          "    <thead>" +
+          "      <tr>" +
+          '        <th scope="col">開課學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分</th>' +
+          "      </tr>" +
+          "    </thead>" +
+          "    <tbody>" +
+          renderSampleRowsHtml(displayRows, escapeHtml) +
+          "</tbody>" +
+          "    </table>" +
+          "  </div>";
 
     return (
       '<div class="card">' +
@@ -224,19 +337,11 @@
       "    </div>" +
       "  </div>" +
       renderMetricsHtml(stats, number) +
-      '  <h4 class="mt-4 mb-2">正規化前 5 筆預覽</h4>' +
-      '  <div class="table-responsive">' +
-      '    <table class="table">' +
-      "      <thead>" +
-      "        <tr>" +
-      '          <th scope="col">開課學年</th><th scope="col">學期</th><th scope="col">年級</th><th scope="col">課程代碼</th><th scope="col">科目名稱</th><th scope="col">科別</th><th scope="col">科目屬性</th><th scope="col">必選修</th><th scope="col">學分</th>' +
-      "        </tr>" +
-      "      </thead>" +
-      "      <tbody>" +
-      sampleRowsHtml +
-      "</tbody>" +
-      "    </table>" +
+      '  <div class="mt-4 mb-2" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
+      '    <h4 style="margin:0;">正規化前 5 筆預覽</h4>' +
+      filterHtml +
       "  </div>" +
+      pagedTableHtml +
       "</div>"
     );
   }
@@ -324,6 +429,9 @@
       });
       bindings.delegate(doc, "change", "[data-import-action='file-select']", function (event, element) {
         handleFileSelect(element);
+      });
+      bindings.delegate(doc, "change", "[data-import-action='filter-dept']", function (event, element) {
+        handleDeptFilter(element.value);
       });
       bindings.delegate(doc, "click", "[data-import-action]", function (event, element) {
         const action = element.getAttribute("data-import-action");
@@ -572,13 +680,27 @@
         .catch(handleImportError);
     }
 
+    function handleDeptFilter(dept) {
+      const current = MEA.state.imports || {};
+      const currentEntry = current.courseCodes;
+      if (!currentEntry) return;
+      const nextEntry = Object.assign({}, currentEntry, {
+        deptFilter: dept || ""
+      });
+      MEA.setState({
+        imports: Object.assign({}, current, {
+          courseCodes: nextEntry
+        })
+      });
+    }
+
     function renderView() {
       const entry = (MEA.state.imports || {}).courseCodes;
       const busy = MEA.state.importBusy;
       const user = MEA.state.user || {};
       const canImport = canImportCourseCodes(user);
       const contentHtml = entry
-        ? renderPreviewCardHtml(entry, busy, canImport, MEA.ui.escapeHtml, MEA.ui.number)
+        ? renderPreviewCardHtml(entry, busy, canImport, MEA.ui.escapeHtml, MEA.ui.number, MEA.ui)
         : buildDropzoneHtml();
 
       return renderPanelHtml(contentHtml);
@@ -590,6 +712,7 @@
       pickFile: pickFile,
       handleDropzoneKey: handleDropzoneKey,
       handleFileSelect: handleFileSelect,
+      handleDeptFilter: handleDeptFilter,
       handleDragOver: handleDragOver,
       handleDragLeave: handleDragLeave,
       handleDrop: handleDrop,
@@ -609,6 +732,9 @@
         previewCourseCodes: previewCourseCodes,
         canImportCourseCodes: canImportCourseCodes,
         buildDropzoneHtml: buildDropzoneHtml,
+        extractPreviewDepartments: extractPreviewDepartments,
+        renderDeptFilterHtml: renderDeptFilterHtml,
+        renderSampleRowCellsHtml: renderSampleRowCellsHtml,
         renderSampleRowsHtml: renderSampleRowsHtml,
         renderMetricsHtml: renderMetricsHtml,
         renderPreviewCardHtml: renderPreviewCardHtml,
@@ -631,6 +757,9 @@
     pickCourseSheetRows: pickCourseSheetRows,
     canImportCourseCodes: canImportCourseCodes,
     buildDropzoneHtml: buildDropzoneHtml,
+    extractPreviewDepartments: extractPreviewDepartments,
+    renderDeptFilterHtml: renderDeptFilterHtml,
+    renderSampleRowCellsHtml: renderSampleRowCellsHtml,
     renderSampleRowsHtml: renderSampleRowsHtml,
     renderMetricsHtml: renderMetricsHtml,
     renderPreviewCardHtml: renderPreviewCardHtml,

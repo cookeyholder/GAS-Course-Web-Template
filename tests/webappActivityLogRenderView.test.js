@@ -7,6 +7,7 @@
 
 const assert = require("assert");
 const activityLogModule = require("../webapp/js/activityLog.js");
+const realUi = require("../webapp/js/ui.js");
 require("../webapp/js/errorMessages.js");
 
 console.log("開始執行 webapp/js/activityLog.js renderView 測試...\n");
@@ -55,7 +56,7 @@ function createDeps(initialState) {
         return responder(action, payload);
       }
     },
-    ui: {
+    ui: Object.assign({}, realUi, {
       escapeHtml: function (value) {
         return String(value === undefined || value === null ? "" : value)
           .replace(/&/g, "&amp;")
@@ -70,7 +71,7 @@ function createDeps(initialState) {
       toast: function (message, kind) {
         calls.toasts.push({ message: message, kind: kind });
       }
-    }
+    })
   };
 
   return {

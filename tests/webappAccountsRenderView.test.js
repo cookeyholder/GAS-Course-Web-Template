@@ -103,6 +103,28 @@ function run() {
     console.log("   ✓ Email 跳脫驗證通過！\n");
   }
 
+  console.log("7. 角色篩選下拉選單與過濾功能...");
+  {
+    const filterCtx = createDeps();
+    filterCtx.state.user = { role: "admin" };
+    filterCtx.state.settings = {
+      data: {},
+      roleFilter: "staff",
+      accounts: [
+        { email: "admin@example.com", name: "管理員", role: "admin", roleName: "系統管理員", enabled: true },
+        { email: "staff@example.com", name: "業務", role: "staff", roleName: "業務人員", enabled: true }
+      ],
+      saving: false
+    };
+    const filterHtml = accountsModule.createAccountsModule(filterCtx.deps).renderView();
+    assert(filterHtml.indexOf('id="accountRoleFilter"') !== -1, "應存在角色篩選下拉選單");
+    assert(filterHtml.indexOf('data-account-action="filter-role"') !== -1, "應綁定 filter-role 動作");
+    assert(filterHtml.indexOf('value="staff" selected') !== -1, "業務人員選項應為選取狀態");
+    assert(filterHtml.indexOf("staff@example.com") !== -1, "應包含業務人員資料列");
+    assert(filterHtml.indexOf("admin@example.com") === -1, "管理員資料列應被篩選排除");
+    console.log("   ✓ 角色篩選功能驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/accounts.js renderView 測試全數通過！\n");
 }
 

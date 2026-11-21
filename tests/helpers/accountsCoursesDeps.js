@@ -6,6 +6,7 @@
  */
 
 const safeErrors = require("./safeErrorsDeps.js").safeErrors;
+const realUi = require("../../webapp/js/ui.js");
 
 const ROLE_NAMES = {
   admin: "系統管理員",
@@ -77,20 +78,24 @@ function createAccountsDeps(overrides) {
         return responder(action, payload);
       }
     },
-    ui: {
-      escapeHtml: function (value) {
-        return String(value === undefined || value === null ? "" : value);
-      },
-      toast: function (message, kind) {
-        calls.toast.push({ message: message, kind: kind });
-      },
-      modal: function (title, html, actions) {
-        calls.modal = { title: title, html: html, actions: actions };
-      },
-      closeModal: function () {
-        calls.closeModal++;
+    ui: Object.assign(
+      {},
+      realUi,
+      {
+        escapeHtml: function (value) {
+          return String(value === undefined || value === null ? "" : value);
+        },
+        toast: function (message, kind) {
+          calls.toast.push({ message: message, kind: kind });
+        },
+        modal: function (title, html, actions) {
+          calls.modal = { title: title, html: html, actions: actions };
+        },
+        closeModal: function () {
+          calls.closeModal++;
+        }
       }
-    }
+    )
   };
 
   const document = {
@@ -163,24 +168,28 @@ function createCoursesDeps(overrides) {
         return responder(action, payload);
       }
     },
-    ui: {
-      escapeHtml: function (value) {
-        return String(value === undefined || value === null ? "" : value);
-      },
-      toast: function (message, kind) {
-        calls.toast.push({ message: message, kind: kind });
-      },
-      number: function (value) {
-        calls.numbers.push(value);
-        return String(value === undefined || value === null ? 0 : value);
-      },
-      debounce: function (fn, ms) {
-        calls.debounce.push({ fn: fn, ms: ms });
-        return function () {
-          fn();
-        };
+    ui: Object.assign(
+      {},
+      realUi,
+      {
+        escapeHtml: function (value) {
+          return String(value === undefined || value === null ? "" : value);
+        },
+        toast: function (message, kind) {
+          calls.toast.push({ message: message, kind: kind });
+        },
+        number: function (value) {
+          calls.numbers.push(value);
+          return String(value === undefined || value === null ? 0 : value);
+        },
+        debounce: function (fn, ms) {
+          calls.debounce.push({ fn: fn, ms: ms });
+          return function () {
+            fn();
+          };
+        }
       }
-    }
+    )
   };
 
   const document = {

@@ -11,10 +11,10 @@
 
 ## 3. 全站表格改用 paged-table-container 與補齊篩選下拉選單
 
-- [ ] 3.1 在 `webapp/js/courses.js` 將課程清冊表格換裝為使用 `MEA.ui.renderPagedTable`，支援事件委派（`data-course-action="page"`）與上下雙向導覽，並同步更新 `tests/webappCoursesRenderView.test.js` 測試斷言。
-- [ ] 3.2 在 `webapp/js/activityLog.js` 將操作日誌表格換裝為使用 `MEA.ui.renderPagedTable`，支援自訂詳情列展開與上下雙向導覽。
-- [ ] 3.3 在 `webapp/js/accounts.js` 新增「角色篩選下拉選單」（全部、系統管理員、課程編修者、一般檢視者）與過濾邏輯，並將授權成員清冊表格換裝為 `renderPagedTable` 呈現。
-- [ ] 3.4 在 `webapp/js/imports.js` 新增預覽科別篩選下拉選單，並將 1NF 匯入預覽表格換裝為 `renderPagedTable` 呈現。
+- [x] 3.1 在 `webapp/js/courses.js` 將課程清冊表格換裝為使用 `MEA.ui.renderPagedTable`，支援事件委派（`data-course-action="page"`）與上下雙向導覽，並同步更新 `tests/webappCoursesRenderView.test.js` 測試斷言。
+- [x] 3.2 在 `webapp/js/activityLog.js` 將操作日誌表格換裝為使用 `MEA.ui.renderPagedTable`，支援自訂詳情列展開與上下雙向導覽。
+- [x] 3.3 在 `webapp/js/accounts.js` 新增「角色篩選下拉選單」（全部、系統管理員、課程編修者、一般檢視者）與過濾邏輯，並將授權成員清冊表格換裝為 `renderPagedTable` 呈現。
+- [x] 3.4 在 `webapp/js/imports.js` 新增預覽科別篩選下拉選單，並將 1NF 匯入預覽表格換裝為 `renderPagedTable` 呈現。
 
 ## 4. 前端打包與完整 CI 品質閘門驗證
 

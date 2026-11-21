@@ -97,6 +97,27 @@ function run() {
   assert.strictEqual(moduleSample.split("<td>").length - 1, 9);
   console.log("6. 模組層級預覽列渲染 ✓\n");
 
+  console.log("7. 預覽科別篩選下拉選單與過濾效果...");
+  {
+    const filterCtx = createDeps();
+    filterCtx.state.imports = {
+      courseCodes: makeEntry({
+        deptFilter: "資訊科",
+        sample: [
+          ["114", "1", "1", "114", "C001", "微積分", "數學群", "數學科", "部定", "原班", "一般", "必修", "2", "2"],
+          ["114", "1", "1", "114", "C002", "程式設計", "資訊群", "資訊科", "校訂", "原班", "專業", "必修", "3", "3"]
+        ]
+      })
+    };
+    const filterHtml = filterCtx.imports.renderView();
+    assert(filterHtml.indexOf('id="importDeptFilter"') !== -1, "應存在預覽科別篩選下拉選單");
+    assert(filterHtml.indexOf('data-import-action="filter-dept"') !== -1, "應綁定 filter-dept 動作");
+    assert(filterHtml.indexOf('value="資訊科" selected') !== -1, "資訊科選項應為選取狀態");
+    assert(filterHtml.indexOf("程式設計") !== -1, "應顯示資訊科課程列");
+    assert(filterHtml.indexOf("微積分") === -1, "數學科課程列應被篩選排除");
+    console.log("   ✓ 預覽科別篩選功能驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/imports.js renderView 測試全數通過！\n");
 }
 

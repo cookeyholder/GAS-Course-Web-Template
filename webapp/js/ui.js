@@ -405,9 +405,12 @@
     const win = calculatePaginationWindow(opt.total, opt.page, opt.pageSize || 20);
     if (Number.isFinite(parseInt(opt.totalPages, 10)) && parseInt(opt.totalPages, 10) > 0) {
       win.totalPages = parseInt(opt.totalPages, 10);
-      win.hasNext = win.currentPage < win.totalPages;
-      win.hasPrev = win.currentPage > 1;
     }
+    if (Number.isFinite(parseInt(opt.page, 10)) && parseInt(opt.page, 10) > 0) {
+      win.currentPage = Math.max(1, Math.min(win.totalPages, parseInt(opt.page, 10)));
+    }
+    win.hasNext = win.currentPage < win.totalPages;
+    win.hasPrev = win.currentPage > 1;
     const position = opt.position === "top" ? "top" : "bottom";
     const prefix = (opt.idPrefix ? String(opt.idPrefix).trim() : "pagination") + "-" + position;
     const baseNavLabel = opt.navAriaLabel ? String(opt.navAriaLabel).trim() : "分頁導航";
@@ -573,7 +576,7 @@
 
     const rawHeadHtml = opt.theadHtml || renderTableHead(columns);
     const headHtml = rawHeadHtml
-      ? String(rawHeadHtml).replace(/<th(?![^>]*\bscope\s*=)([^>]*)>/gi, '<th scope="col"$1>')
+      ? String(rawHeadHtml).replace(/<th\b(?![^>]*\bscope\s*=)([^>]*)>/gi, '<th scope="col"$1>')
       : "";
     const bodyHtml = renderTableBody({
       items: items,
