@@ -27,8 +27,8 @@ Always check `@/openspec/` or repository documentation when the request:
    - **發起 PR 前，必須在本地端預跑完整 CI 檢查全數通過**（格式、語言、CSS 類別、對比度、無障礙、測試、覆蓋率、複雜度、變更覆蓋率與打包產物一致性）。
 5. **PR 雙代理審查、未解意見禁合、Squash Merge 與正式部署（Post-PR Review, Squash & Deploy）**：
    - 發起 PR 後指派「程式碼品質與規格審查代理（Code Quality & Spec Reviewer）」與「潛在缺陷與安全性審查代理（Defects & Security Reviewer）」審查，**盡量以 1 個 commit 集中修復所有審查意見**。
-   - **若有任何待解決之審查意見（含外部 Reviewer 或機器人意見），絕對嚴禁 Squash Merge 該 PR**。
-   - CI 通過且意見全數妥善解決後，以 Squash Merge 合併至 `main`，同步本地 `main` 分支並刪除本地/遠端分支與對應 git worktree。
+   - **若有任何待解決之審查意見（含外部 Reviewer 或機器人意見未解決，或 Reviewer 處於 CHANGES_REQUESTED 狀態），絕對嚴禁 Squash Merge 該 PR**。
+   - CI 通過且意見全數妥善解決後，以 Squash Merge 合併至 `main`，同步本地 `main` 分支並依序移除 worktree 與分支。
    - 合併後必須在 `main` 執行 `npm run build:webapp` 並**以固定 Deployment ID 執行 `npm run deploy` 發布新版至 GAS 雲端**。
 
 <!-- OPENSPEC:END -->
@@ -143,7 +143,7 @@ npm run push
 # 4. 監聽模式：本地存檔時自動推送
 npm run watch
 
-# 5. 從雲端拉取線上變更
+# 5. 從雲端取得線上變更
 npm run pull
 
 # 6. 發布與更新 Web App 部署
@@ -348,7 +348,7 @@ PR 內文應包含以下五大核心區塊：
 2. **主要代理（Main Agent）改進流程**：
    - **彙整審查結果並集中單一 Commit 修復**：仔細彙整 2 個子代理提出的問題與改進建議，並結合其他 PR 的審查意見（含外部 Reviewer 或機器人提出的 Review Comments / Review Threads），**盡量集中使用 1 個 commit 完成所有問題的修正**，避免零散提交污染 Git 歷程。
    - **妥善處理所有審查意見**：檢查 PR 是否存在任何待解決之審查意見，**必須逐一妥善處理完畢所有審查意見**。
-   - **未解審查意見嚴禁 Merge 鐵律**：若有審查意見未處理完成，**絕對嚴禁 Squash Merge 該 PR**。
+   - **未解審查意見嚴禁 Merge 鐵律**：確認 GitHub PR 上的所有 Review Threads 皆已標記為 Resolved，且所有 Reviewers 的審查狀態均已轉為 APPROVED（無任何殘留的 CHANGES_REQUESTED），方可放行 Squash Merge。若有任何審查意見未處理完成，**絕對嚴禁 Squash Merge 該 PR**。
    - **本地驗證與提交推送**：再次執行本地完整 CI 預跑指令鏈通過後，將修正提交（commit）並推送到遠端分支。
 
 ### 階段四：Squash Merge、環境清理與版本化部署（Squash Merge, Cleanup & Production Deployment）
@@ -356,15 +356,21 @@ PR 內文應包含以下五大核心區塊：
 1. **壓扁合併（Squash Merge）**：
    - 確認遠端 GitHub Actions CI 檢查全數通過（全綠燈）、且所有審查意見均已妥善處理完畢後，執行 Squash Merge 將該 PR 合併至 `main` 分支。
 2. **本地分支同步與清理**：
-   - **同步最新 `main` 分支**：切換至本地 `main` 分支並拉取最新變更（`git checkout main && git pull origin main`）。
-   - **移除已合併分支與對應 Worktree**：安全刪除本地開發分支（`git branch -d <branch-name>`）、刪除遠端分支（`git push origin --delete <branch-name>`）；若該分支使用了 git worktree 進行開發，亦必須完整移除對應的 worktree（`git worktree remove <worktree-path>`），保持本機工作區整潔。
+   - **同步最新 `main` 分支**：切換至本地 `main` 分支並取得最新變更（`git checkout main && git pull origin main`）。
+   - **解除 Worktree 鎖定與分支清理（順序不可顛倒）**：
+     1. 若該分支使用了 git worktree 進行開發，**必須先移除對應的 worktree**（`git worktree remove <worktree-path>`），解除分支簽出鎖定。
+     2. 刪除本地開發分支：因 PR 採用 Squash Merge，Git 本地可能提示未完全合併（not fully merged），確認 `main` 已整入最新成果後執行 `git branch -D <branch-name>` 完成刪除。
+     3. 刪除遠端分支：執行 `git push origin --delete <branch-name>`（若遠端分支已由 GitHub 自動刪除，可改執行 `git fetch --prune origin` 同步）。
 3. **主分支版本化部署（Production Deployment）**：
    - 當 `main` 分支整合了新變更（PR Squash Merge）並完成本地同步後，必須在 `main` 分支執行以下作業：
-     1. **重新打包前端產物**：執行 `npm run build:webapp`，確認打包產出最新且無缺漏的根目錄 `index.html`。
-     2. **以固定 Deployment ID 發布新版本**：執行 `npm run deploy` 進行 Google Apps Script (GAS) 的新版本化部署。
+     1. **重新打包前端產物**：執行 `npm run build:webapp`，確認打包產出最新且無缺漏的根目錄 `index.html`（且工作區保持乾淨）。
+     2. **以固定 Deployment ID 發布新版本**：為防止建立全新 Deployment 導致既有 Web App 網址失效，**必須指定既有的固定 Deployment ID** 進行更新：
         ```bash
-        npm run deploy
-        # 若本機環境未設定 CLASP_DEPLOYMENT_ID 環境變數，必須明確指定既有的固定 Deployment ID：
-        # npm run deploy -- -i <DEPLOYMENT_ID>
+        # 1. 查看既有 Web App 之 Deployment ID：
+        npm run status
+        # 2. 以固定 Deployment ID 更新部署（二選一）：
+        npm run deploy -- -i <DEPLOYMENT_ID>
+        # 或預先設定環境變數後執行：
+        # CLASP_DEPLOYMENT_ID=<DEPLOYMENT_ID> npm run deploy
         ```
-        以固定的 Deployment ID 建立新版本發布上線，確保既有 Web App 服務網址維持不變，雲端線上環境與 `main` 分支最新成果同步。
+        確保既有 Web App 服務網址維持不變，雲端線上環境與 `main` 分支最新成果同步。
