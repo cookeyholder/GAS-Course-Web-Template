@@ -306,6 +306,29 @@ function buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, page, page
 }
 
 /**
+ * 純二維資料列篩選與分頁查詢函式（零 GAS / 零試算表依賴）
+ *
+ * @param {Array<Array<*>>} dataRows - 二維資料列矩陣（不含表頭）
+ * @param {Object} [filter] - 篩選條件
+ * @param {string} [filter.keyword] - 科目名稱或代碼關鍵字
+ * @param {string} [filter.academicYear] - 開課學年
+ * @param {string} [filter.semester] - 開課學期
+ * @param {string} [filter.department] - 科別
+ * @param {number} [filter.page=1] - 頁碼（1-based）
+ * @param {number} [filter.pageSize=50] - 每頁筆數
+ * @returns {Object} 查詢結果 `{ ok: true, list, total, page, pageSize, totalPages }`
+ */
+function queryCourseDataRows(dataRows, filter) {
+  const paging = normalizeCoursePageParams_(filter);
+  if (!Array.isArray(dataRows) || dataRows.length === 0) {
+    return createEmptyCourseQueryResult_(paging.page, paging.pageSize, 0);
+  }
+  const criteria = normalizeCourseQueryCriteria_(filter);
+  const matchedIndexes = collectMatchedCourseRowIndexes_(dataRows, criteria);
+  return buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, paging.page, paging.pageSize);
+}
+
+/**
  * 讀取並分頁查詢正規化課程代碼
  *
  * @param {Object} [filter] - 篩選條件
@@ -352,6 +375,14 @@ if (typeof module !== "undefined" && module.exports) {
     normalizeCourseCodes: normalizeCourseCodes,
     importNormalizedCourseCodes: importNormalizedCourseCodes,
     getNormalizedCourses: getNormalizedCourses,
+    queryCourseDataRows: queryCourseDataRows,
+    chunkArray: resolveRouteDependency_("chunkArray", "./utilities.js", function (arr, size) {
+      if (!Array.isArray(arr) || arr.length === 0) return [];
+      const s = Math.max(1, parseInt(size, 10) || 1);
+      const res = [];
+      for (let i = 0; i < arr.length; i += s) res.push(arr.slice(i, i + s));
+      return res;
+    }),
     getCourseIndexStats: getCourseIndexStats
   };
 }

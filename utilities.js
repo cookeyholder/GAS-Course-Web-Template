@@ -98,12 +98,30 @@ function safeSetNumberFormat(range, format) {
   }
 }
 
+/**
+ * 將陣列切分為指定大小的批次塊 (Chunking)
+ *
+ * @param {Array<*>} array - 來源陣列
+ * @param {number} chunkSize - 每批數量（正整數）
+ * @returns {Array<Array<*>>} 切分後的二維陣列
+ */
+function chunkArray(array, chunkSize) {
+  if (!Array.isArray(array) || array.length === 0) return [];
+  const size = Math.max(1, parseInt(chunkSize, 10) || 1);
+  const chunks = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     safeUiAlert: safeUiAlert,
     safeApplySheetFontSize: safeApplySheetFontSize,
     safeSetNumberFormat: safeSetNumberFormat,
     sanitizeFormulaValue: sanitizeFormulaValue,
-    sanitizeRowMatrix: sanitizeRowMatrix
+    sanitizeRowMatrix: sanitizeRowMatrix,
+    chunkArray: chunkArray
   };
 }
