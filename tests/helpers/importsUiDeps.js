@@ -357,13 +357,13 @@ function createImportsDeps(overrides) {
       Object.assign(state, patch);
       calls.setState.push(Object.assign({}, patch));
     },
-    ui: {
+    ui: Object.assign({}, uiModule, {
       escapeHtml: escapeHtml,
       number: number,
       toast: function (message, type) {
         calls.toasts.push({ message: message, type: type });
       }
-    },
+    }),
     api: {
       call: function (action, payload) {
         calls.apiCalls.push({ action: action, payload: payload });

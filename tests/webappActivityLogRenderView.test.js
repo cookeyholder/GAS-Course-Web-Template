@@ -7,6 +7,7 @@
 
 const assert = require("assert");
 const activityLogModule = require("../webapp/js/activityLog.js");
+const realUi = require("../webapp/js/ui.js");
 require("../webapp/js/errorMessages.js");
 
 console.log("開始執行 webapp/js/activityLog.js renderView 測試...\n");
@@ -55,7 +56,7 @@ function createDeps(initialState) {
         return responder(action, payload);
       }
     },
-    ui: {
+    ui: Object.assign({}, realUi, {
       escapeHtml: function (value) {
         return String(value === undefined || value === null ? "" : value)
           .replace(/&/g, "&amp;")
@@ -70,7 +71,7 @@ function createDeps(initialState) {
       toast: function (message, kind) {
         calls.toasts.push({ message: message, kind: kind });
       }
-    }
+    })
   };
 
   return {
@@ -374,6 +375,47 @@ const result = (async function () {
     assert(/^\d{4}-\d{2}-\d{2}$/.test(range.startDate));
     assert(/^\d{4}-\d{2}-\d{2}$/.test(range.endDate));
     console.log("   ✓ 時區格式化驗證通過！\n");
+  }
+
+  console.log("11. renderPagedTable 回退渲染測試...");
+  {
+    const fbCtx = createDeps();
+    fbCtx.MEA.ui = Object.assign({}, fbCtx.MEA.ui, { renderPagedTable: null });
+    fbCtx.state.activityLog = {
+      list: [
+        {
+          timestamp: "2026-11-20 10:00:00",
+          email: "fb@example.com",
+          category: "write",
+          action: "回退操作",
+          result: "success",
+          requestId: "req-fb",
+          summary: "回退摘要",
+          detail: '{"v":1}'
+        }
+      ],
+      page: 1,
+      totalPages: 1,
+      loading: false,
+      expanded: { "req-fb": true }
+    };
+    const fbHtml = activityLogModule.createActivityLogModule(fbCtx.deps).renderView();
+    assert(fbHtml.indexOf("fb@example.com") !== -1, "回退表格應渲染操作者");
+    assert(fbHtml.indexOf("回退操作") !== -1, "回退表格應渲染操作名稱");
+    console.log("   ✓ 日誌回退表格驗證通過！\n");
+  }
+
+  console.log("12. row.requestId 為空與展開狀態測試...");
+  {
+    const reqCtx = createDeps();
+    reqCtx.state.activityLog = {
+      list: [{ email: "test@example.com", action: "無id測試", timestamp: "2026-11-20" }],
+      loading: false,
+      expanded: { "": true }
+    };
+    const reqHtml = activityLogModule.createActivityLogModule(reqCtx.deps).renderView();
+    assert(reqHtml.indexOf("無id測試") !== -1);
+    console.log("   ✓ requestId 為空分支驗證通過！\n");
   }
 
   console.log("✓ webapp/js/activityLog.js renderView 測試全數通過！\n");

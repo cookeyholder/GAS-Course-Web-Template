@@ -2186,12 +2186,12 @@ a {
   background: var(--fill);
 }
 .panel-title {
-  font-size: 18px;
+  font-size: 19.5px;
   font-weight: 700;
 }
 .panel-sub {
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: 14px;
   color: var(--ink-2);
 }
 .panel-body {
@@ -2693,7 +2693,9 @@ a {
   color: var(--ink-2);
 }
 .input,
-.select {
+.select,
+.form-input,
+.form-select {
   min-height: 42px;
   width: 100%;
   padding: 8px 12px;
@@ -2702,9 +2704,29 @@ a {
   background: var(--paper);
   color: var(--ink);
   font-size: 15px;
+  box-sizing: border-box;
 }
 .input:focus,
-.select:focus {
+.select:focus,
+.form-input:focus,
+.form-select:focus {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 1px;
+  border-color: var(--accent);
+}
+.form-select-sm,
+.form-input-sm {
+  min-height: 30px;
+  font-size: 13.5px;
+  padding: 3px 8px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--paper);
+  color: var(--ink);
+  box-sizing: border-box;
+}
+.form-select-sm:focus,
+.form-input-sm:focus {
   outline: 2px solid var(--focus-ring);
   outline-offset: 1px;
   border-color: var(--accent);
@@ -6810,6 +6832,63 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
   background: var(--fill-2);
   color: var(--ink);
   font-weight: 700;
+}
+
+/* 通用資料表格與語意樣式類別（paged-table-container） */
+.table-container {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table-centered th,
+.table-centered td {
+  text-align: center;
+  vertical-align: middle;
+  font-size: 14.5px;
+  padding: 10px 8px;
+}
+
+.table-centered th {
+  background-color: var(--fill);
+  color: var(--ink);
+  font-weight: 700;
+  border-bottom: 2px solid var(--line);
+}
+
+.table-hover tbody tr {
+  transition: background-color 0.15s ease-in-out;
+}
+
+.table-striped tbody tr:nth-child(even) td {
+  background-color: var(--fill);
+}
+
+.table-hover tbody tr:hover td {
+  background-color: var(--accent-bg) !important;
+}
+
+/* 紅白機像素風格下的高亮 hover 反饋 */
+html[data-style="nes"] .table-hover tbody tr:hover td {
+  background-color: #ffe066 !important;
+  color: #000000 !important;
+}
+
+html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
+  background-color: #2b4c7e !important;
+  color: #ffffff !important;
+}
+
+.pagination-bar-top {
+  margin-bottom: 8px;
+}
+
+.pagination-bar-bottom {
+  margin-top: 8px;
 }
 
 /* 次要按鈕 */

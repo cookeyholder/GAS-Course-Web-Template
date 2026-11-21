@@ -160,6 +160,9 @@
       bindings.delegate(doc, "change", "[data-account-action='clear-field-error']", function (event, element) {
         clearFieldError(element);
       });
+      bindings.delegate(doc, "change", "[data-account-action='filter-role']", function (event, element) {
+        handleRoleFilter(element.value);
+      });
       bindings.delegate(doc, "submit", "[data-account-action='save-settings']", function (event) {
         saveSettings(event);
       });
@@ -686,35 +689,112 @@
     }
 
     /**
+     * 切換白名單成員角色篩選。
+     *
+     * @param {string} selectedRole - 選取之角色代碼
+     */
+    function handleRoleFilter(selectedRole) {
+      const current = MEA.state.settings || {};
+      MEA.setState({
+        settings: Object.assign({}, current, {
+          roleFilter: selectedRole || ""
+        })
+      });
+    }
+
+    /**
+     * 產生角色篩選下拉選單 HTML。
+     *
+     * @param {string} selectedRole - 目前選中角色
+     * @returns {string} 下拉選單 HTML
+     */
+    function renderRoleFilterHtml(selectedRole) {
+      const roles = [
+        { value: "", label: "全部角色" },
+        { value: ROLE_CODES.ADMIN, label: "系統管理員" },
+        { value: ROLE_CODES.STAFF, label: "業務人員" },
+        { value: ROLE_CODES.VIEWER, label: "檢視人員" }
+      ];
+      let opts = "";
+      for (let i = 0; i < roles.length; i++) {
+        const r = roles[i];
+        const sel = r.value === (selectedRole || "") ? " selected" : "";
+        opts += '<option value="' + r.value + '"' + sel + ">" + r.label + "</option>";
+      }
+      return (
+        '<div style="display:inline-flex; align-items:center; gap:6px;">' +
+        '  <label for="accountRoleFilter" style="font-size:13.5px; color:var(--ink-2); white-space:nowrap;">角色篩選：</label>' +
+        '  <select id="accountRoleFilter" class="form-select form-select-sm" style="font-size:13px; padding:3px 8px; border-radius:4px;" data-account-action="filter-role">' +
+        opts +
+        "  </select>" +
+        "</div>"
+      );
+    }
+
+    /**
      * 產生授權白名單卡片。
      *
-     * @param {string} accountsRowsHtml - 表格列 HTML
+     * @param {Array<Object>} accounts - 帳號陣列
      * @param {boolean} saving - 是否正在儲存
+     * @param {string} roleFilter - 目前角色篩選
      * @returns {string} HTML 字串
      */
-    function renderWhitelistCardHtml(accountsRowsHtml, saving) {
+    function renderWhitelistCardHtml(accounts, saving, roleFilter) {
       const loadingHint = saving ? '<span class="hint" role="status">正在更新授權白名單，請稍候...</span>' : "";
+      const filterHtml = renderRoleFilterHtml(roleFilter);
+      const accountsList = Array.isArray(accounts) ? accounts : [];
+      const filtered = roleFilter
+        ? accountsList.filter(function (acc) {
+            return acc && acc.role === roleFilter;
+          })
+        : accountsList;
+
+      const columns = [
+        { title: "Email" },
+        { title: "姓名/職稱" },
+        { title: "角色" },
+        { title: "狀態" },
+        { title: "操作" }
+      ];
+
+      const pagedTableHtml =
+        MEA.ui && typeof MEA.ui.renderPagedTable === "function"
+          ? MEA.ui.renderPagedTable({
+              className: "table table-centered table-hover",
+              columns: columns,
+              items: filtered,
+              rowRenderer: function (item) {
+                return renderAccountRowHtml(item, saving);
+              },
+              emptyText: "目前尚未設定任何授權帳號。",
+              colspan: 5
+            })
+          : '<div class="table-responsive mt-3">' +
+            '  <table class="table">' +
+            "    <thead>" +
+            "      <tr>" +
+            '        <th scope="col">Email</th><th scope="col">姓名/職稱</th><th scope="col">角色</th><th scope="col">狀態</th><th scope="col">操作</th>' +
+            "      </tr>" +
+            "    </thead>" +
+            "    <tbody>" +
+            renderAccountsRowsHtml(filtered, saving) +
+            "</tbody>" +
+            "    </table>" +
+            "  </div>";
+
       return (
         '<div class="card mt-4">' +
-        '  <div class="card-header">' +
+        '  <div class="card-header" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">' +
         '    <h3 class="card-title">授權白名單成員清單</h3>' +
-        '    <button type="button" class="btn secondary compact" data-account-action="add"' +
+        '    <div style="display:inline-flex; align-items:center; gap:12px; flex-wrap:wrap;">' +
+        filterHtml +
+        '      <button type="button" class="btn secondary compact" data-account-action="add"' +
         (saving ? " disabled" : "") +
         ">＋ 新增授權成員</button>" +
+        "    </div>" +
         "  </div>" +
         loadingHint +
-        '  <div class="table-responsive mt-3">' +
-        '    <table class="table">' +
-        "      <thead>" +
-        "        <tr>" +
-        '          <th scope="col">Email</th><th scope="col">姓名/職稱</th><th scope="col">角色</th><th scope="col">狀態</th><th scope="col">操作</th>' +
-        "        </tr>" +
-        "      </thead>" +
-        "      <tbody>" +
-        accountsRowsHtml +
-        "</tbody>" +
-        "    </table>" +
-        "  </div>" +
+        pagedTableHtml +
         "</div>"
       );
     }
@@ -725,6 +805,7 @@
       const settings = MEA.state.settings || {};
       const data = settings.data || {};
       const accounts = settings.accounts || [];
+      const roleFilter = settings.roleFilter || "";
 
       if (!isAdmin) {
         return renderPermissionDeniedHtml(user);
@@ -744,7 +825,7 @@
         "</button>" +
         "</div>" +
         renderSystemCoreCardHtml(data, settings.saving) +
-        renderWhitelistCardHtml(renderAccountsRowsHtml(accounts, settings.saving), settings.saving) +
+        renderWhitelistCardHtml(accounts, settings.saving, roleFilter) +
         "</div>"
       );
     }
@@ -754,6 +835,7 @@
       saveSettings: saveSettings,
       addAccountPrompt: addAccountPrompt,
       clearFieldError: clearFieldError,
+      handleRoleFilter: handleRoleFilter,
       removeAccount: removeAccount,
       toggleAccount: toggleAccount,
       renderView: renderView

@@ -97,6 +97,94 @@ function run() {
   assert.strictEqual(moduleSample.split("<td>").length - 1, 9);
   console.log("6. 模組層級預覽列渲染 ✓\n");
 
+  console.log("7. 預覽科別篩選下拉選單與過濾效果...");
+  {
+    const filterCtx = createDeps();
+    filterCtx.state.imports = {
+      courseCodes: makeEntry({
+        deptFilter: "資訊科",
+        sample: [
+          ["114", "1", "1", "114", "C001", "微積分", "數學群", "數學科", "部定", "原班", "一般", "必修", "2", "2"],
+          ["114", "1", "1", "114", "C002", "程式設計", "資訊群", "資訊科", "校訂", "原班", "專業", "必修", "3", "3"]
+        ]
+      })
+    };
+    const filterHtml = filterCtx.imports.renderView();
+    assert(filterHtml.indexOf('id="importDeptFilter"') !== -1, "應存在預覽科別篩選下拉選單");
+    assert(filterHtml.indexOf('data-import-action="filter-dept"') !== -1, "應綁定 filter-dept 動作");
+    assert(filterHtml.indexOf('value="資訊科" selected') !== -1, "資訊科選項應為選取狀態");
+    assert(filterHtml.indexOf("程式設計") !== -1, "應顯示資訊科課程列");
+    assert(filterHtml.indexOf("微積分") === -1, "數學科課程列應被篩選排除");
+    console.log("   ✓ 預覽科別篩選功能驗證通過！\n");
+  }
+
+  console.log("8. handleDeptFilter 與 renderPagedTable 回退測試...");
+  {
+    const fbCtx = createDeps();
+    fbCtx.state.imports = {
+      courseCodes: makeEntry({
+        sample: [["114", "1", "1", "114", "FB01", "回退科目", "群", "資訊科", "部定", "原班", "一般", "必修", "2", "2"]]
+      })
+    };
+    fbCtx.imports.handleDeptFilter("資訊科");
+    assert.strictEqual(fbCtx.state.imports.courseCodes.deptFilter, "資訊科", "應更新 deptFilter");
+
+    fbCtx.MEA.ui = Object.assign({}, fbCtx.MEA.ui, { renderPagedTable: null });
+    const fbHtml = fbCtx.imports.renderView();
+    assert(fbHtml.indexOf("回退科目") !== -1, "回退表格應渲染科目名稱");
+    console.log("   ✓ handleDeptFilter 與回退測試通過！\n");
+  }
+
+  console.log("9. 科別篩選純函式邊界與防禦分支測試...");
+  {
+    assert.deepStrictEqual(importsModule.extractPreviewDepartments(null), [], "null 應回傳空陣列");
+    assert.deepStrictEqual(
+      importsModule.extractPreviewDepartments([null, [], ["", "", "", "", "", "", "", ""]]),
+      [],
+      "空資料列應過濾"
+    );
+
+    const filterHtml = importsModule.renderDeptFilterHtml([null, "", "資訊科", "電子科"], "資訊科", function (v) {
+      return v;
+    });
+    assert(filterHtml.indexOf('value="資訊科" selected') !== -1);
+    assert(filterHtml.indexOf('value="電子科"') !== -1);
+
+    assert.strictEqual(
+      importsModule
+        .renderDeptFilterHtml(null, "", function (v) {
+          return v;
+        })
+        .indexOf("全部科別") !== -1,
+      true
+    );
+
+    const emptyRowCells = importsModule.renderSampleRowCellsHtml(null, function (v) {
+      return v;
+    });
+    assert.strictEqual(emptyRowCells.split("<td>").length - 1, 9);
+
+    const emptyCtx = createDeps();
+    emptyCtx.state.imports = {};
+    assert.doesNotThrow(function () {
+      emptyCtx.imports.handleDeptFilter("資訊科");
+    });
+
+    const nonArrayPayloadEntry = makeEntry({ payload: null });
+    const nonArrayHtml = importsModule.renderPreviewCardHtml(
+      nonArrayPayloadEntry,
+      false,
+      true,
+      escapeHtml,
+      function (v) {
+        return v;
+      }
+    );
+    assert(nonArrayHtml.indexOf("檔案解析預覽") !== -1);
+
+    console.log("   ✓ 科別篩選純函式邊界驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/imports.js renderView 測試全數通過！\n");
 }
 

@@ -16,6 +16,7 @@ global.window = {
 global.document = global.window.document;
 
 const activityLogModule = require("../webapp/js/activityLog.js");
+const realUi = require("../webapp/js/ui.js");
 require("../webapp/js/errorMessages.js");
 
 /** 建立完整的 MEA mock，供需要 ui/setState 的情境使用。 */
@@ -55,7 +56,7 @@ function makeMea(initialState) {
         return Promise.resolve({ ok: true, rows: [], total: 0, page: 1, pageSize: 50 });
       }
     },
-    ui: {
+    ui: Object.assign({}, realUi, {
       escapeHtml: function (value) {
         return String(value === undefined || value === null ? "" : value);
       },
@@ -65,7 +66,7 @@ function makeMea(initialState) {
       toast: function (message, kind) {
         calls.toasts.push({ message: message, kind: kind });
       }
-    }
+    })
   };
   return {
     mea: mea,
