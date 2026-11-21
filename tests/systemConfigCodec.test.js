@@ -58,13 +58,17 @@ console.log("   ✓ 布林值與網域正規化驗證通過！\n");
 console.log("3. 系統設定雙軌鍵值與預設值補齊...");
 const emptySettings = codec.normalizeSystemSettings({});
 assert.strictEqual(emptySettings.schoolYear, "114");
-assert.strictEqual(emptySettings["學年度"], "114");
 assert.strictEqual(emptySettings.semester, "1");
-assert.strictEqual(emptySettings["學期"], "1");
 assert.strictEqual(emptySettings.systemName, "Google Apps Script 應用程式範本");
-assert.strictEqual(emptySettings["系統名稱"], "Google Apps Script 應用程式範本");
-assert.strictEqual(emptySettings.restrictWhitelist, true);
-assert.strictEqual(emptySettings["登入白名單限制啟用"], "true");
+assert.strictEqual(emptySettings.restrictWhitelist, false);
+assert.strictEqual(emptySettings.allowedLoginDomain, "");
+assert.strictEqual(emptySettings["學年度"], undefined, "未傳入中文鍵時，實體鍵為 undefined");
+
+const populatedWithDefaults = codec.normalizeSystemSettings(Object.assign({}, codec.DEFAULT_SETTINGS));
+assert.strictEqual(populatedWithDefaults["學年度"], "114");
+assert.strictEqual(populatedWithDefaults.schoolYear, "114");
+assert.strictEqual(populatedWithDefaults["系統名稱"], "Google Apps Script 應用程式範本");
+assert.strictEqual(populatedWithDefaults.systemName, "Google Apps Script 應用程式範本");
 
 const customSettings = codec.normalizeSystemSettings({
   學年度: "115",
@@ -85,7 +89,7 @@ assert.strictEqual(customSettings["OAuth Client ID"], "client-123");
 assert.strictEqual(customSettings.clientSecret, "secret-456");
 assert.strictEqual(customSettings["OAuth Client Secret"], "secret-456");
 assert.strictEqual(customSettings.allowedLoginDomain, "school.edu");
-assert.strictEqual(customSettings["Google 登入允許網域"], "school.edu");
+assert.strictEqual(customSettings["Google 登入允許網域"], "@school.edu");
 assert.strictEqual(customSettings.restrictWhitelist, false);
 assert.strictEqual(customSettings["登入白名單限制啟用"], "false");
 assert.strictEqual(customSettings["未知自訂欄位"], "自訂數值", "自訂未知鍵名必須保留");

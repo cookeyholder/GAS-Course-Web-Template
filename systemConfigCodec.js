@@ -64,7 +64,7 @@
     "OAuth Client ID": "",
     "OAuth Client Secret": "",
     "Google 登入允許網域": "",
-    登入白名單限制啟用: "true"
+    登入白名單限制啟用: "false"
   };
 
   /**
@@ -163,31 +163,22 @@
    * @returns {Object} 雙軌鍵值標準設定物件
    */
   function normalizeSystemSettings(dict) {
-    const source = Object.assign({}, DEFAULT_SETTINGS, dict || {});
+    const input = dict && typeof dict === "object" ? dict : {};
     const result = {};
 
-    // 複製所有鍵值（含使用者自訂未知鍵）
-    Object.keys(source).forEach(function (k) {
-      const v = source[k];
+    // 複製所有傳入鍵（反映試算表格子實際儲存之值，含自訂未知鍵）
+    Object.keys(input).forEach(function (k) {
+      const v = input[k];
       result[k] = v === null || v === undefined ? "" : String(v).trim();
     });
 
-    // 補齊與保證標準中文鍵與型態規範
-    result["系統名稱"] = result["系統名稱"] || DEFAULT_SETTINGS["系統名稱"];
-    result["學年度"] = result["學年度"] || DEFAULT_SETTINGS["學年度"];
-    result["學期"] = result["學期"] || DEFAULT_SETTINGS["學期"];
-    result["OAuth Client ID"] = result["OAuth Client ID"] || "";
-    result["OAuth Client Secret"] = result["OAuth Client Secret"] || "";
-    result["Google 登入允許網域"] = normalizeAllowedDomain(result["Google 登入允許網域"]);
-    result["登入白名單限制啟用"] = parseConfigBoolean(result["登入白名單限制啟用"]) ? "true" : "false";
-
-    // 掛載駝峰快捷鍵（雙軌鍵值相容）
-    result.schoolYear = result["學年度"];
-    result.semester = result["學期"];
-    result.systemName = result["系統名稱"];
-    result.clientId = result["OAuth Client ID"];
-    result.clientSecret = result["OAuth Client Secret"];
-    result.allowedLoginDomain = result["Google 登入允許網域"];
+    // 掛載駝峰快捷鍵（雙軌鍵值相容，便捷鍵具預設 fallback 與型態正規化）
+    result.schoolYear = result["學年度"] || DEFAULT_SETTINGS["學年度"];
+    result.semester = result["學期"] || DEFAULT_SETTINGS["學期"];
+    result.systemName = result["系統名稱"] || DEFAULT_SETTINGS["系統名稱"];
+    result.clientId = result["OAuth Client ID"] || "";
+    result.clientSecret = result["OAuth Client Secret"] || "";
+    result.allowedLoginDomain = normalizeAllowedDomain(result["Google 登入允許網域"]);
     result.restrictWhitelist = parseConfigBoolean(result["登入白名單限制啟用"]);
 
     return result;

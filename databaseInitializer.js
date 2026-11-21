@@ -344,6 +344,13 @@ function normalizeAllowedLoginDomain_(value) {
   return GAS_RUNTIME.normalizeAllowedDomain(value);
 }
 
+function getSystemConfigCodec_() {
+  if (GAS_RUNTIME && typeof GAS_RUNTIME.resolveDependency_ === "function") {
+    return GAS_RUNTIME.resolveDependency_("systemConfigCodec", "./systemConfigCodec.js", null);
+  }
+  return typeof systemConfigCodec !== "undefined" ? systemConfigCodec : null;
+}
+
 function applySystemSettingConvenienceFields_(config) {
   const target = config || {};
   target.schoolYear = target["學年度"] || "114";
@@ -357,6 +364,10 @@ function applySystemSettingConvenienceFields_(config) {
 }
 
 function readSystemSettingsFromMemory_() {
+  const codec = getSystemConfigCodec_();
+  if (codec) {
+    return codec.normalizeSystemSettings(MEMORY_SYSTEM_CONFIG);
+  }
   return applySystemSettingConvenienceFields_(Object.assign({}, MEMORY_SYSTEM_CONFIG));
 }
 
@@ -380,7 +391,12 @@ function buildSystemSettingsConfigFromRows_(values) {
 function readSystemSettingsFromSheet_(ss) {
   const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
   if (!sheet) return {};
-  const config = buildSystemSettingsConfigFromRows_(readSystemSettingsRows_(sheet));
+  const rows = readSystemSettingsRows_(sheet);
+  const codec = getSystemConfigCodec_();
+  if (codec) {
+    return codec.parseSystemSettingsRows(rows);
+  }
+  const config = buildSystemSettingsConfigFromRows_(rows);
   return applySystemSettingConvenienceFields_(config);
 }
 
@@ -441,8 +457,23 @@ function buildSystemSettingUpdates_(settings) {
 }
 
 function saveSystemSettingsToMemory_(updates) {
-  for (const key in updates) {
-    MEMORY_SYSTEM_CONFIG[key] = updates[key];
+  const codec = getSystemConfigCodec_();
+  const source = updates || {};
+  if (codec) {
+    for (const k in source) {
+      const targetKey = codec.SYSTEM_SETTING_KEY_MAP[k] || k;
+      if (targetKey === "登入白名單限制啟用") {
+        MEMORY_SYSTEM_CONFIG[targetKey] = codec.parseConfigBoolean(source[k]) ? "true" : "false";
+      } else if (targetKey === "Google 登入允許網域") {
+        MEMORY_SYSTEM_CONFIG[targetKey] = codec.normalizeAllowedDomain(source[k]);
+      } else {
+        MEMORY_SYSTEM_CONFIG[targetKey] = source[k] === null || source[k] === undefined ? "" : String(source[k]);
+      }
+    }
+    return { ok: true };
+  }
+  for (const key in source) {
+    MEMORY_SYSTEM_CONFIG[key] = source[key];
   }
   return { ok: true };
 }
@@ -478,6 +509,24 @@ function appendRemainingSystemSettings_(sheet, updates) {
 function saveSystemSettingsToSheet_(ss, updates) {
   const sheet = getSystemConfigSheet_(ss);
   const range = sheet.getRange("A2:B30");
+  const codec = getSystemConfigCodec_();
+  if (codec) {
+    const existingValues = range.getValues();
+    const mergedValues = codec.mergeSystemSettingsRows(existingValues, updates, { targetRowCount: 29 });
+    if (mergedValues.length > 29) {
+      const baseRows = mergedValues.slice(0, 29);
+      const extraRows = mergedValues.slice(29);
+      const safeBase = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(baseRows) : baseRows;
+      range.setValues(safeBase);
+      const safeExtra = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(extraRows) : extraRows;
+      const nextRow = sheet.getLastRow() + 1;
+      sheet.getRange(nextRow, 1, safeExtra.length, 2).setValues(safeExtra);
+    } else {
+      const safeValues = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(mergedValues) : mergedValues;
+      range.setValues(safeValues);
+    }
+    return { ok: true };
+  }
   const values = applySystemSettingUpdatesToRows_(range.getValues(), updates);
   const safeValues = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(values) : values;
   range.setValues(safeValues);
@@ -487,7 +536,8 @@ function saveSystemSettingsToSheet_(ss, updates) {
 
 function saveSystemSettings(settings, ss) {
   const targetSs = GAS_RUNTIME.getActiveSpreadsheetSafe_({ spreadsheet: ss });
-  const updates = buildSystemSettingUpdates_(settings);
+  const codec = getSystemConfigCodec_();
+  const updates = codec ? Object.assign({}, settings) : buildSystemSettingUpdates_(settings);
   if (!targetSs) return saveSystemSettingsToMemory_(updates);
   return saveSystemSettingsToSheet_(targetSs, updates);
 }
