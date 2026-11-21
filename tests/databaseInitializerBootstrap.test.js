@@ -82,6 +82,25 @@ function run() {
     });
     assert.deepStrictEqual(empty, []);
     console.log("   ✓ 空白 Email 防護驗證通過！\n");
+
+    console.log("4. parseConfigBoolean 向後相容轉發驗證...");
+    assert.strictEqual(db.parseConfigBoolean("true"), true);
+    assert.strictEqual(db.parseConfigBoolean("1"), true);
+    assert.strictEqual(db.parseConfigBoolean("false"), false);
+    assert.strictEqual(db.parseConfigBoolean(null), false);
+    console.log("   ✓ parseConfigBoolean 向後相容轉發驗證通過！\n");
+
+    console.log("5. 模擬無 globalThis.systemConfigCodec 冷啟動相依解析驗證...");
+    withGlobals({ systemConfigCodec: undefined }, function () {
+      inMemory(function () {
+        const settings = db.readSystemSettings();
+        assert.strictEqual(typeof settings, "object");
+        assert.strictEqual(settings.schoolYear, "114");
+        assert.strictEqual(settings.systemName, "Google Apps Script 應用程式範本");
+        assert.strictEqual(settings.restrictWhitelist, false);
+      });
+    });
+    console.log("   ✓ 冷啟動相依解析驗證通過！\n");
   } finally {
     resetMemoryWhitelist();
   }

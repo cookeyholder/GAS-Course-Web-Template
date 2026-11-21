@@ -58,7 +58,8 @@ console.log("1. 記憶體模式（無 SpreadsheetApp、無 ss）應儲存並正�
         clientId: "cid",
         clientSecret: "sec",
         restrictWhitelist: true,
-        allowedLoginDomain: "  @EXAMPLE.COM  "
+        allowedLoginDomain: "  @EXAMPLE.COM  ",
+        自訂記憶體未知鍵: "數值123"
       });
     });
     assert.deepStrictEqual(result, { ok: true });
@@ -79,6 +80,7 @@ console.log("1. 記憶體模式（無 SpreadsheetApp、無 ss）應儲存並正�
     assert.strictEqual(saved.restrictWhitelist, true);
     assert.strictEqual(saved["Google 登入允許網域"], "example.com");
     assert.strictEqual(saved.allowedLoginDomain, "example.com");
+    assert.strictEqual(saved["自訂記憶體未知鍵"], "數值123");
     console.log("   ✓ 記憶體模式正規化儲存驗證通過！\n");
   } finally {
     restoreMemoryConfig(before);
@@ -297,6 +299,109 @@ console.log("7. settings 為空或未提供時應安全執行（記憶體模式�
   } finally {
     restoreMemoryConfig(before);
   }
+}
+
+console.log("8. 試算表模式超過 29 列時應分塊寫入超過的列數（mergedValues.length > 29）...");
+{
+  const rows = [];
+  for (let i = 0; i < 29; i++) {
+    rows.push(["設定" + i, "值" + i]);
+  }
+  let extraAppended = null;
+  const mockSheet = {
+    getLastRow: function () {
+      return 29;
+    },
+    getRange: function (r, c, numRows, numCols) {
+      if (typeof r === "string" && r === "A2:B30") {
+        return {
+          getValues: function () {
+            return rows.slice();
+          },
+          setValues: function () {}
+        };
+      }
+      return {
+        setValues: function (v) {
+          extraAppended = v;
+        }
+      };
+    }
+  };
+  const mockSs = {
+    getSheetByName: function () {
+      return mockSheet;
+    }
+  };
+  const extraSettings = {
+    新設定A: "A",
+    新設定B: "B"
+  };
+  const res = db.saveSystemSettings(extraSettings, mockSs);
+  assert.strictEqual(res.ok, true);
+  assert.ok(extraAppended !== null, "應呼叫 extraRows setValues");
+  assert.strictEqual(extraAppended.length, 2);
+  console.log("   ✓ 超過 29 列分塊寫入驗證通過！\n");
+}
+
+console.log("9. 試算表模式存在延伸列（row 31+）時，更新應讀入延伸列並就地更新，不產生重複鍵...");
+{
+  const existingRows = [];
+  for (let i = 0; i < 29; i++) {
+    existingRows.push(["設定" + i, "值" + i]);
+  }
+  // 第 31 列與第 32 列為先前附加之延伸列
+  existingRows.push(["延伸設定A", "舊值A"]);
+  existingRows.push(["延伸設定B", "舊值B"]);
+
+  let savedValues = null;
+  let extraAppended = null;
+  const mockSheet = {
+    getLastRow: function () {
+      return 32;
+    },
+    getRange: function (r, c, numRows, numCols) {
+      if (r === 2 && c === 1 && numRows === 31 && numCols === 2) {
+        return {
+          getValues: function () {
+            return existingRows.map(function (row) {
+              return row.slice();
+            });
+          },
+          setValues: function (v) {
+            savedValues = v;
+          }
+        };
+      }
+      return {
+        setValues: function (v) {
+          extraAppended = v;
+        }
+      };
+    }
+  };
+  const mockSs = {
+    getSheetByName: function () {
+      return mockSheet;
+    }
+  };
+  const updates = {
+    延伸設定A: "新值A_已更新"
+  };
+  const res = db.saveSystemSettings(updates, mockSs);
+  assert.strictEqual(res.ok, true);
+  assert.strictEqual(extraAppended, null, "不應附加新列");
+  assert.ok(savedValues !== null, "應寫回延伸範圍");
+  assert.strictEqual(savedValues.length, 31);
+  const updatedEntry = savedValues.find(function (r) {
+    return r[0] === "延伸設定A";
+  });
+  assert.deepStrictEqual(updatedEntry, ["延伸設定A", "新值A_已更新"]);
+  const duplicates = savedValues.filter(function (r) {
+    return r[0] === "延伸設定A";
+  });
+  assert.strictEqual(duplicates.length, 1, "絕不應產生重複鍵");
+  console.log("   ✓ 延伸列讀取與就地更新驗證通過！\n");
 }
 
 console.log("✓ saveSystemSettings 測試全數通過！\n");
