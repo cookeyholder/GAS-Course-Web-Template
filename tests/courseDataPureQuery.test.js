@@ -2,9 +2,16 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { chunkArray } = require("../utilities.js");
-const { queryCourseDataRows } = require("../subjectCodeTransformer.js");
+const { queryCourseDataRows, chunkArrayFallback_ } = require("../subjectCodeTransformer.js");
 
 test("chunkArray - 邊界值與正常切分驗證", async (t) => {
+  await t.test("chunkArrayFallback_ 邊界與切分驗證", () => {
+    assert.deepStrictEqual(chunkArrayFallback_(null, 2), []);
+    assert.deepStrictEqual(chunkArrayFallback_([], 2), []);
+    assert.deepStrictEqual(chunkArrayFallback_([1, 2, 3], 0), [[1], [2], [3]]);
+    assert.deepStrictEqual(chunkArrayFallback_([1, 2, 3], 2), [[1, 2], [3]]);
+  });
+
   await t.test("非陣列與空陣列回傳空陣列", () => {
     assert.deepStrictEqual(chunkArray(null, 10), []);
     assert.deepStrictEqual(chunkArray(undefined, 10), []);

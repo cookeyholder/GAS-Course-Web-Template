@@ -40,14 +40,39 @@ test("findAccountInWhitelist - 純查表函式驗證", async (t) => {
     assert.strictEqual(systemConfigCodec.findAccountInWhitelist(accounts, "nobody@example.com"), null);
   });
 
+  await t.test("databaseInitializer 委派之 normalizeRole 與 getRoleDisplayName", () => {
+    assert.strictEqual(db.normalizeRole("系統管理員"), "admin");
+    assert.strictEqual(db.normalizeRole("admin"), "admin");
+    assert.strictEqual(db.normalizeRole("unknown_role"), "unknown_role");
+    assert.strictEqual(db.getRoleDisplayName("admin"), "系統管理員");
+    assert.strictEqual(db.getRoleDisplayName("staff"), "業務人員");
+    assert.strictEqual(db.getRoleDisplayName("viewer"), "檢視人員");
+  });
+
   await t.test("databaseInitializer 轉發匯出之 findAccountInWhitelist 與 getAccountRole", () => {
     assert.strictEqual(typeof db.findAccountInWhitelist, "function");
     const found = db.findAccountInWhitelist(accounts, "ADMIN@example.com");
     assert.ok(found);
     assert.strictEqual(found.email, "admin@example.com");
 
+    // 測試未命中情況
     const roleInfo = db.getAccountRole("notfound@example.com");
     assert.strictEqual(roleInfo.found, false);
     assert.strictEqual(roleInfo.role, "viewer");
+
+    // 測試命中情況（覆蓋 getAccountRole 第 509-516 行）
+    db.saveWhitelist([
+      {
+        email: "hit@example.com",
+        name: "命中用戶",
+        role: "staff",
+        enabled: true
+      }
+    ]);
+    const hitRole = db.getAccountRole("HIT@example.com");
+    assert.strictEqual(hitRole.found, true);
+    assert.strictEqual(hitRole.role, "staff");
+    assert.strictEqual(hitRole.name, "命中用戶");
+    assert.strictEqual(hitRole.enabled, true);
   });
 });

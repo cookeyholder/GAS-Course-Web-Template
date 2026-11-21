@@ -111,18 +111,20 @@ function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
   sheet.getRange(1, 1, totalDataRows + 1, colCount).setNumberFormat("@");
 }
 
+function chunkArrayFallback_(arr, size) {
+  if (!Array.isArray(arr) || arr.length === 0) return [];
+  const s = Math.max(1, parseInt(size, 10) || 1);
+  const res = [];
+  for (let i = 0; i < arr.length; i += s) res.push(arr.slice(i, i + s));
+  return res;
+}
+
 function writeCourseIndexRowsInChunks_(sheet, rows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
   const sanitize = resolveRouteDependency_("sanitizeRowMatrix", "./utilities.js", function (matrix) {
     return matrix;
   });
-  const getChunkArray = resolveRouteDependency_("chunkArray", "./utilities.js", function (arr, size) {
-    if (!Array.isArray(arr) || arr.length === 0) return [];
-    const s = Math.max(1, parseInt(size, 10) || 1);
-    const res = [];
-    for (let i = 0; i < arr.length; i += s) res.push(arr.slice(i, i + s));
-    return res;
-  });
+  const getChunkArray = resolveRouteDependency_("chunkArray", "./utilities.js", chunkArrayFallback_);
   const chunks = getChunkArray(rows, COURSE_INDEX_WRITE_CHUNK_SIZE);
   let currentRow = 2;
   for (let i = 0; i < chunks.length; i++) {
@@ -382,13 +384,8 @@ if (typeof module !== "undefined" && module.exports) {
     importNormalizedCourseCodes: importNormalizedCourseCodes,
     getNormalizedCourses: getNormalizedCourses,
     queryCourseDataRows: queryCourseDataRows,
-    chunkArray: resolveRouteDependency_("chunkArray", "./utilities.js", function (arr, size) {
-      if (!Array.isArray(arr) || arr.length === 0) return [];
-      const s = Math.max(1, parseInt(size, 10) || 1);
-      const res = [];
-      for (let i = 0; i < arr.length; i += s) res.push(arr.slice(i, i + s));
-      return res;
-    }),
+    chunkArrayFallback_: chunkArrayFallback_,
+    chunkArray: resolveRouteDependency_("chunkArray", "./utilities.js", chunkArrayFallback_),
     getCourseIndexStats: getCourseIndexStats
   };
 }
