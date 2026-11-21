@@ -727,7 +727,10 @@ function validateOAuthCredentials_(settings) {
   if (!clientId) {
     return {
       valid: false,
-      error: webApiError("server_misconfigured", "系統尚未設定 OAuth Client ID，請" + ADMIN_ROLE_NAME + "先完成系統設定")
+      error: webApiError(
+        "server_misconfigured",
+        "系統尚未設定 OAuth Client ID，請" + ADMIN_ROLE_NAME + "先完成系統設定"
+      )
     };
   }
   if (!clientSecret) {
