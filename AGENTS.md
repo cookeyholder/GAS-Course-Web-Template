@@ -98,6 +98,10 @@ Always check `@/openspec/` or repository documentation when the request:
 3. **雙棲相容性（Node.js / GAS Dual-Environment）**：
    - GAS 環境下所有根目錄 `.js` 共享全域命名空間。
    - 為支援本地端 Node.js 執行單元測試，檔案底部應使用 `if (typeof module !== "undefined" && module.exports)` 匯出模組；後端引用相依檔案時應加上環境判斷相容墊片。
+4. **純函式設計導向（Functional Core, Imperative Shell）**：
+   - 程式碼應盡量朝**純函式（Pure Functions）**的方向撰寫與重構。
+   - 業務邏輯、資料轉換、格式解析、狀態驗證與 HTML 樣板生成力求純粹無副作用（相同輸入必產生相同輸出，不修改傳入引數），以實現 100% 零 Mock 單元測試能力。
+   - 試算表實體讀寫（`sheet.getRange()`, `setValues()`）、DOM 事件與焦點操作、快取（`CacheService`）與鎖定（`LockService`）等副作用應嚴格隔離於外層的命令式薄外殼（Imperative Shell）。
 
 ---
 
@@ -265,3 +269,41 @@ PR 內文應包含以下五大核心區塊：
 - **語言純淨度**：嚴禁使用中國用語（「拉取請求」應作「Pull Request」、「默認」應作「預設」、「配置」應作「設定」、「代碼」應作「程式碼」、「運行」應作「執行」、「優化」應作「最佳化」）。
 - **完整性**：內文禁止殘留未填寫的占位文字（如「請填入」等標籤），且禁止包含字面的 `\n` 跳脫字串（以免 GitHub 渲染異常）。
 - **實質檢驗**：測試核取清單至少需勾選並完成 2 項驗證，嚴禁在未執行測試前逕行宣稱通過。
+
+---
+
+## 代理協作與 OpenSpec 開發工作流程規範 (Agent & OpenSpec Workflow Guidelines)
+
+本專案之 AI 代理協作、提案規劃、實作交付與 PR 流程，必須嚴格遵守以下工作流程規範：
+
+### 1. 提案審查雙重雙輪機制（Two-Round, Two-Agent Proposal Review）
+
+在執行 `openspec-ff-change` 快速建立提案文件（包含 `proposal.md`、`design.md`、`tasks.md`、`specs/**/*.md`）之後，進入實作前必須執行**兩輪、雙代理**的嚴格審查：
+
+- **派出 2 個獨立子代理（Sub-agents）平行審查**：
+  1. **完整性與一致性審查員**：比對提案、規格、設計、任務與現行程式碼，檢查是否有所遺漏、考慮不足或前後矛盾。
+  2. **批判詰問專家**：對提案架構、設計決策、邊界相容性與潛在實作陷阱提出嚴格詰問與挑戰。
+- **雙輪審查與整合修訂要求**：
+  - 由主代理彙整 2 個子代理的審查意見並修訂提案內容。
+  - **這樣的審查與修訂流程必須嚴格執行 2 輪**（第 1 輪審查 ➔ 主代理整合修改 ➔ 第 2 輪複審 ➔ 主代理二次收斂定案），確認雙方無重大疑慮且提案完整後方可放行實作。
+
+### 2. 獨立分支開發、任務實作與提案封存流程（Branching, Task-by-Task Commit & Archive）
+
+- **獨立開發分支與提案先行提交**：
+  - 執行 `openspec-apply-change` 實作提案前，必須建立並切換至另外的獨立開發分支（或使用 git worktree 建立獨立工作區）。
+  - 在開始撰寫任何實作程式碼之前，**必須先將審查定案之提案文件（包含 proposal.md、design.md、tasks.md 與 specs/**/*.md）獨立提交（Git Commit）1 次**，確保變更規劃歷程先行落盤。
+- **單一任務獨立提交**：在使用 `openspec-apply-change` 實作提案時，必須嚴格遵守**每完成一個 task 就提交（Git Commit）1 次**的增量交付原則，禁止累積多個 task 一次性提交。
+- **全數完成後封存與發起 PR**：在完成所有 task 並通過各項檢驗後，立即執行提案封存（`openspec-archive-change`），並發起 GitHub Pull Request（PR）。
+
+### 3. PR 雙重審查與集中改進（PR Review & Consolidated Commit）
+
+- **發起 PR 後派雙代理審查**：PR 發起後，必須派出 2 個獨立的子代理（Sub-agents）全面審查整個 PR 的程式碼品質、規範遵循與回歸風險。
+- **集中改進原則**：主代理依據 2 個子代理的審查結果，並結合其他 PR 審查意見（含 CI 狀態、外部 Reviewer 意見）進行改進；所有改進**盡量濃縮為 1 個 commit 來解決**，避免零散提交污染 Git 歷程。
+
+### 4. PR 合併與環境清理流程（Squash Merge & Cleanup）
+
+- **壓扁合併（Squash Merge）**：確認解決所有審查發現的問題且 CI 品質閘門全數通過後，以 Squash Merge 方式合併 PR。
+- **本地分支同步與清理**：
+  - 合併完成後，必須立即將本地端 `main` 分支同步更新至最新狀態（`git checkout main && git pull`）。
+  - 安全移除已合併的本地分支與遠端分支。
+  - 移除開發時所建立的對應 git worktree（`git worktree remove`），保持乾淨的本機開發環境。
