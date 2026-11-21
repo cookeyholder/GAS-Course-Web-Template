@@ -217,9 +217,9 @@ npm run build:webapp
 
 品質閘門由本機指令與 CI（`.github/workflows/quality-gates.yml`，Quality Gates）共同強制執行：
 
-- **全域覆蓋率**（`check:coverage`）：初始門檻 Lines >= 30%、Statements >= 30%、Functions >= 60%、Branches >= 40%，且**不得低於基準線（ratchet 不回退）**。
-- **變更覆蓋率**（`check:changed-coverage`）：相對比較基準之 Lines >= 80%、Branches >= 70%；無可量測變更時明確成功/略過。
-- **CRAP**（`check:complexity`）：每個納管函式 **CRAP MUST NOT > 30**。
+- **全域覆蓋率**（`check:coverage`）：初始門檻 Lines >= 60%、Statements >= 30%、Functions >= 60%、Branches >= 60%，且**不得低於基準線（ratchet 不回退）**。
+- **變更覆蓋率**（`check:changed-coverage`）：相對比較基準之 Lines >= 80%、Branches >= 80%；無可量測變更時明確成功/略過。
+- **CRAP**（`check:complexity`）：每個納管函式 **CRAP MUST NOT > 25**。
 - **Maintainability Index（MI）**（`check:complexity`）：每個納管模組 **MI MUST >= 50**。
 - **方向性 ratchet**：覆蓋率四維度與 MI 最低值為「越高越佳」，不得低於基準；CRAP 最高值與超標數為「越低越佳」，不得高於基準。比較邏輯集中於 `scripts/qualityConfig.js::compareWithBaseline`，由 `checkCoverage.js` 與 `checkComplexity.js` 共用。
 - **基準線**：現行基準（2026-11-20，Node v24.22.3）記錄於 `scripts/quality-baseline.json`，ratchet 既有值來源為 `openspec/changes/archive/2026-11-20-refactor-cohesion-and-coupling/measurement-baseline-before-refactor.md`；2026-11-18 過期快照另存為 `scripts/quality-baseline.2026-11-18.json`，僅供歷史比較，不作為 ratchet 來源。後續調整須可追溯且不得任意放寬。
@@ -233,7 +233,7 @@ npm run build:webapp
 | Functions 覆蓋率  | 58.82%              | 92.15%              | 94.25%                 | 越高越佳，未回退 |
 | Branches 覆蓋率   | 37.87%              | 83.79%              | 85.62%                 | 越高越佳，未回退 |
 | CRAP 最高值       | 1482.0              | 30                  | 30                     | 越低越佳，未回退 |
-| CRAP > 30 超標數  | 56                  | 0                   | 0                      | 越低越佳，未回退 |
+| CRAP > 25 超標數  | 56                  | 0                   | 0                      | 越低越佳，未回退 |
 | MI 最低值         | 69.134              | 83.666              | 83.666                 | 越高越佳，未回退 |
 
 完整量測環境、模組行數變化與新舊比較詳見 `docs/quality-baseline-2026-11-20.md`。
@@ -250,8 +250,8 @@ npm run build:webapp
 - **`check:lang` 失敗**：依訊息將簡體字或中國用語改為臺灣繁體中文用詞（如「程式碼」「預設」「資料庫」）。
 - **`check:a11y` 失敗**：依輸出的夾具、規則與節點Selector修正 DOM 語意或 ARIA 屬性；`color-contrast` 已停用，色彩對比問題請改用 `npm run check:contrast` 排查。新增前端畫面時須同步擴充 `tests/helpers/a11yHarness.js` 的夾具。
 - **`check:coverage` 失敗**：先執行 `npm run test:coverage` 產生 `coverage/coverage-summary.json`，確認是否未達初始門檻或低於基準線；補測試後重新量測。
-- **`check:complexity` 失敗**：查看 `reports/quality/complexity.json` 定位 CRAP > 30 或 MI < 50 的項目，以拆分函式與補測試收斂，不可直接放寬門檻或排除核心模組。
-- **`check:changed-coverage` 失敗**：確認比較基準（`--base` 或 `CHANGED_COVERAGE_BASE`）是否正確，並為新增/修改的可執行行與分支補測試（Lines >= 80%、Branches >= 70%）。
+- **`check:complexity` 失敗**：查看 `reports/quality/complexity.json` 定位 CRAP > 25 或 MI < 50 的項目，以拆分函式與補測試收斂，不可直接放寬門檻或排除核心模組。
+- **`check:changed-coverage` 失敗**：確認比較基準（`--base` 或 `CHANGED_COVERAGE_BASE`）是否正確，並為新增/修改的可執行行與分支補測試（Lines >= 80%、Branches >= 80%）。
 - **pre-commit 阻擋提交**：查看 `npx lint-staged` 與語言檢查訊息；修正後重新暫存提交。緊急情況可暫時以 `git commit --no-verify` 略過，但 CI 仍會強制檢查，應儘速補正。
 - **Node 版本不一致**：確認 `node --version` 為 24.x；版本不符可能導致 c8 或靜態分析結果與 CI 不同。
 

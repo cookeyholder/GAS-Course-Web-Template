@@ -33,13 +33,13 @@ console.log("1. 驗證納管範圍與排除規則...");
 console.log("2. 驗證門檻與報告路徑設定...");
 {
   const t = qualityConfig.THRESHOLDS;
-  assert.strictEqual(t.global.lines, 30, "全域 Lines 初始門檻應為 30");
+  assert.strictEqual(t.global.lines, 60, "全域 Lines 初始門檻應為 60");
   assert.strictEqual(t.global.statements, 30, "全域 Statements 初始門檻應為 30");
   assert.strictEqual(t.global.functions, 60, "全域 Functions 初始門檻應為 60");
-  assert.strictEqual(t.global.branches, 40, "全域 Branches 初始門檻應為 40");
+  assert.strictEqual(t.global.branches, 60, "全域 Branches 初始門檻應為 60");
   assert.strictEqual(t.changed.lines, 80, "變更覆蓋率 Lines 門檻應為 80");
-  assert.strictEqual(t.changed.branches, 70, "變更覆蓋率 Branches 門檻應為 70");
-  assert.strictEqual(t.crap, 30, "CRAP 門檻應為 30");
+  assert.strictEqual(t.changed.branches, 80, "變更覆蓋率 Branches 門檻應為 80");
+  assert.strictEqual(t.crap, 25, "CRAP 門檻應為 25");
   assert.strictEqual(t.maintainability, 50, "MI 門檻應為 50");
 
   assert.strictEqual(qualityConfig.PATHS.coverageSummary, "coverage/coverage-summary.json");

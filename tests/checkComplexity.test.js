@@ -59,7 +59,7 @@ console.log("2. 驗證可由分析結果與覆蓋率評估 CRAP/MI 門檻...");
         f: {}
       }
     },
-    thresholds: { crap: 30, maintainability: 50 }
+    thresholds: { crap: 25, maintainability: 50 }
   });
 
   assert.strictEqual(report.ok, false, "存在違規時應失敗");
@@ -100,7 +100,7 @@ console.log("3. 驗證全部符合門檻時檢查成功...");
         f: {}
       }
     },
-    thresholds: { crap: 30, maintainability: 50 }
+    thresholds: { crap: 25, maintainability: 50 }
   });
   assert.strictEqual(report.ok, true, "符合門檻應成功");
   assert.strictEqual(report.violations.length, 0, "不應有違規");
@@ -125,7 +125,7 @@ console.log("3.2 驗證未提供 maintainability 門檻時正確 fallback 為 50
       }
     ],
     coverageByFile: {},
-    thresholds: { crap: 30 }
+    thresholds: { crap: 25 }
   });
   assert.strictEqual(reportDefaultFallback.ok, false, "MI 45 低於預設門檻 50 應判定違規");
   assert.strictEqual(reportDefaultFallback.summary.miUnderThreshold, 1, "應統計 1 個 MI 違規模組");
@@ -136,6 +136,24 @@ console.log("3.2 驗證未提供 maintainability 門檻時正確 fallback 為 50
     "應定位 fallback-fail.js 違規"
   );
   console.log("   ✓ 未提供 maintainability 時 fallback 預設門檻 50 驗證通過！\n");
+}
+
+console.log("3.3 驗證未提供 crap 門檻時正確 fallback 為 25...");
+{
+  const reportCrapFallback = checkComplexity.evaluateComplexity({
+    analyses: [
+      {
+        file: "fallback-crap.js",
+        maintainability: 80,
+        methods: [{ name: "highCrap", cyclomatic: 5, lineStart: 1, lineEnd: 10 }]
+      }
+    ],
+    coverageByFile: {},
+    thresholds: { maintainability: 50 }
+  });
+  assert.strictEqual(reportCrapFallback.ok, false, "CRAP 30 高於預設門檻 25 應判定違規");
+  assert.strictEqual(reportCrapFallback.summary.crapOverThreshold, 1, "應統計 1 個 CRAP 違規");
+  console.log("   ✓ 未提供 crap 時 fallback 預設門檻 25 驗證通過！\n");
 }
 
 console.log("3.5 驗證缺少檔案與函式名稱欄位時正確 fallback...\n");
@@ -153,7 +171,7 @@ console.log("3.5 驗證缺少檔案與函式名稱欄位時正確 fallback...\n"
       }
     ],
     coverageByFile: {},
-    thresholds: { crap: 30, maintainability: 50 }
+    thresholds: { crap: 25, maintainability: 50 }
   });
 
   assert.strictEqual(report.ok, false, "門檻違規時應失敗");

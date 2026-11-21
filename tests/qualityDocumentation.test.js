@@ -46,7 +46,7 @@ console.log("2. 驗證 README/AGENTS 記載 Git hook 與自動格式化...");
 
 console.log("3. 驗證文件記載品質門檻與基準線/不回退政策...");
 {
-  const thresholdTokens = ["CRAP", "30", "MI", "50", "80%", "70%", "基準線"];
+  const thresholdTokens = ["CRAP", "25", "MI", "50", "60%", "80%", "基準線"];
   thresholdTokens.forEach(function (token) {
     assert(readme.includes(token) || agents.includes(token), "README 或 AGENTS 應提及門檻/政策關鍵字：" + token);
   });
