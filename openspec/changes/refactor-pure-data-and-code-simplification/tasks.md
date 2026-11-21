@@ -7,7 +7,7 @@
 
 ## 2. 前端狀態不可變性與純表單驗證
 
-- [ ] 2.1 在 `webapp/js/imports.js` 實作純函式 `generateImportId` 與 `buildImportSuccessPatch`，透過不可變 state patch 保存 `importId` 以防護重試冪等快取，於 `tests/webappImportsPure.test.js` 驗證不可變性通過
+- [x] 2.1 在 `webapp/js/imports.js` 實作純函式 `generateImportId` 與 `buildImportSuccessPatch`，透過不可變 state patch 保存 `importId` 以防護重試冪等快取，於 `tests/webappImportsPure.test.js` 驗證不可變性通過
 - [ ] 2.2 在 `webapp/js/accounts.js` 實作純驗證函式 `validateNewAccountInput` 與陣列操作純函式（`appendAccountToList`、`removeAccountFromList`、`toggleAccountInList`）並隨外層匯出，於 `tests/webappAccountsPure.test.js` 驗證零 DOM 測試通過
 - [ ] 2.3 在 `webapp/js/errorMessages.js` 擴充 `resolveSafeMessage(value, fallback, codeMap)` 支援代碼字典注入與優先轉譯，於 `tests/webappSafeErrorMessages.test.js` 驗證既有安全遮蔽與自訂代碼轉譯通過
 

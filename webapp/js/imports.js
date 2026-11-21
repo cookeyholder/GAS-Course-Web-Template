@@ -262,6 +262,32 @@
   }
 
   /**
+   * 產生唯一的匯入操作識別碼 (UUID-like)
+   *
+   * @returns {string} 識別碼
+   */
+  function generateImportId() {
+    return "imp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+  }
+
+  /**
+   * 建構匯入成功後的狀態更新物件（不可變）
+   *
+   * @param {Object} entry - 當前匯入項目
+   * @param {Object} result - 後端回傳結果
+   * @returns {Object} State patch 物件
+   */
+  function buildImportSuccessPatch(entry, result) {
+    return {
+      imports: {
+        courseCodes: Object.assign({}, entry, { imported: true })
+      },
+      importLast: result,
+      importBusy: false
+    };
+  }
+
+  /**
    * 建立可注入依賴的匯入模組實例。
    *
    * @param {Object} deps - MEA、window、document 與選擇性 FileReader 依賴
@@ -485,18 +511,13 @@
     }
 
     function handleImportResult(entry, result) {
-      MEA.setState({ importBusy: false });
       if (!result || result.ok !== true) {
+        MEA.setState({ importBusy: false });
         MEA.ui.toast((result && result.message) || "匯入失敗", "err");
         return;
       }
 
-      MEA.setState({
-        imports: {
-          courseCodes: Object.assign({}, entry, { imported: true })
-        },
-        importLast: result
-      });
+      MEA.setState(buildImportSuccessPatch(entry, result));
 
       MEA.ui.toast(
         result.idempotent === true
@@ -523,9 +544,13 @@
         return;
       }
 
-      // 同一筆匯入重送時沿用 importId，讓後端可直接回傳前次結果。
+      const importId = entry.importId || generateImportId();
       if (!entry.importId) {
-        entry.importId = "imp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+        entry.importId = importId;
+        const nextImports = Object.assign({}, MEA.state.imports, {
+          courseCodes: Object.assign({}, entry, { importId: importId })
+        });
+        MEA.setState({ imports: nextImports });
       }
 
       MEA.setState({ importBusy: true });
@@ -537,7 +562,7 @@
           {
             rows: entry.payload,
             preNormalized: true,
-            importId: entry.importId
+            importId: importId
           },
           { retry: false }
         )
@@ -609,6 +634,8 @@
     renderSampleRowsHtml: renderSampleRowsHtml,
     renderMetricsHtml: renderMetricsHtml,
     renderPreviewCardHtml: renderPreviewCardHtml,
-    renderPanelHtml: renderPanelHtml
+    renderPanelHtml: renderPanelHtml,
+    generateImportId: generateImportId,
+    buildImportSuccessPatch: buildImportSuccessPatch
   };
 });
