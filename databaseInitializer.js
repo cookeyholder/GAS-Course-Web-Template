@@ -332,20 +332,15 @@ function initializeDatabaseSheets(options) {
  * @returns {boolean} 是否啟用
  */
 function parseConfigBoolean(value) {
-  const codec = getSystemConfigCodec_();
-  return codec ? codec.parseConfigBoolean(value) : String(value).toLowerCase() === "true";
+  return getSystemConfigCodec_().parseConfigBoolean(value);
 }
 
 function getSystemConfigCodec_() {
-  if (GAS_RUNTIME && typeof GAS_RUNTIME.resolveDependency_ === "function") {
-    return GAS_RUNTIME.resolveDependency_("systemConfigCodec", "./systemConfigCodec.js", null);
-  }
-  return typeof systemConfigCodec !== "undefined" ? systemConfigCodec : null;
+  return GAS_RUNTIME.resolveDependency_("systemConfigCodec", "./systemConfigCodec.js", null, null, true);
 }
 
 function readSystemSettingsFromMemory_() {
-  const codec = getSystemConfigCodec_();
-  return codec ? codec.normalizeSystemSettings(MEMORY_SYSTEM_CONFIG) : Object.assign({}, MEMORY_SYSTEM_CONFIG);
+  return getSystemConfigCodec_().normalizeSystemSettings(MEMORY_SYSTEM_CONFIG);
 }
 
 function readSystemSettingsRows_(sheet) {
@@ -357,8 +352,7 @@ function readSystemSettingsFromSheet_(ss) {
   const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
   if (!sheet) return {};
   const rows = readSystemSettingsRows_(sheet);
-  const codec = getSystemConfigCodec_();
-  return codec ? codec.parseSystemSettingsRows(rows) : {};
+  return getSystemConfigCodec_().parseSystemSettingsRows(rows);
 }
 
 /**
@@ -382,22 +376,9 @@ function readSystemSettings(ss) {
  */
 function saveSystemSettingsToMemory_(updates) {
   const codec = getSystemConfigCodec_();
-  const source = updates || {};
-  if (codec) {
-    for (const k in source) {
-      const targetKey = codec.SYSTEM_SETTING_KEY_MAP[k] || k;
-      if (targetKey === "登入白名單限制啟用") {
-        MEMORY_SYSTEM_CONFIG[targetKey] = codec.parseConfigBoolean(source[k]) ? "true" : "false";
-      } else if (targetKey === "Google 登入允許網域") {
-        MEMORY_SYSTEM_CONFIG[targetKey] = codec.normalizeAllowedDomain(source[k]);
-      } else {
-        MEMORY_SYSTEM_CONFIG[targetKey] = source[k] === null || source[k] === undefined ? "" : String(source[k]);
-      }
-    }
-    return { ok: true };
-  }
-  for (const key in source) {
-    MEMORY_SYSTEM_CONFIG[key] = source[key];
+  for (const k in updates) {
+    const targetKey = codec.SYSTEM_SETTING_KEY_MAP[k] || k;
+    MEMORY_SYSTEM_CONFIG[targetKey] = codec.normalizeSystemSettingValue(targetKey, updates[k]);
   }
   return { ok: true };
 }
@@ -410,23 +391,20 @@ function getSystemConfigSheet_(ss) {
 
 function saveSystemSettingsToSheet_(ss, updates) {
   const sheet = getSystemConfigSheet_(ss);
-  const range = sheet.getRange("A2:B30");
+  const lastRow = Math.max(sheet.getLastRow(), 30);
+  const totalRows = lastRow - 1;
+  const range = totalRows === 29 ? sheet.getRange("A2:B30") : sheet.getRange(2, 1, totalRows, 2);
   const codec = getSystemConfigCodec_();
   const existingValues = range.getValues();
-  const mergedValues = codec
-    ? codec.mergeSystemSettingsRows(existingValues, updates, { targetRowCount: 29 })
-    : existingValues;
-  if (mergedValues.length > 29) {
-    const baseRows = mergedValues.slice(0, 29);
-    const extraRows = mergedValues.slice(29);
-    const safeBase = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(baseRows) : baseRows;
-    range.setValues(safeBase);
-    const safeExtra = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(extraRows) : extraRows;
+  const mergedValues = codec.mergeSystemSettingsRows(existingValues, updates, { targetRowCount: totalRows });
+  if (mergedValues.length > totalRows) {
+    const baseRows = mergedValues.slice(0, totalRows);
+    const extraRows = mergedValues.slice(totalRows);
+    range.setValues(baseRows);
     const nextRow = sheet.getLastRow() + 1;
-    sheet.getRange(nextRow, 1, safeExtra.length, 2).setValues(safeExtra);
+    sheet.getRange(nextRow, 1, extraRows.length, 2).setValues(extraRows);
   } else {
-    const safeValues = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(mergedValues) : mergedValues;
-    range.setValues(safeValues);
+    range.setValues(mergedValues);
   }
   return { ok: true };
 }
@@ -462,16 +440,15 @@ function readWhitelistRowsFromSheet_(sheet) {
 function readWhitelist(ss) {
   const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
   if (!targetSs) return MEMORY_WHITELIST.slice();
-  const codec = getSystemConfigCodec_();
   const values = readWhitelistRowsFromSheet_(getWhitelistSheet_(targetSs));
-  return codec ? codec.parseWhitelistRows(values) : [];
+  return getSystemConfigCodec_().parseWhitelistRows(values);
 }
 
 function saveWhitelistToMemory_(list) {
   MEMORY_WHITELIST.length = 0;
   const codec = getSystemConfigCodec_();
   for (let i = 0; i < list.length; i++) {
-    const account = codec ? codec.normalizeWhitelistAccount(list[i]) : null;
+    const account = codec.normalizeWhitelistAccount(list[i]);
     if (account) MEMORY_WHITELIST.push(account);
   }
   return { ok: true, count: MEMORY_WHITELIST.length };
@@ -490,8 +467,7 @@ function writeWhitelistSheetRows_(sheet, rows) {
 
 function saveWhitelistToSheet_(ss, list) {
   const sheet = getSystemConfigSheet_(ss);
-  const codec = getSystemConfigCodec_();
-  const rows = codec ? codec.serializeWhitelistRows(list) : [];
+  const rows = getSystemConfigCodec_().serializeWhitelistRows(list);
   clearWhitelistSheetRange_(sheet);
   writeWhitelistSheetRows_(sheet, rows);
   return { ok: true, count: rows.length };

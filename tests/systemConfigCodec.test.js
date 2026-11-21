@@ -14,6 +14,8 @@ console.log("開始執行 systemConfigCodec 單元測試...\n");
 // ----------------------------------------------------------------------------
 console.log("1. 模組骨架與基本函式匯出驗證...");
 assert.strictEqual(typeof codec, "object", "應匯出物件");
+assert.strictEqual(codec.systemConfigCodec, codec, "應掛載自體屬性 systemConfigCodec");
+assert.strictEqual(typeof codec.normalizeSystemSettingValue, "function", "應匯出 normalizeSystemSettingValue");
 assert.strictEqual(typeof codec.normalizeSystemSettings, "function", "應匯出 normalizeSystemSettings");
 assert.strictEqual(typeof codec.parseSystemSettingsRows, "function", "應匯出 parseSystemSettingsRows");
 assert.strictEqual(typeof codec.mergeSystemSettingsRows, "function", "應匯出 mergeSystemSettingsRows");
@@ -205,6 +207,13 @@ assert.strictEqual(staffAccount.email, "staff@school.edu.tw");
 assert.strictEqual(staffAccount.role, "staff");
 assert.strictEqual(staffAccount.roleName, "業務人員");
 assert.strictEqual(staffAccount.enabled, true, "未指定 enabled 應預設為 true");
+
+// 支援寬容啟動字串（如 "TRUE"、"yes"、"是"、"啟用"）
+const enabledAccount = codec.normalizeWhitelistAccount({
+  email: "enable@test.com",
+  enabled: "TRUE"
+});
+assert.strictEqual(enabledAccount.enabled, true, "字串 TRUE 應解析為 true");
 
 // 停用狀態解析（字串 false, 否, 數字 0）
 const disabled1 = codec.normalizeWhitelistAccount({

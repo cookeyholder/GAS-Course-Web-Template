@@ -293,7 +293,9 @@ PR 內文應包含以下五大核心區塊：
   - 執行 `openspec-apply-change` 實作提案前，必須建立並切換至另外的獨立開發分支（或使用 git worktree 建立獨立工作區）。
   - 在開始撰寫任何實作程式碼之前，**必須先將審查定案之提案文件（包含 proposal.md、design.md、tasks.md 與 specs/**/*.md）獨立提交（Git Commit）1 次**，確保變更規劃歷程先行落盤。
 - **單一任務獨立提交**：在使用 `openspec-apply-change` 實作提案時，必須嚴格遵守**每完成一個 task 就提交（Git Commit）1 次**的增量交付原則，禁止累積多個 task 一次性提交。
-- **全數完成後封存與發起 PR**：在完成所有 task 並通過各項檢驗後，立即執行提案封存（`openspec-archive-change`），並發起 GitHub Pull Request（PR）。
+- **全數完成後封存與本地預跑 CI**：
+  - 在完成所有 task 並通過各項檢驗後，執行提案封存（`openspec-archive-change`）。
+  - **發起 PR 前必須在本地端預跑完整 CI 品質閘門**（包含 `npm run format:check`、`npm run check:lang`、`npm test`、`npm run check:contrast`、`npm run check:a11y`、`npm run check:coverage`、`npm run check:complexity`、`CHANGED_COVERAGE_BASE=origin/main npm run check:changed-coverage`），確定本地預跑 CI 全數通過後，方可將分支推送至遠端並發起 GitHub Pull Request（PR）。
 
 ### 3. PR 雙重審查與集中改進（PR Review & Consolidated Commit）
 

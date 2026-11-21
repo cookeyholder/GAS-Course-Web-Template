@@ -17,6 +17,7 @@
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
+    module.exports.systemConfigCodec = api;
   }
   if (root) {
     root.systemConfigCodec = api;
@@ -292,14 +293,7 @@
     if (!email) return null;
 
     const rawEnabled = item.enabled;
-    const enabled =
-      rawEnabled === true ||
-      rawEnabled === "true" ||
-      rawEnabled === "是" ||
-      rawEnabled === 1 ||
-      rawEnabled === "1" ||
-      rawEnabled === "啟用" ||
-      (rawEnabled === undefined ? true : false);
+    const enabled = rawEnabled === undefined ? true : parseConfigBoolean(rawEnabled);
 
     const role = normalizeRole(item.role);
     const roleName = getRoleDisplayName(role);
@@ -384,6 +378,7 @@
     normalizeAllowedDomain: normalizeAllowedDomain,
     normalizeRole: normalizeRole,
     getRoleDisplayName: getRoleDisplayName,
+    normalizeSystemSettingValue: normalizeSystemSettingValue,
     normalizeSystemSettings: normalizeSystemSettings,
     parseSystemSettingsRows: parseSystemSettingsRows,
     mergeSystemSettingsRows: mergeSystemSettingsRows,
@@ -391,4 +386,7 @@
     parseWhitelistRows: parseWhitelistRows,
     serializeWhitelistRows: serializeWhitelistRows
   };
+
+  api.systemConfigCodec = api;
+  return api;
 });
