@@ -8771,10 +8771,24 @@ html[data-theme="dark"][data-style="claymorphism"] .matrix-filter-pill.active {
    *
    * @param {*} value - 例外、API 結果或未知值
    * @param {string} [fallback] - 無法安全顯示時使用的文案
+   * @param {Object} [codeMap] - 可選之錯誤代碼對照表
    * @returns {string} 可顯示的錯誤訊息
    */
-  function resolveSafeMessage(value, fallback) {
+  function resolveSafeMessage(value, fallback, codeMap) {
     const safeFallback = typeof fallback === "string" && fallback ? fallback : DEFAULT_MESSAGE;
+
+    if (codeMap && typeof codeMap === "object") {
+      let code = null;
+      if (typeof value === "string") {
+        code = value;
+      } else if (value && typeof value === "object") {
+        code = value.code || value.error || null;
+      }
+      if (code && typeof codeMap[code] === "string" && codeMap[code]) {
+        return codeMap[code];
+      }
+    }
+
     if (!value || typeof value !== "object") return safeFallback;
     if (typeof value.safeMessage === "string" && value.safeMessage) return value.safeMessage;
     if (value instanceof Error) return safeFallback;
@@ -11521,6 +11535,32 @@ window.MEA = window.MEA || {};
   }
 
   /**
+   * 產生唯一的匯入操作識別碼 (UUID-like)
+   *
+   * @returns {string} 識別碼
+   */
+  function generateImportId() {
+    return "imp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+  }
+
+  /**
+   * 建構匯入成功後的狀態更新物件（不可變）
+   *
+   * @param {Object} entry - 當前匯入項目
+   * @param {Object} result - 後端回傳結果
+   * @returns {Object} State patch 物件
+   */
+  function buildImportSuccessPatch(entry, result) {
+    return {
+      imports: {
+        courseCodes: Object.assign({}, entry, { imported: true })
+      },
+      importLast: result,
+      importBusy: false
+    };
+  }
+
+  /**
    * 建立可注入依賴的匯入模組實例。
    *
    * @param {Object} deps - MEA、window、document 與選擇性 FileReader 依賴
@@ -11744,18 +11784,13 @@ window.MEA = window.MEA || {};
     }
 
     function handleImportResult(entry, result) {
-      MEA.setState({ importBusy: false });
       if (!result || result.ok !== true) {
+        MEA.setState({ importBusy: false });
         MEA.ui.toast((result && result.message) || "匯入失敗", "err");
         return;
       }
 
-      MEA.setState({
-        imports: {
-          courseCodes: Object.assign({}, entry, { imported: true })
-        },
-        importLast: result
-      });
+      MEA.setState(buildImportSuccessPatch(entry, result));
 
       MEA.ui.toast(
         result.idempotent === true
@@ -11782,9 +11817,13 @@ window.MEA = window.MEA || {};
         return;
       }
 
-      // 同一筆匯入重送時沿用 importId，讓後端可直接回傳前次結果。
+      const importId = entry.importId || generateImportId();
       if (!entry.importId) {
-        entry.importId = "imp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 10);
+        entry.importId = importId;
+        const nextImports = Object.assign({}, MEA.state.imports, {
+          courseCodes: Object.assign({}, entry, { importId: importId })
+        });
+        MEA.setState({ imports: nextImports });
       }
 
       MEA.setState({ importBusy: true });
@@ -11796,7 +11835,7 @@ window.MEA = window.MEA || {};
           {
             rows: entry.payload,
             preNormalized: true,
-            importId: entry.importId
+            importId: importId
           },
           { retry: false }
         )
@@ -11868,7 +11907,9 @@ window.MEA = window.MEA || {};
     renderSampleRowsHtml: renderSampleRowsHtml,
     renderMetricsHtml: renderMetricsHtml,
     renderPreviewCardHtml: renderPreviewCardHtml,
-    renderPanelHtml: renderPanelHtml
+    renderPanelHtml: renderPanelHtml,
+    generateImportId: generateImportId,
+    buildImportSuccessPatch: buildImportSuccessPatch
   };
 });
   </script>
@@ -12338,6 +12379,85 @@ window.MEA = window.MEA || {};
   const moduleHelpers = typeof require === "function" ? require("./moduleHelpers.js") : globalThis.MEA.moduleHelpers;
 
   /**
+   * 純驗證函式：檢查新增帳號表單輸入值
+   *
+   * @param {Object} input - 輸入值 { email, role, name, enabled }
+   * @param {Array<Object>} existingAccounts - 現有帳號清單
+   * @returns {Object} `{ valid: boolean, errorKey?: string, message?: string }`
+   */
+  function validateNewAccountInput(input, existingAccounts) {
+    const source = input || {};
+    const email = String(source.email || "").trim().toLowerCase();
+    if (!email || email.indexOf("@") === -1) {
+      return {
+        valid: false,
+        errorKey: "invalid_email",
+        message: "請填寫有效的 Email"
+      };
+    }
+
+    const accounts = Array.isArray(existingAccounts) ? existingAccounts : [];
+    for (let i = 0; i < accounts.length; i++) {
+      const item = accounts[i];
+      if (item && String(item.email || "").trim().toLowerCase() === email) {
+        return {
+          valid: false,
+          errorKey: "duplicate_email",
+          message: "此 Email 已在白名單中"
+        };
+      }
+    }
+
+    return { valid: true };
+  }
+
+  /**
+   * 不可變新增帳號至清單
+   *
+   * @param {Array<Object>} accounts - 現有帳號清單
+   * @param {Object} newAccount - 新帳號物件
+   * @returns {Array<Object>} 全新陣列
+   */
+  function appendAccountToList(accounts, newAccount) {
+    const list = Array.isArray(accounts) ? accounts.slice() : [];
+    if (!newAccount) return list;
+    return list.concat([Object.assign({}, newAccount)]);
+  }
+
+  /**
+   * 不可變自清單中移除指定 Email 帳號
+   *
+   * @param {Array<Object>} accounts - 現有帳號清單
+   * @param {string} email - 目標 Email
+   * @returns {Array<Object>} 全新陣列
+   */
+  function removeAccountFromList(accounts, email) {
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const list = Array.isArray(accounts) ? accounts : [];
+    return list.filter(function (a) {
+      return a && String(a.email || "").trim().toLowerCase() !== cleanEmail;
+    });
+  }
+
+  /**
+   * 不可變切換指定 Email 帳號之啟用狀態
+   *
+   * @param {Array<Object>} accounts - 現有帳號清單
+   * @param {string} email - 目標 Email
+   * @returns {Array<Object>} 全新陣列
+   */
+  function toggleAccountInList(accounts, email) {
+    const cleanEmail = String(email || "").trim().toLowerCase();
+    const list = Array.isArray(accounts) ? accounts : [];
+    return list.map(function (a) {
+      if (a && String(a.email || "").trim().toLowerCase() === cleanEmail) {
+        return Object.assign({}, a, { enabled: !a.enabled });
+      }
+      return a;
+    });
+  }
+
+  /**
    * 建立帳號與系統設定模組控制器。
    *
    * @param {Object} [deps] - 依賴注入（MEA、document）
@@ -12621,18 +12741,22 @@ window.MEA = window.MEA || {};
     function handleAddAccountClick() {
       const values = readNewAccountValues();
       clearFieldError(getElementById("newAccountEmail"));
-      if (!values.email || values.email.indexOf("@") === -1) {
-        setFieldError("newAccountEmail", "請填寫有效的 Email");
-        return;
-      }
-
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
-      if (isDuplicateEmail(cur, values.email)) {
-        setFieldError("newAccountEmail", "此 Email 已在白名單中");
+      const validation = validateNewAccountInput(values, cur);
+      if (!validation.valid) {
+        setFieldError("newAccountEmail", validation.message);
         return;
       }
 
-      saveAccountsList(buildUpdatedAccounts(cur, values));
+      const roleName = (MEA.config && MEA.config.roleNames && MEA.config.roleNames[values.role]) || values.role;
+      const newAccount = {
+        email: values.email,
+        name: values.name || values.email,
+        role: values.role,
+        roleName: roleName,
+        enabled: true
+      };
+      saveAccountsList(appendAccountToList(cur, newAccount));
       MEA.ui.closeModal();
     }
 
@@ -12688,9 +12812,7 @@ window.MEA = window.MEA || {};
 
     function removeAccount(email) {
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
-      const updated = cur.filter(function (a) {
-        return a.email !== email;
-      });
+      const updated = removeAccountFromList(cur, email);
       MEA.ui.modal(
         "確認刪除授權成員",
         '<p class="mb-2">確定要刪除 <strong>' +
@@ -12712,12 +12834,7 @@ window.MEA = window.MEA || {};
 
     function toggleAccount(email) {
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
-      const updated = cur.map(function (a) {
-        if (a.email === email) {
-          return Object.assign({}, a, { enabled: !a.enabled });
-        }
-        return a;
-      });
+      const updated = toggleAccountInList(cur, email);
       saveAccountsList(updated);
     }
 
@@ -12994,7 +13111,11 @@ window.MEA = window.MEA || {};
   }
 
   return {
-    createAccountsModule: createAccountsModule
+    createAccountsModule: createAccountsModule,
+    validateNewAccountInput: validateNewAccountInput,
+    appendAccountToList: appendAccountToList,
+    removeAccountFromList: removeAccountFromList,
+    toggleAccountInList: toggleAccountInList
   };
 });
   </script>

@@ -13,5 +13,5 @@
 
 ## 3. 前端打包與全專案品質閘門驗證
 
-- [ ] 3.1 執行 `npm run build:webapp`，確認打包產物 `index.html` 正常更新，且 `npm run check:ui-classes` 與 `npm run check:a11y` 檢查通過
+- [x] 3.1 執行 `npm run build:webapp`，確認打包產物 `index.html` 正常更新，且 `npm run check:ui-classes` 與 `npm run check:a11y` 檢查通過
 - [ ] 3.2 本地預跑完整 CI 品質驗證（`format:check`、`check:lang`、`test`、`check:contrast`、`check:a11y`、`check:coverage`、`check:complexity`、`check:changed-coverage`）確認全數綠燈
