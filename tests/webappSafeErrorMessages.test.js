@@ -39,4 +39,35 @@ console.log("4. 字串與空值一律使用備援文案...");
   console.log("   ✓ 未知輸入驗證通過！\n");
 }
 
+console.log("5. 擴充代碼字典 codeMap 優先轉譯驗證...");
+{
+  const customMap = {
+    lock_timeout: "系統忙碌中，請稍候重試",
+    account_duplicate: "此帳號已存在於白名單中"
+  };
+
+  // 物件 error 屬性匹配
+  assert.strictEqual(
+    safeErrors.resolveSafeMessage({ error: "lock_timeout" }, "備援", customMap),
+    "系統忙碌中，請稍候重試"
+  );
+
+  // 物件 code 屬性匹配
+  assert.strictEqual(
+    safeErrors.resolveSafeMessage({ code: "account_duplicate" }, "備援", customMap),
+    "此帳號已存在於白名單中"
+  );
+
+  // 純字串 code 匹配
+  assert.strictEqual(safeErrors.resolveSafeMessage("lock_timeout", "備援", customMap), "系統忙碌中，請稍候重試");
+
+  // codeMap 未命中時安全回退
+  assert.strictEqual(safeErrors.resolveSafeMessage("unknown_code", "備援", customMap), "備援");
+
+  // codeMap 命中但值為空時安全回退
+  assert.strictEqual(safeErrors.resolveSafeMessage({ error: "empty_val" }, "備援", { empty_val: "" }), "備援");
+
+  console.log("   ✓ 代碼字典優先轉譯與安全遮蔽驗證通過！\n");
+}
+
 console.log("✓ 前端安全錯誤訊息測試全數通過！\n");

@@ -50,6 +50,8 @@ function safeApplySheetFontSize(range, size) {
   }
 }
 
+const FORMULA_PREFIX_REGEX = /^[+=@\t\r-]/;
+
 /**
  * 試算表公式注入跳脫單一值 (Formula Immunization)
  * 若字串以 =, +, -, @, \t, \r 開頭，自動加上前置單引號跳脫
@@ -58,10 +60,8 @@ function safeApplySheetFontSize(range, size) {
  * @returns {*} 安全值
  */
 function sanitizeFormulaValue(val) {
-  if (typeof val !== "string") return val;
-  if (!val) return val;
-  const first = val.charAt(0);
-  if (first === "=" || first === "+" || first === "-" || first === "@" || first === "\t" || first === "\r") {
+  if (typeof val !== "string" || !val) return val;
+  if (FORMULA_PREFIX_REGEX.test(val)) {
     return "'" + val;
   }
   return val;
@@ -98,12 +98,30 @@ function safeSetNumberFormat(range, format) {
   }
 }
 
+/**
+ * 將陣列切分為指定大小的批次塊 (Chunking)
+ *
+ * @param {Array<*>} array - 來源陣列
+ * @param {number} chunkSize - 每批數量（正整數）
+ * @returns {Array<Array<*>>} 切分後的二維陣列
+ */
+function chunkArray(array, chunkSize) {
+  if (!Array.isArray(array) || array.length === 0) return [];
+  const size = Math.max(1, parseInt(chunkSize, 10) || 1);
+  const chunks = [];
+  for (let i = 0; i < array.length; i += size) {
+    chunks.push(array.slice(i, i + size));
+  }
+  return chunks;
+}
+
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     safeUiAlert: safeUiAlert,
     safeApplySheetFontSize: safeApplySheetFontSize,
     safeSetNumberFormat: safeSetNumberFormat,
     sanitizeFormulaValue: sanitizeFormulaValue,
-    sanitizeRowMatrix: sanitizeRowMatrix
+    sanitizeRowMatrix: sanitizeRowMatrix,
+    chunkArray: chunkArray
   };
 }

@@ -140,6 +140,26 @@
   }
 
   /**
+   * 於授權白名單陣列中查詢指定 Email 之帳號（不分大小寫與前後空白修剪）
+   *
+   * @param {Array<Object>} accounts - 帳號物件陣列
+   * @param {string} email - 目標電子郵件
+   * @returns {Object|null} 匹配的帳號物件，查無或輸入無效時回傳 null
+   */
+  function findAccountInWhitelist(accounts, email) {
+    if (!Array.isArray(accounts) || accounts.length === 0) return null;
+    const targetEmail = normalizeLowerTrim(email);
+    if (!targetEmail) return null;
+    for (let i = 0; i < accounts.length; i++) {
+      const acc = accounts[i];
+      if (acc && normalizeLowerTrim(acc.email) === targetEmail) {
+        return acc;
+      }
+    }
+    return null;
+  }
+
+  /**
    * 系統設定值型態正規化。
    *
    * @param {string} targetKey - 目標中文鍵名
@@ -378,6 +398,7 @@
     normalizeAllowedDomain: normalizeAllowedDomain,
     normalizeRole: normalizeRole,
     getRoleDisplayName: getRoleDisplayName,
+    findAccountInWhitelist: findAccountInWhitelist,
     normalizeSystemSettingValue: normalizeSystemSettingValue,
     normalizeSystemSettings: normalizeSystemSettings,
     parseSystemSettingsRows: parseSystemSettingsRows,

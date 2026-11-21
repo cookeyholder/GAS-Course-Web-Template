@@ -111,14 +111,26 @@ function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
   sheet.getRange(1, 1, totalDataRows + 1, colCount).setNumberFormat("@");
 }
 
+function chunkArrayFallback_(arr, size) {
+  if (!Array.isArray(arr) || arr.length === 0) return [];
+  const s = Math.max(1, parseInt(size, 10) || 1);
+  const res = [];
+  for (let i = 0; i < arr.length; i += s) res.push(arr.slice(i, i + s));
+  return res;
+}
+
 function writeCourseIndexRowsInChunks_(sheet, rows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
   const sanitize = resolveRouteDependency_("sanitizeRowMatrix", "./utilities.js", function (matrix) {
     return matrix;
   });
-  for (let start = 0; start < rows.length; start += COURSE_INDEX_WRITE_CHUNK_SIZE) {
-    const chunk = rows.slice(start, start + COURSE_INDEX_WRITE_CHUNK_SIZE);
-    sheet.getRange(start + 2, 1, chunk.length, colCount).setValues(sanitize(chunk));
+  const getChunkArray = resolveRouteDependency_("chunkArray", "./utilities.js", chunkArrayFallback_);
+  const chunks = getChunkArray(rows, COURSE_INDEX_WRITE_CHUNK_SIZE);
+  let currentRow = 2;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunk = chunks[i];
+    sheet.getRange(currentRow, 1, chunk.length, colCount).setValues(sanitize(chunk));
+    currentRow += chunk.length;
   }
 }
 
@@ -306,6 +318,29 @@ function buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, page, page
 }
 
 /**
+ * 純二維資料列篩選與分頁查詢函式（零 GAS / 零試算表依賴）
+ *
+ * @param {Array<Array<*>>} dataRows - 二維資料列矩陣（不含表頭）
+ * @param {Object} [filter] - 篩選條件
+ * @param {string} [filter.keyword] - 科目名稱或代碼關鍵字
+ * @param {string} [filter.academicYear] - 開課學年
+ * @param {string} [filter.semester] - 開課學期
+ * @param {string} [filter.department] - 科別
+ * @param {number} [filter.page=1] - 頁碼（1-based）
+ * @param {number} [filter.pageSize=50] - 每頁筆數
+ * @returns {Object} 查詢結果 `{ ok: true, list, total, page, pageSize, totalPages }`
+ */
+function queryCourseDataRows(dataRows, filter) {
+  const paging = normalizeCoursePageParams_(filter);
+  if (!Array.isArray(dataRows) || dataRows.length === 0) {
+    return createEmptyCourseQueryResult_(paging.page, paging.pageSize, 0);
+  }
+  const criteria = normalizeCourseQueryCriteria_(filter);
+  const matchedIndexes = collectMatchedCourseRowIndexes_(dataRows, criteria);
+  return buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, paging.page, paging.pageSize);
+}
+
+/**
  * 讀取並分頁查詢正規化課程代碼
  *
  * @param {Object} [filter] - 篩選條件
@@ -322,11 +357,7 @@ function getNormalizedCourses(filter, ss) {
   const targetSs = resolveCourseIndexSpreadsheet_(ss);
   const dataRows = getCourseIndexDataRows_(targetSs);
   if (!dataRows) return createEmptyCourseQueryResult_();
-
-  const criteria = normalizeCourseQueryCriteria_(filter);
-  const matchedIndexes = collectMatchedCourseRowIndexes_(dataRows, criteria);
-  const paging = normalizeCoursePageParams_(filter);
-  return buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, paging.page, paging.pageSize);
+  return queryCourseDataRows(dataRows, filter);
 }
 
 if (typeof module !== "undefined" && module.exports) {
@@ -352,6 +383,9 @@ if (typeof module !== "undefined" && module.exports) {
     normalizeCourseCodes: normalizeCourseCodes,
     importNormalizedCourseCodes: importNormalizedCourseCodes,
     getNormalizedCourses: getNormalizedCourses,
+    queryCourseDataRows: queryCourseDataRows,
+    chunkArrayFallback_: chunkArrayFallback_,
+    chunkArray: resolveRouteDependency_("chunkArray", "./utilities.js", chunkArrayFallback_),
     getCourseIndexStats: getCourseIndexStats
   };
 }
