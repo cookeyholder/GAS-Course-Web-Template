@@ -353,39 +353,6 @@
     }
 
     /**
-     * 檢查 Email 是否已在白名單中。
-     *
-     * @param {Array<Object>} accounts - 現有帳號陣列
-     * @param {string} email - 待檢查 Email
-     * @returns {boolean} 是否已存在
-     */
-    function isDuplicateEmail(accounts, email) {
-      for (let i = 0; i < accounts.length; i++) {
-        if (accounts[i].email === email) return true;
-      }
-      return false;
-    }
-
-    /**
-     * 由表單值產生更新後的帳號陣列。
-     *
-     * @param {Array<Object>} accounts - 現有帳號陣列
-     * @param {Object} values - 表單值快照
-     * @returns {Array<Object>} 更新後的帳號陣列
-     */
-    function buildUpdatedAccounts(accounts, values) {
-      return accounts.concat([
-        {
-          email: values.email,
-          name: values.name || values.email,
-          role: values.role,
-          roleName: MEA.config.roleNames[values.role] || values.role,
-          enabled: true
-        }
-      ]);
-    }
-
-    /**
      * 標記欄位驗證失敗，並以欄位層級錯誤訊息通知輔助科技。
      *
      * @param {string} fieldId - 表單控制項 id
