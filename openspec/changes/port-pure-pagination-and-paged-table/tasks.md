@@ -5,9 +5,9 @@
 
 ## 2. 通用純函式分頁與表格容器實作
 
-- [ ] 2.1 在 `webapp/js/ui.js` 實作分頁純運算器 `calculatePaginationWindow` 與雙模式雙向分頁工具列渲染器 `renderPaginationBar`（拆分 `renderPageSizeSelect_`、`renderPageJumpSelect_`、`renderPaginationNavButtons_`、`renderPaginationSummary_`），確保單一函式圈複雜度 $\le 4$，並於 UMD 工廠雙層匯出。
-- [ ] 2.2 在 `webapp/js/ui.js` 實作資料表格輔助純函式（`normalizeTableAlign`、`renderTableHead`、`renderTableStatusRow`、`renderTableBody`）與高階純函式組合容器 `renderPagedTable`（預設輸出 `table-responsive table-container` 容器並保護 `<td>` 單元格語意），並於 UMD 工廠雙層匯出。
-- [ ] 2.3 建立單元測試 `tests/paginationWindow.test.js` 與 `tests/pagedTable.test.js`，完整覆蓋邊界計算、除零防禦、雙向無障礙屬性、XSS 防禦與雙模式事件屬性，以 `npm test` 驗證通過。
+- [x] 2.1 在 `webapp/js/ui.js` 實作分頁純運算器 `calculatePaginationWindow` 與雙模式雙向分頁工具列渲染器 `renderPaginationBar`（拆分 `renderPageSizeSelect_`、`renderPageJumpSelect_`、`renderPaginationNavButtons_`、`renderPaginationSummary_`），確保單一函式圈複雜度 $\le 4$，並於 UMD 工廠雙層匯出。
+- [x] 2.2 在 `webapp/js/ui.js` 實作資料表格輔助純函式（`normalizeTableAlign`、`renderTableHead`、`renderTableStatusRow`、`renderTableBody`）與高階純函式組合容器 `renderPagedTable`（預設輸出 `table-responsive table-container` 容器並保護 `<td>` 單元格語意），並於 UMD 工廠雙層匯出。
+- [x] 2.3 建立單元測試 `tests/paginationWindow.test.js` 與 `tests/pagedTable.test.js`，完整覆蓋邊界計算、除零防禦、雙向無障礙屬性、XSS 防禦與雙模式事件屬性，以 `npm test` 驗證通過。
 
 ## 3. 全站表格改用 paged-table-container 與補齊篩選下拉選單
 
