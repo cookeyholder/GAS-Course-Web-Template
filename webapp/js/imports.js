@@ -108,6 +108,28 @@
   }
 
   /**
+   * 建立 108 課綱課程代碼官方來源管道與格式禁忌指引卡片。
+   *
+   * @returns {string} 指引區塊 HTML
+   */
+  function renderCourseCodeGuidanceHtml() {
+    return (
+      '<div class="course-guidance-card mt-4" style="background:var(--fill);border:1px solid var(--line-2);border-radius:8px;padding:16px 20px;" role="region" aria-label="108 課綱課程代碼官方來源管道指引">' +
+      '  <h4 style="margin:0 0 10px 0;font-size:1rem;color:var(--ink);display:flex;align-items:center;gap:6px;">' +
+      '    <span aria-hidden="true">📌</span> 課綱 Excel 檔案官方來源管道說明' +
+      "  </h4>" +
+      '  <ul style="margin:0;padding-left:20px;line-height:1.7;color:var(--ink-2);font-size:0.9rem;">' +
+      "    <li><strong>教育部「高級中等學校課程計畫平臺」：</strong><code>學校/科主任登入 ➔ 備查通過清單 ➔ 匯出 [科目總表 (39欄 Excel)]</code></li>" +
+      "    <li><strong>巨耀校務行政系統：</strong><code>[課務作業] ➔ [課程計畫] ➔ [歷年108課綱課程代碼] ➔ 綜合查詢 ➔ 匯出 Excel</code></li>" +
+      "  </ul>" +
+      '  <div class="mt-2" style="font-size:0.875rem;line-height:1.5;font-weight:500;color:var(--err);">' +
+      '    <span aria-hidden="true">⚠️</span> <strong>格式注意事項：</strong>匯出後請直接上傳，請勿修改欄位順序、刪除表頭或合併儲存格，以免 1NF 正規化解析失敗。' +
+      "  </div>" +
+      "</div>"
+    );
+  }
+
+  /**
    * 建立尚未選擇檔案時的拖曳上傳區。
    *
    * @returns {string} 上傳區 HTML
@@ -726,7 +748,7 @@
             MEA.ui,
             MEA.courseData && MEA.courseData.compareDepartmentsByCode
           )
-        : buildDropzoneHtml();
+        : buildDropzoneHtml() + renderCourseCodeGuidanceHtml();
 
       return renderPanelHtml(contentHtml);
     }
@@ -743,6 +765,7 @@
       handleDrop: handleDrop,
       resetImport: resetImport,
       doImport: doImport,
+      renderCourseCodeGuidanceHtml: renderCourseCodeGuidanceHtml,
       renderView: renderView
     };
 
@@ -757,6 +780,7 @@
         previewCourseCodes: previewCourseCodes,
         canImportCourseCodes: canImportCourseCodes,
         buildDropzoneHtml: buildDropzoneHtml,
+        renderCourseCodeGuidanceHtml: renderCourseCodeGuidanceHtml,
         extractPreviewDepartments: extractPreviewDepartments,
         renderDeptFilterHtml: renderDeptFilterHtml,
         renderSampleRowCellsHtml: renderSampleRowCellsHtml,
@@ -782,6 +806,7 @@
     pickCourseSheetRows: pickCourseSheetRows,
     canImportCourseCodes: canImportCourseCodes,
     buildDropzoneHtml: buildDropzoneHtml,
+    renderCourseCodeGuidanceHtml: renderCourseCodeGuidanceHtml,
     extractPreviewDepartments: extractPreviewDepartments,
     renderDeptFilterHtml: renderDeptFilterHtml,
     renderSampleRowCellsHtml: renderSampleRowCellsHtml,
