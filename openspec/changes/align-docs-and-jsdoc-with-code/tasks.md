@@ -1,7 +1,7 @@
 ## 1. 後端模組 JSDoc 校正與重寫
 
 - [x] 1.1 檢視並重寫後端路由、進入點與核心控制模組（`webApi.js`、`main.js`、`actionRegistry.js`、`gasRuntime.js`）的函式 JSDoc，排除打包產物 `version.generated.js`，並執行 `npm test && npm run check:lang && npm run format:check` 驗證通過
-- [ ] 1.2 檢視並重寫資料庫初始化、設定編解碼與共用工具模組（`databaseInitializer.js`、`systemConfigCodec.js`、`utilities.js`）的函式 JSDoc，並執行 `npm test && npm run check:lang && npm run format:check` 驗證通過
+- [x] 1.2 檢視並重寫資料庫初始化、設定編解碼與共用工具模組（`databaseInitializer.js`、`systemConfigCodec.js`、`utilities.js`）的函式 JSDoc，並執行 `npm test && npm run check:lang && npm run format:check` 驗證通過
 - [ ] 1.3 檢視並重寫操作日誌子系統（`activityLogger.js`、`activityLogBuilders.js`、`activityLogInterceptor.js`、`activityLogQuery.js`）的函式 JSDoc，並執行 `npm test && npm run check:lang && npm run format:check` 驗證通過
 - [ ] 1.4 檢視並重寫課綱正規化與科目編碼轉換模組（`subjectCodeTransformer.js`、`courseNormalizationShared.js`）的函式 JSDoc，並執行 `npm test && npm run check:lang && npm run format:check` 驗證通過
 

@@ -4,11 +4,12 @@
  */
 
 /**
- * 安全顯示提示訊息
+ * 安全顯示提示訊息。若在無 UI 環境（如 Web App 呼叫、觸發器或 Node 測試）中，自動安全降級為 console.warn。
  *
- * @param {string} message - 提示訊息
+ * @param {string} message - 提示訊息內容
  * @param {Object} [options] - 選項物件
- * @returns {boolean} 是否成功以 UI 顯示
+ * @param {Array<string>} [options.warnings] - 收集警告字串的陣列（若提供則不彈窗直接推入）
+ * @returns {boolean} 是否成功以原生 UI 彈出視窗顯示
  */
 function safeUiAlert(message, options) {
   const text = String(message === null || message === undefined ? "" : message);
