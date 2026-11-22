@@ -96,6 +96,47 @@ function run() {
     console.log("   ✓ 角色可見性驗證通過！\n");
   }
 
+  console.log("7. 說明手冊網址與快速入口按鈕驗證...\n");
+  {
+    const ctx = createDeps();
+    assert.strictEqual(typeof ctx.ui.getUserGuideUrl, "function", "應提供 getUserGuideUrl 函式");
+    assert.strictEqual(typeof ctx.ui.openUserGuide, "function", "應提供 openUserGuide 函式");
+
+    // 預設環境
+    assert.strictEqual(ctx.ui.getUserGuideUrl(), "?page=docs%2Fuser-guide.html");
+
+    // 模擬已設定 GAS_WEBAPP_URL 環境
+    ctx.win.GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycb/exec";
+    assert.strictEqual(ctx.ui.getUserGuideUrl(), "https://script.google.com/macros/s/AKfycb/exec?page=docs%2Fuser-guide.html");
+
+    // 概覽畫面應包含說明手冊按鈕
+    const html = ctx.ui.renderOverviewView();
+    assert(html.indexOf('data-ui-action="open-user-guide"') !== -1, "概覽應包含 open-user-guide 動作按鈕");
+    assert(html.indexOf("說明手冊") !== -1, "概覽應包含說明手冊文案");
+
+    // openUserGuide 呼叫
+    let openedUrl = null;
+    let openedTarget = null;
+    ctx.elements.modalHost = ctx.doc.createElement("div");
+    ctx.win.open = function (url, target) {
+      openedUrl = url;
+      openedTarget = target;
+      return {};
+    };
+    ctx.created.length = 0;
+    ctx.ui.openUserGuide();
+    const actionBtn = ctx.created.find(function (el) {
+      return String(el.tagName).toLowerCase() === "button" && el.textContent === "在新分頁開啟完整手冊";
+    });
+    assert(actionBtn, "應建立在新分頁開啟完整手冊按鈕");
+    if (typeof actionBtn.onclick === "function") {
+      actionBtn.onclick();
+    }
+    assert.strictEqual(openedUrl, "https://script.google.com/macros/s/AKfycb/exec?page=docs%2Fuser-guide.html");
+    assert.strictEqual(openedTarget, "_blank");
+    console.log("   ✓ 說明手冊網址與動作按鈕驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/ui.js renderOverviewView 測試全數通過！\n");
 }
 

@@ -35,6 +35,12 @@ function run() {
   assert(ctx.elements.app.innerHTML.indexOf("overview-view") !== -1);
   assert(ctx.elements.app.innerHTML.indexOf("<header></header>") !== -1);
   assert(ctx.elements.app.innerHTML.indexOf("<nav></nav>") !== -1);
+  assert(ctx.elements.app.innerHTML.indexOf('class="app-footer"') !== -1, "畫面應包含頁尾元素");
+  assert(ctx.elements.app.innerHTML.indexOf('role="contentinfo"') !== -1, "頁尾應具備 contentinfo 角色");
+  assert(ctx.elements.app.innerHTML.indexOf("說明手冊") !== -1, "頁尾應包含說明手冊連結");
+  assert(ctx.elements.app.innerHTML.indexOf('aria-label="說明手冊（另開新分頁）"') !== -1, "說明手冊連結應具備精確無障礙標籤");
+  assert(ctx.elements.app.innerHTML.indexOf('target="_blank"') !== -1, "說明手冊連結應為另開新分頁");
+  assert(ctx.elements.app.innerHTML.indexOf('rel="noopener noreferrer"') !== -1, "外部連結應有安全 rel 屬性");
 
   ctx.state.tab = "import";
   app.render();

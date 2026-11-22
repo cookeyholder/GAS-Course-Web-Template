@@ -16,7 +16,7 @@
 ## 4. 課程清單 Empty State CTA、表格容器擴充與手冊 UI 整合
 
 - [x] 4.1 於 `webapp/js/ui.js` 擴充 `renderPagedTable` 與 `renderTableStatusRow` 支援 `emptyHtml` 原始 HTML 參數；於 `webapp/js/courses.js` 實作 `renderEmptyCoursesStateHtml`，精準以四維度篩選分流全空狀態（觸發 `data-course-action="goto-import"` 導向單數 `'import'` 頁籤）與搜尋無結果狀態（觸發 `data-course-action="reset"`），文案包含「目前尚無符合的課程紀錄」確保測試相容，於 `tests/webappCoursesRenderView.test.js` 擴充測試
-- [ ] 4.2 於 `webapp/js/ui.js` 與 `webapp/js/app.js` 實作 `getUserGuideUrl()` 與 `openUserGuide()` 對話框（樣式使用 `--fill`、`--line-2`），並於頁尾加入新分頁手冊連結（標記 `aria-label`）、於首頁加入「📖 說明手冊」按鈕，擴充單元測試驗證
+- [x] 4.2 於 `webapp/js/ui.js` 與 `webapp/js/app.js` 實作 `getUserGuideUrl()` 與 `openUserGuide()` 對話框（樣式使用 `--fill`、`--line-2`），並於頁尾加入新分頁手冊連結（標記 `aria-label`）、於首頁加入「📖 說明手冊」按鈕，擴充單元測試驗證
 
 ## 5. 打包建置與本地端 11 步完整 CI 預跑
 
