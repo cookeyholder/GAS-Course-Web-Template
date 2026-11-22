@@ -13,7 +13,7 @@
 
 ## 3. 專案文件與技術手冊實體同步
 
-- [ ] 3.1 全面更新根目錄 `README.md` 與 `AGENTS.md`，補正目錄樹遺漏檔案、反映 Node 24、最新架構、Web App 文件白名單路由、paged-table-container 前端容器、完整品質閘門指令與門檻，補齊 8 個遺漏模組職責說明與 2026-11-20 基準日，並執行 `npm run check:lang && npm run format:check && npm test` 驗證通過
+- [x] 3.1 全面更新根目錄 `README.md` 與 `AGENTS.md`，補正目錄樹遺漏檔案、反映 Node 24、最新架構、Web App 文件白名單路由、paged-table-container 前端容器、完整品質閘門指令與門檻，補齊 8 個遺漏模組職責說明與 2026-11-20 基準日，並執行 `npm run check:lang && npm run format:check && npm test` 驗證通過
 - [ ] 3.2 全面更新 `docs/architecture-guide.html` 與 `docs/clasp-guide.html`，同步後端架構、文件路由、單一登錄、6 小時快取與 clasp 部署流程，並執行 `npm run check:lang && npm run format:check && npm test` 驗證通過
 - [ ] 3.3 全面更新 `docs/course-normalization-guide.html` 與 `docs/參考資料/README.md`，同步 108 課綱 14 欄 1NF 全數展開演算法、官方 CSV 規格與分塊寫入架構，並執行 `npm run check:lang && npm run format:check && npm test` 驗證通過
 - [ ] 3.4 全面更新 `docs/gis-login-guide.html`、`docs/rbac-guide.html`、`docs/user-guide.html` 與 `docs/index.html`（於 index 補齊 user-guide 卡片），維持 `docs/quality-baseline-2026-11-20.md` 歷史快照不變，並執行 `npm run check:lang && npm run format:check && npm test` 驗證通過

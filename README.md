@@ -3,9 +3,9 @@
 本專案為 **Google Apps Script (GAS) 網頁應用程式全端範本**，具備五大核心架構：
 
 1. **雙軌身分驗證與 Session 安全機制**：支援一般網頁環境之 Google Identity Services（GIS）憑證登入，以及 GAS HtmlService 容器內的 ActiveUser / AccountChooser 帳號切換流程；並可依部署條件處理 OAuth 授權碼回呼與 `INITIAL_AUTH` 還原。後端驗證 Google ID Token（`iss`、`email_verified`、`aud`）、支援可選登入網域限制，登入後核發 Session 與 CSRF Token（寫入型 API 強制驗證），並提供 `?mock=true` 本機離線測試模式。
-2. **課程代碼匯入與 1NF 正規化模組**：依據教育部國民及學前教育署政策與[全國高級中等學校課程計畫平臺](https://course.k12ea.gov.tw/courseinformation/course.asp)規範，自動解析自該平臺下載之 39 欄課綱寬表 Excel，完整匯入全數課程代碼（包含不分屬性 0 與特殊需求領域 6 等所有科目），展開為三年六學期實質開課之 14 欄標準第一正規化（1NF）課程代碼表，並提供前端拖曳上傳、即時預覽統計與分頁檢索清單。
-3. **多風格現代前端設計系統**：內建極簡曜藍（Modern Slate）、圖紙風格（Blueprint）、典雅紙張（Paper）、新粗獷主義（Neo-Brutalism）、黏土擬物（Claymorphism）、紅白機像素（NES）、Happy Hues 等 13 款視覺風格切換與深淺色模式；全面支援通用卡片元件（`.card`）、頁籤導覽列（`.app-nav`、`.nav-tab`）、統計指標網格（`.metrics-grid`、`.metric-card`）、響應式表格（`.table-responsive`）、搜尋防抖（`debounce`）、列印防斷頁（`.print-signatures`），以及完整的 Toast 通知與 Modal 對話框。
-4. **全方位資訊安全與通訊強化機制**：前端 API 客戶端採 GAS `google.script.run.executeWebApi` RPC 優先、`fetch` 備援與暫時性錯誤指數退避；後端統一 `executeWebApi` 路由入口與錯誤格式，實作 RBAC、CSRF、HTTP GET 端點白名單、試算表公式注入防護、UUID Session 與 `LockService` 寫入保護，並強化登入授權與公開設定欄位控管。
+2. **課程代碼匯入與 1NF 正規化模組**：依據教育部國民及學前教育署政策與[全國高級中等學校課程計畫平臺](https://course.k12ea.gov.tw/courseinformation/course.asp)規範，自動解析自該平臺下載之 39 欄課綱寬表 Excel，完整匯入全數課程代碼（包含不分屬性 0 與特殊需求領域 6 等所有科目），展開為三年六學期實質開課之 14 欄標準第一正規化（1NF）課程代碼表，並提供前端拖曳上傳、即時預覽統計與分頁檢索清單（全面採用 `paged-table-container` 高階純函式表格容器呈現，科別選單依教育部 3 碼科別代碼升冪排序）。
+3. **多風格現代前端設計系統**：內建極簡曜藍（Modern Slate）、圖紙風格（Blueprint）、典雅紙張（Paper）、新粗獷主義（Neo-Brutalism）、黏土擬物（Claymorphism）、紅白機像素（NES）、Happy Hues 等 13 款視覺風格切換與深淺色模式；全面支援通用卡片元件（`.card`）、頁籤導覽列（`.app-nav`、`.nav-tab`）、統計指標網格（`.metrics-grid`、`.metric-card`）、響應式表格（`.table-responsive`）、搜尋防彈跳（`debounce`）、說明手冊指引彈窗與頁尾連結、列印防斷頁（`.print-signatures`），以及完整的 Toast 通知與 Modal 對話框。
+4. **全方位資訊安全與通訊強化機制**：前端 API 客戶端採 GAS `google.script.run.executeWebApi` RPC 優先、`fetch` 備援與暫時性錯誤指數退避；後端統一 `executeWebApi` 路由入口與錯誤格式，實作 RBAC、CSRF、Web App 離線技術文件白名單安全路由（`?page=docs/...`）、HTTP GET 端點白名單、試算表公式注入防護、UUID Session 與 `LockService` 寫入保護，並強化登入授權與公開設定欄位控管。
 5. **可稽核操作日誌與容量治理**：後端在最外層統一記錄每次 API 請求的事件類別、動作、操作者身分、結果、耗時與版本化詳情；僅系統管理員可透過「操作日誌」頁籤查詢與稽核。日誌工作表內建 20,000 列清理閾值與每日 03:00（Asia/Taipei）自動觸發器，避免工作表無限成長。
 
 ---
@@ -24,6 +24,7 @@ GAS-Course-Web-Template/
 ├── actionRegistry.js           # Web API action 單一登錄來源（公開／寫入／鎖定清單、RBAC 矩陣與日誌中繼資料）
 ├── courseNormalizationShared.js # 前後端共用之 108 課綱常數與 1NF 正規化純函式
 ├── databaseInitializer.js      # 資料庫純資料工作表初始化（系統設定與授權、課程代碼、說明、操作日誌；含登入網域等設定欄位）
+├── systemConfigCodec.js        # 系統參數工作表鍵值解析、編碼與布林/數字型別轉換純函式
 ├── subjectCodeTransformer.js   # 108 課綱 1NF 正規化展開、分頁查詢與試算表寫入（共用模組由 courseNormalizationShared.js 提供）
 ├── activityLogBuilders.js      # 操作日誌詳情產生器與 payload 白名單投影（含版本化格式）
 ├── activityLogInterceptor.js   # 操作日誌攔截器（log context、身分補寫、詳情捕獲、紀錄建構與最終寫入）
@@ -47,11 +48,11 @@ GAS-Course-Web-Template/
 │       ├── listController.js   # 共用列表控制器（檢索、分頁、請求序號競態防護）
 │       ├── ui.js               # UI 元件渲染器 (Header、Nav、Login、Toast、Modal、Debounce 防抖)
 │       ├── auth.js             # 登入流程（GIS、ActiveUser/AccountChooser、OAuth 導向、Session 還原與登出）
-│       ├── imports.js          # SheetJS 檔案讀取、拖曳上傳與 1NF 正規化預覽
-│       ├── courses.js          # 正規化課程清單檢索、多條件即時防抖篩選與分頁控制
-│       ├── accounts.js         # 系統核心設定與白名單成員管理介面（含 OAuth/允許網域設定、RBAC）
-│       ├── activityLog.js      # 管理員操作日誌清單、日期／操作者／類別篩選、分頁與詳情展開
-│       ├── app.js              # 前端進入點與應用程式生命週期管理（啟動流程、INITIAL_AUTH/switch 處理）
+│       ├── imports.js          # SheetJS 檔案讀取、拖曳上傳與 1NF 正規化預覽（paged-table-container 容器與科別排序）
+│       ├── courses.js          # 正規化課程清單檢索、多條件即時防彈跳篩選與分頁控制（科別依代碼升冪排序）
+│       ├── accounts.js         # 系統核心設定與白名單成員管理介面（含 OAuth/允許網域設定、RBAC、paged-table-container）
+│       ├── activityLog.js      # 管理員操作日誌清單、日期／操作者／類別篩選、分頁與詳情展開（paged-table-container）
+│       ├── app.js              # 前端進入點與應用程式生命週期管理（啟動流程、INITIAL_AUTH/switch 處理、頁尾手冊連結）
 │       └── wiring.js           # 前端單一組裝點：建立最小介面並注入各模組工廠（最後載入）
 │
 ├── scripts/
@@ -66,14 +67,19 @@ GAS-Course-Web-Template/
 │   ├── checkA11y.js            # 前端無障礙稽核（jsdom + axe-core，含主要畫面與關鍵狀態）
 │   └── languageCheck.js        # 臺灣繁體中文與禁用詞檢查
 │
-├── docs/                       # 技術與教學文件目錄 (HTML 離線說明文件)
+├── docs/                       # 技術與教學文件目錄 (HTML 離線說明文件，支援 Web App 白名單安全路由)
 │   ├── index.html              # 文件總覽首頁
 │   ├── clasp-guide.html        # Google clasp 安裝、同步與版本化部署完全指南
 │   ├── gis-login-guide.html    # Google 帳號登入 (GIS) 詳細設定教學 (GCP + 本地端)
 │   ├── rbac-guide.html         # 依帳號角色管理權限 (RBAC) 實作詳細教學
 │   ├── architecture-guide.html # GAS Web App 全端架構與通訊協定指南 (CORS 繞過與 LockService)
 │   ├── course-normalization-guide.html # 108 課綱課程代碼 1NF 正規化工程解析 (39 欄展開與 23 碼解碼)
-│   └── 參考資料/              # 官方規範文件庫 (含國教署 1111118 發文版介接規範 PDF)
+│   ├── user-guide.html         # 使用者操作手冊與常見問題快速指引
+│   └── 參考資料/              # 官方規範文件庫
+│       ├── 科別代碼.csv        # 教育部統計處高級中等學校科別代碼對照表
+│       ├── 科目固定編碼.csv    # 108 課綱部定必修等固定編碼對照表
+│       ├── 國教署1111118發文版介接規範.pdf # 官方課程計畫平臺介接規格書
+│       └── README.md           # 參考資料檔案說明與維護規範
 │
 ├── tests/
 │   ├── courseCodeNormalization.test.js  # 108 課綱代碼 1NF 正規化與排除條件單元測試
