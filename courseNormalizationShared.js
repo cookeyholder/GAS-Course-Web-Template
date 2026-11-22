@@ -219,40 +219,88 @@
     2: "選修"
   };
 
+  /**
+   * 正規化代碼鍵名：去除前後空白並轉為字串。純函式，無副作用。
+   *
+   * @param {*} code - 原始代碼
+   * @returns {string} 正規化字串
+   */
   function normalizeCodeKey(code) {
     return code === null || code === undefined ? "" : String(code).trim();
   }
 
+  /**
+   * 依群別代碼取得中文群別名稱。純函式，無副作用。
+   *
+   * @param {*} code - 群別代碼
+   * @returns {string} 群別中文名稱
+   */
   function getGroupName(code) {
     const key = normalizeCodeKey(code);
     return GROUP_CODE_NAMES[key] || key;
   }
 
+  /**
+   * 依科別代碼取得中文科別名稱。純函式，無副作用。
+   *
+   * @param {*} code - 科別代碼
+   * @returns {string} 科別中文名稱
+   */
   function getDepartmentNameByCode(code) {
     const key = normalizeCodeKey(code);
     return DEPARTMENT_CODE_NAMES[key] || key;
   }
 
+  /**
+   * 依科目類別代碼取得中文名稱（如部定必修、校訂必修等）。純函式，無副作用。
+   *
+   * @param {*} code - 類別代碼
+   * @returns {string} 科目類別名稱
+   */
   function getSubjectType(code) {
     const key = normalizeCodeKey(code);
     return SUBJECT_TYPE_NAMES[key] || key;
   }
 
+  /**
+   * 依開課方式代碼取得中文名稱（如原班級、跨班選修等）。純函式，無副作用。
+   *
+   * @param {*} code - 開課方式代碼
+   * @returns {string} 開課方式名稱
+   */
   function getOpenWay(code) {
     const key = normalizeCodeKey(code);
     return OPEN_WAY_NAMES[key] || key;
   }
 
+  /**
+   * 依科目屬性代碼取得中文屬性名稱（如一般科目、專業科目等）。純函式，無副作用。
+   *
+   * @param {*} code - 屬性代碼
+   * @returns {string} 科目屬性名稱
+   */
   function getSubjectAttribution(code) {
     const key = normalizeCodeKey(code);
     return SUBJECT_ATTRIBUTION_NAMES[key] || key;
   }
 
+  /**
+   * 依必選修代碼取得中文名稱（1: 必修、2: 選修）。純函式，無副作用。
+   *
+   * @param {*} code - 代碼
+   * @returns {string} 必修或選修字串
+   */
   function isRequiredOrElective(code) {
     const key = normalizeCodeKey(code);
     return REQUIRED_ELECTIVE_NAMES[key] || key;
   }
 
+  /**
+   * 判定列資料是否為課程代碼檔案之表頭列。純函式，無副作用。
+   *
+   * @param {Array<*>} row - 列陣列
+   * @returns {boolean} 是否為表頭
+   */
   function isCourseCodeHeaderRow(row) {
     if (!Array.isArray(row) || row.length === 0) return false;
     const first = normalizeCodeKey(row[0]);
@@ -260,12 +308,24 @@
     return first === "課程代碼" || attr === "科目屬性";
   }
 
+  /**
+   * 判定列資料是否符合剔除科目屬性（本範本預設不剔除任何科目）。純函式，無副作用。
+   *
+   * @param {Array<*>} row - 列陣列
+   * @returns {boolean} 是否剔除
+   */
   function isExcludedCourseRow(row) {
     if (!Array.isArray(row)) return false;
     if (EXCLUDED_SUBJECT_ATTRIBUTES.length === 0) return false;
     return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(normalizeCodeKey(row[11])) !== -1;
   }
 
+  /**
+   * 將原始 39 欄寬表單列展開為多列 14 欄 1NF 標準課程紀錄。純函式，無副作用。
+   *
+   * @param {Array<*>} row - 原始 39 欄列資料
+   * @returns {Array<Array<*>>} 展開後之 14 欄紀錄陣列
+   */
   function expandCourseRow(row) {
     const expanded = [];
     if (!Array.isArray(row) || row.length < 31) return expanded;
@@ -313,6 +373,16 @@
     return expanded;
   }
 
+  /**
+   * 將原始課程代碼二維陣列進行 1NF 正規化展開運算。純函式，無副作用。
+   *
+   * @param {Array<Array<*>>} rawData - 原始二維陣列（含或不含表頭）
+   * @param {Object} [options] - 選項設定
+   * @param {string} [options.academicYear] - 限定開課學年
+   * @param {string} [options.semester] - 限定開課學期
+   * @param {boolean} [options.withStats=false] - 是否一併回傳統計摘要物件
+   * @returns {Array<Array<*>>|{ rows: Array<Array<*>>, stats: Object }} 正規化結果
+   */
   function normalizeCourseCodes(rawData, options) {
     const opts = options || {};
     const rows = Array.isArray(rawData) ? rawData : [];

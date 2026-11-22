@@ -58,17 +58,40 @@ const isExcludedCourseRow = COURSE_NORMALIZATION_SHARED.isExcludedCourseRow;
 const expandCourseRow = COURSE_NORMALIZATION_SHARED.expandCourseRow;
 const normalizeCourseCodes = COURSE_NORMALIZATION_SHARED.normalizeCourseCodes;
 
+/**
+ * 解析相依模組，委派至 gasRuntime。
+ *
+ * @private
+ * @param {string} name - 匯出名稱
+ * @param {string} [modulePath] - 模組路徑
+ * @param {*} [fallback] - 備援值
+ * @returns {*} 解析結果
+ */
 function resolveRouteDependency_(name, modulePath, fallback) {
   if (GAS_RUNTIME) return GAS_RUNTIME.resolveDependency_(name, modulePath, fallback);
   return fallback;
 }
 
+/**
+ * 解析匯入課程代碼時使用的試算表實體。
+ *
+ * @private
+ * @param {Object} [options] - 選項物件
+ * @returns {GoogleAppsScript.Spreadsheet.Spreadsheet|null} 試算表實體
+ */
 function resolveImportCourseSpreadsheet_(options) {
   if (GAS_RUNTIME) return GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
   const opts = options || {};
   return opts.spreadsheet || null;
 }
 
+/**
+ * 建立已前端正規化資料之匯入結構。純函式，無副作用。
+ *
+ * @private
+ * @param {Array<Array<*>>} rawData - 已正規化 14 欄資料
+ * @returns {{ rows: Array<Array<*>>, stats: Object }}
+ */
 function buildPreNormalizedImportResult_(rawData) {
   const rows = Array.isArray(rawData) ? rawData.slice() : [];
   if (rows.length > 0 && Array.isArray(rows[0]) && String(rows[0][0]).trim() === NORMALIZED_COURSE_HEADERS[0]) {
@@ -86,6 +109,14 @@ function buildPreNormalizedImportResult_(rawData) {
   };
 }
 
+/**
+ * 準備匯入資料並產生統計指標（支援後端展開與前端預先正規化）。
+ *
+ * @private
+ * @param {Array<Array<*>>} rawData - 課程代碼資料
+ * @param {Object} options - 選項物件
+ * @returns {{ rows: Array<Array<*>>, stats: Object }}
+ */
 function prepareCourseImportResult_(rawData, options) {
   if (options.preNormalized === true) {
     return buildPreNormalizedImportResult_(rawData);
@@ -93,6 +124,13 @@ function prepareCourseImportResult_(rawData, options) {
   return resolveRouteDependency_("normalizeCourseCodes", null, normalizeCourseCodes)(rawData, { withStats: true });
 }
 
+/**
+ * 取得或建立「正規化課程代碼」工作表。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet} 工作表實體
+ */
 function getOrCreateCourseIndexSheet_(ss) {
   let sheet = ss.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
   if (!sheet) {
@@ -101,6 +139,14 @@ function getOrCreateCourseIndexSheet_(ss) {
   return sheet;
 }
 
+/**
+ * 準備「正規化課程代碼」工作表格線與欄數。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - 工作表實體
+ * @param {Object} options - 選項設定
+ * @returns {void}
+ */
 function prepareCourseIndexSheet_(sheet, options) {
   if (options.reset !== false) {
     sheet.clearContents();
@@ -110,6 +156,14 @@ function prepareCourseIndexSheet_(sheet, options) {
   }
 }
 
+/**
+ * 寫入表頭與將儲存格格式設定為純文字 `@`。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - 工作表實體
+ * @param {number} totalDataRows - 資料列數
+ * @returns {void}
+ */
 function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
   const headerRange = sheet.getRange(1, 1, 1, colCount);
@@ -118,6 +172,14 @@ function writeCourseIndexHeaderAndFormat_(sheet, totalDataRows) {
   sheet.getRange(1, 1, totalDataRows + 1, colCount).setNumberFormat("@");
 }
 
+/**
+ * 陣列分塊備援函式。純函式，無副作用。
+ *
+ * @private
+ * @param {Array<*>} arr - 陣列
+ * @param {number} size - 塊大小
+ * @returns {Array<Array<*>>}
+ */
 function chunkArrayFallback_(arr, size) {
   if (!Array.isArray(arr) || arr.length === 0) return [];
   const s = Math.max(1, parseInt(size, 10) || 1);
@@ -126,6 +188,14 @@ function chunkArrayFallback_(arr, size) {
   return res;
 }
 
+/**
+ * 以 5,000 筆為一批分塊寫入工作表，並執行公式跳脫防護。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - 工作表實體
+ * @param {Array<Array<*>>} rows - 欲寫入之列陣列
+ * @returns {void}
+ */
 function writeCourseIndexRowsInChunks_(sheet, rows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
   const sanitize = resolveRouteDependency_("sanitizeRowMatrix", "./utilities.js", function (matrix) {
@@ -141,6 +211,14 @@ function writeCourseIndexRowsInChunks_(sheet, rows) {
   }
 }
 
+/**
+ * 設定工作表文字大小與凍結第 1 列。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - 工作表實體
+ * @param {number} totalDataRows - 資料列數
+ * @returns {void}
+ */
 function finalizeCourseIndexSheet_(sheet, totalDataRows) {
   const colCount = NORMALIZED_COURSE_HEADERS.length;
   resolveRouteDependency_("safeApplySheetFontSize", "./utilities.js", function () {})(
@@ -185,10 +263,26 @@ function importNormalizedCourseCodes(rawData, options) {
   };
 }
 
+/**
+ * 解析查詢課程時的試算表物件。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表
+ * @returns {GoogleAppsScript.Spreadsheet.Spreadsheet|null}
+ */
 function resolveCourseIndexSpreadsheet_(ss) {
   return GAS_RUNTIME.getActiveSpreadsheetSafe_({ spreadsheet: ss });
 }
 
+/**
+ * 建立空的分頁查詢結果。純函式，無副作用。
+ *
+ * @private
+ * @param {number} [page=1] - 頁碼
+ * @param {number} [pageSize=50] - 每頁筆數
+ * @param {number} [totalPages=0] - 總頁數
+ * @returns {Object} 空查詢結果物件
+ */
 function createEmptyCourseQueryResult_(page, pageSize, totalPages) {
   return {
     ok: true,
@@ -200,6 +294,13 @@ function createEmptyCourseQueryResult_(page, pageSize, totalPages) {
   };
 }
 
+/**
+ * 讀取工作表中所有課程資料列（排除第 1 列表頭）。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} targetSs - 試算表實體
+ * @returns {Array<Array<*>>|null} 二維資料列矩陣
+ */
 function getCourseIndexDataRows_(targetSs) {
   if (!targetSs) return null;
   const sheet = targetSs.getSheetByName(NORMALIZED_COURSE_SHEET_NAME);
@@ -212,6 +313,9 @@ function getCourseIndexDataRows_(targetSs) {
 /**
  * 輕量取得課程代碼總筆數：僅讀取最後一列索引，不下載整份工作表內容。
  * 供概覽頁顯示統計使用，避免為了取得 total 而呼叫 getCourseIndex。
+ *
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [ss] - 試算表物件
+ * @returns {{ ok: true, total: number }} 統計結果
  */
 function getCourseIndexStats(ss) {
   const targetSs = resolveCourseIndexSpreadsheet_(ss);
@@ -226,6 +330,13 @@ function getCourseIndexStats(ss) {
   return { ok: true, total: dataRows ? dataRows.length : 0 };
 }
 
+/**
+ * 正規化課程查詢過濾條件（關鍵字小寫化、空白去除）。純函式，無副作用。
+ *
+ * @private
+ * @param {Object} [filter] - 原始條件
+ * @returns {Object} 正規化後的條件物件
+ */
 function normalizeCourseQueryCriteria_(filter) {
   const source = filter || {};
   return {
@@ -236,6 +347,13 @@ function normalizeCourseQueryCriteria_(filter) {
   };
 }
 
+/**
+ * 將 14 欄陣列列映射為物件結構。純函式，無副作用。
+ *
+ * @private
+ * @param {Array<*>} row - 14 欄列資料
+ * @returns {Object} 課程代碼項目物件
+ */
 function mapCourseIndexRow_(row) {
   const r = row || [];
   return {
@@ -256,12 +374,27 @@ function mapCourseIndexRow_(row) {
   };
 }
 
-/** 取得原始列欄位並轉為字串；與 mapCourseIndexRow_ 的取值規則保持一致。 */
+/**
+ * 取得原始列欄位並轉為字串；與 mapCourseIndexRow_ 的取值規則保持一致。純函式，無副作用。
+ *
+ * @private
+ * @param {Array<*>} row - 列資料
+ * @param {number} index - 索引
+ * @returns {string} 欄位字串
+ */
 function getRawCourseField_(row, index) {
   const value = row ? row[index] : null;
   return String(value || "");
 }
 
+/**
+ * 檢查列資料是否符合學年、學期與科別篩選。純函式，無副作用。
+ *
+ * @private
+ * @param {Array<*>} row - 列資料
+ * @param {Object} criteria - 篩選條件
+ * @returns {boolean} 是否符合
+ */
 function isCourseRowMatchedByFields_(row, criteria) {
   if (criteria.year !== "" && getRawCourseField_(row, 0) !== criteria.year) return false;
   if (criteria.semester !== "" && getRawCourseField_(row, 1) !== criteria.semester) return false;
@@ -269,6 +402,14 @@ function isCourseRowMatchedByFields_(row, criteria) {
   return true;
 }
 
+/**
+ * 檢查列資料是否符合關鍵字搜尋。純函式，無副作用。
+ *
+ * @private
+ * @param {Array<*>} row - 列資料
+ * @param {string} keyword - 關鍵字
+ * @returns {boolean} 是否符合
+ */
 function isCourseRowMatchedByKeyword_(row, keyword) {
   if (keyword === "") return true;
   const line =
@@ -282,13 +423,26 @@ function isCourseRowMatchedByKeyword_(row, keyword) {
   return line.toLowerCase().indexOf(keyword) !== -1;
 }
 
+/**
+ * 檢查課程代碼列是否同時符合欄位與關鍵字條件。純函式，無副作用。
+ *
+ * @private
+ * @param {Array<*>} row - 列資料
+ * @param {Object} criteria - 篩選條件
+ * @returns {boolean} 是否匹配
+ */
 function isCourseIndexRowMatched_(row, criteria) {
   return isCourseRowMatchedByFields_(row, criteria) && isCourseRowMatchedByKeyword_(row, criteria.keyword);
 }
 
 /**
  * 先以原始列索引篩選，不建立完整物件；僅將該頁資料轉換為回傳物件。
- * 此舉可避免對每一列建立 N 個物件，降低大量資料查詢的記憶體用量。
+ * 此舉可避免對每一列建立 N 個物件，降低大量資料查詢的記憶體用量。純函式，無副作用。
+ *
+ * @private
+ * @param {Array<Array<*>>} dataRows - 所有列資料
+ * @param {Object} criteria - 篩選條件
+ * @returns {Array<number>} 匹配的列索引陣列
  */
 function collectMatchedCourseRowIndexes_(dataRows, criteria) {
   const matchedIndexes = [];
@@ -298,6 +452,13 @@ function collectMatchedCourseRowIndexes_(dataRows, criteria) {
   return matchedIndexes;
 }
 
+/**
+ * 正規化分頁參數（page 與 pageSize 邊界防禦）。純函式，無副作用。
+ *
+ * @private
+ * @param {Object} [filter] - 篩選參數
+ * @returns {{ page: number, pageSize: number }}
+ */
 function normalizeCoursePageParams_(filter) {
   const source = filter || {};
   const page = Math.max(1, parseInt(source.page, 10) || 1);
@@ -305,6 +466,16 @@ function normalizeCoursePageParams_(filter) {
   return { page: page, pageSize: pageSize };
 }
 
+/**
+ * 依據匹配索引建立分頁回傳結果物件。純函式，無副作用。
+ *
+ * @private
+ * @param {Array<Array<*>>} dataRows - 所有列資料
+ * @param {Array<number>} matchedIndexes - 匹配之列索引陣列
+ * @param {number} page - 頁碼
+ * @param {number} pageSize - 每頁筆數
+ * @returns {Object} 包含分頁資訊與 list 的結果物件
+ */
 function buildPagedCourseResultFromIndexes_(dataRows, matchedIndexes, page, pageSize) {
   const total = matchedIndexes.length;
   const totalPages = Math.ceil(total / pageSize) || 1;
