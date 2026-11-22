@@ -133,6 +133,243 @@ function run() {
     console.log("   ✓ 安全降級、排除重複與空值防護驗證通過！\n");
   }
 
+  // 14. 全站外部相依安全降級防護測試
+  {
+    console.log("14. courses 全站外部相依安全降級防護測試...");
+    const noUiCtx = createDeps();
+    noUiCtx.MEA.ui = null;
+    noUiCtx.MEA.courseData = null;
+    noUiCtx.state.courses = {
+      list: [
+        {
+          academicYear: "114",
+          semester: "1",
+          grade: "1",
+          courseCode: "C01",
+          subjectName: "<安全科目>",
+          department: "機械科",
+          subjectType: "必修",
+          attribute: "一般",
+          required: "是",
+          credits: "2",
+          hours: "2"
+        }
+      ],
+      total: 1,
+      page: 1,
+      totalPages: 1
+    };
+    const mod = coursesModule.createCoursesModule(noUiCtx.deps);
+    let viewHtml = "";
+    assert.doesNotThrow(function () {
+      viewHtml = mod.renderView();
+    }, "當 MEA.ui 與 MEA.courseData 為空時 renderView 不應拋錯");
+    assert(viewHtml.indexOf("&lt;安全科目&gt;") !== -1, "safeEscapeHtml 應正確跳脫 HTML");
+    console.log("   ✓ courses 外部相依安全降級防護通過！\n");
+  }
+
+  // 15. Empty State CTA 四維度分流與事件委派測試
+  {
+    console.log("15. Empty State CTA 四維度分流與事件委派測試...");
+    const emptyCtx = createDeps();
+    let switchedTab = "";
+    emptyCtx.deps.navigation = {
+      setTab: function (tab) {
+        switchedTab = tab;
+      }
+    };
+    emptyCtx.state.courses = {
+      list: [],
+      total: 0,
+      keyword: "",
+      department: "",
+      academicYear: "",
+      semester: "",
+      page: 1,
+      totalPages: 1
+    };
+    const mod = coursesModule.createCoursesModule(emptyCtx.deps);
+    const emptyDbHtml = mod.renderView();
+
+    assert(emptyDbHtml.indexOf("目前尚無符合的課程紀錄") !== -1, "全空狀態應包含相容提示文字");
+    assert(emptyDbHtml.indexOf('data-course-action="goto-import"') !== -1, "全空狀態應包含前往匯入按鈕");
+    assert(emptyDbHtml.indexOf('data-tab="import"') !== -1, "按鈕應標記單數 import 頁籤");
+
+    assert.strictEqual(typeof mod.renderEmptyCoursesStateHtml, "function");
+    const emptyStateHtml = mod.renderEmptyCoursesStateHtml(emptyCtx.state.courses);
+    assert(emptyStateHtml.indexOf("前往匯入課綱代碼") !== -1);
+
+    // 測試篩選條件查無結果分流
+    const filteredCtx = createDeps();
+    filteredCtx.state.courses = {
+      list: [],
+      total: 10,
+      keyword: "不存在的科目",
+      department: "",
+      academicYear: "",
+      semester: "",
+      page: 1,
+      totalPages: 1
+    };
+    const filteredMod = coursesModule.createCoursesModule(filteredCtx.deps);
+    const filteredHtml = filteredMod.renderView();
+    assert(filteredHtml.indexOf("目前尚無符合的課程紀錄") !== -1);
+    assert(filteredHtml.indexOf('data-course-action="reset"') !== -1, "篩選無結果應包含重設按鈕");
+    assert(filteredHtml.indexOf("goto-import") === -1, "篩選無結果不得顯示前往匯入按鈕");
+
+    // 觸發 click delegate 驗證各導向分支
+    const delegates = [];
+    const navCtx = createDeps();
+    navCtx.deps.eventBindings = {
+      delegate: function (target, event, selector, handler) {
+        delegates.push({ target: target, event: event, selector: selector, handler: handler });
+      }
+    };
+    navCtx.deps.document.addEventListener = function () {};
+    navCtx.deps.navigation = {
+      setTab: function (tab) {
+        switchedTab = tab;
+      }
+    };
+    coursesModule.createCoursesModule(navCtx.deps);
+
+    const clickHandler = delegates.find(function (d) {
+      return d.event === "click" && d.selector === "[data-course-action]";
+    });
+    assert(clickHandler, "應註冊 click 委派");
+
+    // 分支 1: opts.navigation.setTab
+    clickHandler.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "goto-import";
+        }
+      }
+    );
+    assert.strictEqual(switchedTab, "import", "應透過 opts.navigation 導向 import");
+
+    function makeNavContext(setup) {
+      const d = [];
+      const c = createDeps();
+      c.deps.eventBindings = {
+        delegate: function (target, event, selector, handler) {
+          d.push({ target: target, event: event, selector: selector, handler: handler });
+        }
+      };
+      c.deps.document.addEventListener = function () {};
+      setup(c);
+      coursesModule.createCoursesModule(c.deps);
+      return d.find(function (item) {
+        return item.event === "click" && item.selector === "[data-course-action]";
+      });
+    }
+
+    // 分支 2: MEA.navigation.setTab
+    let meaNavTab = "";
+    const click2 = makeNavContext(function (c) {
+      c.MEA.navigation = {
+        setTab: function (t) {
+          meaNavTab = t;
+        }
+      };
+    });
+    click2.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "goto-import";
+        }
+      }
+    );
+    assert.strictEqual(meaNavTab, "import");
+
+    // 分支 3: MEA.setTab
+    let meaSetTab = "";
+    const click3 = makeNavContext(function (c) {
+      c.MEA.setTab = function (t) {
+        meaSetTab = t;
+      };
+    });
+    click3.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "goto-import";
+        }
+      }
+    );
+    assert.strictEqual(meaSetTab, "import");
+
+    // 分支 4: MEA.app.setTab
+    let appSetTab = "";
+    const click4 = makeNavContext(function (c) {
+      c.MEA.app = {
+        setTab: function (t) {
+          appSetTab = t;
+        }
+      };
+    });
+    click4.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "goto-import";
+        }
+      }
+    );
+    assert.strictEqual(appSetTab, "import");
+
+    // 分支 5: 無導向方法時安全回傳 undefined
+    const click5 = makeNavContext(function () {});
+    assert.strictEqual(
+      click5.handler(
+        {},
+        {
+          getAttribute: function () {
+            return "goto-import";
+          }
+        }
+      ),
+      undefined
+    );
+
+    // reset 與 page 動作
+    const resetResult = click5.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "reset";
+        }
+      }
+    );
+    assert(resetResult && typeof resetResult.then === "function", "reset 應回傳 Promise");
+    assert.strictEqual(
+      click5.handler(
+        {},
+        {
+          getAttribute: function (k) {
+            return k === "data-course-action" ? "page" : "not-a-number";
+          }
+        }
+      ),
+      undefined
+    );
+    assert.strictEqual(
+      click5.handler(
+        {},
+        {
+          getAttribute: function () {
+            return "unknown";
+          }
+        }
+      ),
+      undefined
+    );
+
+    console.log("   ✓ Empty State CTA 四維度分流與事件委派驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/courses.js renderView 測試全數通過！\n");
 }
 

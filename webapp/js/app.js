@@ -145,6 +145,41 @@
     return invokeIfFunction_(MEA[controller.module], controller.render) || "";
   }
 
+  function renderFooterHtml(MEA) {
+    const config = (MEA && MEA.config) || {};
+    const appName = config.appName || "GAS-Course-Web-Template";
+    const version = config.version ? " v" + config.version : "";
+    const guideUrl =
+      MEA && MEA.ui && typeof MEA.ui.getUserGuideUrl === "function" ? MEA.ui.getUserGuideUrl() : "docs/user-guide.html";
+    const escape =
+      MEA && MEA.ui && typeof MEA.ui.escapeHtml === "function"
+        ? MEA.ui.escapeHtml
+        : function (s) {
+            return String(s || "")
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#39;");
+          };
+
+    return (
+      '<footer class="app-footer" role="contentinfo">' +
+      '<div class="app-footer-content">' +
+      "<span>" +
+      escape(appName + version) +
+      "</span>" +
+      '<span class="app-footer-divider" aria-hidden="true">|</span>' +
+      '<a href="' +
+      escape(guideUrl) +
+      '" target="_blank" rel="noopener noreferrer" class="footer-guide-link" aria-label="說明手冊（另開新分頁）">' +
+      '<span aria-hidden="true">📖</span> 說明手冊' +
+      "</a>" +
+      "</div>" +
+      "</footer>"
+    );
+  }
+
   function createAppController(deps) {
     const options = deps || {};
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
@@ -259,6 +294,7 @@
         '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +
+        renderFooterHtml(MEA) +
         "</div>";
       restoreFocusState(doc, focusSnapshot);
     }
@@ -301,6 +337,9 @@
       render: render,
       init: init,
       syncDocumentTitle: syncTitle,
+      renderFooterHtml: function () {
+        return renderFooterHtml(MEA);
+      },
       captureFocusState: function () {
         return captureFocusState(
           doc,
@@ -317,6 +356,7 @@
     createAppController: createAppController,
     syncDocumentTitle: syncDocumentTitle,
     buildBodyHtml: buildBodyHtml,
+    renderFooterHtml: renderFooterHtml,
     captureFocusState: captureFocusState,
     restoreFocusState: restoreFocusState
   };

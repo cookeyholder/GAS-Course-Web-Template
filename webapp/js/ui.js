@@ -481,13 +481,13 @@
         "</div></td></tr>"
       );
     }
-    const emptyText = escapeHtml(opt.emptyText || "查無資料");
+    const emptyContent = opt.emptyHtml ? String(opt.emptyHtml) : escapeHtml(opt.emptyText || "查無資料");
     return (
       '<tr><td colspan="' +
       span +
       '" style="text-align:center; padding:28px; color:var(--ink-2);">' +
       '<div role="status" aria-live="polite">' +
-      emptyText +
+      emptyContent +
       "</div></td></tr>"
     );
   }
@@ -530,7 +530,11 @@
       );
     }
     if (items.length === 0) {
-      return "<tbody>" + renderTableStatusRow({ colspan: span, loading: false, emptyText: opt.emptyText }) + "</tbody>";
+      return (
+        "<tbody>" +
+        renderTableStatusRow({ colspan: span, loading: false, emptyText: opt.emptyText, emptyHtml: opt.emptyHtml }) +
+        "</tbody>"
+      );
     }
     if (typeof opt.rowRenderer === "function") {
       let rows = "";
@@ -580,6 +584,7 @@
       loading: isLoading,
       loadingText: opt.loadingText,
       emptyText: opt.emptyText,
+      emptyHtml: opt.emptyHtml,
       colspan: span
     });
 
@@ -653,6 +658,7 @@
           const setTab = (MEA.navigation && MEA.navigation.setTab) || MEA.setTab;
           return typeof setTab === "function" ? setTab(tab) : undefined;
         }
+        if (action === "open-user-guide") return openUserGuide();
         return undefined;
       });
     }
@@ -811,9 +817,9 @@
       const btns = buttons || [{ text: "關閉", primary: true, onClick: closeModal }];
       btns.forEach(function (btn) {
         const b = doc.createElement("button");
-        b.className = "btn " + (btn.primary ? "primary" : "secondary");
+        b.className = btn.className || "btn " + (btn.primary ? "primary" : "secondary");
         if (typeof b.setAttribute === "function") b.setAttribute("type", "button");
-        b.textContent = btn.text;
+        b.textContent = btn.text || btn.label || "";
         b.onclick = function () {
           if (typeof btn.onClick === "function") {
             btn.onClick();
@@ -881,6 +887,86 @@
       const restoreTarget = modalRestoreFocus;
       modalRestoreFocus = null;
       if (restoreTarget && typeof restoreTarget.focus === "function") restoreTarget.focus();
+    }
+
+    /**
+     * 取得使用者操作手冊的 Web App 文件路由網址（優先使用部署 exec/dev 網址）。
+     *
+     * @returns {string} 文件路由網址
+     */
+    function getUserGuideUrl() {
+      const qs = "?page=docs%2Fuser-guide.html";
+      let base = "";
+
+      if (typeof win !== "undefined" && win) {
+        const injected = String(win.GAS_WEBAPP_URL || "").trim();
+        if (/^https?:\/\//i.test(injected)) base = injected;
+
+        if (!base) {
+          const href = String((win.location && win.location.href) || "").trim();
+          if (
+            /\/macros\/.+\/(exec|dev)(\?|#|$)/i.test(href) &&
+            !/googleusercontent\.com\/userCodeAppPanel/i.test(href)
+          ) {
+            base = href.split("?")[0].split("#")[0];
+          }
+        }
+      }
+
+      if (!base) {
+        const cfg = String((MEA.state && MEA.state.publicConfig && MEA.state.publicConfig.webAppUrl) || "").trim();
+        if (/^https?:\/\//i.test(cfg)) base = cfg;
+      }
+
+      return base ? base.replace(/\?.*$/, "").replace(/#.*$/, "").replace(/\/+$/, "") + qs : qs;
+    }
+
+    /**
+     * 開啟使用者操作手冊與常見問題快速指引對話框。
+     */
+    function openUserGuide() {
+      const content =
+        '<div class="user-guide-modal-content" style="max-height: 65vh; overflow-y: auto; padding: 4px 8px; font-size: 14px; line-height: 1.6;">' +
+        '<div style="background: var(--fill); border: 1px solid var(--line-2); padding: 12px 14px; border-radius: 8px; margin-bottom: 14px;">' +
+        "  <strong>📌 目前可操作功能快速指南：</strong>" +
+        '  <ol style="margin: 8px 0 0 20px; color: var(--ink-2);">' +
+        "    <li><strong>帳號登入與權限</strong>：使用 Google 帳號登入；導覽列頁籤將依帳號指派之角色自動過濾。未授權請聯繫系統管理員加入白名單。</li>" +
+        "    <li><strong>課程代碼 Excel 匯入</strong>：於「課程代碼匯入」頁籤拖曳 108 課綱 39 欄 Excel，確認預覽後點擊「確認匯入至試算表」。</li>" +
+        "    <li><strong>課程代碼清單檢索</strong>：於「正規化課程代碼清單」進行關鍵字、教育部 3 碼科別代碼、學年與學期多維度篩選。</li>" +
+        "    <li><strong>系統設定與授權維護</strong>：管理員可於「系統設定與授權」維護成員白名單、管理員首次開通與操作日誌稽核。</li>" +
+        "  </ol>" +
+        "</div>" +
+        '<div style="background: var(--fill); border: 1px solid var(--line-2); padding: 12px 14px; border-radius: 8px; margin-bottom: 14px;">' +
+        "  <strong>💡 常見問題快速提醒：</strong>" +
+        '  <ul style="margin: 6px 0 0 20px; color: var(--ink-2);">' +
+        "    <li><strong>登入失敗？</strong> 若提示未授權，請聯繫管理員於「系統設定與授權」加入白名單並指派角色。</li>" +
+        "    <li><strong>按鈕反灰？</strong> 代表查無資料、角色無權限，或系統正在處理前一個請求；稍候再試或重新整理。</li>" +
+        "    <li><strong>提示操作過於頻繁？</strong> 系統設有並發排隊鎖定，請休息 3~5 秒後再進行點擊。</li>" +
+        "  </ul>" +
+        "</div>" +
+        '<p style="color: var(--ink-2); font-size: 13px;">如需完整操作說明與技術規範，請點擊下方按鈕在新分頁開啟完整手冊。</p>' +
+        "</div>";
+
+      modal("📖 課程網頁應用程式 · 使用者操作手冊", content, [
+        {
+          text: "在新分頁開啟完整手冊",
+          primary: true,
+          className: "btn primary",
+          onClick: function () {
+            if (typeof win !== "undefined" && win && win.open) {
+              win.open(getUserGuideUrl(), "_blank");
+            }
+          }
+        },
+        {
+          text: "關閉",
+          primary: false,
+          className: "btn secondary",
+          onClick: function () {
+            closeModal();
+          }
+        }
+      ]);
     }
 
     function renderUserPill(user) {
@@ -1155,6 +1241,7 @@
         '    <h2 class="panel-title">系統概覽儀表板</h2>' +
         '    <p class="panel-sub">Google Apps Script 網頁應用程式範本核心運作狀態</p>' +
         "  </div>" +
+        '  <button type="button" class="btn secondary compact" data-ui-action="open-user-guide"><span aria-hidden="true">📖</span> 說明手冊</button>' +
         "</div>" +
         renderOverviewMetrics(config, user, courses, loginMode) +
         renderFeatureGrid() +
@@ -1212,11 +1299,15 @@
       renderHeader: renderHeader,
       renderNavbar: renderNavbar,
       renderLoginView: renderLoginView,
-      renderOverviewView: renderOverviewView
+      renderOverviewView: renderOverviewView,
+      getUserGuideUrl: getUserGuideUrl,
+      openUserGuide: openUserGuide
     };
 
     if (options.exposeInternals) {
       Object.assign(api, {
+        getUserGuideUrl: getUserGuideUrl,
+        openUserGuide: openUserGuide,
         collectFocusableElements: collectFocusableElements,
         renderStyleOptions: renderStyleOptions,
         resolveToastKind: resolveToastKind,

@@ -5,3 +5,5 @@
 !appsscript.json
 !*.js
 !index.html
+!docs/
+!docs/**

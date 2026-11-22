@@ -7122,6 +7122,60 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
   color: var(--ink);
 }
 
+/* 全站頁尾樣式：顯示版本資訊與操作手冊連結 */
+.app-footer {
+  margin-top: 32px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--line-2);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+.app-footer a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.app-footer a:hover {
+  text-decoration: underline;
+}
+.app-footer-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.app-footer-divider {
+  color: var(--line-2);
+  margin: 0 4px;
+}
+.footer-guide-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-weight: 500;
+}
+.footer-guide-link:hover {
+  text-decoration: underline;
+}
+.course-guidance-card {
+  margin-top: 16px;
+  padding: 16px;
+  border-radius: var(--radius);
+  background: var(--fill);
+  border: 1px solid var(--line-2);
+  color: var(--ink-2);
+}
+.user-guide-modal-content {
+  max-height: 65vh;
+  overflow-y: auto;
+  padding: 4px 8px;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -10538,13 +10592,13 @@ window.MEA = window.MEA || {};
         "</div></td></tr>"
       );
     }
-    const emptyText = escapeHtml(opt.emptyText || "查無資料");
+    const emptyContent = opt.emptyHtml ? String(opt.emptyHtml) : escapeHtml(opt.emptyText || "查無資料");
     return (
       '<tr><td colspan="' +
       span +
       '" style="text-align:center; padding:28px; color:var(--ink-2);">' +
       '<div role="status" aria-live="polite">' +
-      emptyText +
+      emptyContent +
       "</div></td></tr>"
     );
   }
@@ -10587,7 +10641,11 @@ window.MEA = window.MEA || {};
       );
     }
     if (items.length === 0) {
-      return "<tbody>" + renderTableStatusRow({ colspan: span, loading: false, emptyText: opt.emptyText }) + "</tbody>";
+      return (
+        "<tbody>" +
+        renderTableStatusRow({ colspan: span, loading: false, emptyText: opt.emptyText, emptyHtml: opt.emptyHtml }) +
+        "</tbody>"
+      );
     }
     if (typeof opt.rowRenderer === "function") {
       let rows = "";
@@ -10637,6 +10695,7 @@ window.MEA = window.MEA || {};
       loading: isLoading,
       loadingText: opt.loadingText,
       emptyText: opt.emptyText,
+      emptyHtml: opt.emptyHtml,
       colspan: span
     });
 
@@ -10710,6 +10769,7 @@ window.MEA = window.MEA || {};
           const setTab = (MEA.navigation && MEA.navigation.setTab) || MEA.setTab;
           return typeof setTab === "function" ? setTab(tab) : undefined;
         }
+        if (action === "open-user-guide") return openUserGuide();
         return undefined;
       });
     }
@@ -10868,9 +10928,9 @@ window.MEA = window.MEA || {};
       const btns = buttons || [{ text: "關閉", primary: true, onClick: closeModal }];
       btns.forEach(function (btn) {
         const b = doc.createElement("button");
-        b.className = "btn " + (btn.primary ? "primary" : "secondary");
+        b.className = btn.className || "btn " + (btn.primary ? "primary" : "secondary");
         if (typeof b.setAttribute === "function") b.setAttribute("type", "button");
-        b.textContent = btn.text;
+        b.textContent = btn.text || btn.label || "";
         b.onclick = function () {
           if (typeof btn.onClick === "function") {
             btn.onClick();
@@ -10938,6 +10998,86 @@ window.MEA = window.MEA || {};
       const restoreTarget = modalRestoreFocus;
       modalRestoreFocus = null;
       if (restoreTarget && typeof restoreTarget.focus === "function") restoreTarget.focus();
+    }
+
+    /**
+     * 取得使用者操作手冊的 Web App 文件路由網址（優先使用部署 exec/dev 網址）。
+     *
+     * @returns {string} 文件路由網址
+     */
+    function getUserGuideUrl() {
+      const qs = "?page=docs%2Fuser-guide.html";
+      let base = "";
+
+      if (typeof win !== "undefined" && win) {
+        const injected = String(win.GAS_WEBAPP_URL || "").trim();
+        if (/^https?:\/\//i.test(injected)) base = injected;
+
+        if (!base) {
+          const href = String((win.location && win.location.href) || "").trim();
+          if (
+            /\/macros\/.+\/(exec|dev)(\?|#|$)/i.test(href) &&
+            !/googleusercontent\.com\/userCodeAppPanel/i.test(href)
+          ) {
+            base = href.split("?")[0].split("#")[0];
+          }
+        }
+      }
+
+      if (!base) {
+        const cfg = String((MEA.state && MEA.state.publicConfig && MEA.state.publicConfig.webAppUrl) || "").trim();
+        if (/^https?:\/\//i.test(cfg)) base = cfg;
+      }
+
+      return base ? base.replace(/\?.*$/, "").replace(/#.*$/, "").replace(/\/+$/, "") + qs : qs;
+    }
+
+    /**
+     * 開啟使用者操作手冊與常見問題快速指引對話框。
+     */
+    function openUserGuide() {
+      const content =
+        '<div class="user-guide-modal-content" style="max-height: 65vh; overflow-y: auto; padding: 4px 8px; font-size: 14px; line-height: 1.6;">' +
+        '<div style="background: var(--fill); border: 1px solid var(--line-2); padding: 12px 14px; border-radius: 8px; margin-bottom: 14px;">' +
+        "  <strong>📌 目前可操作功能快速指南：</strong>" +
+        '  <ol style="margin: 8px 0 0 20px; color: var(--ink-2);">' +
+        "    <li><strong>帳號登入與權限</strong>：使用 Google 帳號登入；導覽列頁籤將依帳號指派之角色自動過濾。未授權請聯繫系統管理員加入白名單。</li>" +
+        "    <li><strong>課程代碼 Excel 匯入</strong>：於「課程代碼匯入」頁籤拖曳 108 課綱 39 欄 Excel，確認預覽後點擊「確認匯入至試算表」。</li>" +
+        "    <li><strong>課程代碼清單檢索</strong>：於「正規化課程代碼清單」進行關鍵字、教育部 3 碼科別代碼、學年與學期多維度篩選。</li>" +
+        "    <li><strong>系統設定與授權維護</strong>：管理員可於「系統設定與授權」維護成員白名單、管理員首次開通與操作日誌稽核。</li>" +
+        "  </ol>" +
+        "</div>" +
+        '<div style="background: var(--fill); border: 1px solid var(--line-2); padding: 12px 14px; border-radius: 8px; margin-bottom: 14px;">' +
+        "  <strong>💡 常見問題快速提醒：</strong>" +
+        '  <ul style="margin: 6px 0 0 20px; color: var(--ink-2);">' +
+        "    <li><strong>登入失敗？</strong> 若提示未授權，請聯繫管理員於「系統設定與授權」加入白名單並指派角色。</li>" +
+        "    <li><strong>按鈕反灰？</strong> 代表查無資料、角色無權限，或系統正在處理前一個請求；稍候再試或重新整理。</li>" +
+        "    <li><strong>提示操作過於頻繁？</strong> 系統設有並發排隊鎖定，請休息 3~5 秒後再進行點擊。</li>" +
+        "  </ul>" +
+        "</div>" +
+        '<p style="color: var(--ink-2); font-size: 13px;">如需完整操作說明與技術規範，請點擊下方按鈕在新分頁開啟完整手冊。</p>' +
+        "</div>";
+
+      modal("📖 課程網頁應用程式 · 使用者操作手冊", content, [
+        {
+          text: "在新分頁開啟完整手冊",
+          primary: true,
+          className: "btn primary",
+          onClick: function () {
+            if (typeof win !== "undefined" && win && win.open) {
+              win.open(getUserGuideUrl(), "_blank");
+            }
+          }
+        },
+        {
+          text: "關閉",
+          primary: false,
+          className: "btn secondary",
+          onClick: function () {
+            closeModal();
+          }
+        }
+      ]);
     }
 
     function renderUserPill(user) {
@@ -11212,6 +11352,7 @@ window.MEA = window.MEA || {};
         '    <h2 class="panel-title">系統概覽儀表板</h2>' +
         '    <p class="panel-sub">Google Apps Script 網頁應用程式範本核心運作狀態</p>' +
         "  </div>" +
+        '  <button type="button" class="btn secondary compact" data-ui-action="open-user-guide"><span aria-hidden="true">📖</span> 說明手冊</button>' +
         "</div>" +
         renderOverviewMetrics(config, user, courses, loginMode) +
         renderFeatureGrid() +
@@ -11269,11 +11410,15 @@ window.MEA = window.MEA || {};
       renderHeader: renderHeader,
       renderNavbar: renderNavbar,
       renderLoginView: renderLoginView,
-      renderOverviewView: renderOverviewView
+      renderOverviewView: renderOverviewView,
+      getUserGuideUrl: getUserGuideUrl,
+      openUserGuide: openUserGuide
     };
 
     if (options.exposeInternals) {
       Object.assign(api, {
+        getUserGuideUrl: getUserGuideUrl,
+        openUserGuide: openUserGuide,
         collectFocusableElements: collectFocusableElements,
         renderStyleOptions: renderStyleOptions,
         resolveToastKind: resolveToastKind,
@@ -12151,6 +12296,28 @@ window.MEA = window.MEA || {};
   }
 
   /**
+   * 建立 108 課綱課程代碼官方來源管道與格式禁忌指引卡片。
+   *
+   * @returns {string} 指引區塊 HTML
+   */
+  function renderCourseCodeGuidanceHtml() {
+    return (
+      '<div class="course-guidance-card mt-4" style="background:var(--fill);border:1px solid var(--line-2);border-radius:8px;padding:16px 20px;" role="region" aria-label="108 課綱課程代碼官方來源管道指引">' +
+      '  <h4 style="margin:0 0 10px 0;font-size:1rem;color:var(--ink);display:flex;align-items:center;gap:6px;">' +
+      '    <span aria-hidden="true">📌</span> 課綱 Excel 檔案官方來源管道說明' +
+      "  </h4>" +
+      '  <ul style="margin:0;padding-left:20px;line-height:1.7;color:var(--ink-2);font-size:0.9rem;">' +
+      "    <li><strong>教育部「高級中等學校課程計畫平臺」：</strong><code>學校/科主任登入 ➔ 備查通過清單 ➔ 匯出 [科目總表 (39欄 Excel)]</code></li>" +
+      "    <li><strong>巨耀校務行政系統：</strong><code>[課務作業] ➔ [課程計畫] ➔ [歷年108課綱課程代碼] ➔ 綜合查詢 ➔ 匯出 Excel</code></li>" +
+      "  </ul>" +
+      '  <div class="mt-2" style="font-size:0.875rem;line-height:1.5;font-weight:500;color:var(--err);">' +
+      '    <span aria-hidden="true">⚠️</span> <strong>格式注意事項：</strong>匯出後請直接上傳，請勿修改欄位順序、刪除表頭或合併儲存格，以免 1NF 正規化解析失敗。' +
+      "  </div>" +
+      "</div>"
+    );
+  }
+
+  /**
    * 建立尚未選擇檔案時的拖曳上傳區。
    *
    * @returns {string} 上傳區 HTML
@@ -12759,17 +12926,35 @@ window.MEA = window.MEA || {};
       const busy = MEA.state.importBusy;
       const user = MEA.state.user || {};
       const canImport = canImportCourseCodes(user);
+      const safeEscapeHtml =
+        options.escapeHtml ||
+        (MEA.ui && MEA.ui.escapeHtml) ||
+        function (str) {
+          return String(str == null ? "" : str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+        };
+      const safeNumber =
+        options.number ||
+        (MEA.ui && MEA.ui.number) ||
+        function (val) {
+          const n = Number(val);
+          return isNaN(n) ? "0" : String(n);
+        };
+      const compareFn =
+        options.compareDepartmentsByCode ||
+        (MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
+          ? MEA.courseData.compareDepartmentsByCode
+          : function (a, b) {
+              return String(a || "").localeCompare(String(b || ""), "zh-TW");
+            });
+
       const contentHtml = entry
-        ? renderPreviewCardHtml(
-            entry,
-            busy,
-            canImport,
-            MEA.ui.escapeHtml,
-            MEA.ui.number,
-            MEA.ui,
-            MEA.courseData && MEA.courseData.compareDepartmentsByCode
-          )
-        : buildDropzoneHtml();
+        ? renderPreviewCardHtml(entry, busy, canImport, safeEscapeHtml, safeNumber, MEA.ui || {}, compareFn)
+        : buildDropzoneHtml() + renderCourseCodeGuidanceHtml();
 
       return renderPanelHtml(contentHtml);
     }
@@ -12786,6 +12971,7 @@ window.MEA = window.MEA || {};
       handleDrop: handleDrop,
       resetImport: resetImport,
       doImport: doImport,
+      renderCourseCodeGuidanceHtml: renderCourseCodeGuidanceHtml,
       renderView: renderView
     };
 
@@ -12800,6 +12986,7 @@ window.MEA = window.MEA || {};
         previewCourseCodes: previewCourseCodes,
         canImportCourseCodes: canImportCourseCodes,
         buildDropzoneHtml: buildDropzoneHtml,
+        renderCourseCodeGuidanceHtml: renderCourseCodeGuidanceHtml,
         extractPreviewDepartments: extractPreviewDepartments,
         renderDeptFilterHtml: renderDeptFilterHtml,
         renderSampleRowCellsHtml: renderSampleRowCellsHtml,
@@ -12825,6 +13012,7 @@ window.MEA = window.MEA || {};
     pickCourseSheetRows: pickCourseSheetRows,
     canImportCourseCodes: canImportCourseCodes,
     buildDropzoneHtml: buildDropzoneHtml,
+    renderCourseCodeGuidanceHtml: renderCourseCodeGuidanceHtml,
     extractPreviewDepartments: extractPreviewDepartments,
     renderDeptFilterHtml: renderDeptFilterHtml,
     renderSampleRowCellsHtml: renderSampleRowCellsHtml,
@@ -12879,11 +13067,45 @@ window.MEA = window.MEA || {};
     const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
-    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
-    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+    // task 6.2：事件綁定守護由共用模組提供（支援注入，Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings =
+      options.eventBindings ||
+      (typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings);
     // task 6.3：列表控制流程由共用控制器提供（Node 由 require 取得，瀏覽器由全域取得）。
     const listControllerModule =
       typeof require === "function" ? require("./listController.js") : globalThis.MEA.listController;
+
+    const safeEscapeHtml =
+      options.escapeHtml ||
+      (options.MEA && options.MEA.ui && options.MEA.ui.escapeHtml) ||
+      (typeof MEA !== "undefined" && MEA.ui && MEA.ui.escapeHtml) ||
+      function (str) {
+        return String(str == null ? "" : str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      };
+
+    const safeNumber =
+      options.number ||
+      (options.MEA && options.MEA.ui && options.MEA.ui.number) ||
+      (typeof MEA !== "undefined" && MEA.ui && MEA.ui.number) ||
+      function (val) {
+        const n = Number(val);
+        return isNaN(n) ? "0" : String(n);
+      };
+
+    const safeToast = function (message, kind) {
+      if (options.toast && typeof options.toast === "function") {
+        options.toast(message, kind);
+      } else if (options.MEA && options.MEA.ui && typeof options.MEA.ui.toast === "function") {
+        options.MEA.ui.toast(message, kind);
+      } else if (typeof MEA !== "undefined" && MEA.ui && typeof MEA.ui.toast === "function") {
+        MEA.ui.toast(message, kind);
+      }
+    };
 
     const listCtl = listControllerModule.createListController({
       apiAction: "getCourseIndex",
@@ -12897,7 +13119,7 @@ window.MEA = window.MEA || {};
         return MEA.api.call(action, payload);
       },
       toast: function (message, kind) {
-        MEA.ui.toast(message, kind);
+        safeToast(message, kind);
       },
       buildQuery: buildCourseQuery,
       buildFetchKey: buildCourseFetchKey,
@@ -12915,7 +13137,7 @@ window.MEA = window.MEA || {};
       pagination: {
         actionAttribute: "data-course-action",
         number: function (value) {
-          return MEA.ui.number(value);
+          return safeNumber(value);
         },
         normalize: function (state) {
           return {
@@ -12931,6 +13153,26 @@ window.MEA = window.MEA || {};
     const handleSearch = listCtl.handleSearch;
     const resetSearch = listCtl.resetSearch;
 
+    function navigateToImportTab_(opts, rootMea) {
+      const nav = (opts && opts.navigation) || (rootMea && rootMea.navigation);
+      if (nav && typeof nav.setTab === "function") return nav.setTab("import");
+      if (rootMea && typeof rootMea.setTab === "function") return rootMea.setTab("import");
+      if (rootMea && rootMea.app && typeof rootMea.app.setTab === "function") return rootMea.app.setTab("import");
+      return undefined;
+    }
+
+    function handleCourseClickAction_(element) {
+      const action =
+        element && typeof element.getAttribute === "function" ? element.getAttribute("data-course-action") : "";
+      if (action === "page" || action === "refresh") {
+        const page = parseInt(element.getAttribute("data-page"), 10);
+        return Number.isFinite(page) ? fetchList(page) : undefined;
+      }
+      if (action === "reset") return resetSearch();
+      if (action === "goto-import") return navigateToImportTab_(options, MEA);
+      return undefined;
+    }
+
     /** 以 document 委派綁定搜尋表單、分頁與重設事件。 */
     function bindEventsOnce() {
       if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
@@ -12938,13 +13180,7 @@ window.MEA = window.MEA || {};
         handleSearch(event);
       });
       bindings.delegate(doc, "click", "[data-course-action]", function (event, element) {
-        const action = element.getAttribute("data-course-action");
-        if (action === "page" || action === "refresh") {
-          const page = parseInt(element.getAttribute("data-page"), 10);
-          return Number.isFinite(page) ? fetchList(page) : undefined;
-        }
-        if (action === "reset") return resetSearch();
-        return undefined;
+        return handleCourseClickAction_(element);
       });
     }
 
@@ -13104,17 +13340,18 @@ window.MEA = window.MEA || {};
         }
       }
       const comparator =
-        MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
+        options.compareDepartmentsByCode ||
+        (MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
           ? MEA.courseData.compareDepartmentsByCode
           : function (a, b) {
               return String(a).localeCompare(String(b), "zh-TW");
-            };
+            });
       names.sort(comparator);
       for (let i = 0; i < names.length; i++) {
         const name = names[i];
         const selected = selectedDepartment === name ? " selected" : "";
         optionsHtml +=
-          '<option value="' + MEA.ui.escapeHtml(name) + '"' + selected + ">" + MEA.ui.escapeHtml(name) + "</option>";
+          '<option value="' + safeEscapeHtml(name) + '"' + selected + ">" + safeEscapeHtml(name) + "</option>";
       }
       return optionsHtml;
     }
@@ -13129,38 +13366,80 @@ window.MEA = window.MEA || {};
       return (
         "<tr>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.academicYear) +
+        safeEscapeHtml(item.academicYear) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.semester) +
+        safeEscapeHtml(item.semester) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.grade) +
+        safeEscapeHtml(item.grade) +
         "</td>" +
         '<td class="mono font-sm">' +
-        MEA.ui.escapeHtml(item.courseCode) +
+        safeEscapeHtml(item.courseCode) +
         "</td>" +
         "<td><strong>" +
-        MEA.ui.escapeHtml(item.subjectName) +
+        safeEscapeHtml(item.subjectName) +
         "</strong></td>" +
         '<td><span class="pill muted">' +
-        MEA.ui.escapeHtml(item.department) +
+        safeEscapeHtml(item.department) +
         "</span></td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.subjectType) +
+        safeEscapeHtml(item.subjectType) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.attribute) +
+        safeEscapeHtml(item.attribute) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.required) +
+        safeEscapeHtml(item.required) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.credits) +
+        safeEscapeHtml(item.credits) +
         " / " +
-        MEA.ui.escapeHtml(item.hours) +
+        safeEscapeHtml(item.hours) +
         "</td>" +
         "</tr>"
+      );
+    }
+
+    /**
+     * 產生課程清單空白狀態 HTML（支援全空導向匯入與篩選查無結果重設）。
+     *
+     * @param {Object} courses - 課程狀態
+     * @returns {string} 空狀態 HTML
+     */
+    function renderEmptyCoursesStateHtml(courses) {
+      const cur = courses || {};
+      const hasFilters = Boolean(
+        (cur.keyword || "").trim() ||
+        (cur.department || "").trim() ||
+        (cur.academicYear || "").trim() ||
+        (cur.semester || "").trim()
+      );
+      const total = Number(cur.total) || 0;
+      const isEmptyDb = total === 0 && !hasFilters;
+
+      if (isEmptyDb) {
+        return (
+          '<div class="empty-state" style="padding: 24px 16px; text-align: center;">' +
+          '  <div style="font-size: 2rem; margin-bottom: 8px;" aria-hidden="true">📭</div>' +
+          '  <h3 style="margin: 0 0 6px 0; font-size: 1.1rem; color: var(--ink);">目前尚無符合的課程紀錄</h3>' +
+          '  <p style="margin: 0 0 16px 0; color: var(--ink-2); font-size: 0.9rem;">系統資料庫尚未匯入任何 108 課綱課程代碼，請先上傳課綱 Excel 檔案。</p>' +
+          '  <button type="button" class="btn primary" data-course-action="goto-import" data-tab="import">' +
+          '    <span aria-hidden="true">📥</span> 前往匯入課綱代碼' +
+          "  </button>" +
+          "</div>"
+        );
+      }
+
+      return (
+        '<div class="empty-state" style="padding: 24px 16px; text-align: center;">' +
+        '  <div style="font-size: 2rem; margin-bottom: 8px;" aria-hidden="true">🔍</div>' +
+        '  <h3 style="margin: 0 0 6px 0; font-size: 1.1rem; color: var(--ink);">目前尚無符合的課程紀錄</h3>' +
+        '  <p style="margin: 0 0 16px 0; color: var(--ink-2); font-size: 0.9rem;">找不到符合目前篩選條件的課程，請調整關鍵字、科別或學期設定。</p>' +
+        '  <button type="button" class="btn secondary" data-course-action="reset">' +
+        '    <span aria-hidden="true">🔄</span> 重設搜尋條件' +
+        "  </button>" +
+        "</div>"
       );
     }
 
@@ -13169,16 +13448,17 @@ window.MEA = window.MEA || {};
      *
      * @param {Array<Object>} list - 課程陣列
      * @param {boolean} loading - 是否載入中
+     * @param {Object} [courses] - 課程狀態
      * @returns {string} HTML 字串
      */
-    function renderCourseRowsHtml(list, loading) {
+    function renderCourseRowsHtml(list, loading, courses) {
       if (loading) {
         return '<tr><td colspan="10" class="text-center py-8 text-muted">正在載入課程資料...</td></tr>';
       }
-      if (list.length === 0) {
+      if (!list || list.length === 0) {
         return (
-          '<tr><td colspan="10" class="text-center py-8 text-muted">' +
-          "目前尚無符合的課程紀錄，請至「課程代碼匯入」上傳資料或調整篩選條件。" +
+          '<tr><td colspan="10" style="text-align:center; padding:28px; color:var(--ink-2);">' +
+          renderEmptyCoursesStateHtml(courses) +
           "</td></tr>"
         );
       }
@@ -13203,7 +13483,7 @@ window.MEA = window.MEA || {};
         '  <form class="filter-form" data-course-action="search">' +
         '    <label class="sr-only" for="courseSearchKeyword">搜尋關鍵字</label>' +
         '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
-        MEA.ui.escapeHtml(courses.keyword || "") +
+        safeEscapeHtml(courses.keyword || "") +
         '" />' +
         '    <label class="sr-only" for="courseSearchDept">科別篩選</label>' +
         '    <select id="courseSearchDept" class="select">' +
@@ -13211,7 +13491,7 @@ window.MEA = window.MEA || {};
         "</select>" +
         '    <label class="sr-only" for="courseSearchYear">開課學年</label>' +
         '    <input type="text" id="courseSearchYear" class="input compact" style="width:100px;" placeholder="學年 (如 114)" value="' +
-        MEA.ui.escapeHtml(courses.academicYear || "") +
+        safeEscapeHtml(courses.academicYear || "") +
         '" />' +
         '    <label class="sr-only" for="courseSearchSem">學期篩選</label>' +
         '    <select id="courseSearchSem" class="select compact" style="width:100px;">' +
@@ -13265,6 +13545,7 @@ window.MEA = window.MEA || {};
               loading: loading,
               loadingText: "正在載入課程資料...",
               emptyText: "目前尚無符合的課程紀錄",
+              emptyHtml: renderEmptyCoursesStateHtml(courses),
               colspan: 10,
               pagination: {
                 total: courses.total || 0,
@@ -13285,7 +13566,7 @@ window.MEA = window.MEA || {};
             "      </tr>" +
             "    </thead>" +
             "    <tbody>" +
-            renderCourseRowsHtml(list) +
+            renderCourseRowsHtml(list, loading, courses) +
             "</tbody>" +
             "  </table>" +
             "</div>";
@@ -13312,12 +13593,17 @@ window.MEA = window.MEA || {};
       fetchStats: fetchStats,
       handleSearch: handleSearch,
       resetSearch: resetSearch,
+      renderEmptyCoursesStateHtml: renderEmptyCoursesStateHtml,
       renderView: renderView
     };
   }
 
   return {
-    createCoursesModule: createCoursesModule
+    createCoursesModule: createCoursesModule,
+    renderEmptyCoursesStateHtml: function (courses) {
+      const mod = createCoursesModule({ exposeInternals: true });
+      return mod.renderEmptyCoursesStateHtml(courses);
+    }
   };
 });
   </script>
@@ -14841,6 +15127,41 @@ window.MEA = window.MEA || {};
     return invokeIfFunction_(MEA[controller.module], controller.render) || "";
   }
 
+  function renderFooterHtml(MEA) {
+    const config = (MEA && MEA.config) || {};
+    const appName = config.appName || "GAS-Course-Web-Template";
+    const version = config.version ? " v" + config.version : "";
+    const guideUrl =
+      MEA && MEA.ui && typeof MEA.ui.getUserGuideUrl === "function" ? MEA.ui.getUserGuideUrl() : "docs/user-guide.html";
+    const escape =
+      MEA && MEA.ui && typeof MEA.ui.escapeHtml === "function"
+        ? MEA.ui.escapeHtml
+        : function (s) {
+            return String(s || "")
+              .replace(/&/g, "&amp;")
+              .replace(/</g, "&lt;")
+              .replace(/>/g, "&gt;")
+              .replace(/"/g, "&quot;")
+              .replace(/'/g, "&#39;");
+          };
+
+    return (
+      '<footer class="app-footer" role="contentinfo">' +
+      '<div class="app-footer-content">' +
+      "<span>" +
+      escape(appName + version) +
+      "</span>" +
+      '<span class="app-footer-divider" aria-hidden="true">|</span>' +
+      '<a href="' +
+      escape(guideUrl) +
+      '" target="_blank" rel="noopener noreferrer" class="footer-guide-link" aria-label="說明手冊（另開新分頁）">' +
+      '<span aria-hidden="true">📖</span> 說明手冊' +
+      "</a>" +
+      "</div>" +
+      "</footer>"
+    );
+  }
+
   function createAppController(deps) {
     const options = deps || {};
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
@@ -14955,6 +15276,7 @@ window.MEA = window.MEA || {};
         '<main id="main-content" class="app-content" tabindex="-1">' +
         buildBodyHtml(MEA, tab) +
         "</main>" +
+        renderFooterHtml(MEA) +
         "</div>";
       restoreFocusState(doc, focusSnapshot);
     }
@@ -14997,6 +15319,9 @@ window.MEA = window.MEA || {};
       render: render,
       init: init,
       syncDocumentTitle: syncTitle,
+      renderFooterHtml: function () {
+        return renderFooterHtml(MEA);
+      },
       captureFocusState: function () {
         return captureFocusState(
           doc,
@@ -15013,6 +15338,7 @@ window.MEA = window.MEA || {};
     createAppController: createAppController,
     syncDocumentTitle: syncDocumentTitle,
     buildBodyHtml: buildBodyHtml,
+    renderFooterHtml: renderFooterHtml,
     captureFocusState: captureFocusState,
     restoreFocusState: restoreFocusState
   };

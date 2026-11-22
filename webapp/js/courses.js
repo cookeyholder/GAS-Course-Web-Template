@@ -38,11 +38,45 @@
     const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
-    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
-    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+    // task 6.2：事件綁定守護由共用模組提供（支援注入，Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings =
+      options.eventBindings ||
+      (typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings);
     // task 6.3：列表控制流程由共用控制器提供（Node 由 require 取得，瀏覽器由全域取得）。
     const listControllerModule =
       typeof require === "function" ? require("./listController.js") : globalThis.MEA.listController;
+
+    const safeEscapeHtml =
+      options.escapeHtml ||
+      (options.MEA && options.MEA.ui && options.MEA.ui.escapeHtml) ||
+      (typeof MEA !== "undefined" && MEA.ui && MEA.ui.escapeHtml) ||
+      function (str) {
+        return String(str == null ? "" : str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      };
+
+    const safeNumber =
+      options.number ||
+      (options.MEA && options.MEA.ui && options.MEA.ui.number) ||
+      (typeof MEA !== "undefined" && MEA.ui && MEA.ui.number) ||
+      function (val) {
+        const n = Number(val);
+        return isNaN(n) ? "0" : String(n);
+      };
+
+    const safeToast = function (message, kind) {
+      if (options.toast && typeof options.toast === "function") {
+        options.toast(message, kind);
+      } else if (options.MEA && options.MEA.ui && typeof options.MEA.ui.toast === "function") {
+        options.MEA.ui.toast(message, kind);
+      } else if (typeof MEA !== "undefined" && MEA.ui && typeof MEA.ui.toast === "function") {
+        MEA.ui.toast(message, kind);
+      }
+    };
 
     const listCtl = listControllerModule.createListController({
       apiAction: "getCourseIndex",
@@ -56,7 +90,7 @@
         return MEA.api.call(action, payload);
       },
       toast: function (message, kind) {
-        MEA.ui.toast(message, kind);
+        safeToast(message, kind);
       },
       buildQuery: buildCourseQuery,
       buildFetchKey: buildCourseFetchKey,
@@ -74,7 +108,7 @@
       pagination: {
         actionAttribute: "data-course-action",
         number: function (value) {
-          return MEA.ui.number(value);
+          return safeNumber(value);
         },
         normalize: function (state) {
           return {
@@ -90,6 +124,26 @@
     const handleSearch = listCtl.handleSearch;
     const resetSearch = listCtl.resetSearch;
 
+    function navigateToImportTab_(opts, rootMea) {
+      const nav = (opts && opts.navigation) || (rootMea && rootMea.navigation);
+      if (nav && typeof nav.setTab === "function") return nav.setTab("import");
+      if (rootMea && typeof rootMea.setTab === "function") return rootMea.setTab("import");
+      if (rootMea && rootMea.app && typeof rootMea.app.setTab === "function") return rootMea.app.setTab("import");
+      return undefined;
+    }
+
+    function handleCourseClickAction_(element) {
+      const action =
+        element && typeof element.getAttribute === "function" ? element.getAttribute("data-course-action") : "";
+      if (action === "page" || action === "refresh") {
+        const page = parseInt(element.getAttribute("data-page"), 10);
+        return Number.isFinite(page) ? fetchList(page) : undefined;
+      }
+      if (action === "reset") return resetSearch();
+      if (action === "goto-import") return navigateToImportTab_(options, MEA);
+      return undefined;
+    }
+
     /** 以 document 委派綁定搜尋表單、分頁與重設事件。 */
     function bindEventsOnce() {
       if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
@@ -97,13 +151,7 @@
         handleSearch(event);
       });
       bindings.delegate(doc, "click", "[data-course-action]", function (event, element) {
-        const action = element.getAttribute("data-course-action");
-        if (action === "page" || action === "refresh") {
-          const page = parseInt(element.getAttribute("data-page"), 10);
-          return Number.isFinite(page) ? fetchList(page) : undefined;
-        }
-        if (action === "reset") return resetSearch();
-        return undefined;
+        return handleCourseClickAction_(element);
       });
     }
 
@@ -263,17 +311,18 @@
         }
       }
       const comparator =
-        MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
+        options.compareDepartmentsByCode ||
+        (MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
           ? MEA.courseData.compareDepartmentsByCode
           : function (a, b) {
               return String(a).localeCompare(String(b), "zh-TW");
-            };
+            });
       names.sort(comparator);
       for (let i = 0; i < names.length; i++) {
         const name = names[i];
         const selected = selectedDepartment === name ? " selected" : "";
         optionsHtml +=
-          '<option value="' + MEA.ui.escapeHtml(name) + '"' + selected + ">" + MEA.ui.escapeHtml(name) + "</option>";
+          '<option value="' + safeEscapeHtml(name) + '"' + selected + ">" + safeEscapeHtml(name) + "</option>";
       }
       return optionsHtml;
     }
@@ -288,38 +337,80 @@
       return (
         "<tr>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.academicYear) +
+        safeEscapeHtml(item.academicYear) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.semester) +
+        safeEscapeHtml(item.semester) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.grade) +
+        safeEscapeHtml(item.grade) +
         "</td>" +
         '<td class="mono font-sm">' +
-        MEA.ui.escapeHtml(item.courseCode) +
+        safeEscapeHtml(item.courseCode) +
         "</td>" +
         "<td><strong>" +
-        MEA.ui.escapeHtml(item.subjectName) +
+        safeEscapeHtml(item.subjectName) +
         "</strong></td>" +
         '<td><span class="pill muted">' +
-        MEA.ui.escapeHtml(item.department) +
+        safeEscapeHtml(item.department) +
         "</span></td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.subjectType) +
+        safeEscapeHtml(item.subjectType) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.attribute) +
+        safeEscapeHtml(item.attribute) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.required) +
+        safeEscapeHtml(item.required) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.credits) +
+        safeEscapeHtml(item.credits) +
         " / " +
-        MEA.ui.escapeHtml(item.hours) +
+        safeEscapeHtml(item.hours) +
         "</td>" +
         "</tr>"
+      );
+    }
+
+    /**
+     * 產生課程清單空白狀態 HTML（支援全空導向匯入與篩選查無結果重設）。
+     *
+     * @param {Object} courses - 課程狀態
+     * @returns {string} 空狀態 HTML
+     */
+    function renderEmptyCoursesStateHtml(courses) {
+      const cur = courses || {};
+      const hasFilters = Boolean(
+        (cur.keyword || "").trim() ||
+        (cur.department || "").trim() ||
+        (cur.academicYear || "").trim() ||
+        (cur.semester || "").trim()
+      );
+      const total = Number(cur.total) || 0;
+      const isEmptyDb = total === 0 && !hasFilters;
+
+      if (isEmptyDb) {
+        return (
+          '<div class="empty-state" style="padding: 24px 16px; text-align: center;">' +
+          '  <div style="font-size: 2rem; margin-bottom: 8px;" aria-hidden="true">📭</div>' +
+          '  <h3 style="margin: 0 0 6px 0; font-size: 1.1rem; color: var(--ink);">目前尚無符合的課程紀錄</h3>' +
+          '  <p style="margin: 0 0 16px 0; color: var(--ink-2); font-size: 0.9rem;">系統資料庫尚未匯入任何 108 課綱課程代碼，請先上傳課綱 Excel 檔案。</p>' +
+          '  <button type="button" class="btn primary" data-course-action="goto-import" data-tab="import">' +
+          '    <span aria-hidden="true">📥</span> 前往匯入課綱代碼' +
+          "  </button>" +
+          "</div>"
+        );
+      }
+
+      return (
+        '<div class="empty-state" style="padding: 24px 16px; text-align: center;">' +
+        '  <div style="font-size: 2rem; margin-bottom: 8px;" aria-hidden="true">🔍</div>' +
+        '  <h3 style="margin: 0 0 6px 0; font-size: 1.1rem; color: var(--ink);">目前尚無符合的課程紀錄</h3>' +
+        '  <p style="margin: 0 0 16px 0; color: var(--ink-2); font-size: 0.9rem;">找不到符合目前篩選條件的課程，請調整關鍵字、科別或學期設定。</p>' +
+        '  <button type="button" class="btn secondary" data-course-action="reset">' +
+        '    <span aria-hidden="true">🔄</span> 重設搜尋條件' +
+        "  </button>" +
+        "</div>"
       );
     }
 
@@ -328,16 +419,17 @@
      *
      * @param {Array<Object>} list - 課程陣列
      * @param {boolean} loading - 是否載入中
+     * @param {Object} [courses] - 課程狀態
      * @returns {string} HTML 字串
      */
-    function renderCourseRowsHtml(list, loading) {
+    function renderCourseRowsHtml(list, loading, courses) {
       if (loading) {
         return '<tr><td colspan="10" class="text-center py-8 text-muted">正在載入課程資料...</td></tr>';
       }
-      if (list.length === 0) {
+      if (!list || list.length === 0) {
         return (
-          '<tr><td colspan="10" class="text-center py-8 text-muted">' +
-          "目前尚無符合的課程紀錄，請至「課程代碼匯入」上傳資料或調整篩選條件。" +
+          '<tr><td colspan="10" style="text-align:center; padding:28px; color:var(--ink-2);">' +
+          renderEmptyCoursesStateHtml(courses) +
           "</td></tr>"
         );
       }
@@ -362,7 +454,7 @@
         '  <form class="filter-form" data-course-action="search">' +
         '    <label class="sr-only" for="courseSearchKeyword">搜尋關鍵字</label>' +
         '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
-        MEA.ui.escapeHtml(courses.keyword || "") +
+        safeEscapeHtml(courses.keyword || "") +
         '" />' +
         '    <label class="sr-only" for="courseSearchDept">科別篩選</label>' +
         '    <select id="courseSearchDept" class="select">' +
@@ -370,7 +462,7 @@
         "</select>" +
         '    <label class="sr-only" for="courseSearchYear">開課學年</label>' +
         '    <input type="text" id="courseSearchYear" class="input compact" style="width:100px;" placeholder="學年 (如 114)" value="' +
-        MEA.ui.escapeHtml(courses.academicYear || "") +
+        safeEscapeHtml(courses.academicYear || "") +
         '" />' +
         '    <label class="sr-only" for="courseSearchSem">學期篩選</label>' +
         '    <select id="courseSearchSem" class="select compact" style="width:100px;">' +
@@ -424,6 +516,7 @@
               loading: loading,
               loadingText: "正在載入課程資料...",
               emptyText: "目前尚無符合的課程紀錄",
+              emptyHtml: renderEmptyCoursesStateHtml(courses),
               colspan: 10,
               pagination: {
                 total: courses.total || 0,
@@ -444,7 +537,7 @@
             "      </tr>" +
             "    </thead>" +
             "    <tbody>" +
-            renderCourseRowsHtml(list) +
+            renderCourseRowsHtml(list, loading, courses) +
             "</tbody>" +
             "  </table>" +
             "</div>";
@@ -471,11 +564,16 @@
       fetchStats: fetchStats,
       handleSearch: handleSearch,
       resetSearch: resetSearch,
+      renderEmptyCoursesStateHtml: renderEmptyCoursesStateHtml,
       renderView: renderView
     };
   }
 
   return {
-    createCoursesModule: createCoursesModule
+    createCoursesModule: createCoursesModule,
+    renderEmptyCoursesStateHtml: function (courses) {
+      const mod = createCoursesModule({ exposeInternals: true });
+      return mod.renderEmptyCoursesStateHtml(courses);
+    }
   };
 });

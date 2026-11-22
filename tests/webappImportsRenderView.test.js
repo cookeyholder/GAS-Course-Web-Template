@@ -206,6 +206,54 @@ function run() {
     console.log("   ✓ 科別篩選純函式邊界驗證通過！\n");
   }
 
+  // 12. 課綱官方來源管道指引卡片與無障礙驗證
+  {
+    console.log("12. 課綱官方來源管道指引卡片與無障礙驗證...");
+    assert.strictEqual(typeof importsModule.renderCourseCodeGuidanceHtml, "function");
+
+    const guidanceHtml = importsModule.renderCourseCodeGuidanceHtml();
+    assert(guidanceHtml.indexOf('role="region"') !== -1, "指引應具備 role=region");
+    assert(guidanceHtml.indexOf('aria-label="108 課綱課程代碼官方來源管道指引"') !== -1);
+    assert(guidanceHtml.indexOf("高級中等學校課程計畫平臺") !== -1);
+    assert(guidanceHtml.indexOf("巨耀校務行政系統") !== -1);
+    assert(guidanceHtml.indexOf("格式注意事項") !== -1);
+    assert(guidanceHtml.indexOf("var(--fill)") !== -1);
+    assert(guidanceHtml.indexOf("var(--line-2)") !== -1);
+
+    // 驗證未選擇檔案時，renderView 同時包含 dropzone 與外部指引卡片
+    const ctx = createDeps();
+    ctx.state.imports.courseCodes = null;
+    const viewHtml = ctx.imports.renderView();
+    assert(viewHtml.indexOf('id="uploadDropzone"') !== -1);
+    assert(viewHtml.indexOf('aria-label="108 課綱課程代碼官方來源管道指引"') !== -1);
+
+    // 驗證指引卡片位於 uploadDropzone 標籤外部下方，點擊不冒泡
+    const dropzoneIndex = viewHtml.indexOf('id="uploadDropzone"');
+    const dropzoneEndIndex = viewHtml.indexOf("</div>", dropzoneIndex);
+    const guidanceIndex = viewHtml.indexOf('aria-label="108 課綱課程代碼官方來源管道指引"');
+    assert(guidanceIndex > dropzoneEndIndex, "指引卡片必須置於 uploadDropzone 外部下方");
+
+    console.log("   ✓ 課綱官方來源管道指引卡片與無障礙驗證通過！\n");
+  }
+
+  // 13. 全站外部相依安全降級防護測試
+  {
+    console.log("13. imports 全站外部相依安全降級防護測試...");
+    const noUiCtx = createDeps();
+    noUiCtx.MEA.ui = null;
+    noUiCtx.MEA.courseData = null;
+    noUiCtx.state.imports.courseCodes = makeEntry({
+      sample: [["114", "1", "1", "C001", "<安全科目>", "機械科", "必修", "2", "2", "", "一般", "3", "0"]]
+    });
+    const mod = importsModule.createImportsModule(noUiCtx.deps);
+    let viewHtml = "";
+    assert.doesNotThrow(function () {
+      viewHtml = mod.renderView();
+    }, "當 MEA.ui 與 MEA.courseData 為空時 renderView 不應拋錯");
+    assert(viewHtml.indexOf("&lt;安全科目&gt;") !== -1, "safeEscapeHtml 應正確跳脫 HTML");
+    console.log("   ✓ imports 外部相依安全降級防護通過！\n");
+  }
+
   console.log("✓ webapp/js/imports.js renderView 測試全數通過！\n");
 }
 
