@@ -34,6 +34,12 @@
   /** 大型匯入（大於或等於 GAS 分批寫入大小）停用自動重試，避免重複寫入 */
   const LARGE_IMPORT_ROW_THRESHOLD = 5000;
 
+  /**
+   * 解析後端回應之 JSON 字串，格式錯誤時回傳標準錯誤結構。純函式，無副作用。
+   *
+   * @param {string} text - 後端回應字串
+   * @returns {Object} 解析後之物件或 invalid_response 錯誤物件
+   */
   function parseApiResponse(text) {
     const invalid = {
       ok: false,
@@ -48,6 +54,19 @@
     }
   }
 
+  /**
+   * 建立 API 客戶端實例。
+   *
+   * @param {Object} [deps] - 依賴注入物件（支援 mock、google RPC、fetch、storage 測試替身）
+   * @param {Object} [deps.config] - 前端設定物件
+   * @param {Storage} [deps.storage] - 快取儲存實例（如 localStorage）
+   * @param {Function} [deps.fetchFn] - 自訂 HTTP fetch 實作
+   * @param {Function} [deps.getGoogle] - 取得 google.script.run 物件之回呼
+   * @param {Function} [deps.getMock] - 取得 mock API 實例之回呼
+   * @param {Function} [deps.setTimeoutFn] - 自訂延遲排程函式
+   * @param {Function} [deps.randomFn] - 自訂隨機數產生函式
+   * @returns {Object} API 客戶端操作介面
+   */
   function createApiClient(deps) {
     const options = deps || {};
     const safeErrors = moduleHelpers.resolveSafeErrors(options);
@@ -93,6 +112,12 @@
     let currentToken = "";
     let currentCsrfToken = "";
 
+    /**
+     * 安全讀取 storage，避免例外中斷流程。
+     *
+     * @param {string} key - 儲存鍵值
+     * @returns {string|null} 讀取之字串，失敗或不存在時回傳 null
+     */
     function safeStorageGet(key) {
       try {
         return storage.getItem(key);
@@ -101,12 +126,23 @@
       }
     }
 
+    /**
+     * 安全寫入 storage。
+     *
+     * @param {string} key - 儲存鍵值
+     * @param {string} value - 欲寫入之字串
+     */
     function safeStorageSet(key, value) {
       try {
         storage.setItem(key, value);
       } catch (e) {}
     }
 
+    /**
+     * 安全移除 storage 項目。
+     *
+     * @param {string} key - 儲存鍵值
+     */
     function safeStorageRemove(key) {
       try {
         storage.removeItem(key);
@@ -121,10 +157,20 @@
       currentCsrfToken = "";
     }
 
+    /**
+     * 取得目前保存之 Session Token。
+     *
+     * @returns {string} Session Token 字串
+     */
     function getToken() {
       return currentToken;
     }
 
+    /**
+     * 設定並持久化 Session Token。
+     *
+     * @param {string} token - 新的 Token 字串（空值代表清除）
+     */
     function setToken(token) {
       currentToken = token || "";
       if (currentToken) {
@@ -134,10 +180,20 @@
       }
     }
 
+    /**
+     * 取得目前保存之 CSRF Token。
+     *
+     * @returns {string} CSRF Token 字串
+     */
     function getCsrfToken() {
       return currentCsrfToken;
     }
 
+    /**
+     * 設定並持久化 CSRF Token。
+     *
+     * @param {string} csrfToken - 新的 CSRF Token 字串（空值代表清除）
+     */
     function setCsrfToken(csrfToken) {
       currentCsrfToken = csrfToken || "";
       if (currentCsrfToken) {
@@ -147,6 +203,13 @@
       }
     }
 
+    /**
+     * 組裝帶有 action、token 與 csrfToken 之請求內容。純函式。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} [payload] - 額外參數
+     * @returns {Object} 完整請求物件
+     */
     function buildRequestBody(action, payload) {
       const source = payload || {};
       return Object.assign({}, source, {
@@ -156,16 +219,33 @@
       });
     }
 
+    /**
+     * 判斷目前是否應使用 Mock 模式處理請求。
+     *
+     * @returns {boolean} 是否啟用且具備 Mock 處理常式
+     */
     function canUseMock() {
       const mock = getMock();
       return !!(config.mock && mock && typeof mock.handle === "function");
     }
 
+    /**
+     * 透過 Mock 介面發送請求。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} body - 請求本體物件
+     * @returns {Promise<Object>} Mock 回應之 Promise
+     */
     function requestViaMock(action, body) {
       const mock = getMock();
       return mock.handle(action, body);
     }
 
+    /**
+     * 取得 Google Apps Script 原生 RPC 執行器。
+     *
+     * @returns {Object|null} google.script.run 物件或 null
+     */
     function getRpcRunner() {
       const google = getGoogle();
       if (google && google.script && typeof google.script.run === "object") {
@@ -174,6 +254,12 @@
       return null;
     }
 
+    /**
+     * 正規化 RPC 回應成果，確保回傳標準物件。
+     *
+     * @param {*} result - 原生回傳值（字串、物件或空值）
+     * @returns {Object} 解析後回應或 invalid_response 錯誤物件
+     */
     function normalizeRpcResult(result) {
       if (typeof result === "string") {
         return parseApiResponse(result);
@@ -188,6 +274,12 @@
       };
     }
 
+    /**
+     * 建立標準化的 RPC 執行錯誤物件。
+     *
+     * @param {*} error - 捕捉到之例外物件
+     * @returns {Object} 標準 server_error 物件
+     */
     function createRpcError(error) {
       return {
         ok: false,
@@ -196,6 +288,13 @@
       };
     }
 
+    /**
+     * 透過 Google Apps Script 原生 RPC（google.script.run）發送請求。
+     *
+     * @param {Object} runner - google.script.run 物件
+     * @param {Object} body - 請求參數本體
+     * @returns {Promise<Object>} RPC 解析後之回應 Promise
+     */
     function requestViaRpc(runner, body) {
       return new Promise(function (resolve) {
         function resolveRpcError(error) {
@@ -215,6 +314,11 @@
       });
     }
 
+    /**
+     * 建立遺漏 API 網址時之標準錯誤回應。
+     *
+     * @returns {Promise<Object>} missing_api_url 錯誤 Promise
+     */
     function createMissingApiUrlError() {
       return Promise.resolve({
         ok: false,
@@ -223,6 +327,13 @@
       });
     }
 
+    /**
+     * 處理 fetch HTTP 回應，檢查狀態碼並解析內容。
+     *
+     * @param {Response} response - Fetch 回應物件
+     * @returns {Promise<Object>} 解析後 JSON 資料
+     * @throws {Error} 當 HTTP 狀態碼非 2xx 時拋出具安全訊息之 Error
+     */
     function handleFetchResponse(response) {
       if (response.ok === false) {
         const error = safeErrors.createSafeError("伺服器回應 HTTP " + response.status + "，請稍後再試");
@@ -235,6 +346,12 @@
       return response.json();
     }
 
+    /**
+     * 建立網路連線異常時之標準錯誤回應物件。
+     *
+     * @param {*} error - 連線例外或錯誤物件
+     * @returns {Object} 標準 network_error 物件
+     */
     function createNetworkError(error) {
       return {
         ok: false,
@@ -243,6 +360,12 @@
       };
     }
 
+    /**
+     * 透過 HTTP Fetch 發送 POST 請求（使用 text/plain;charset=utf-8 避開 OPTIONS 預檢）。
+     *
+     * @param {Object} body - 請求參數本體
+     * @returns {Promise<Object>} 伺服器回應或連線錯誤 Promise
+     */
     function requestViaFetch(body) {
       const apiUrl = config.apiUrl;
       if (!apiUrl) {
@@ -263,6 +386,13 @@
         .catch(createNetworkError);
     }
 
+    /**
+     * 單次執行請求（依環境依序採用 Mock、RPC 或 Fetch）。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} [payload] - 額外參數
+     * @returns {Promise<Object>} 單次呼叫回應 Promise
+     */
     function requestOnce(action, payload) {
       const body = buildRequestBody(action, payload);
       if (canUseMock()) {
@@ -277,6 +407,12 @@
       return requestViaFetch(body);
     }
 
+    /**
+     * 判斷後端錯誤代碼是否屬於可重試類別（rate_limited, lock_timeout, network_error）。
+     *
+     * @param {Object} result - API 呼叫成果物件
+     * @returns {boolean} 是否符合重試條件
+     */
     function isRetryableResult(result) {
       return !!(
         result &&
@@ -284,19 +420,39 @@
       );
     }
 
-    /** 大型匯入不自動重送，避免 response 遺失時重複清除與寫入 */
+    /**
+     * 判斷是否為大型匯入請求（大於或等於分批閥值），避免自動重試造成重複匯入。
+     *
+     * @param {string} action - 動作名稱
+     * @param {Object} [payload] - 參數物件
+     * @returns {boolean} 是否為大型匯入
+     */
     function isLargeImportPayload(action, payload) {
       if (action !== "importCourseCodes") return false;
       const rows = payload && payload.rows;
       return Array.isArray(rows) && rows.length >= LARGE_IMPORT_ROW_THRESHOLD;
     }
 
+    /**
+     * 評估特定請求是否允許自動重試。
+     *
+     * @param {string} action - 動作名稱
+     * @param {Object} [payload] - 參數物件
+     * @param {Object} opts - 呼叫選項
+     * @returns {boolean} 是否允許重試
+     */
     function shouldAutoRetry(action, payload, opts) {
       if (opts.retry === false) return false;
       return !isLargeImportPayload(action, payload);
     }
 
-    /** 在基準延遲上加入正負 20% jitter，避免並行請求同時重試 */
+    /**
+     * 計算帶有隨機擾動（jitter）之退避重試延遲時間。
+     *
+     * @param {number} baseDelay - 基準延遲（毫秒）
+     * @param {Object} opts - 呼叫選項（可包含 maxSingleDelayMs）
+     * @returns {number} 實際延遲毫秒數
+     */
     function computeRetryDelay(baseDelay, opts) {
       const jitter = 1 + (randomFn() * 2 - 1) * RETRY_JITTER_RATIO;
       const jittered = Math.max(0, Math.round(baseDelay * jitter));
@@ -305,6 +461,14 @@
         : jittered;
     }
 
+    /**
+     * 具備自動指數退避與 Jitter 重試機制之 API 呼叫函式。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} [payload] - 額外參數
+     * @param {Object} [callOptions] - 重試與連線設定選項
+     * @returns {Promise<Object>} API 回應 Promise
+     */
     function callWithRetry(action, payload, callOptions) {
       const opts = callOptions || {};
       const delays = Array.isArray(opts.delays) ? opts.delays : DEFAULT_RETRY_DELAYS;
@@ -343,6 +507,14 @@
       return execute();
     }
 
+    /**
+     * API 呼叫主要外顯介面，預設套用指數退避重試策略。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} [payload] - 額外參數
+     * @param {Object} [callOptions] - 重試與連線設定選項
+     * @returns {Promise<Object>} API 回應 Promise
+     */
     function call(action, payload, callOptions) {
       return callWithRetry(action, payload, callOptions);
     }

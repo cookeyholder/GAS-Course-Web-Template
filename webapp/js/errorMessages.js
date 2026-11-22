@@ -33,7 +33,12 @@
   }
 
   /**
-   * 嘗試從錯誤代碼對照表取得文案。
+   * 嘗試從錯誤代碼對照表取得文案。純函式，無副作用。
+   *
+   * @private
+   * @param {*} value - 錯誤值或物件
+   * @param {Object} [codeMap] - 錯誤代碼與文案對照表
+   * @returns {string|null} 對應之繁體中文文案或 null
    */
   function resolveFromCodeMap_(value, codeMap) {
     if (!codeMap || typeof codeMap !== "object") return null;
@@ -50,7 +55,12 @@
   }
 
   /**
-   * 嘗試從物件中安全提取 safeMessage 或 message。
+   * 嘗試從物件中安全提取 safeMessage 或一般 message，排除未授權外洩的原始 Error 物件。純函式，無副作用。
+   *
+   * @private
+   * @param {*} value - 待提取之值
+   * @param {string} safeFallback - 預設備援文案
+   * @returns {string} 安全錯誤文案
    */
   function resolveFromErrorObject_(value, safeFallback) {
     if (!value || typeof value !== "object") return safeFallback;

@@ -20,6 +20,12 @@
   /** 版本號與角色顯示名稱共用 gasRuntime 單一來源；瀏覽器由建置腳本先嵌入 gasRuntime。 */
   const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
 
+  /**
+   * 解析 URL 查詢字串為 URLSearchParams 實例。純函式，無副作用。
+   *
+   * @param {string} [search] - 查詢字串（如 location.search）
+   * @returns {URLSearchParams}
+   */
   function getSearchParams(search) {
     try {
       return new URLSearchParams(search || "");
@@ -28,13 +34,24 @@
     }
   }
 
+  /**
+   * 判斷主機名稱是否為本機環境（localhost 或 127.0.0.1）。純函式，無副作用。
+   *
+   * @param {string} [hostname] - 主機名稱
+   * @returns {boolean} 是否為本機
+   */
   function isLocalHostname(hostname) {
     const value = String(hostname || "").toLowerCase();
     return value === "localhost" || value === "127.0.0.1";
   }
 
   /**
-   * 安全解析候選端點字串，僅接受絕對 URL 或根相對路徑，且限定 http/https。
+   * 安全解析候選端點字串，僅接受絕對 URL 或根相對路徑，且限定 http/https。純函式，無副作用。
+   *
+   * @private
+   * @param {string} candidate - 候選端點字串
+   * @param {string} [baseHref] - 基礎 URL
+   * @returns {URL|null} 解析後的 URL 物件，失敗時回傳 null
    */
   function parseCandidateUrl_(candidate, baseHref) {
     const raw = String(candidate || "").trim();
@@ -51,7 +68,12 @@
   }
 
   /**
-   * 比對目標 URL 是否符合 GAS Web App、script.google.com、同源或本機白名單。
+   * 比對目標 URL 是否符合 GAS Web App、script.google.com、同源或本機白名單。純函式，無副作用。
+   *
+   * @private
+   * @param {URL} target - 目標 URL 物件
+   * @param {Object} [env] - 環境參數物件
+   * @returns {boolean} 是否受信任
    */
   function isMatchingTrustedHostOrOrigin_(target, env) {
     const source = env || {};
@@ -96,6 +118,12 @@
     return isMatchingTrustedHostOrOrigin_(target, source);
   }
 
+  /**
+   * 解析前端預設 API 端點網址（杜絕不受信任的第三方端點注入）。純函式，無副作用。
+   *
+   * @param {Object} [env] - 環境參數物件
+   * @returns {string} 安全之 API 端點 URL 或空字串
+   */
   function resolveDefaultApiUrl(env) {
     const source = env || {};
     const params = getSearchParams(source.search);

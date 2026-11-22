@@ -54,6 +54,12 @@ window.MEA = window.MEA || {};
 
   MEA.state = Object.assign({}, initialState);
 
+  /**
+   * 更新前端全域狀態並觸發所有已註冊的變更監聽回呼函式。
+   *
+   * @param {Object} patch - 欲局部覆寫之狀態物件片段
+   * @returns {void}
+   */
   function setState(patch) {
     if (!patch || typeof patch !== "object") return;
     Object.assign(MEA.state, patch);
@@ -66,6 +72,12 @@ window.MEA = window.MEA || {};
     }
   }
 
+  /**
+   * 註冊狀態變更監聽回呼函式。
+   *
+   * @param {Function} fn - 當狀態更新時觸發之回呼函式，接收最新 state 為引數
+   * @returns {Function} 取消註冊函式（unsubscribe）
+   */
   function subscribe(fn) {
     if (typeof fn === "function") {
       listeners.push(fn);

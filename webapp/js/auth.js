@@ -57,10 +57,22 @@
   // 純函式：登入結果轉換
   // ---------------------------------------------------------------------------
 
+  /**
+   * 檢查 API 回應是否成功（ok === true）。
+   *
+   * @param {*} result - API 回應物件
+   * @returns {boolean} 是否為成功結果
+   */
   function isOkResult(result) {
     return !!(result && result.ok === true);
   }
 
+  /**
+   * 建立登入失敗時的狀態物件。
+   *
+   * @param {*} result - 失敗回應物件或錯誤
+   * @returns {{view: string, loginBusy: boolean, loginError: string}} 登入失敗狀態
+   */
   function buildLoginFailureState(result) {
     return {
       view: "login",
@@ -69,6 +81,13 @@
     };
   }
 
+  /**
+   * 將登入成功回應轉換為前端標準使用者物件。
+   *
+   * @param {Object} result - 登入回應物件
+   * @param {Object} [roleNames] - 角色代碼至名稱之對照表
+   * @returns {Object} 使用者資訊物件
+   */
   function buildLoginUser(result, roleNames) {
     const roles = roleNames || {};
     return {
@@ -81,6 +100,12 @@
     };
   }
 
+  /**
+   * 建立登入成功時的狀態物件。
+   *
+   * @param {Object} user - 標準使用者物件
+   * @returns {{view: string, user: Object, loginBusy: boolean, loginError: string}} 登入成功狀態
+   */
   function buildLoginSuccessState(user) {
     return {
       view: "app",
@@ -90,10 +115,22 @@
     };
   }
 
+  /**
+   * 產生登入成功時之歡迎提示文字與等級。
+   *
+   * @param {Object} user - 使用者物件
+   * @returns {{message: string, level: string}} 提示訊息與樣式等級
+   */
   function getLoginToast(user) {
     return { message: "歡迎回來，" + user.name + "！", level: "ok" };
   }
 
+  /**
+   * 若回應中包含 CSRF Token，則更新至 API 客戶端。
+   *
+   * @param {Object} api - API 客戶端實例
+   * @param {string} [csrfToken] - CSRF Token 字串
+   */
   function applyCsrfToken(api, csrfToken) {
     if (csrfToken) api.setCsrfToken(csrfToken);
   }
@@ -113,7 +150,12 @@
   // 純函式：網址建立與導向
   // ---------------------------------------------------------------------------
 
-  /** 產生不可預測的 nonce：注入的 random 優先，其次 Web Crypto，最後為時間亂數備援。 */
+  /**
+   * 產生不可預測的 nonce：注入的 random 優先，其次 Web Crypto，最後為時間亂數備援。
+   *
+   * @param {Object} settings - 設定或依賴物件
+   * @returns {string} 隨機 nonce 字串
+   */
   function buildAuthNonce_(settings) {
     if (typeof settings.random === "function") {
       const now =
@@ -138,13 +180,26 @@
     return String(Date.now()) + Math.random().toString(36).substring(2);
   }
 
+  /**
+   * 取得用於保存 OAuth 狀態之 Storage 實例。
+   *
+   * @param {Object} settings - 依賴注入設定
+   * @returns {Storage|null} sessionStorage 或 null
+   */
   function getAuthStateStorage_(settings) {
     if (settings.sessionStorage) return settings.sessionStorage;
     if (typeof globalThis !== "undefined" && globalThis.sessionStorage) return globalThis.sessionStorage;
     return null;
   }
 
-  /** 保存 nonce 與 redirectUri 供回呼比對。 */
+  /**
+   * 保存 nonce 與 redirectUri 供回呼比對。
+   *
+   * @param {string} nonce - 隨機 nonce
+   * @param {string} redirectUri - 重新導向目標網址
+   * @param {Object} [options] - 設定選項
+   * @returns {boolean} 是否成功保存
+   */
   function saveAuthState(nonce, redirectUri, options) {
     const storage = getAuthStateStorage_(options || {});
     if (!storage || typeof storage.setItem !== "function") return false;
@@ -156,7 +211,12 @@
     }
   }
 
-  /** 讀取先前保存的 OAuth state。 */
+  /**
+   * 讀取先前保存的 OAuth state。
+   *
+   * @param {Object} [options] - 設定選項
+   * @returns {{nonce: string, redirectUri: string}|null} 保存之 state 或 null
+   */
   function readAuthState(options) {
     const storage = getAuthStateStorage_(options || {});
     if (!storage || typeof storage.getItem !== "function") return null;
@@ -171,7 +231,12 @@
     }
   }
 
-  /** 一次性清除已保存的 OAuth state。 */
+  /**
+   * 一次性清除已保存的 OAuth state。
+   *
+   * @param {Object} [options] - 設定選項
+   * @returns {boolean} 是否成功清除
+   */
   function clearAuthState(options) {
     const storage = getAuthStateStorage_(options || {});
     if (!storage || typeof storage.removeItem !== "function") return false;
@@ -183,6 +248,13 @@
     }
   }
 
+  /**
+   * 編碼並持久化 OAuth state 字串。
+   *
+   * @param {string} redirectUri - 重新導向網址
+   * @param {Object} [options] - 依賴選項（如 btoa 實作）
+   * @returns {string} Base64 編碼之 state 字串
+   */
   function encodeAuthState(redirectUri, options) {
     const settings = options || {};
     try {
@@ -195,6 +267,14 @@
     }
   }
 
+  /**
+   * 組裝 Google OAuth2 授權端點網址。
+   *
+   * @param {string} clientId - OAuth 用戶端 ID
+   * @param {string} redirectUri - 授權後重新導向網址
+   * @param {Object} [options] - state 編碼與亂數選項
+   * @returns {string} 完整 Google 授權網址
+   */
   function buildGoogleAuthUrlWithOptions(clientId, redirectUri, options) {
     const state = encodeAuthState(redirectUri, options);
     return (
@@ -213,16 +293,35 @@
     );
   }
 
+  /**
+   * 建立 Google 帳戶切換後的接續目標網址（附帶 switch=1 參數）。
+   *
+   * @param {string} webAppUrl - Web App 網址
+   * @returns {string} 接續導向網址
+   */
   function buildChooserContinueUrl(webAppUrl) {
     const target = String(webAppUrl || "").trim();
     if (target === "") return "";
     return target + (target.indexOf("?") === -1 ? "?" : "&") + "switch=1";
   }
 
+  /**
+   * 正規化允許登入的 Google 託管網域（Delegates to gasRuntime.normalizeAllowedDomain）。
+   *
+   * @param {string} allowedDomain - 原始網域名稱字串
+   * @returns {string} 正規化後之網域名稱
+   */
   function normalizeAllowedDomain(allowedDomain) {
     return gasRuntime.normalizeAllowedDomain(allowedDomain);
   }
 
+  /**
+   * 建立 Google Account Chooser 網址，支援限定網域（hd 參數）。
+   *
+   * @param {string} webAppUrl - Web App 網址
+   * @param {string} [allowedDomain] - 允許之網域
+   * @returns {string} 完整帳戶選擇器網址
+   */
   function buildAccountChooserUrl(webAppUrl, allowedDomain) {
     const continueUrl = buildChooserContinueUrl(webAppUrl);
     if (continueUrl === "") return "";
@@ -234,12 +333,26 @@
     return url;
   }
 
+  /**
+   * 解析 Web App 網址，優先從設定取得，備援使用全域變數。
+   *
+   * @param {Object} [config] - 設定物件
+   * @param {Object} [win] - 瀏覽器 window 物件
+   * @returns {string} Web App 網址字串
+   */
   function resolveWebAppUrl(config, win) {
     const source = config || {};
     const host = win || {};
     return String(source.webAppUrl || host.GAS_WEBAPP_URL || "").trim();
   }
 
+  /**
+   * 驗證重新導向登入所需之設定（clientId, hasClientSecret, webAppUrl）。
+   *
+   * @param {Object} [config] - 公開設定物件
+   * @param {Object} [win] - 瀏覽器 window 物件
+   * @returns {{clientId: string, redirectUri: string, message: string}} 驗證結果與錯誤訊息
+   */
   function validateRedirectSetup(config, win) {
     const source = config || {};
     const clientId = String(source.clientId || "").trim();
@@ -256,6 +369,12 @@
     return { clientId: clientId, redirectUri: redirectUri, message: "" };
   }
 
+  /**
+   * 將瀏覽器視窗導向至指定網址，支援 iframe top 跳脫。
+   *
+   * @param {Object} win - 瀏覽器 window 物件
+   * @param {string} url - 目標網址
+   */
   function navigateToUrl(win, url) {
     const host = win || {};
     try {
@@ -273,11 +392,24 @@
   // 純函式：Google 按鈕與工作階段還原
   // ---------------------------------------------------------------------------
 
+  /**
+   * 偵測當前是否處於 Google Apps Script 託管容器內（存在 google.script.run 且非 mock 模式）。
+   *
+   * @param {Object} [config] - 設定物件
+   * @param {Object} [google] - google 全域物件
+   * @returns {boolean} 是否為 GAS 託管環境
+   */
   function detectGasHosting(config, google) {
     const source = config || {};
     return !(source.mock || !google || !google.script || typeof google.script.run !== "object");
   }
 
+  /**
+   * 建立 GAS 託管環境專用之 Google 登入按鈕 HTML。
+   *
+   * @param {boolean} [loginBusy] - 是否正在處理登入
+   * @returns {string} 按鈕 HTML 字串
+   */
   function buildGasHostedLoginButtonHtml(loginBusy) {
     const busy = loginBusy ? " disabled" : "";
     return (
@@ -290,6 +422,12 @@
     );
   }
 
+  /**
+   * 準備 Google 登入按鈕之掛載目標與內容結構。
+   *
+   * @param {Object} [options] - 環境與設定參數
+   * @returns {{host: HTMLElement, html: string, clientId: string}|null} 按鈕準備設定或 null
+   */
   function prepareGoogleButton(options) {
     const settings = options || {};
     if (settings.mock) return null;
@@ -311,6 +449,13 @@
     return { host: host, html: "", clientId: clientId };
   }
 
+  /**
+   * 建立 Google Identity Services 初始化設定物件。
+   *
+   * @param {string} clientId - OAuth Client ID
+   * @param {Function} callback - 憑證回呼函式
+   * @returns {Object} GIS 初始化選項
+   */
   function buildGisInitializeOptions(clientId, callback) {
     return {
       client_id: clientId,
@@ -321,6 +466,12 @@
     };
   }
 
+  /**
+   * 建立 Google Identity Services 渲染按鈕設定物件。
+   *
+   * @param {string} theme - 主題名稱（dark 或 light）
+   * @returns {Object} GIS 按鈕樣式選項
+   */
   function buildGisRenderOptions(theme) {
     return {
       type: "standard",
@@ -334,6 +485,13 @@
     };
   }
 
+  /**
+   * 將 Session 驗證回應組裝為標準使用者物件。
+   *
+   * @param {Object} result - getSession 回應物件
+   * @param {Object} [roleNames] - 角色代碼對應名稱
+   * @returns {Object} 使用者資訊物件
+   */
   function buildSessionUser(result, roleNames) {
     const roles = roleNames || {};
     return {
@@ -346,10 +504,23 @@
     };
   }
 
+  /**
+   * 建立工作階段還原成功狀態物件。
+   *
+   * @param {Object} result - 回應成果物件
+   * @param {Object} [roleNames] - 角色名稱字典
+   * @returns {{view: string, user: Object}} 成功狀態
+   */
   function buildSessionSuccessState(result, roleNames) {
     return { view: "app", user: buildSessionUser(result, roleNames) };
   }
 
+  /**
+   * 解析工作階段過期或無效之錯誤訊息。
+   *
+   * @param {Object} [result] - 回應物件
+   * @returns {string} 提示訊息
+   */
   function getSessionErrorMessage(result) {
     if (!result) return SESSION_EXPIRED_ERROR;
     if (result.error === "missing_token" || result.error === "session_expired" || result.error === "invalid_session") {
@@ -368,6 +539,12 @@
     return sharedSafeErrors.resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
   }
 
+  /**
+   * 建立工作階段還原失敗狀態物件。
+   *
+   * @param {Object} [result] - 回應物件
+   * @returns {{view: string, loginError: string}} 登入失敗狀態
+   */
   function buildSessionFailureState(result) {
     return { view: "login", loginError: getSessionErrorMessage(result) };
   }
@@ -376,6 +553,12 @@
   // 控制器工廠：組裝 MEA.auth 公開方法
   // ---------------------------------------------------------------------------
 
+  /**
+   * 建立身分驗證控制器實例。
+   *
+   * @param {Object} [deps] - 依賴注入選項（包含 MEA、document、window、setTimeoutFn）
+   * @returns {Object} 身分驗證控制器操作介面
+   */
   function createAuthController(deps) {
     const options = deps || {};
     const safeErrors = moduleHelpers.resolveSafeErrors(options);
@@ -405,27 +588,56 @@
     let initializedClientId = "";
     let logoutBusy = false;
 
+    /**
+     * 取得系統角色代碼至顯示名稱對照表。
+     *
+     * @returns {Object} 角色對照字典
+     */
     function getRoleNames() {
       return (MEA.config && MEA.config.roleNames) || {};
     }
 
+    /**
+     * 判斷目前是否處於 Mock 測試模式。
+     *
+     * @returns {boolean} 是否為 Mock 模式
+     */
     function isMock() {
       return !!(MEA.config && MEA.config.mock);
     }
 
+    /**
+     * 取得應用程式全域公開設定物件。
+     *
+     * @returns {Object} 公開設定物件
+     */
     function getPublicConfig() {
       return (MEA.state && MEA.state.publicConfig) || {};
     }
 
-    /** 只有後端公開設定明確標記待開通時，才在登入請求附上 bootstrap 旗標。 */
+    /**
+     * 只有後端公開設定明確標記待開通時，才在登入請求附上 bootstrap 旗標。
+     *
+     * @returns {boolean} 是否需附帶 bootstrap 旗標
+     */
     function shouldRequestBootstrap() {
       return getPublicConfig().needsBootstrap === true;
     }
 
+    /**
+     * 檢查是否處於 GAS 原生託管環境。
+     *
+     * @returns {boolean} 是否為 GAS 託管環境
+     */
     function isGasHosted() {
       return detectGasHosting(MEA.config, win ? win.google : null);
     }
 
+    /**
+     * 非同步載入 Google Identity Services SDK 腳本。
+     *
+     * @returns {Promise<Object>} Google Accounts ID API 物件
+     */
     function loadGis() {
       if (gisPromise) return gisPromise;
       gisPromise = new Promise(function (resolve, reject) {
@@ -465,6 +677,12 @@
       return gisPromise;
     }
 
+    /**
+     * 套用登入成功或失敗回應並更新應用程式狀態。
+     *
+     * @param {Object} result - 登入呼叫結果
+     * @returns {Promise<Object|null>} 成功時回傳使用者物件，失敗時回傳 null
+     */
     function applyLoginSuccess(result) {
       if (!isOkResult(result)) {
         MEA.setState(buildLoginFailureState(result));
@@ -480,6 +698,11 @@
       return Promise.resolve(user);
     }
 
+    /**
+     * 處理 Google Identity Services 登入回傳之憑證。
+     *
+     * @param {Object} response - GIS 憑證回應物件
+     */
     function handleCredential(response) {
       const credential = response && response.credential ? String(response.credential) : "";
       if (credential === "") {
@@ -493,12 +716,22 @@
         .catch(handleAuthCallFailure);
     }
 
+    /**
+     * 建立 Google OAuth 導向授權網址。
+     *
+     * @param {string} clientId - OAuth 用戶端 ID
+     * @param {string} redirectUri - 重新導向網址
+     * @returns {string} 授權端點網址
+     */
     function buildGoogleAuthUrl(clientId, redirectUri) {
       return buildGoogleAuthUrlWithOptions(clientId, redirectUri, {
         btoa: win && typeof win.btoa === "function" ? win.btoa.bind(win) : null
       });
     }
 
+    /**
+     * 導向至 Google 帳戶切換器網址（適用於 GAS 託管容器內）。
+     */
     function switchGoogleAccount() {
       const config = getPublicConfig();
       const webAppUrl = resolveWebAppUrl(config, win);
@@ -515,6 +748,9 @@
       navigateToUrl(win, authUrl);
     }
 
+    /**
+     * 以 Google OAuth 重新導向方式執行登入。
+     */
     function loginWithGoogleRedirect() {
       const setup = validateRedirectSetup(getPublicConfig(), win);
       if (setup.message !== "") {
@@ -526,6 +762,9 @@
       navigateToUrl(win, authUrl);
     }
 
+    /**
+     * 在 GAS 託管環境中使用目前啟用的 Google 帳戶登入。
+     */
     function loginActiveUser() {
       MEA.setState({ loginBusy: true, loginError: "" });
       MEA.api
@@ -534,6 +773,13 @@
         .catch(handleAuthCallFailure);
     }
 
+    /**
+     * 建立 GIS SDK 準備就緒之按鈕渲染回呼函式。
+     *
+     * @param {HTMLElement} host - 按鈕容器元素
+     * @param {string} clientId - OAuth 用戶端 ID
+     * @returns {Function} 渲染回呼函式
+     */
     function createGisReadyHandler(host, clientId) {
       return function (id) {
         if (initializedClientId !== clientId) {
@@ -545,6 +791,11 @@
       };
     }
 
+    /**
+     * 處理 GIS SDK 載入或執行失敗。
+     *
+     * @param {*} error - 例外物件
+     */
     function handleGisFailure(error) {
       MEA.setState({ loginError: safeErrors.resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
     }
@@ -560,6 +811,9 @@
       MEA.ui.toast(message, "err");
     }
 
+    /**
+     * 依當前執行環境渲染適當的 Google 登入按鈕（GIS 按鈕、GAS 託管按鈕或提示訊息）。
+     */
     function renderGoogleButton() {
       const prepared = prepareGoogleButton({
         mock: isMock(),
@@ -576,6 +830,9 @@
       loadGis().then(createGisReadyHandler(prepared.host, prepared.clientId)).catch(handleGisFailure);
     }
 
+    /**
+     * 於 Mock 測試模式下模擬登入動作。
+     */
     function loginMock() {
       MEA.setState({ loginBusy: true, loginError: "" });
       MEA.api
@@ -584,10 +841,18 @@
         .catch(handleAuthCallFailure);
     }
 
+    /**
+     * 延遲排程渲染 Google 登入按鈕，確保 DOM 節點已掛載。
+     */
     function scheduleRenderGoogleButton() {
       setTimeoutFn(renderGoogleButton, 50);
     }
 
+    /**
+     * 執行使用者登出，清除狀態與 Token。
+     *
+     * @returns {Promise<boolean>} 是否成功完成登出流程
+     */
     function logout() {
       if (logoutBusy) return Promise.resolve(false);
       logoutBusy = true;
@@ -616,6 +881,12 @@
         });
     }
 
+    /**
+     * 套用工作階段驗證成功狀態。
+     *
+     * @param {Object} result - Session 驗證回應
+     * @returns {boolean} 是否驗證成功
+     */
     function applySessionSuccess(result) {
       if (!isOkResult(result)) return false;
       applyCsrfToken(MEA.api, result.csrfToken);
@@ -624,6 +895,9 @@
       return true;
     }
 
+    /**
+     * 還原既有工作階段（由 Token 或 Mock 還原登入狀態）。
+     */
     function restore() {
       const token = MEA.api.getToken();
       if (isMock()) {

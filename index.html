@@ -7379,10 +7379,10 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
 
   /**
    * 正規化允許登入網域（task 5.5）：去除前綴 @、前後空白並轉小寫。
-   * 前後端共用單一來源，避免各模組重複規則產生語意漂移。
+   * 前後端共用單一來源，避免各模組重複規則產生語意漂移。純函式，無副作用。
    *
-   * @param {*} configuredDomain - 設定的網域值
-   * @returns {string} 正規化後的網域
+   * @param {*} configuredDomain - 設定的網域值（支援字串或非字串容錯）
+   * @returns {string} 正規化後的純小寫網域名稱（無前綴 @）
    */
   function normalizeAllowedDomain(configuredDomain) {
     return String(configuredDomain || "")
@@ -7488,6 +7488,9 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
    * gasRuntime 單一來源解析（task 5.3）：GAS 全域優先，Node 由 require 取得。
    * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，無 gasRuntime 時
    * 退回同值常數，維持雙環境載入相容。
+   *
+   * @private
+   * @returns {Object<string, string>} 角色代碼對應物件（包含 ADMIN, STAFF, VIEWER）
    */
   function resolveRoleCodes_() {
     const fallback = { ADMIN: "admin", STAFF: "staff", VIEWER: "viewer" };
@@ -7856,6 +7859,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
   /** 版本號與角色顯示名稱共用 gasRuntime 單一來源；瀏覽器由建置腳本先嵌入 gasRuntime。 */
   const gasRuntime = globalThis.gasRuntime || require("../../gasRuntime.js");
 
+  /**
+   * 解析 URL 查詢字串為 URLSearchParams 實例。純函式，無副作用。
+   *
+   * @param {string} [search] - 查詢字串（如 location.search）
+   * @returns {URLSearchParams}
+   */
   function getSearchParams(search) {
     try {
       return new URLSearchParams(search || "");
@@ -7864,13 +7873,24 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
     }
   }
 
+  /**
+   * 判斷主機名稱是否為本機環境（localhost 或 127.0.0.1）。純函式，無副作用。
+   *
+   * @param {string} [hostname] - 主機名稱
+   * @returns {boolean} 是否為本機
+   */
   function isLocalHostname(hostname) {
     const value = String(hostname || "").toLowerCase();
     return value === "localhost" || value === "127.0.0.1";
   }
 
   /**
-   * 安全解析候選端點字串，僅接受絕對 URL 或根相對路徑，且限定 http/https。
+   * 安全解析候選端點字串，僅接受絕對 URL 或根相對路徑，且限定 http/https。純函式，無副作用。
+   *
+   * @private
+   * @param {string} candidate - 候選端點字串
+   * @param {string} [baseHref] - 基礎 URL
+   * @returns {URL|null} 解析後的 URL 物件，失敗時回傳 null
    */
   function parseCandidateUrl_(candidate, baseHref) {
     const raw = String(candidate || "").trim();
@@ -7887,7 +7907,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
   }
 
   /**
-   * 比對目標 URL 是否符合 GAS Web App、script.google.com、同源或本機白名單。
+   * 比對目標 URL 是否符合 GAS Web App、script.google.com、同源或本機白名單。純函式，無副作用。
+   *
+   * @private
+   * @param {URL} target - 目標 URL 物件
+   * @param {Object} [env] - 環境參數物件
+   * @returns {boolean} 是否受信任
    */
   function isMatchingTrustedHostOrOrigin_(target, env) {
     const source = env || {};
@@ -7932,6 +7957,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
     return isMatchingTrustedHostOrOrigin_(target, source);
   }
 
+  /**
+   * 解析前端預設 API 端點網址（杜絕不受信任的第三方端點注入）。純函式，無副作用。
+   *
+   * @param {Object} [env] - 環境參數物件
+   * @returns {string} 安全之 API 端點 URL 或空字串
+   */
   function resolveDefaultApiUrl(env) {
     const source = env || {};
     const params = getSearchParams(source.search);
@@ -8311,40 +8342,88 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
     2: "選修"
   };
 
+  /**
+   * 正規化代碼鍵名：去除前後空白並轉為字串。純函式，無副作用。
+   *
+   * @param {*} code - 原始代碼
+   * @returns {string} 正規化字串
+   */
   function normalizeCodeKey(code) {
     return code === null || code === undefined ? "" : String(code).trim();
   }
 
+  /**
+   * 依群別代碼取得中文群別名稱。純函式，無副作用。
+   *
+   * @param {*} code - 群別代碼
+   * @returns {string} 群別中文名稱
+   */
   function getGroupName(code) {
     const key = normalizeCodeKey(code);
     return GROUP_CODE_NAMES[key] || key;
   }
 
+  /**
+   * 依科別代碼取得中文科別名稱。純函式，無副作用。
+   *
+   * @param {*} code - 科別代碼
+   * @returns {string} 科別中文名稱
+   */
   function getDepartmentNameByCode(code) {
     const key = normalizeCodeKey(code);
     return DEPARTMENT_CODE_NAMES[key] || key;
   }
 
+  /**
+   * 依科目類別代碼取得中文名稱（如部定必修、校訂必修等）。純函式，無副作用。
+   *
+   * @param {*} code - 類別代碼
+   * @returns {string} 科目類別名稱
+   */
   function getSubjectType(code) {
     const key = normalizeCodeKey(code);
     return SUBJECT_TYPE_NAMES[key] || key;
   }
 
+  /**
+   * 依開課方式代碼取得中文名稱（如原班級、跨班選修等）。純函式，無副作用。
+   *
+   * @param {*} code - 開課方式代碼
+   * @returns {string} 開課方式名稱
+   */
   function getOpenWay(code) {
     const key = normalizeCodeKey(code);
     return OPEN_WAY_NAMES[key] || key;
   }
 
+  /**
+   * 依科目屬性代碼取得中文屬性名稱（如一般科目、專業科目等）。純函式，無副作用。
+   *
+   * @param {*} code - 屬性代碼
+   * @returns {string} 科目屬性名稱
+   */
   function getSubjectAttribution(code) {
     const key = normalizeCodeKey(code);
     return SUBJECT_ATTRIBUTION_NAMES[key] || key;
   }
 
+  /**
+   * 依必選修代碼取得中文名稱（1: 必修、2: 選修）。純函式，無副作用。
+   *
+   * @param {*} code - 代碼
+   * @returns {string} 必修或選修字串
+   */
   function isRequiredOrElective(code) {
     const key = normalizeCodeKey(code);
     return REQUIRED_ELECTIVE_NAMES[key] || key;
   }
 
+  /**
+   * 判定列資料是否為課程代碼檔案之表頭列。純函式，無副作用。
+   *
+   * @param {Array<*>} row - 列陣列
+   * @returns {boolean} 是否為表頭
+   */
   function isCourseCodeHeaderRow(row) {
     if (!Array.isArray(row) || row.length === 0) return false;
     const first = normalizeCodeKey(row[0]);
@@ -8352,12 +8431,24 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
     return first === "課程代碼" || attr === "科目屬性";
   }
 
+  /**
+   * 判定列資料是否符合剔除科目屬性（本範本預設不剔除任何科目）。純函式，無副作用。
+   *
+   * @param {Array<*>} row - 列陣列
+   * @returns {boolean} 是否剔除
+   */
   function isExcludedCourseRow(row) {
     if (!Array.isArray(row)) return false;
     if (EXCLUDED_SUBJECT_ATTRIBUTES.length === 0) return false;
     return EXCLUDED_SUBJECT_ATTRIBUTES.indexOf(normalizeCodeKey(row[11])) !== -1;
   }
 
+  /**
+   * 將原始 39 欄寬表單列展開為多列 14 欄 1NF 標準課程紀錄。純函式，無副作用。
+   *
+   * @param {Array<*>} row - 原始 39 欄列資料
+   * @returns {Array<Array<*>>} 展開後之 14 欄紀錄陣列
+   */
   function expandCourseRow(row) {
     const expanded = [];
     if (!Array.isArray(row) || row.length < 31) return expanded;
@@ -8405,6 +8496,16 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
     return expanded;
   }
 
+  /**
+   * 將原始課程代碼二維陣列進行 1NF 正規化展開運算。純函式，無副作用。
+   *
+   * @param {Array<Array<*>>} rawData - 原始二維陣列（含或不含表頭）
+   * @param {Object} [options] - 選項設定
+   * @param {string} [options.academicYear] - 限定開課學年
+   * @param {string} [options.semester] - 限定開課學期
+   * @param {boolean} [options.withStats=false] - 是否一併回傳統計摘要物件
+   * @returns {Array<Array<*>>|{ rows: Array<Array<*>>, stats: Object }} 正規化結果
+   */
   function normalizeCourseCodes(rawData, options) {
     const opts = options || {};
     const rows = Array.isArray(rawData) ? rawData : [];
@@ -8807,6 +8908,11 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       }
     ];
 
+    /**
+     * 建立模擬之登入成功回應資料。
+     *
+     * @returns {Object} 模擬登入回傳物件
+     */
     function buildLoginPayload() {
       return {
         ok: true,
@@ -8821,6 +8927,11 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       };
     }
 
+    /**
+     * 建立公開系統設定回應資料。
+     *
+     * @returns {Object} 公開設定回應物件
+     */
     function createPublicConfig() {
       return {
         ok: true,
@@ -8836,6 +8947,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       };
     }
 
+    /**
+     * 建立模擬 Session 驗證回應資料。
+     *
+     * @param {Object} [payload] - 請求參數
+     * @returns {Object} 模擬 Session 資訊物件
+     */
     function createSession(payload) {
       return {
         ok: true,
@@ -8848,6 +8965,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       };
     }
 
+    /**
+     * 模擬匯入課程代碼資料。
+     *
+     * @param {Object} payload - 匯入參數（含 rows 二維陣列）
+     * @returns {{ok: boolean, rows: number}} 匯入結果
+     */
     function importCourseCodes(payload) {
       if (payload && Array.isArray(payload.rows)) {
         mockCoursesList = payload.rows.map(function (r) {
@@ -8914,14 +9037,30 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       };
     }
 
+    /**
+     * 查詢模擬課程資料總筆數。
+     *
+     * @returns {{ok: boolean, total: number}} 統計數據
+     */
     function createCourseIndexStats() {
       return { ok: true, total: mockCoursesList.length };
     }
 
+    /**
+     * 讀取模擬系統設定。
+     *
+     * @returns {{ok: boolean, settings: Object}} 系統設定物件
+     */
     function createSystemSettings() {
       return { ok: true, settings: Object.assign({}, mockSettings) };
     }
 
+    /**
+     * 儲存模擬系統設定。
+     *
+     * @param {Object} payload - 包含 settings 物件的請求參數
+     * @returns {{ok: boolean}} 儲存結果
+     */
     function saveSystemSettings(payload) {
       const incoming = (payload && payload.settings) || {};
       const mapped = Object.assign({}, incoming);
@@ -8932,17 +9071,31 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       return { ok: true };
     }
 
+    /**
+     * 取得模擬授權成員清單。
+     *
+     * @returns {{ok: boolean, accounts: Array<Object>}} 帳號陣列
+     */
     function createAccounts() {
       return { ok: true, accounts: mockAccounts.slice() };
     }
 
-    /** 將毫秒時間戳記格式化為 Asia/Taipei 的 yyyy-MM-dd HH:mm:ss */
+    /**
+     * 將毫秒時間戳記格式化為 Asia/Taipei 的 yyyy-MM-dd HH:mm:ss。
+     *
+     * @param {number} ms - 毫秒時間戳記
+     * @returns {string} 格式化日期字串
+     */
     function formatMockTimestamp(ms) {
       const shifted = new Date(ms + 8 * 60 * 60 * 1000);
       return shifted.toISOString().slice(0, 19).replace("T", " ");
     }
 
-    /** 建立相對於目前時間的示範日誌列（最近六小時內） */
+    /**
+     * 建立相對於目前時間的示範日誌列（最近六小時內）。
+     *
+     * @returns {Array<Object>} 示範日誌陣列
+     */
     function buildMockActivityRows() {
       const now = nowFn();
       return [
@@ -8991,6 +9144,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       ];
     }
 
+    /**
+     * 查詢模擬操作日誌。
+     *
+     * @param {Object} [payload] - 查詢條件（日期區間、信箱、分類、分頁）
+     * @returns {Object} 模擬日誌回應物件
+     */
     function getActivityLog(payload) {
       const options = payload || {};
       const page = Math.max(1, Number(options.page) || 1);
@@ -9025,6 +9184,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       };
     }
 
+    /**
+     * 儲存模擬授權白名單。
+     *
+     * @param {Object} payload - 包含 accounts 陣列之物件
+     * @returns {{ok: boolean, count: number}} 儲存結果
+     */
     function saveWhitelist(payload) {
       mockAccounts.length = 0;
       const incoming = payload && payload.accounts ? payload.accounts : [];
@@ -9055,6 +9220,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       getActivityLog: getActivityLog
     };
 
+    /**
+     * 建立未支援之 mock action 錯誤回應。
+     *
+     * @param {string} action - 未支援的動作名稱
+     * @returns {{ok: boolean, error: string, message: string}} 錯誤物件
+     */
     function createUnknownActionResult(action) {
       return { ok: false, error: "unknown_mock_action", message: "Mock 未支援 action：" + action };
     }
@@ -9065,6 +9236,13 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       (typeof globalThis !== "undefined" && globalThis.actionRegistry) ||
       null;
 
+    /**
+     * 解析並派發 mock action 至對應處理函式。
+     *
+     * @param {string} action - 動作名稱
+     * @param {Object} payload - 動作參數
+     * @returns {Object} 動作處理結果
+     */
     function resolveAction(action, payload) {
       if (actionRegistry && !actionRegistry.hasAction(action)) {
         return createUnknownActionResult(action);
@@ -9075,6 +9253,13 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       return actionHandlers[action](payload);
     }
 
+    /**
+     * 處理 Mock API 請求（模擬非同步延遲）。
+     *
+     * @param {string} action - 動作名稱
+     * @param {Object} payload - 請求參數
+     * @returns {Promise<Object>} 回應成果 Promise
+     */
     function handle(action, payload) {
       return new Promise(function (resolve) {
         setTimeoutFn(function () {
@@ -9126,7 +9311,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
   }
 
   /**
-   * 嘗試從錯誤代碼對照表取得文案。
+   * 嘗試從錯誤代碼對照表取得文案。純函式，無副作用。
+   *
+   * @private
+   * @param {*} value - 錯誤值或物件
+   * @param {Object} [codeMap] - 錯誤代碼與文案對照表
+   * @returns {string|null} 對應之繁體中文文案或 null
    */
   function resolveFromCodeMap_(value, codeMap) {
     if (!codeMap || typeof codeMap !== "object") return null;
@@ -9143,7 +9333,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
   }
 
   /**
-   * 嘗試從物件中安全提取 safeMessage 或 message。
+   * 嘗試從物件中安全提取 safeMessage 或一般 message，排除未授權外洩的原始 Error 物件。純函式，無副作用。
+   *
+   * @private
+   * @param {*} value - 待提取之值
+   * @param {string} safeFallback - 預設備援文案
+   * @returns {string} 安全錯誤文案
    */
   function resolveFromErrorObject_(value, safeFallback) {
     if (!value || typeof value !== "object") return safeFallback;
@@ -9265,6 +9460,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
   /** 大型匯入（大於或等於 GAS 分批寫入大小）停用自動重試，避免重複寫入 */
   const LARGE_IMPORT_ROW_THRESHOLD = 5000;
 
+  /**
+   * 解析後端回應之 JSON 字串，格式錯誤時回傳標準錯誤結構。純函式，無副作用。
+   *
+   * @param {string} text - 後端回應字串
+   * @returns {Object} 解析後之物件或 invalid_response 錯誤物件
+   */
   function parseApiResponse(text) {
     const invalid = {
       ok: false,
@@ -9279,6 +9480,19 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
     }
   }
 
+  /**
+   * 建立 API 客戶端實例。
+   *
+   * @param {Object} [deps] - 依賴注入物件（支援 mock、google RPC、fetch、storage 測試替身）
+   * @param {Object} [deps.config] - 前端設定物件
+   * @param {Storage} [deps.storage] - 快取儲存實例（如 localStorage）
+   * @param {Function} [deps.fetchFn] - 自訂 HTTP fetch 實作
+   * @param {Function} [deps.getGoogle] - 取得 google.script.run 物件之回呼
+   * @param {Function} [deps.getMock] - 取得 mock API 實例之回呼
+   * @param {Function} [deps.setTimeoutFn] - 自訂延遲排程函式
+   * @param {Function} [deps.randomFn] - 自訂隨機數產生函式
+   * @returns {Object} API 客戶端操作介面
+   */
   function createApiClient(deps) {
     const options = deps || {};
     const safeErrors = moduleHelpers.resolveSafeErrors(options);
@@ -9324,6 +9538,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
     let currentToken = "";
     let currentCsrfToken = "";
 
+    /**
+     * 安全讀取 storage，避免例外中斷流程。
+     *
+     * @param {string} key - 儲存鍵值
+     * @returns {string|null} 讀取之字串，失敗或不存在時回傳 null
+     */
     function safeStorageGet(key) {
       try {
         return storage.getItem(key);
@@ -9332,12 +9552,23 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       }
     }
 
+    /**
+     * 安全寫入 storage。
+     *
+     * @param {string} key - 儲存鍵值
+     * @param {string} value - 欲寫入之字串
+     */
     function safeStorageSet(key, value) {
       try {
         storage.setItem(key, value);
       } catch (e) {}
     }
 
+    /**
+     * 安全移除 storage 項目。
+     *
+     * @param {string} key - 儲存鍵值
+     */
     function safeStorageRemove(key) {
       try {
         storage.removeItem(key);
@@ -9352,10 +9583,20 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       currentCsrfToken = "";
     }
 
+    /**
+     * 取得目前保存之 Session Token。
+     *
+     * @returns {string} Session Token 字串
+     */
     function getToken() {
       return currentToken;
     }
 
+    /**
+     * 設定並持久化 Session Token。
+     *
+     * @param {string} token - 新的 Token 字串（空值代表清除）
+     */
     function setToken(token) {
       currentToken = token || "";
       if (currentToken) {
@@ -9365,10 +9606,20 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       }
     }
 
+    /**
+     * 取得目前保存之 CSRF Token。
+     *
+     * @returns {string} CSRF Token 字串
+     */
     function getCsrfToken() {
       return currentCsrfToken;
     }
 
+    /**
+     * 設定並持久化 CSRF Token。
+     *
+     * @param {string} csrfToken - 新的 CSRF Token 字串（空值代表清除）
+     */
     function setCsrfToken(csrfToken) {
       currentCsrfToken = csrfToken || "";
       if (currentCsrfToken) {
@@ -9378,6 +9629,13 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       }
     }
 
+    /**
+     * 組裝帶有 action、token 與 csrfToken 之請求內容。純函式。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} [payload] - 額外參數
+     * @returns {Object} 完整請求物件
+     */
     function buildRequestBody(action, payload) {
       const source = payload || {};
       return Object.assign({}, source, {
@@ -9387,16 +9645,33 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       });
     }
 
+    /**
+     * 判斷目前是否應使用 Mock 模式處理請求。
+     *
+     * @returns {boolean} 是否啟用且具備 Mock 處理常式
+     */
     function canUseMock() {
       const mock = getMock();
       return !!(config.mock && mock && typeof mock.handle === "function");
     }
 
+    /**
+     * 透過 Mock 介面發送請求。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} body - 請求本體物件
+     * @returns {Promise<Object>} Mock 回應之 Promise
+     */
     function requestViaMock(action, body) {
       const mock = getMock();
       return mock.handle(action, body);
     }
 
+    /**
+     * 取得 Google Apps Script 原生 RPC 執行器。
+     *
+     * @returns {Object|null} google.script.run 物件或 null
+     */
     function getRpcRunner() {
       const google = getGoogle();
       if (google && google.script && typeof google.script.run === "object") {
@@ -9405,6 +9680,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       return null;
     }
 
+    /**
+     * 正規化 RPC 回應成果，確保回傳標準物件。
+     *
+     * @param {*} result - 原生回傳值（字串、物件或空值）
+     * @returns {Object} 解析後回應或 invalid_response 錯誤物件
+     */
     function normalizeRpcResult(result) {
       if (typeof result === "string") {
         return parseApiResponse(result);
@@ -9419,6 +9700,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       };
     }
 
+    /**
+     * 建立標準化的 RPC 執行錯誤物件。
+     *
+     * @param {*} error - 捕捉到之例外物件
+     * @returns {Object} 標準 server_error 物件
+     */
     function createRpcError(error) {
       return {
         ok: false,
@@ -9427,6 +9714,13 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       };
     }
 
+    /**
+     * 透過 Google Apps Script 原生 RPC（google.script.run）發送請求。
+     *
+     * @param {Object} runner - google.script.run 物件
+     * @param {Object} body - 請求參數本體
+     * @returns {Promise<Object>} RPC 解析後之回應 Promise
+     */
     function requestViaRpc(runner, body) {
       return new Promise(function (resolve) {
         function resolveRpcError(error) {
@@ -9446,6 +9740,11 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       });
     }
 
+    /**
+     * 建立遺漏 API 網址時之標準錯誤回應。
+     *
+     * @returns {Promise<Object>} missing_api_url 錯誤 Promise
+     */
     function createMissingApiUrlError() {
       return Promise.resolve({
         ok: false,
@@ -9454,6 +9753,13 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       });
     }
 
+    /**
+     * 處理 fetch HTTP 回應，檢查狀態碼並解析內容。
+     *
+     * @param {Response} response - Fetch 回應物件
+     * @returns {Promise<Object>} 解析後 JSON 資料
+     * @throws {Error} 當 HTTP 狀態碼非 2xx 時拋出具安全訊息之 Error
+     */
     function handleFetchResponse(response) {
       if (response.ok === false) {
         const error = safeErrors.createSafeError("伺服器回應 HTTP " + response.status + "，請稍後再試");
@@ -9466,6 +9772,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       return response.json();
     }
 
+    /**
+     * 建立網路連線異常時之標準錯誤回應物件。
+     *
+     * @param {*} error - 連線例外或錯誤物件
+     * @returns {Object} 標準 network_error 物件
+     */
     function createNetworkError(error) {
       return {
         ok: false,
@@ -9474,6 +9786,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       };
     }
 
+    /**
+     * 透過 HTTP Fetch 發送 POST 請求（使用 text/plain;charset=utf-8 避開 OPTIONS 預檢）。
+     *
+     * @param {Object} body - 請求參數本體
+     * @returns {Promise<Object>} 伺服器回應或連線錯誤 Promise
+     */
     function requestViaFetch(body) {
       const apiUrl = config.apiUrl;
       if (!apiUrl) {
@@ -9494,6 +9812,13 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
         .catch(createNetworkError);
     }
 
+    /**
+     * 單次執行請求（依環境依序採用 Mock、RPC 或 Fetch）。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} [payload] - 額外參數
+     * @returns {Promise<Object>} 單次呼叫回應 Promise
+     */
     function requestOnce(action, payload) {
       const body = buildRequestBody(action, payload);
       if (canUseMock()) {
@@ -9508,6 +9833,12 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       return requestViaFetch(body);
     }
 
+    /**
+     * 判斷後端錯誤代碼是否屬於可重試類別（rate_limited, lock_timeout, network_error）。
+     *
+     * @param {Object} result - API 呼叫成果物件
+     * @returns {boolean} 是否符合重試條件
+     */
     function isRetryableResult(result) {
       return !!(
         result &&
@@ -9515,19 +9846,39 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       );
     }
 
-    /** 大型匯入不自動重送，避免 response 遺失時重複清除與寫入 */
+    /**
+     * 判斷是否為大型匯入請求（大於或等於分批閥值），避免自動重試造成重複匯入。
+     *
+     * @param {string} action - 動作名稱
+     * @param {Object} [payload] - 參數物件
+     * @returns {boolean} 是否為大型匯入
+     */
     function isLargeImportPayload(action, payload) {
       if (action !== "importCourseCodes") return false;
       const rows = payload && payload.rows;
       return Array.isArray(rows) && rows.length >= LARGE_IMPORT_ROW_THRESHOLD;
     }
 
+    /**
+     * 評估特定請求是否允許自動重試。
+     *
+     * @param {string} action - 動作名稱
+     * @param {Object} [payload] - 參數物件
+     * @param {Object} opts - 呼叫選項
+     * @returns {boolean} 是否允許重試
+     */
     function shouldAutoRetry(action, payload, opts) {
       if (opts.retry === false) return false;
       return !isLargeImportPayload(action, payload);
     }
 
-    /** 在基準延遲上加入正負 20% jitter，避免並行請求同時重試 */
+    /**
+     * 計算帶有隨機擾動（jitter）之退避重試延遲時間。
+     *
+     * @param {number} baseDelay - 基準延遲（毫秒）
+     * @param {Object} opts - 呼叫選項（可包含 maxSingleDelayMs）
+     * @returns {number} 實際延遲毫秒數
+     */
     function computeRetryDelay(baseDelay, opts) {
       const jitter = 1 + (randomFn() * 2 - 1) * RETRY_JITTER_RATIO;
       const jittered = Math.max(0, Math.round(baseDelay * jitter));
@@ -9536,6 +9887,14 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
         : jittered;
     }
 
+    /**
+     * 具備自動指數退避與 Jitter 重試機制之 API 呼叫函式。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} [payload] - 額外參數
+     * @param {Object} [callOptions] - 重試與連線設定選項
+     * @returns {Promise<Object>} API 回應 Promise
+     */
     function callWithRetry(action, payload, callOptions) {
       const opts = callOptions || {};
       const delays = Array.isArray(opts.delays) ? opts.delays : DEFAULT_RETRY_DELAYS;
@@ -9574,6 +9933,14 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
       return execute();
     }
 
+    /**
+     * API 呼叫主要外顯介面，預設套用指數退避重試策略。
+     *
+     * @param {string} action - API 動作名稱
+     * @param {Object} [payload] - 額外參數
+     * @param {Object} [callOptions] - 重試與連線設定選項
+     * @returns {Promise<Object>} API 回應 Promise
+     */
     function call(action, payload, callOptions) {
       return callWithRetry(action, payload, callOptions);
     }
@@ -9706,6 +10073,12 @@ window.MEA = window.MEA || {};
 
   MEA.state = Object.assign({}, initialState);
 
+  /**
+   * 更新前端全域狀態並觸發所有已註冊的變更監聽回呼函式。
+   *
+   * @param {Object} patch - 欲局部覆寫之狀態物件片段
+   * @returns {void}
+   */
   function setState(patch) {
     if (!patch || typeof patch !== "object") return;
     Object.assign(MEA.state, patch);
@@ -9718,6 +10091,12 @@ window.MEA = window.MEA || {};
     }
   }
 
+  /**
+   * 註冊狀態變更監聽回呼函式。
+   *
+   * @param {Function} fn - 當狀態更新時觸發之回呼函式，接收最新 state 為引數
+   * @returns {Function} 取消註冊函式（unsubscribe）
+   */
   function subscribe(fn) {
     if (typeof fn === "function") {
       listeners.push(fn);
@@ -11526,10 +11905,22 @@ window.MEA = window.MEA || {};
   // 純函式：登入結果轉換
   // ---------------------------------------------------------------------------
 
+  /**
+   * 檢查 API 回應是否成功（ok === true）。
+   *
+   * @param {*} result - API 回應物件
+   * @returns {boolean} 是否為成功結果
+   */
   function isOkResult(result) {
     return !!(result && result.ok === true);
   }
 
+  /**
+   * 建立登入失敗時的狀態物件。
+   *
+   * @param {*} result - 失敗回應物件或錯誤
+   * @returns {{view: string, loginBusy: boolean, loginError: string}} 登入失敗狀態
+   */
   function buildLoginFailureState(result) {
     return {
       view: "login",
@@ -11538,6 +11929,13 @@ window.MEA = window.MEA || {};
     };
   }
 
+  /**
+   * 將登入成功回應轉換為前端標準使用者物件。
+   *
+   * @param {Object} result - 登入回應物件
+   * @param {Object} [roleNames] - 角色代碼至名稱之對照表
+   * @returns {Object} 使用者資訊物件
+   */
   function buildLoginUser(result, roleNames) {
     const roles = roleNames || {};
     return {
@@ -11550,6 +11948,12 @@ window.MEA = window.MEA || {};
     };
   }
 
+  /**
+   * 建立登入成功時的狀態物件。
+   *
+   * @param {Object} user - 標準使用者物件
+   * @returns {{view: string, user: Object, loginBusy: boolean, loginError: string}} 登入成功狀態
+   */
   function buildLoginSuccessState(user) {
     return {
       view: "app",
@@ -11559,10 +11963,22 @@ window.MEA = window.MEA || {};
     };
   }
 
+  /**
+   * 產生登入成功時之歡迎提示文字與等級。
+   *
+   * @param {Object} user - 使用者物件
+   * @returns {{message: string, level: string}} 提示訊息與樣式等級
+   */
   function getLoginToast(user) {
     return { message: "歡迎回來，" + user.name + "！", level: "ok" };
   }
 
+  /**
+   * 若回應中包含 CSRF Token，則更新至 API 客戶端。
+   *
+   * @param {Object} api - API 客戶端實例
+   * @param {string} [csrfToken] - CSRF Token 字串
+   */
   function applyCsrfToken(api, csrfToken) {
     if (csrfToken) api.setCsrfToken(csrfToken);
   }
@@ -11582,7 +11998,12 @@ window.MEA = window.MEA || {};
   // 純函式：網址建立與導向
   // ---------------------------------------------------------------------------
 
-  /** 產生不可預測的 nonce：注入的 random 優先，其次 Web Crypto，最後為時間亂數備援。 */
+  /**
+   * 產生不可預測的 nonce：注入的 random 優先，其次 Web Crypto，最後為時間亂數備援。
+   *
+   * @param {Object} settings - 設定或依賴物件
+   * @returns {string} 隨機 nonce 字串
+   */
   function buildAuthNonce_(settings) {
     if (typeof settings.random === "function") {
       const now =
@@ -11607,13 +12028,26 @@ window.MEA = window.MEA || {};
     return String(Date.now()) + Math.random().toString(36).substring(2);
   }
 
+  /**
+   * 取得用於保存 OAuth 狀態之 Storage 實例。
+   *
+   * @param {Object} settings - 依賴注入設定
+   * @returns {Storage|null} sessionStorage 或 null
+   */
   function getAuthStateStorage_(settings) {
     if (settings.sessionStorage) return settings.sessionStorage;
     if (typeof globalThis !== "undefined" && globalThis.sessionStorage) return globalThis.sessionStorage;
     return null;
   }
 
-  /** 保存 nonce 與 redirectUri 供回呼比對。 */
+  /**
+   * 保存 nonce 與 redirectUri 供回呼比對。
+   *
+   * @param {string} nonce - 隨機 nonce
+   * @param {string} redirectUri - 重新導向目標網址
+   * @param {Object} [options] - 設定選項
+   * @returns {boolean} 是否成功保存
+   */
   function saveAuthState(nonce, redirectUri, options) {
     const storage = getAuthStateStorage_(options || {});
     if (!storage || typeof storage.setItem !== "function") return false;
@@ -11625,7 +12059,12 @@ window.MEA = window.MEA || {};
     }
   }
 
-  /** 讀取先前保存的 OAuth state。 */
+  /**
+   * 讀取先前保存的 OAuth state。
+   *
+   * @param {Object} [options] - 設定選項
+   * @returns {{nonce: string, redirectUri: string}|null} 保存之 state 或 null
+   */
   function readAuthState(options) {
     const storage = getAuthStateStorage_(options || {});
     if (!storage || typeof storage.getItem !== "function") return null;
@@ -11640,7 +12079,12 @@ window.MEA = window.MEA || {};
     }
   }
 
-  /** 一次性清除已保存的 OAuth state。 */
+  /**
+   * 一次性清除已保存的 OAuth state。
+   *
+   * @param {Object} [options] - 設定選項
+   * @returns {boolean} 是否成功清除
+   */
   function clearAuthState(options) {
     const storage = getAuthStateStorage_(options || {});
     if (!storage || typeof storage.removeItem !== "function") return false;
@@ -11652,6 +12096,13 @@ window.MEA = window.MEA || {};
     }
   }
 
+  /**
+   * 編碼並持久化 OAuth state 字串。
+   *
+   * @param {string} redirectUri - 重新導向網址
+   * @param {Object} [options] - 依賴選項（如 btoa 實作）
+   * @returns {string} Base64 編碼之 state 字串
+   */
   function encodeAuthState(redirectUri, options) {
     const settings = options || {};
     try {
@@ -11664,6 +12115,14 @@ window.MEA = window.MEA || {};
     }
   }
 
+  /**
+   * 組裝 Google OAuth2 授權端點網址。
+   *
+   * @param {string} clientId - OAuth 用戶端 ID
+   * @param {string} redirectUri - 授權後重新導向網址
+   * @param {Object} [options] - state 編碼與亂數選項
+   * @returns {string} 完整 Google 授權網址
+   */
   function buildGoogleAuthUrlWithOptions(clientId, redirectUri, options) {
     const state = encodeAuthState(redirectUri, options);
     return (
@@ -11682,16 +12141,35 @@ window.MEA = window.MEA || {};
     );
   }
 
+  /**
+   * 建立 Google 帳戶切換後的接續目標網址（附帶 switch=1 參數）。
+   *
+   * @param {string} webAppUrl - Web App 網址
+   * @returns {string} 接續導向網址
+   */
   function buildChooserContinueUrl(webAppUrl) {
     const target = String(webAppUrl || "").trim();
     if (target === "") return "";
     return target + (target.indexOf("?") === -1 ? "?" : "&") + "switch=1";
   }
 
+  /**
+   * 正規化允許登入的 Google 託管網域（Delegates to gasRuntime.normalizeAllowedDomain）。
+   *
+   * @param {string} allowedDomain - 原始網域名稱字串
+   * @returns {string} 正規化後之網域名稱
+   */
   function normalizeAllowedDomain(allowedDomain) {
     return gasRuntime.normalizeAllowedDomain(allowedDomain);
   }
 
+  /**
+   * 建立 Google Account Chooser 網址，支援限定網域（hd 參數）。
+   *
+   * @param {string} webAppUrl - Web App 網址
+   * @param {string} [allowedDomain] - 允許之網域
+   * @returns {string} 完整帳戶選擇器網址
+   */
   function buildAccountChooserUrl(webAppUrl, allowedDomain) {
     const continueUrl = buildChooserContinueUrl(webAppUrl);
     if (continueUrl === "") return "";
@@ -11703,12 +12181,26 @@ window.MEA = window.MEA || {};
     return url;
   }
 
+  /**
+   * 解析 Web App 網址，優先從設定取得，備援使用全域變數。
+   *
+   * @param {Object} [config] - 設定物件
+   * @param {Object} [win] - 瀏覽器 window 物件
+   * @returns {string} Web App 網址字串
+   */
   function resolveWebAppUrl(config, win) {
     const source = config || {};
     const host = win || {};
     return String(source.webAppUrl || host.GAS_WEBAPP_URL || "").trim();
   }
 
+  /**
+   * 驗證重新導向登入所需之設定（clientId, hasClientSecret, webAppUrl）。
+   *
+   * @param {Object} [config] - 公開設定物件
+   * @param {Object} [win] - 瀏覽器 window 物件
+   * @returns {{clientId: string, redirectUri: string, message: string}} 驗證結果與錯誤訊息
+   */
   function validateRedirectSetup(config, win) {
     const source = config || {};
     const clientId = String(source.clientId || "").trim();
@@ -11725,6 +12217,12 @@ window.MEA = window.MEA || {};
     return { clientId: clientId, redirectUri: redirectUri, message: "" };
   }
 
+  /**
+   * 將瀏覽器視窗導向至指定網址，支援 iframe top 跳脫。
+   *
+   * @param {Object} win - 瀏覽器 window 物件
+   * @param {string} url - 目標網址
+   */
   function navigateToUrl(win, url) {
     const host = win || {};
     try {
@@ -11742,11 +12240,24 @@ window.MEA = window.MEA || {};
   // 純函式：Google 按鈕與工作階段還原
   // ---------------------------------------------------------------------------
 
+  /**
+   * 偵測當前是否處於 Google Apps Script 託管容器內（存在 google.script.run 且非 mock 模式）。
+   *
+   * @param {Object} [config] - 設定物件
+   * @param {Object} [google] - google 全域物件
+   * @returns {boolean} 是否為 GAS 託管環境
+   */
   function detectGasHosting(config, google) {
     const source = config || {};
     return !(source.mock || !google || !google.script || typeof google.script.run !== "object");
   }
 
+  /**
+   * 建立 GAS 託管環境專用之 Google 登入按鈕 HTML。
+   *
+   * @param {boolean} [loginBusy] - 是否正在處理登入
+   * @returns {string} 按鈕 HTML 字串
+   */
   function buildGasHostedLoginButtonHtml(loginBusy) {
     const busy = loginBusy ? " disabled" : "";
     return (
@@ -11759,6 +12270,12 @@ window.MEA = window.MEA || {};
     );
   }
 
+  /**
+   * 準備 Google 登入按鈕之掛載目標與內容結構。
+   *
+   * @param {Object} [options] - 環境與設定參數
+   * @returns {{host: HTMLElement, html: string, clientId: string}|null} 按鈕準備設定或 null
+   */
   function prepareGoogleButton(options) {
     const settings = options || {};
     if (settings.mock) return null;
@@ -11780,6 +12297,13 @@ window.MEA = window.MEA || {};
     return { host: host, html: "", clientId: clientId };
   }
 
+  /**
+   * 建立 Google Identity Services 初始化設定物件。
+   *
+   * @param {string} clientId - OAuth Client ID
+   * @param {Function} callback - 憑證回呼函式
+   * @returns {Object} GIS 初始化選項
+   */
   function buildGisInitializeOptions(clientId, callback) {
     return {
       client_id: clientId,
@@ -11790,6 +12314,12 @@ window.MEA = window.MEA || {};
     };
   }
 
+  /**
+   * 建立 Google Identity Services 渲染按鈕設定物件。
+   *
+   * @param {string} theme - 主題名稱（dark 或 light）
+   * @returns {Object} GIS 按鈕樣式選項
+   */
   function buildGisRenderOptions(theme) {
     return {
       type: "standard",
@@ -11803,6 +12333,13 @@ window.MEA = window.MEA || {};
     };
   }
 
+  /**
+   * 將 Session 驗證回應組裝為標準使用者物件。
+   *
+   * @param {Object} result - getSession 回應物件
+   * @param {Object} [roleNames] - 角色代碼對應名稱
+   * @returns {Object} 使用者資訊物件
+   */
   function buildSessionUser(result, roleNames) {
     const roles = roleNames || {};
     return {
@@ -11815,10 +12352,23 @@ window.MEA = window.MEA || {};
     };
   }
 
+  /**
+   * 建立工作階段還原成功狀態物件。
+   *
+   * @param {Object} result - 回應成果物件
+   * @param {Object} [roleNames] - 角色名稱字典
+   * @returns {{view: string, user: Object}} 成功狀態
+   */
   function buildSessionSuccessState(result, roleNames) {
     return { view: "app", user: buildSessionUser(result, roleNames) };
   }
 
+  /**
+   * 解析工作階段過期或無效之錯誤訊息。
+   *
+   * @param {Object} [result] - 回應物件
+   * @returns {string} 提示訊息
+   */
   function getSessionErrorMessage(result) {
     if (!result) return SESSION_EXPIRED_ERROR;
     if (result.error === "missing_token" || result.error === "session_expired" || result.error === "invalid_session") {
@@ -11837,6 +12387,12 @@ window.MEA = window.MEA || {};
     return sharedSafeErrors.resolveSafeMessage(error, DEFAULT_LOGOUT_ERROR);
   }
 
+  /**
+   * 建立工作階段還原失敗狀態物件。
+   *
+   * @param {Object} [result] - 回應物件
+   * @returns {{view: string, loginError: string}} 登入失敗狀態
+   */
   function buildSessionFailureState(result) {
     return { view: "login", loginError: getSessionErrorMessage(result) };
   }
@@ -11845,6 +12401,12 @@ window.MEA = window.MEA || {};
   // 控制器工廠：組裝 MEA.auth 公開方法
   // ---------------------------------------------------------------------------
 
+  /**
+   * 建立身分驗證控制器實例。
+   *
+   * @param {Object} [deps] - 依賴注入選項（包含 MEA、document、window、setTimeoutFn）
+   * @returns {Object} 身分驗證控制器操作介面
+   */
   function createAuthController(deps) {
     const options = deps || {};
     const safeErrors = moduleHelpers.resolveSafeErrors(options);
@@ -11874,27 +12436,56 @@ window.MEA = window.MEA || {};
     let initializedClientId = "";
     let logoutBusy = false;
 
+    /**
+     * 取得系統角色代碼至顯示名稱對照表。
+     *
+     * @returns {Object} 角色對照字典
+     */
     function getRoleNames() {
       return (MEA.config && MEA.config.roleNames) || {};
     }
 
+    /**
+     * 判斷目前是否處於 Mock 測試模式。
+     *
+     * @returns {boolean} 是否為 Mock 模式
+     */
     function isMock() {
       return !!(MEA.config && MEA.config.mock);
     }
 
+    /**
+     * 取得應用程式全域公開設定物件。
+     *
+     * @returns {Object} 公開設定物件
+     */
     function getPublicConfig() {
       return (MEA.state && MEA.state.publicConfig) || {};
     }
 
-    /** 只有後端公開設定明確標記待開通時，才在登入請求附上 bootstrap 旗標。 */
+    /**
+     * 只有後端公開設定明確標記待開通時，才在登入請求附上 bootstrap 旗標。
+     *
+     * @returns {boolean} 是否需附帶 bootstrap 旗標
+     */
     function shouldRequestBootstrap() {
       return getPublicConfig().needsBootstrap === true;
     }
 
+    /**
+     * 檢查是否處於 GAS 原生託管環境。
+     *
+     * @returns {boolean} 是否為 GAS 託管環境
+     */
     function isGasHosted() {
       return detectGasHosting(MEA.config, win ? win.google : null);
     }
 
+    /**
+     * 非同步載入 Google Identity Services SDK 腳本。
+     *
+     * @returns {Promise<Object>} Google Accounts ID API 物件
+     */
     function loadGis() {
       if (gisPromise) return gisPromise;
       gisPromise = new Promise(function (resolve, reject) {
@@ -11934,6 +12525,12 @@ window.MEA = window.MEA || {};
       return gisPromise;
     }
 
+    /**
+     * 套用登入成功或失敗回應並更新應用程式狀態。
+     *
+     * @param {Object} result - 登入呼叫結果
+     * @returns {Promise<Object|null>} 成功時回傳使用者物件，失敗時回傳 null
+     */
     function applyLoginSuccess(result) {
       if (!isOkResult(result)) {
         MEA.setState(buildLoginFailureState(result));
@@ -11949,6 +12546,11 @@ window.MEA = window.MEA || {};
       return Promise.resolve(user);
     }
 
+    /**
+     * 處理 Google Identity Services 登入回傳之憑證。
+     *
+     * @param {Object} response - GIS 憑證回應物件
+     */
     function handleCredential(response) {
       const credential = response && response.credential ? String(response.credential) : "";
       if (credential === "") {
@@ -11962,12 +12564,22 @@ window.MEA = window.MEA || {};
         .catch(handleAuthCallFailure);
     }
 
+    /**
+     * 建立 Google OAuth 導向授權網址。
+     *
+     * @param {string} clientId - OAuth 用戶端 ID
+     * @param {string} redirectUri - 重新導向網址
+     * @returns {string} 授權端點網址
+     */
     function buildGoogleAuthUrl(clientId, redirectUri) {
       return buildGoogleAuthUrlWithOptions(clientId, redirectUri, {
         btoa: win && typeof win.btoa === "function" ? win.btoa.bind(win) : null
       });
     }
 
+    /**
+     * 導向至 Google 帳戶切換器網址（適用於 GAS 託管容器內）。
+     */
     function switchGoogleAccount() {
       const config = getPublicConfig();
       const webAppUrl = resolveWebAppUrl(config, win);
@@ -11984,6 +12596,9 @@ window.MEA = window.MEA || {};
       navigateToUrl(win, authUrl);
     }
 
+    /**
+     * 以 Google OAuth 重新導向方式執行登入。
+     */
     function loginWithGoogleRedirect() {
       const setup = validateRedirectSetup(getPublicConfig(), win);
       if (setup.message !== "") {
@@ -11995,6 +12610,9 @@ window.MEA = window.MEA || {};
       navigateToUrl(win, authUrl);
     }
 
+    /**
+     * 在 GAS 託管環境中使用目前啟用的 Google 帳戶登入。
+     */
     function loginActiveUser() {
       MEA.setState({ loginBusy: true, loginError: "" });
       MEA.api
@@ -12003,6 +12621,13 @@ window.MEA = window.MEA || {};
         .catch(handleAuthCallFailure);
     }
 
+    /**
+     * 建立 GIS SDK 準備就緒之按鈕渲染回呼函式。
+     *
+     * @param {HTMLElement} host - 按鈕容器元素
+     * @param {string} clientId - OAuth 用戶端 ID
+     * @returns {Function} 渲染回呼函式
+     */
     function createGisReadyHandler(host, clientId) {
       return function (id) {
         if (initializedClientId !== clientId) {
@@ -12014,6 +12639,11 @@ window.MEA = window.MEA || {};
       };
     }
 
+    /**
+     * 處理 GIS SDK 載入或執行失敗。
+     *
+     * @param {*} error - 例外物件
+     */
     function handleGisFailure(error) {
       MEA.setState({ loginError: safeErrors.resolveSafeMessage(error, DEFAULT_LOGIN_ERROR) });
     }
@@ -12029,6 +12659,9 @@ window.MEA = window.MEA || {};
       MEA.ui.toast(message, "err");
     }
 
+    /**
+     * 依當前執行環境渲染適當的 Google 登入按鈕（GIS 按鈕、GAS 託管按鈕或提示訊息）。
+     */
     function renderGoogleButton() {
       const prepared = prepareGoogleButton({
         mock: isMock(),
@@ -12045,6 +12678,9 @@ window.MEA = window.MEA || {};
       loadGis().then(createGisReadyHandler(prepared.host, prepared.clientId)).catch(handleGisFailure);
     }
 
+    /**
+     * 於 Mock 測試模式下模擬登入動作。
+     */
     function loginMock() {
       MEA.setState({ loginBusy: true, loginError: "" });
       MEA.api
@@ -12053,10 +12689,18 @@ window.MEA = window.MEA || {};
         .catch(handleAuthCallFailure);
     }
 
+    /**
+     * 延遲排程渲染 Google 登入按鈕，確保 DOM 節點已掛載。
+     */
     function scheduleRenderGoogleButton() {
       setTimeoutFn(renderGoogleButton, 50);
     }
 
+    /**
+     * 執行使用者登出，清除狀態與 Token。
+     *
+     * @returns {Promise<boolean>} 是否成功完成登出流程
+     */
     function logout() {
       if (logoutBusy) return Promise.resolve(false);
       logoutBusy = true;
@@ -12085,6 +12729,12 @@ window.MEA = window.MEA || {};
         });
     }
 
+    /**
+     * 套用工作階段驗證成功狀態。
+     *
+     * @param {Object} result - Session 驗證回應
+     * @returns {boolean} 是否驗證成功
+     */
     function applySessionSuccess(result) {
       if (!isOkResult(result)) return false;
       applyCsrfToken(MEA.api, result.csrfToken);
@@ -12093,6 +12743,9 @@ window.MEA = window.MEA || {};
       return true;
     }
 
+    /**
+     * 還原既有工作階段（由 Token 或 Mock 還原登入狀態）。
+     */
     function restore() {
       const token = MEA.api.getToken();
       if (isMock()) {
