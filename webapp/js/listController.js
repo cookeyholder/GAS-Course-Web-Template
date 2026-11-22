@@ -91,6 +91,9 @@
 
   /**
    * 正規化清單控制器設定選項，採用常數字典集中指派預設值以消除語法樹分支膨脹。
+   *
+   * @param {Object} [config] - 外部傳入之組態物件
+   * @returns {Object} 補齊預設值後的組態物件
    */
   function normalizeListControllerOptions_(config) {
     const src = config || {};
@@ -105,6 +108,12 @@
     return normalized;
   }
 
+  /**
+   * 建立共用列表控制器實例。
+   *
+   * @param {Object} [config] - 列表控制器組態物件
+   * @returns {Object} 包含 fetchList, handleSearch, resetSearch, renderPagination, isCurrentRequest 之操作介面
+   */
   function createListController(config) {
     const options = normalizeListControllerOptions_(config);
     const apiAction = options.apiAction;
@@ -130,19 +139,36 @@
     const inflight = Object.create(null);
     let requestSeq = 0;
 
-    /** 只接受最新一次清單請求的回應，避免過期回應覆蓋新篩選結果。 */
+    /**
+     * 檢查傳入之請求序號是否仍為最新一次請求（避免過期回應覆蓋新狀態）。
+     *
+     * @param {number} seq - 請求序號
+     * @returns {boolean} 是否為當前有效請求
+     */
     function isCurrentRequest(seq) {
       return seq === requestSeq;
     }
 
-    /** 將失敗狀態標記為非載入中並顯示安全文案。 */
+    /**
+     * 套用失敗狀態，更新 state 並彈出 Toast 錯誤提示。
+     *
+     * @param {string} fallback - 預設錯誤文案
+     * @param {*} error - 例外物件
+     */
     function applyFailureState(fallback, error) {
       const current = getState();
       setState(Object.assign({}, current, { loading: false }));
       toast(resolveErrorMessage(error, fallback), "err");
     }
 
-    /** 處理 successful／失敗回應；過期請求直接捨棄。 */
+    /**
+     * 處理 API 回應結果，過期回應自動忽略。
+     *
+     * @param {Object} result - API 回應物件
+     * @param {number} seq - 請求序號
+     * @param {number} page - 查詢頁碼
+     * @returns {Object|undefined} 回應成果或 undefined
+     */
     function handleResult(result, seq, page) {
       if (!isCurrentRequest(seq)) return undefined;
       const current = getState();
@@ -155,14 +181,26 @@
       return result;
     }
 
-    /** 處理例外；過期請求直接捨棄，不干擾使用者。 */
+    /**
+     * 處理 API 呼叫例外，過期請求直接忽略。
+     *
+     * @param {*} error - 捕捉之例外
+     * @param {number} seq - 請求序號
+     * @returns {null|undefined} null 或 undefined
+     */
     function handleError(error, seq) {
       if (!isCurrentRequest(seq)) return undefined;
       applyFailureState(errorFallback, error);
       return null;
     }
 
-    /** 清除避免重複記錄，並保留原本的解析值或拒絕原因。 */
+    /**
+     * 追蹤進行中之 Promise，在完成或拒絕時自 inflight 字典移除。
+     *
+     * @param {string} fetchKey - 快取鍵值
+     * @param {Promise} pending - 進行中之 Promise
+     * @returns {Promise} 追蹤包裹後之 Promise
+     */
     function trackPending(fetchKey, pending) {
       if (!fetchKey) return pending;
       const tracked = pending.then(
@@ -179,7 +217,12 @@
       return tracked;
     }
 
-    /** 讀取清單；相同避免重複鍵的進行中請求共享同一個 Promise。 */
+    /**
+     * 發起清單查詢請求，相同避免重複鍵共享既有 Promise。
+     *
+     * @param {number} [page] - 指定目標頁碼
+     * @returns {Promise<Object|null>} 查詢成果 Promise
+     */
     function fetchList(page) {
       const before = getState();
       const targetPage = normalizePage(page, before);
@@ -203,7 +246,12 @@
       return trackPending(fetchKey, pending);
     }
 
-    /** 明確觸發搜尋：讀取表單、更新狀態後回到第一頁。 */
+    /**
+     * 表單提交或搜尋觸發常式：讀取篩選欄位後重設回第 1 頁查詢。
+     *
+     * @param {Event} [event] - 表單提交事件
+     * @returns {Promise<Object|null>} 查詢成果 Promise
+     */
     function handleSearch(event) {
       if (event && event.preventDefault) event.preventDefault();
       const current = getState();
@@ -211,14 +259,24 @@
       return fetchList(1);
     }
 
-    /** 重設篩選條件後回到第一頁。 */
+    /**
+     * 重設篩選條件並回到第 1 頁查詢。
+     *
+     * @returns {Promise<Object|null>} 查詢成果 Promise
+     */
     function resetSearch() {
       const current = getState();
       setState(Object.assign({}, current, buildResetPatch(current)));
       return fetchList(1);
     }
 
-    /** 產生共用的上一頁／下一頁分頁列。 */
+    /**
+     * 產生共用的上一頁／下一頁簡易分頁列 HTML。
+     *
+     * @param {Object} state - 目前狀態物件
+     * @param {boolean} [loading] - 是否正在載入
+     * @returns {string} 分頁工具列 HTML
+     */
     function renderPagination(state, loading) {
       const normalize =
         pagination.normalize ||

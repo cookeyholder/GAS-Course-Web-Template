@@ -227,7 +227,13 @@
   }
 
   /**
-   * 內部純輔助函式：產生每頁筆數下拉選單 HTML（圈複雜度 <= 3）
+   * 內部純輔助函式：產生每頁筆數下拉選單 HTML（圈複雜度 <= 3）。
+   *
+   * @param {Object} opt - 分頁組態選項
+   * @param {string} prefix - ID 前綴字串
+   * @param {Object} win - 分頁視窗計算成果
+   * @param {boolean} hasData - 是否有資料
+   * @returns {string} 下拉選單 HTML
    */
   function renderPageSizeSelect_(opt, prefix, win, hasData) {
     if (!opt.onPageSizeChange && !opt.pageSizeAction) return "";
@@ -264,7 +270,14 @@
   }
 
   /**
-   * 內部純輔助函式：產生快速跳頁下拉選單 HTML（圈複雜度 <= 3）
+   * 內部純輔助函式：產生快速跳頁下拉選單 HTML（圈複雜度 <= 3）。
+   *
+   * @param {Object} opt - 分頁組態選項
+   * @param {string} prefix - ID 前綴字串
+   * @param {Object} win - 分頁視窗計算成果
+   * @param {boolean} hasData - 是否有資料
+   * @param {boolean} isSinglePage - 是否僅有單頁
+   * @returns {string} 跳頁下拉選單 HTML
    */
   function renderPageJumpSelect_(opt, prefix, win, hasData, isSinglePage) {
     if (!opt.onPageChange && !opt.actionAttribute) return "";
@@ -301,7 +314,14 @@
   }
 
   /**
-   * 內部純輔助函式：產生單一導覽按鈕 HTML（圈複雜度 <= 3）
+   * 內部純輔助函式：產生單一導覽按鈕 HTML（圈複雜度 <= 3）。
+   *
+   * @param {string} label - 按鈕文字
+   * @param {number} targetPage - 目標頁碼
+   * @param {boolean} disabled - 是否停用
+   * @param {string} ariaLabel - 無障礙輔助標籤
+   * @param {Object} opt - 分頁組態選項
+   * @returns {string} 按鈕 HTML
    */
   function renderNavBtn_(label, targetPage, disabled, ariaLabel, opt) {
     const pageNum = Number.isFinite(Number(targetPage)) ? Math.floor(Number(targetPage)) : 1;
@@ -327,7 +347,14 @@
   }
 
   /**
-   * 內部純輔助函式：產生導覽按鈕組 HTML（圈複雜度 <= 4）
+   * 內部純輔助函式：產生導覽按鈕組 HTML（圈複雜度 <= 4）。
+   *
+   * @param {Object} opt - 分頁組態選項
+   * @param {string} prefix - ID 前綴字串
+   * @param {Object} win - 分頁視窗計算成果
+   * @param {boolean} hasData - 是否有資料
+   * @param {boolean} isSinglePage - 是否僅有單頁
+   * @returns {string} 導覽按鈕群組 HTML
    */
   function renderPaginationNavButtons_(opt, prefix, win, hasData, isSinglePage) {
     if (!opt.onPageChange && !opt.actionAttribute) return "";
@@ -370,7 +397,12 @@
   }
 
   /**
-   * 內部純輔助函式：產生統計字串 HTML（圈複雜度 <= 2）
+   * 內部純輔助函式：產生統計字串 HTML（圈複雜度 <= 2）。
+   *
+   * @param {Object} win - 分頁視窗計算成果
+   * @param {string} [itemLabel] - 單位名稱（預設為「筆紀錄」）
+   * @param {Object} opt - 分頁組態選項
+   * @returns {string} 統計摘要 HTML
    */
   function renderPaginationSummary_(win, itemLabel, opt) {
     if (typeof opt.summaryFormatter === "function") {
@@ -396,7 +428,10 @@
   }
 
   /**
-   * 通用純函式雙向分頁工具列元件
+   * 通用純函式雙向分頁工具列元件。
+   *
+   * @param {Object} [options] - 分頁工具列選項
+   * @returns {string} 完整分頁導覽列 HTML
    */
   function renderPaginationBar(options) {
     const opt = options || {};
@@ -438,7 +473,10 @@
   }
 
   /**
-   * 正規化表格欄位對齊方式（白名單防禦純函式）
+   * 正規化表格欄位對齊方式（白名單防禦純函式）。
+   *
+   * @param {string} [align] - 對齊設定字串
+   * @returns {string} 正規化後之合法對齊方式（left, center, right, justify 或空字串）
    */
   function normalizeTableAlign(align) {
     if (!align) return "";
@@ -447,7 +485,10 @@
   }
 
   /**
-   * 渲染表格表頭 HTML（純函式）
+   * 渲染表格表頭 HTML（純函式）。
+   *
+   * @param {Array<Object>} columns - 欄位定義清單
+   * @returns {string} 包含 thead 與 th 之 HTML 字串
    */
   function renderTableHead(columns) {
     if (!Array.isArray(columns) || columns.length === 0) return "";
@@ -464,7 +505,10 @@
   }
 
   /**
-   * 渲染表格狀態提示列 HTML（保護 <td> 單元格語意，純函式）
+   * 渲染表格狀態提示列 HTML（保護 <td> 單元格語意，純函式）。
+   *
+   * @param {Object} [options] - 狀態列設定
+   * @returns {string} tr 與 td 提示列 HTML
    */
   function renderTableStatusRow(options) {
     const opt = options || {};
@@ -493,7 +537,11 @@
   }
 
   /**
-   * 內部純輔助函式：產生宣告式欄位之資料列 HTML（圈複雜度 <= 4）
+   * 內部純輔助函式：產生宣告式欄位之資料列 HTML（圈複雜度 <= 4）。
+   *
+   * @param {Array<Object>} items - 資料項目清單
+   * @param {Array<Object>} columns - 欄位定義清單
+   * @returns {string} 各資料列 tr 之 HTML 字串
    */
   function renderDeclarativeRows_(items, columns) {
     let rowsHtml = "";
@@ -516,7 +564,10 @@
   }
 
   /**
-   * 渲染表格主體資料列 HTML（純函式）
+   * 渲染表格主體資料列 HTML（純函式）。
+   *
+   * @param {Object} [options] - 表身組態
+   * @returns {string} tbody 之 HTML 字串
    */
   function renderTableBody(options) {
     const opt = options || {};
@@ -549,7 +600,10 @@
   }
 
   /**
-   * 高階純函式資料表格組合容器元件（paged-table-container）
+   * 高階純函式資料表格組合容器元件（paged-table-container）。
+   *
+   * @param {Object} [options] - 表格與分頁完整組態
+   * @returns {string} 包含上方分頁、表格主體與下方分頁之容器 HTML 字串
    */
   function renderPagedTable(options) {
     const opt = options || {};
@@ -667,6 +721,12 @@
 
     let modalRestoreFocus = null;
 
+    /**
+     * 套用顏色主題並寫入 localStorage。
+     *
+     * @param {string} theme - 主題名稱（dark 或 light）
+     * @returns {string} 實際套用之主題名稱
+     */
     function applyTheme(theme) {
       const value = theme === "dark" ? "dark" : "light";
       doc.documentElement.dataset.theme = value;
@@ -676,10 +736,20 @@
       return value;
     }
 
+    /**
+     * 取得目前套用之色彩主題。
+     *
+     * @returns {string} dark 或 light
+     */
     function currentTheme() {
       return doc.documentElement.dataset.theme === "dark" ? "dark" : "light";
     }
 
+    /**
+     * 更新主題切換按鈕文字與圖示標籤。
+     *
+     * @param {string} next - 即將切換之主題
+     */
     function updateThemeToggleLabels(next) {
       const btn = doc.getElementById("themeToggle");
       if (btn) btn.textContent = next === "dark" ? "◑ 淺色模式" : "◐ 深色模式";
@@ -687,20 +757,39 @@
       if (loginToggle) loginToggle.textContent = next === "dark" ? "◑ 淺色" : "◐ 深色";
     }
 
+    /**
+     * 切換色彩主題（淺色／深色互換）。
+     */
     function toggleTheme() {
       const next = currentTheme() === "dark" ? "light" : "dark";
       applyTheme(next);
       updateThemeToggleLabels(next);
     }
 
+    /**
+     * 取得系統支援之介面風格設定清單副本。
+     *
+     * @returns {Array<Object>} 風格清單陣列
+     */
     function getStyleList() {
       return (MEA.config.styles || []).slice();
     }
 
+    /**
+     * 取得目前套用之介面視覺風格 ID。
+     *
+     * @returns {string} 風格 ID
+     */
     function currentStyle() {
       return doc.documentElement.dataset.style || MEA.config.defaultStyle || DEFAULT_STYLE;
     }
 
+    /**
+     * 套用指定之介面視覺風格並寫入 localStorage。
+     *
+     * @param {string} styleId - 風格 ID
+     * @returns {string} 實際套用之風格 ID
+     */
     function applyStyle(styleId) {
       const list = getStyleList();
       let valid = false;
@@ -718,6 +807,9 @@
       return target;
     }
 
+    /**
+     * 自 localStorage 初始化色彩主題與介面風格。
+     */
     function initThemeAndStyle() {
       let savedTheme = "light";
       let savedStyle = MEA.config.defaultStyle || DEFAULT_STYLE;
@@ -729,6 +821,13 @@
       applyStyle(savedStyle);
     }
 
+    /**
+     * 彈出 Toast 提示訊息。
+     *
+     * @param {string} message - 提示訊息文字
+     * @param {string} [type] - 提示等級（ok, err, warn, info）
+     * @param {number} [duration] - 停留毫秒數
+     */
     function toast(message, type, duration) {
       const host = doc.getElementById("toastHost");
       if (!host) return;
@@ -780,6 +879,13 @@
       }
     }
 
+    /**
+     * 開啟互動式對話框，具備焦點陷阱與 ESC 關閉支援。
+     *
+     * @param {string} title - 對話框標題
+     * @param {string} contentHtml - 內容 HTML 字串
+     * @param {Array<Object>} [buttons] - 底部操作按鈕定義清單
+     */
     function modal(title, contentHtml, buttons) {
       const host = doc.getElementById("modalHost");
       if (!host) return;
@@ -880,6 +986,9 @@
       };
     }
 
+    /**
+     * 關閉當前開啟之對話框並還原前次焦點。
+     */
     function closeModal() {
       const host = doc.getElementById("modalHost");
       if (host) host.innerHTML = "";
@@ -969,6 +1078,12 @@
       ]);
     }
 
+    /**
+     * 渲染使用者身分徽章標籤。
+     *
+     * @param {Object} user - 使用者物件
+     * @returns {string} 徽章 HTML
+     */
     function renderUserPill(user) {
       return (
         '  <div class="user-pill">' +
@@ -985,6 +1100,11 @@
       );
     }
 
+    /**
+     * 渲染應用程式頁頭（Header）。
+     *
+     * @returns {string} Header HTML 字串
+     */
     function renderHeader() {
       const user = MEA.state.user || {};
       const logoutBusy = !!(MEA.state && MEA.state.logoutBusy);
@@ -1026,6 +1146,11 @@
       );
     }
 
+    /**
+     * 渲染應用程式主要導覽列（Navbar）。
+     *
+     * @returns {string} Nav HTML 字串
+     */
     function renderNavbar() {
       const tabs = MEA.config.tabs || [];
       const currentTab = MEA.state.tab || "overview";
@@ -1063,6 +1188,12 @@
       );
     }
 
+    /**
+     * 渲染登入錯誤警示 HTML。
+     *
+     * @param {string} loginError - 錯誤訊息字串
+     * @returns {string} 警示框 HTML
+     */
     function renderLoginErrorHtml(loginError) {
       if (!loginError) return "";
       return (
@@ -1072,6 +1203,14 @@
       );
     }
 
+    /**
+     * 取得登入模式狀態提示文案 HTML。
+     *
+     * @param {boolean} isMock - 是否為 Mock 模式
+     * @param {Object} config - 公開設定物件
+     * @param {Object} auth - 驗證模組
+     * @returns {string} 提示說明 HTML
+     */
     function getLoginStatusHtml(isMock, config, auth) {
       if (isMock) {
         return '<div class="login-hint">目前為本機 Mock 模式，可直接使用測試身分登入。</div>';
@@ -1088,6 +1227,13 @@
       return '<div class="login-hint">尚未設定 OAuth Client ID；可請管理員於系統設定完成後再啟用 GIS 登入。</div>';
     }
 
+    /**
+     * 渲染登入操作按鈕區域。
+     *
+     * @param {boolean} isMock - 是否為 Mock 模式
+     * @param {boolean} loginBusy - 是否正在登入
+     * @returns {string} 按鈕區 HTML
+     */
     function renderLoginActions(isMock, loginBusy) {
       const mockHtml = isMock
         ? '<div class="login-divider"><span>或</span></div>' +
@@ -1108,6 +1254,11 @@
       );
     }
 
+    /**
+     * 渲染完整登入畫面檢視。
+     *
+     * @returns {string} 登入畫面 HTML
+     */
     function renderLoginView() {
       const isMock = MEA.config.mock;
       const loginError = MEA.state.loginError || "";
@@ -1149,6 +1300,13 @@
       );
     }
 
+    /**
+     * 解析目前登入機制說明字串。
+     *
+     * @param {Object} config - 公開設定
+     * @param {Object} auth - 驗證模組
+     * @returns {string} 登入機制名稱
+     */
     function getLoginMode(config, auth) {
       const isGasHosted = auth && typeof auth.isGasHosted === "function" && auth.isGasHosted();
       if (isGasHosted) return "GAS ActiveUser / AccountChooser";
@@ -1156,6 +1314,15 @@
       return "未設定 Client ID";
     }
 
+    /**
+     * 渲染系統概覽指標卡片。
+     *
+     * @param {Object} config - 公開設定
+     * @param {Object} user - 使用者物件
+     * @param {Object} courses - 課程狀態物件
+     * @param {string} loginMode - 登入模式字串
+     * @returns {string} 指標網格 HTML
+     */
     function renderOverviewMetrics(config, user, courses, loginMode) {
       return (
         '<div class="metrics-grid">' +
@@ -1197,6 +1364,11 @@
       );
     }
 
+    /**
+     * 渲染概覽頁功能快速導覽卡片區塊。
+     *
+     * @returns {string} 功能卡片 HTML
+     */
     function renderFeatureGrid() {
       return (
         '<div class="card mt-4">' +
@@ -1228,6 +1400,11 @@
       );
     }
 
+    /**
+     * 渲染系統概覽主頁面 HTML。
+     *
+     * @returns {string} 概覽主面板 HTML
+     */
     function renderOverviewView() {
       const config = MEA.state.publicConfig || {};
       const user = MEA.state.user || {};
@@ -1250,11 +1427,11 @@
     }
 
     /**
-     * 函數防抖 (Debounce)
+     * 函式防彈跳（Debounce）。
      *
-     * @param {Function} fn - 目標執行函數
+     * @param {Function} fn - 目標執行函式
      * @param {number} [delay=250] - 延遲毫秒數
-     * @returns {Function} 防抖包裹後之函數
+     * @returns {Function} 防彈跳包裹後之函式
      */
     function debounce(fn, delay) {
       let timer = null;

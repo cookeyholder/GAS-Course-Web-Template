@@ -20,7 +20,13 @@
     return win.setTimeout(fn, ms);
   };
 
-  /** 安全取得模組方法，缺失時回傳 null（自治守衛，集中一處）。 */
+  /**
+   * 安全取得模組方法，缺失時回傳 null（自治守衛，集中一處）。
+   *
+   * @param {Object} module - 目標模組物件
+   * @param {string} method - 方法名稱
+   * @returns {Function|null} 函式或 null
+   */
   function pickMethod(module, method) {
     return module && typeof module[method] === "function" ? module[method] : null;
   }

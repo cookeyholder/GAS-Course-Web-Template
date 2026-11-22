@@ -22,7 +22,12 @@
   /** 單一綁定守衛索引，跨模組共用同一 Symbol。 */
   const BINDINGS_KEY = typeof Symbol === "function" && Symbol.for ? Symbol.for("mea.bindings") : "__meaBindings";
 
-  /** 取得元素上的綁定集合（不存在時建立）。 */
+  /**
+   * 取得元素上的綁定集合（不存在時建立）。
+   *
+   * @param {*} target - 目標元素或物件
+   * @returns {Set<string>|null} 綁定集合，無效時回傳 null
+   */
   function getBindingSet(target) {
     if (!target || (typeof target !== "object" && typeof target !== "function")) return null;
     if (!target[BINDINGS_KEY]) {
@@ -35,7 +40,15 @@
     return target[BINDINGS_KEY];
   }
 
-  /** 針對單一元素綁定事件一次；重複呼叫不再綁定。 */
+  /**
+   * 針對單一元素綁定事件一次；重複呼叫不再綁定。
+   *
+   * @param {EventTarget} target - 監聽目標元素
+   * @param {string} type - 事件型態（如 click）
+   * @param {Function} handler - 事件處理常式
+   * @param {string} [key] - 辨識鍵值
+   * @returns {boolean} 是否成功新增監聽
+   */
   function bindOnce(target, type, handler, key) {
     if (!target || typeof target.addEventListener !== "function") return false;
     const set = getBindingSet(target);
@@ -47,7 +60,14 @@
     return true;
   }
 
-  /** 查找事件目標中符合 selector 的元素（支援 closest 與 parentNode fallback）。 */
+  /**
+   * 查找事件目標中符合 selector 的元素（支援 closest 與 parentNode fallback）。
+   *
+   * @param {Node} target - 根節點
+   * @param {Node} origin - 事件起始目標
+   * @param {string} selector - CSS 選擇器
+   * @returns {Element|null} 符合之元素或 null
+   */
   function findDelegateTarget(target, origin, selector) {
     if (!origin) return null;
     if (typeof origin.closest === "function") return origin.closest(selector);
@@ -60,7 +80,15 @@
     return null;
   }
 
-  /** 事件委派：在 target 上監聽 type，命中 selector 後以該元素呼叫 handler。 */
+  /**
+   * 事件委派：在 target 上監聽 type，命中 selector 後以該元素呼叫 handler。
+   *
+   * @param {EventTarget} target - 委派容器元素
+   * @param {string} type - 事件型態（如 click, change）
+   * @param {string} selector - 子元素 CSS 選擇器
+   * @param {Function} handler - 觸發之回呼函式
+   * @returns {boolean} 是否成功建立委派監聽
+   */
   function delegate(target, type, selector, handler) {
     return bindOnce(
       target,
@@ -74,7 +102,14 @@
     );
   }
 
-  /** 測試用：查詢元素是否已被標記綁定。 */
+  /**
+   * 測試用：查詢元素是否已被標記綁定。
+   *
+   * @param {EventTarget} target - 元素
+   * @param {string} type - 事件型態
+   * @param {string} [key] - 辨識鍵值
+   * @returns {boolean} 是否已綁定
+   */
   function isBound(target, type, key) {
     const set = getBindingSet(target);
     if (!set) return false;
