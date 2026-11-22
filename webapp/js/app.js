@@ -150,9 +150,7 @@
     const appName = config.appName || "GAS-Course-Web-Template";
     const version = config.version ? " v" + config.version : "";
     const guideUrl =
-      MEA && MEA.ui && typeof MEA.ui.getUserGuideUrl === "function"
-        ? MEA.ui.getUserGuideUrl()
-        : "docs/user-guide.html";
+      MEA && MEA.ui && typeof MEA.ui.getUserGuideUrl === "function" ? MEA.ui.getUserGuideUrl() : "docs/user-guide.html";
     const escape =
       MEA && MEA.ui && typeof MEA.ui.escapeHtml === "function"
         ? MEA.ui.escapeHtml

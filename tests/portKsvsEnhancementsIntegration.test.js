@@ -42,7 +42,7 @@ function run() {
   const userGuidePath = path.join(rootDir, "docs/user-guide.html");
   assert(fs.existsSync(userGuidePath), "docs/user-guide.html 必須存在");
   const guideContent = fs.readFileSync(userGuidePath, "utf-8");
-  assert(guideContent.indexOf("<!DOCTYPE html>") !== -1, "手冊應為自包含 HTML");
+  assert(/<!doctype\s+html>/i.test(guideContent), "手冊應為自包含 HTML");
   assert(guideContent.indexOf("localStorage") !== -1, "手冊應支援主題設定持久化");
   assert(guideContent.indexOf("data-theme") !== -1, "手冊應支援主題切換");
   console.log("3. 離線多主題使用者操作手冊結構驗證通過 ✓\n");
@@ -89,11 +89,21 @@ function run() {
 
   // 6. 課程清單四維度 Empty State CTA
   assert.strictEqual(typeof coursesModule.renderEmptyCoursesStateHtml, "function", "courses 應匯出 empty state 函式");
-  const emptyDbHtml = coursesModule.renderEmptyCoursesStateHtml({ keyword: "", department: "", academicYear: "", semester: "" });
+  const emptyDbHtml = coursesModule.renderEmptyCoursesStateHtml({
+    keyword: "",
+    department: "",
+    academicYear: "",
+    semester: ""
+  });
   assert(emptyDbHtml.indexOf('data-course-action="goto-import"') !== -1, "全空狀態應引導至匯入頁面");
   assert(emptyDbHtml.indexOf("前往匯入課綱代碼") !== -1, "全空狀態應有清楚按鈕文字");
 
-  const noResultHtml = coursesModule.renderEmptyCoursesStateHtml({ keyword: "微積分", department: "", academicYear: "", semester: "" });
+  const noResultHtml = coursesModule.renderEmptyCoursesStateHtml({
+    keyword: "微積分",
+    department: "",
+    academicYear: "",
+    semester: ""
+  });
   assert(noResultHtml.indexOf('data-course-action="reset"') !== -1, "搜尋無結果應引導重設篩選");
   assert(noResultHtml.indexOf("重設搜尋條件") !== -1, "搜尋無結果應有重設按鈕");
   console.log("6. 課程清單四維度 Empty State CTA 分流驗證通過 ✓\n");
@@ -104,8 +114,12 @@ function run() {
   const footerHtml = appModule.renderFooterHtml({
     config: { appName: "測試系統", version: "2.0.0" },
     ui: {
-      escapeHtml: function (s) { return String(s); },
-      getUserGuideUrl: function () { return "?page=docs%2Fuser-guide.html"; }
+      escapeHtml: function (s) {
+        return String(s);
+      },
+      getUserGuideUrl: function () {
+        return "?page=docs%2Fuser-guide.html";
+      }
     }
   });
   assert(footerHtml.indexOf('role="contentinfo"') !== -1, "頁尾應具備 contentinfo 角色");

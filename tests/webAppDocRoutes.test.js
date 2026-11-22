@@ -93,6 +93,59 @@ try {
   const resNotFound = webApi.createWebAppDocResponse("docs/not-exist.html");
   assert.strictEqual(setOutputTitle, "找不到文件");
 
+  // 測試 decodeURIComponent 拋錯容錯（畸形 URI 編碼）
+  assert.strictEqual(webApi.resolveWebAppDocRoute("%E0%A4%A"), null, "畸形 URI 編碼應容錯回傳 null");
+
+  // 測試 HtmlService 未定義時的回應
+  delete globalThis.HtmlService;
+  const noHtmlServiceRes = webApi.createWebAppDocResponse("docs/user-guide.html");
+  assert.strictEqual(noHtmlServiceRes.ok, false);
+  assert.strictEqual(noHtmlServiceRes.error, "service_unavailable");
+
+  // 測試 HtmlService 缺少 createHtmlOutput 時 404 回退
+  globalThis.HtmlService = {};
+  const noOutputRes = webApi.createWebAppDocNotFoundOutput();
+  assert.strictEqual(noOutputRes.ok, false);
+  assert.strictEqual(noOutputRes.error, "not_found");
+
+  // 還原並測試 createHtmlOutputFromFile 拋錯時的候選容錯與最終 404
+  globalThis.HtmlService = {
+    createHtmlOutputFromFile: function () {
+      throw new Error("Simulated file error");
+    },
+    createHtmlOutput: function () {
+      return {
+        setTitle: function (t) {
+          setOutputTitle = t;
+          return this;
+        },
+        setXFrameOptionsMode: function () {
+          return this;
+        }
+      };
+    },
+    XFrameOptionsMode: { DEFAULT: "DEFAULT" }
+  };
+  const failRes = webApi.createWebAppDocResponse("docs/user-guide.html");
+  assert.strictEqual(setOutputTitle, "找不到文件");
+
+  // 還原為有效 HtmlService 供後續 doGet 測試
+  globalThis.HtmlService = {
+    createHtmlOutputFromFile: function (file) {
+      createdFile = file;
+      return {
+        setTitle: function (t) {
+          setOutputTitle = t;
+          return this;
+        },
+        setXFrameOptionsMode: function () {
+          return this;
+        }
+      };
+    },
+    XFrameOptionsMode: { DEFAULT: "DEFAULT" }
+  };
+
   // 4. doGet 整合測試
   console.log("4. 驗證 doGet 派發文件路由...");
   const e = { parameter: { page: "docs/user-guide.html" } };

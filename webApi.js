@@ -1678,6 +1678,7 @@ if (typeof module !== "undefined" && module.exports) {
     WEB_APP_DOC_ROUTE_PARAM: WEB_APP_DOC_ROUTE_PARAM,
     WEB_APP_DOC_ROUTES: WEB_APP_DOC_ROUTES,
     resolveWebAppDocRoute: resolveWebAppDocRoute,
+    createWebAppDocNotFoundOutput: createWebAppDocNotFoundOutput,
     createWebAppDocResponse: createWebAppDocResponse,
     doGet: doGet,
     doPost: doPost

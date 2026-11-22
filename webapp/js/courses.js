@@ -38,8 +38,10 @@
     const safeErrors = moduleHelpers.resolveSafeErrors(options);
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
     const doc = options.document || (typeof document !== "undefined" ? document : null);
-    // task 6.2：事件綁定守護由共用模組提供（Node 由 require 取得，瀏覽器由全域取得）。
-    const bindings = typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings;
+    // task 6.2：事件綁定守護由共用模組提供（支援注入，Node 由 require 取得，瀏覽器由全域取得）。
+    const bindings =
+      options.eventBindings ||
+      (typeof require === "function" ? require("./eventBindings.js") : globalThis.MEA.eventBindings);
     // task 6.3：列表控制流程由共用控制器提供（Node 由 require 取得，瀏覽器由全域取得）。
     const listControllerModule =
       typeof require === "function" ? require("./listController.js") : globalThis.MEA.listController;
@@ -122,6 +124,26 @@
     const handleSearch = listCtl.handleSearch;
     const resetSearch = listCtl.resetSearch;
 
+    function navigateToImportTab_(opts, rootMea) {
+      const nav = (opts && opts.navigation) || (rootMea && rootMea.navigation);
+      if (nav && typeof nav.setTab === "function") return nav.setTab("import");
+      if (rootMea && typeof rootMea.setTab === "function") return rootMea.setTab("import");
+      if (rootMea && rootMea.app && typeof rootMea.app.setTab === "function") return rootMea.app.setTab("import");
+      return undefined;
+    }
+
+    function handleCourseClickAction_(element) {
+      const action =
+        element && typeof element.getAttribute === "function" ? element.getAttribute("data-course-action") : "";
+      if (action === "page" || action === "refresh") {
+        const page = parseInt(element.getAttribute("data-page"), 10);
+        return Number.isFinite(page) ? fetchList(page) : undefined;
+      }
+      if (action === "reset") return resetSearch();
+      if (action === "goto-import") return navigateToImportTab_(options, MEA);
+      return undefined;
+    }
+
     /** 以 document 委派綁定搜尋表單、分頁與重設事件。 */
     function bindEventsOnce() {
       if (!bindings || !doc || typeof doc.addEventListener !== "function") return;
@@ -129,28 +151,7 @@
         handleSearch(event);
       });
       bindings.delegate(doc, "click", "[data-course-action]", function (event, element) {
-        const action = element.getAttribute("data-course-action");
-        if (action === "page" || action === "refresh") {
-          const page = parseInt(element.getAttribute("data-page"), 10);
-          return Number.isFinite(page) ? fetchList(page) : undefined;
-        }
-        if (action === "reset") return resetSearch();
-        if (action === "goto-import") {
-          if (options.navigation && typeof options.navigation.setTab === "function") {
-            return options.navigation.setTab("import");
-          }
-          if (MEA.navigation && typeof MEA.navigation.setTab === "function") {
-            return MEA.navigation.setTab("import");
-          }
-          if (typeof MEA.setTab === "function") {
-            return MEA.setTab("import");
-          }
-          if (MEA.app && typeof MEA.app.setTab === "function") {
-            return MEA.app.setTab("import");
-          }
-          return undefined;
-        }
-        return undefined;
+        return handleCourseClickAction_(element);
       });
     }
 

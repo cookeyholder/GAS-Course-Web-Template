@@ -904,7 +904,10 @@
 
         if (!base) {
           const href = String((win.location && win.location.href) || "").trim();
-          if (/\/macros\/.+\/(exec|dev)(\?|#|$)/i.test(href) && !/googleusercontent\.com\/userCodeAppPanel/i.test(href)) {
+          if (
+            /\/macros\/.+\/(exec|dev)(\?|#|$)/i.test(href) &&
+            !/googleusercontent\.com\/userCodeAppPanel/i.test(href)
+          ) {
             base = href.split("?")[0].split("#")[0];
           }
         }

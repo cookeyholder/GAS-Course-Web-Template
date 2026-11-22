@@ -1,246 +1,291 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-TW" data-theme="light">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>使用者操作手冊 - GAS 課程網頁應用程式範本</title>
-  <style>
-    :root {
-      --bg: #f8fafc;
-      --paper: #ffffff;
-      --ink: #0f172a;
-      --ink-muted: #475569;
-      --line: #e2e8f0;
-      --line-subtle: #f1f5f9;
-      --primary: #2563eb;
-      --primary-hover: #1d4ed8;
-      --primary-bg: #eff6ff;
-      --warn: #d97706;
-      --warn-bg: #fffbeb;
-      --warn-line: #fde68a;
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-      --radius: 8px;
-      --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
-    }
-    html[data-theme="dark"] {
-      --bg: #0b1120;
-      --paper: #1e293b;
-      --ink: #f8fafc;
-      --ink-muted: #cbd5e1;
-      --line: #334155;
-      --line-subtle: #1e293b;
-      --primary: #3b82f6;
-      --primary-hover: #60a5fa;
-      --primary-bg: #1e3a8a33;
-      --warn: #f59e0b;
-      --warn-bg: #78350f22;
-      --warn-line: #b45309;
-      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
-    }
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: var(--font-sans);
-      background-color: var(--bg);
-      color: var(--ink);
-      line-height: 1.6;
-      padding: 40px 20px;
-    }
-    .container {
-      max-width: 900px;
-      margin: 0 auto;
-    }
-    header {
-      margin-bottom: 36px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      border-bottom: 1px solid var(--line);
-      padding-bottom: 20px;
-    }
-    .title-group h1 {
-      font-size: 26px;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-    }
-    .title-group p {
-      color: var(--ink-muted);
-      font-size: 14px;
-      margin-top: 4px;
-    }
-    .btn-theme {
-      background: var(--paper);
-      border: 1px solid var(--line);
-      color: var(--ink);
-      padding: 8px 14px;
-      border-radius: var(--radius);
-      cursor: pointer;
-      font-size: 14px;
-      font-weight: 500;
-      box-shadow: var(--shadow);
-    }
-    .card {
-      background: var(--paper);
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      padding: 24px;
-      margin-bottom: 24px;
-      box-shadow: var(--shadow);
-    }
-    .card h2 {
-      font-size: 19px;
-      margin-bottom: 14px;
-      color: var(--ink);
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-    .card h3 {
-      font-size: 16px;
-      margin: 18px 0 8px 0;
-      color: var(--ink);
-    }
-    .card p {
-      font-size: 14.5px;
-      color: var(--ink-muted);
-      margin-bottom: 12px;
-    }
-    .card ol, .card ul {
-      padding-left: 22px;
-      margin-bottom: 14px;
-      font-size: 14.5px;
-      color: var(--ink-muted);
-    }
-    .card li {
-      margin-bottom: 6px;
-    }
-    .alert-box {
-      background: var(--warn-bg);
-      border: 1px solid var(--warn-line);
-      color: var(--warn);
-      padding: 14px 18px;
-      border-radius: var(--radius);
-      font-size: 14px;
-      line-height: 1.5;
-      margin: 14px 0;
-    }
-    .code-pill {
-      background: var(--line-subtle);
-      border: 1px solid var(--line);
-      padding: 2px 6px;
-      border-radius: 4px;
-      font-family: monospace;
-      font-size: 13px;
-    }
-    footer {
-      text-align: center;
-      font-size: 13px;
-      color: var(--ink-muted);
-      margin-top: 40px;
-      padding-top: 20px;
-      border-top: 1px solid var(--line);
-    }
-    footer a {
-      color: var(--primary);
-      text-decoration: none;
-    }
-    footer a:hover {
-      text-decoration: underline;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <header>
-      <div class="title-group">
-        <h1>📖 使用者操作手冊</h1>
-        <p>Google Apps Script 課程網頁應用程式全端範本使用指引</p>
-      </div>
-      <button type="button" class="btn-theme" onclick="toggleTheme()" aria-label="切換深淺色主題">🌗 切換色彩</button>
-    </header>
-
-    <main>
-      <section class="card">
-        <h2>📌 系統特色與架構總覽</h2>
-        <p>本系統為專為高中職設計之 108 課綱課程代碼管理全端應用程式，採用 Google Apps Script（GAS）雲端試算表資料庫架構，具備以下五大核心優勢：</p>
-        <ul>
-          <li><strong>Google 帳號單一登入</strong>：整合 Google Identity Services（GIS）與 ActiveUser 驗證，保障校務資料安全。</li>
-          <li><strong>多角色權限管控（RBAC）</strong>：區分系統管理員、一般授權成員與訪客權限，防範未授權存取。</li>
-          <li><strong>108 課綱 1NF 正規化展開</strong>：前端與後端同構展開寬表為 14 欄標準紀錄，完整支援部定、校訂與各群科科目。</li>
-          <li><strong>教育部官方代碼升冪排序</strong>：全站科別選單依教育部核定 3 碼代碼（含實用技能學程）嚴格升冪排列，並提供智慧防禦降級。</li>
-          <li><strong>完整稽核與操作日誌</strong>：關鍵資料異動與授權設定自動寫入操作日誌，支援 Asia/Taipei 檢索。</li>
-        </ul>
-      </section>
-
-      <section class="card">
-        <h2>📥 課程代碼 Excel 匯入指引</h2>
-        <p>管理者或具備匯入權限之同仁可至「課程代碼匯入」頁籤上傳學校課綱資料。</p>
-        <h3>官方檔案下載管道</h3>
-        <ol>
-          <li><strong>教育部「高級中等學校課程計畫平臺」</strong>：<span class="code-pill">學校/科主任登入 ➔ 備查通過清單 ➔ 匯出 [科目總表 (39欄 Excel)]</span></li>
-          <li><strong>巨耀校務行政系統</strong>：<span class="code-pill">[課務作業] ➔ [課程計畫] ➔ [歷年108課綱課程代碼] ➔ 綜合查詢 ➔ 匯出 Excel</span></li>
-        </ol>
-        <div class="alert-box">
-          <strong>⚠️ 格式注意事項：</strong>匯出之 Excel 檔案（.xlsx、.xls）請直接上傳，請勿隨意更動欄位順序、刪除表頭或合併儲存格，以免 1NF 正規化引擎解析失敗。
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>使用者操作手冊 - GAS 課程網頁應用程式範本</title>
+    <style>
+      :root {
+        --bg: #f8fafc;
+        --paper: #ffffff;
+        --ink: #0f172a;
+        --ink-muted: #475569;
+        --line: #e2e8f0;
+        --line-subtle: #f1f5f9;
+        --primary: #2563eb;
+        --primary-hover: #1d4ed8;
+        --primary-bg: #eff6ff;
+        --warn: #d97706;
+        --warn-bg: #fffbeb;
+        --warn-line: #fde68a;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+        --radius: 8px;
+        --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans TC", sans-serif;
+      }
+      html[data-theme="dark"] {
+        --bg: #0b1120;
+        --paper: #1e293b;
+        --ink: #f8fafc;
+        --ink-muted: #cbd5e1;
+        --line: #334155;
+        --line-subtle: #1e293b;
+        --primary: #3b82f6;
+        --primary-hover: #60a5fa;
+        --primary-bg: #1e3a8a33;
+        --warn: #f59e0b;
+        --warn-bg: #78350f22;
+        --warn-line: #b45309;
+        --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3);
+      }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: var(--font-sans);
+        background-color: var(--bg);
+        color: var(--ink);
+        line-height: 1.6;
+        padding: 40px 20px;
+      }
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+      header {
+        margin-bottom: 36px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding-bottom: 20px;
+      }
+      .title-group h1 {
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+      }
+      .title-group p {
+        color: var(--ink-muted);
+        font-size: 14px;
+        margin-top: 4px;
+      }
+      .btn-theme {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        color: var(--ink);
+        padding: 8px 14px;
+        border-radius: var(--radius);
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 500;
+        box-shadow: var(--shadow);
+      }
+      .card {
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 24px;
+        box-shadow: var(--shadow);
+      }
+      .card h2 {
+        font-size: 19px;
+        margin-bottom: 14px;
+        color: var(--ink);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .card h3 {
+        font-size: 16px;
+        margin: 18px 0 8px 0;
+        color: var(--ink);
+      }
+      .card p {
+        font-size: 14.5px;
+        color: var(--ink-muted);
+        margin-bottom: 12px;
+      }
+      .card ol,
+      .card ul {
+        padding-left: 22px;
+        margin-bottom: 14px;
+        font-size: 14.5px;
+        color: var(--ink-muted);
+      }
+      .card li {
+        margin-bottom: 6px;
+      }
+      .alert-box {
+        background: var(--warn-bg);
+        border: 1px solid var(--warn-line);
+        color: var(--warn);
+        padding: 14px 18px;
+        border-radius: var(--radius);
+        font-size: 14px;
+        line-height: 1.5;
+        margin: 14px 0;
+      }
+      .code-pill {
+        background: var(--line-subtle);
+        border: 1px solid var(--line);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 13px;
+      }
+      footer {
+        text-align: center;
+        font-size: 13px;
+        color: var(--ink-muted);
+        margin-top: 40px;
+        padding-top: 20px;
+        border-top: 1px solid var(--line);
+      }
+      footer a {
+        color: var(--primary);
+        text-decoration: none;
+      }
+      footer a:hover {
+        text-decoration: underline;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <header>
+        <div class="title-group">
+          <h1>📖 使用者操作手冊</h1>
+          <p>Google Apps Script 課程網頁應用程式全端範本使用指引</p>
         </div>
-        <h3>匯入步驟</h3>
-        <ol>
-          <li>將檔案拖曳至上傳區（或點擊選擇檔案）。</li>
-          <li>系統將即時於前端解析並呈現展開統計、不重複科別下拉篩選與預覽資料列。</li>
-          <li>確認資料無誤後，點擊「確認匯入至試算表」，後端即自動分批安全寫入試算表資料庫。</li>
-        </ol>
-      </section>
+        <button type="button" class="btn-theme" onclick="toggleTheme()" aria-label="切換深淺色主題">🌗 切換色彩</button>
+      </header>
 
-      <section class="card">
-        <h2>🔍 課程清單檢索與多條件篩選</h2>
-        <p>進入「正規化課程代碼清單」頁籤即可進行即時檢索與跨條件分析：</p>
-        <ul>
-          <li><strong>四維度綜合篩選</strong>：支援關鍵字模糊搜尋、科別下拉選單（依教育部代碼升冪排列）、開課學年度以及學期篩選。</li>
-          <li><strong>空狀態智慧引導</strong>：當系統尚未匯入任何資料時，提供「前往匯入課綱代碼」一鍵導引按鈕；若為篩選條件查無結果，則提供「重設搜尋條件」按鈕。</li>
-          <li><strong>分頁控制</strong>：支援自訂每頁顯示筆數（20/50/100 筆）與快速換頁控制。</li>
-        </ul>
-      </section>
+      <main>
+        <section class="card">
+          <h2>📌 系統特色與架構總覽</h2>
+          <p>
+            本系統為專為高中職設計之 108 課綱課程代碼管理全端應用程式，採用 Google Apps
+            Script（GAS）雲端試算表資料庫架構，具備以下五大核心優勢：
+          </p>
+          <ul>
+            <li>
+              <strong>Google 帳號單一登入</strong>：整合 Google Identity Services（GIS）與 ActiveUser
+              驗證，保障校務資料安全。
+            </li>
+            <li><strong>多角色權限管控（RBAC）</strong>：區分系統管理員、一般授權成員與訪客權限，防範未授權存取。</li>
+            <li>
+              <strong>108 課綱 1NF 正規化展開</strong>：前端與後端同構展開寬表為 14
+              欄標準紀錄，完整支援部定、校訂與各群科科目。
+            </li>
+            <li>
+              <strong>教育部官方代碼升冪排序</strong>：全站科別選單依教育部核定 3
+              碼代碼（含實用技能學程）嚴格升冪排列，並提供智慧防禦降級。
+            </li>
+            <li>
+              <strong>完整稽核與操作日誌</strong>：關鍵資料異動與授權設定自動寫入操作日誌，支援 Asia/Taipei 檢索。
+            </li>
+          </ul>
+        </section>
 
-      <section class="card">
-        <h2>⚙️ 系統設定與成員授權管理</h2>
-        <p>僅系統管理員具備權限存取「系統設定與授權」與「操作日誌」：</p>
-        <ul>
-          <li><strong>授權白名單維護</strong>：可新增、修改或移除校內 Google 帳號，並指派對應權限角色。</li>
-          <li><strong>登入網域限制</strong>：可設定僅允許特定學校網域（例如 <span class="code-pill">@school.edu.tw</span>）之帳號登入系統。</li>
-          <li><strong>操作日誌稽核</strong>：依日期區間、操作者與事件類別檢索管理員操作紀錄，保障校務異動具可追溯性。</li>
-        </ul>
-      </section>
+        <section class="card">
+          <h2>📥 課程代碼 Excel 匯入指引</h2>
+          <p>管理者或具備匯入權限之同仁可至「課程代碼匯入」頁籤上傳學校課綱資料。</p>
+          <h3>官方檔案下載管道</h3>
+          <ol>
+            <li>
+              <strong>教育部「高級中等學校課程計畫平臺」</strong>：<span class="code-pill"
+                >學校/科主任登入 ➔ 備查通過清單 ➔ 匯出 [科目總表 (39欄 Excel)]</span
+              >
+            </li>
+            <li>
+              <strong>巨耀校務行政系統</strong>：<span class="code-pill"
+                >[課務作業] ➔ [課程計畫] ➔ [歷年108課綱課程代碼] ➔ 綜合查詢 ➔ 匯出 Excel</span
+              >
+            </li>
+          </ol>
+          <div class="alert-box">
+            <strong>⚠️ 格式注意事項：</strong>匯出之 Excel
+            檔案（.xlsx、.xls）請直接上傳，請勿隨意更動欄位順序、刪除表頭或合併儲存格，以免 1NF 正規化引擎解析失敗。
+          </div>
+          <h3>匯入步驟</h3>
+          <ol>
+            <li>將檔案拖曳至上傳區（或點擊選擇檔案）。</li>
+            <li>系統將即時於前端解析並呈現展開統計、不重複科別下拉篩選與預覽資料列。</li>
+            <li>確認資料無誤後，點擊「確認匯入至試算表」，後端即自動分批安全寫入試算表資料庫。</li>
+          </ol>
+        </section>
 
-      <section class="card">
-        <h2>❓ 常見問題與障礙排除</h2>
-        <ul>
-          <li><strong>登入提示「未經授權之帳號」？</strong><br />請聯繫學校系統管理員至「系統設定與授權」將您的 Google 電子郵件加入授權白名單。</li>
-          <li><strong>畫面按鈕反灰無法點擊？</strong><br />代表系統正在處理前一項伺服器請求，或目前帳號角色未具備該功能權限。</li>
-          <li><strong>提示「操作過於頻繁」？</strong><br />為防範並發衝突，請稍候 3 至 5 秒後再進行點擊。</li>
-        </ul>
-      </section>
-    </main>
+        <section class="card">
+          <h2>🔍 課程清單檢索與多條件篩選</h2>
+          <p>進入「正規化課程代碼清單」頁籤即可進行即時檢索與跨條件分析：</p>
+          <ul>
+            <li>
+              <strong>四維度綜合篩選</strong
+              >：支援關鍵字模糊搜尋、科別下拉選單（依教育部代碼升冪排列）、開課學年度以及學期篩選。
+            </li>
+            <li>
+              <strong>空狀態智慧引導</strong
+              >：當系統尚未匯入任何資料時，提供「前往匯入課綱代碼」一鍵導引按鈕；若為篩選條件查無結果，則提供「重設搜尋條件」按鈕。
+            </li>
+            <li><strong>分頁控制</strong>：支援自訂每頁顯示筆數（20/50/100 筆）與快速換頁控制。</li>
+          </ul>
+        </section>
 
-    <footer>
-      <p>GAS 課程網頁應用程式範本 · <a href="index.html">返回技術手冊索引</a></p>
-    </footer>
-  </div>
+        <section class="card">
+          <h2>⚙️ 系統設定與成員授權管理</h2>
+          <p>僅系統管理員具備權限存取「系統設定與授權」與「操作日誌」：</p>
+          <ul>
+            <li><strong>授權白名單維護</strong>：可新增、修改或移除校內 Google 帳號，並指派對應權限角色。</li>
+            <li>
+              <strong>登入網域限制</strong>：可設定僅允許特定學校網域（例如
+              <span class="code-pill">@school.edu.tw</span>）之帳號登入系統。
+            </li>
+            <li>
+              <strong>操作日誌稽核</strong>：依日期區間、操作者與事件類別檢索管理員操作紀錄，保障校務異動具可追溯性。
+            </li>
+          </ul>
+        </section>
 
-  <script>
-    (function () {
-      try {
-        const saved = localStorage.getItem("gas_tmpl.doc.theme");
-        if (saved) document.documentElement.setAttribute("data-theme", saved);
-      } catch (e) {}
-    })();
-    function toggleTheme() {
-      const html = document.documentElement;
-      const current = html.getAttribute("data-theme") || "light";
-      const next = current === "dark" ? "light" : "dark";
-      html.setAttribute("data-theme", next);
-      try {
-        localStorage.setItem("gas_tmpl.doc.theme", next);
-      } catch (e) {}
-    }
-  </script>
-</body>
+        <section class="card">
+          <h2>❓ 常見問題與障礙排除</h2>
+          <ul>
+            <li>
+              <strong>登入提示「未經授權之帳號」？</strong><br />請聯繫學校系統管理員至「系統設定與授權」將您的 Google
+              電子郵件加入授權白名單。
+            </li>
+            <li>
+              <strong>畫面按鈕反灰無法點擊？</strong
+              ><br />代表系統正在處理前一項伺服器請求，或目前帳號角色未具備該功能權限。
+            </li>
+            <li><strong>提示「操作過於頻繁」？</strong><br />為防範並發衝突，請稍候 3 至 5 秒後再進行點擊。</li>
+          </ul>
+        </section>
+      </main>
+
+      <footer>
+        <p>GAS 課程網頁應用程式範本 · <a href="index.html">返回技術手冊索引</a></p>
+      </footer>
+    </div>
+
+    <script>
+      (function () {
+        try {
+          const saved = localStorage.getItem("gas_tmpl.doc.theme");
+          if (saved) document.documentElement.setAttribute("data-theme", saved);
+        } catch (e) {}
+      })();
+      function toggleTheme() {
+        const html = document.documentElement;
+        const current = html.getAttribute("data-theme") || "light";
+        const next = current === "dark" ? "light" : "dark";
+        html.setAttribute("data-theme", next);
+        try {
+          localStorage.setItem("gas_tmpl.doc.theme", next);
+        } catch (e) {}
+      }
+    </script>
+  </body>
 </html>

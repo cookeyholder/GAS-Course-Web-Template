@@ -107,7 +107,10 @@ function run() {
 
     // 模擬已設定 GAS_WEBAPP_URL 環境
     ctx.win.GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycb/exec";
-    assert.strictEqual(ctx.ui.getUserGuideUrl(), "https://script.google.com/macros/s/AKfycb/exec?page=docs%2Fuser-guide.html");
+    assert.strictEqual(
+      ctx.ui.getUserGuideUrl(),
+      "https://script.google.com/macros/s/AKfycb/exec?page=docs%2Fuser-guide.html"
+    );
 
     // 概覽畫面應包含說明手冊按鈕
     const html = ctx.ui.renderOverviewView();
@@ -134,6 +137,37 @@ function run() {
     }
     assert.strictEqual(openedUrl, "https://script.google.com/macros/s/AKfycb/exec?page=docs%2Fuser-guide.html");
     assert.strictEqual(openedTarget, "_blank");
+
+    // 模擬 location.href 為 /macros/s/exec
+    delete ctx.win.GAS_WEBAPP_URL;
+    ctx.win.location = { href: "https://script.google.com/macros/s/xyz/exec?p=1#ref" };
+    assert.strictEqual(
+      ctx.ui.getUserGuideUrl(),
+      "https://script.google.com/macros/s/xyz/exec?page=docs%2Fuser-guide.html"
+    );
+
+    // 模擬 location.href 為 googleusercontent.com/userCodeAppPanel（應被忽略）
+    ctx.win.location = { href: "https://xyz.googleusercontent.com/userCodeAppPanel" };
+    assert.strictEqual(ctx.ui.getUserGuideUrl(), "?page=docs%2Fuser-guide.html");
+
+    // 模擬由 publicConfig.webAppUrl 注入
+    ctx.state.publicConfig = { webAppUrl: "https://script.google.com/macros/s/cfg/exec" };
+    assert.strictEqual(
+      ctx.ui.getUserGuideUrl(),
+      "https://script.google.com/macros/s/cfg/exec?page=docs%2Fuser-guide.html"
+    );
+
+    // 測試 openUserGuide 的關閉按鈕
+    const closeBtn = ctx.created.find(function (el) {
+      return String(el.tagName).toLowerCase() === "button" && el.textContent === "關閉";
+    });
+    assert(closeBtn, "應建立關閉按鈕");
+    if (typeof closeBtn.onclick === "function") {
+      assert.doesNotThrow(function () {
+        closeBtn.onclick();
+      });
+    }
+
     console.log("   ✓ 說明手冊網址與動作按鈕驗證通過！\n");
   }
 

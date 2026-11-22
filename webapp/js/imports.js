@@ -765,15 +765,7 @@
             });
 
       const contentHtml = entry
-        ? renderPreviewCardHtml(
-            entry,
-            busy,
-            canImport,
-            safeEscapeHtml,
-            safeNumber,
-            MEA.ui || {},
-            compareFn
-          )
+        ? renderPreviewCardHtml(entry, busy, canImport, safeEscapeHtml, safeNumber, MEA.ui || {}, compareFn)
         : buildDropzoneHtml() + renderCourseCodeGuidanceHtml();
 
       return renderPanelHtml(contentHtml);

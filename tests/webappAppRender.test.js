@@ -38,7 +38,10 @@ function run() {
   assert(ctx.elements.app.innerHTML.indexOf('class="app-footer"') !== -1, "畫面應包含頁尾元素");
   assert(ctx.elements.app.innerHTML.indexOf('role="contentinfo"') !== -1, "頁尾應具備 contentinfo 角色");
   assert(ctx.elements.app.innerHTML.indexOf("說明手冊") !== -1, "頁尾應包含說明手冊連結");
-  assert(ctx.elements.app.innerHTML.indexOf('aria-label="說明手冊（另開新分頁）"') !== -1, "說明手冊連結應具備精確無障礙標籤");
+  assert(
+    ctx.elements.app.innerHTML.indexOf('aria-label="說明手冊（另開新分頁）"') !== -1,
+    "說明手冊連結應具備精確無障礙標籤"
+  );
   assert(ctx.elements.app.innerHTML.indexOf('target="_blank"') !== -1, "說明手冊連結應為另開新分頁");
   assert(ctx.elements.app.innerHTML.indexOf('rel="noopener noreferrer"') !== -1, "外部連結應有安全 rel 屬性");
 
@@ -83,6 +86,31 @@ function run() {
   titledApp.render();
   assert.strictEqual(titled.deps.document.title, "系統A");
   console.log("4. 缺少掛載點與標題同步容錯 ✓\n");
+
+  console.log("5. renderFooterHtml 防禦性分支覆蓋測試...\n");
+  assert(typeof appModule.renderFooterHtml === "function");
+  // 1. null MEA
+  const f1 = appModule.renderFooterHtml(null);
+  assert(f1.indexOf("GAS-Course-Web-Template") !== -1);
+  assert(f1.indexOf("docs/user-guide.html") !== -1);
+
+  // 2. 空物件 MEA
+  const f2 = appModule.renderFooterHtml({});
+  assert(f2.indexOf("GAS-Course-Web-Template") !== -1);
+
+  // 3. 自訂 appName 但無 version
+  const f3 = appModule.renderFooterHtml({ config: { appName: "校務系統", version: "" } });
+  assert(f3.indexOf("校務系統") !== -1);
+  assert(f3.indexOf(" v") === -1);
+
+  // 4. 無 ui 物件（使用內建 local escape 與預設 guideUrl）
+  const f4 = appModule.renderFooterHtml({ config: { appName: "<自訂系統>", version: "1.0" } });
+  assert(f4.indexOf("&lt;自訂系統&gt; v1.0") !== -1);
+
+  // 5. 透過 controller 實例呼叫 renderFooterHtml
+  assert(typeof app.renderFooterHtml === "function");
+  assert(app.renderFooterHtml().indexOf("app-footer") !== -1);
+  console.log("   ✓ renderFooterHtml 防禦性分支全數覆蓋！\n");
 
   console.log("✓ webapp/js/app.js render 測試全數通過！\n");
 }

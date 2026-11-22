@@ -217,6 +217,156 @@ function run() {
     assert(filteredHtml.indexOf('data-course-action="reset"') !== -1, "篩選無結果應包含重設按鈕");
     assert(filteredHtml.indexOf("goto-import") === -1, "篩選無結果不得顯示前往匯入按鈕");
 
+    // 觸發 click delegate 驗證各導向分支
+    const delegates = [];
+    const navCtx = createDeps();
+    navCtx.deps.eventBindings = {
+      delegate: function (target, event, selector, handler) {
+        delegates.push({ target: target, event: event, selector: selector, handler: handler });
+      }
+    };
+    navCtx.deps.document.addEventListener = function () {};
+    navCtx.deps.navigation = {
+      setTab: function (tab) {
+        switchedTab = tab;
+      }
+    };
+    coursesModule.createCoursesModule(navCtx.deps);
+
+    const clickHandler = delegates.find(function (d) {
+      return d.event === "click" && d.selector === "[data-course-action]";
+    });
+    assert(clickHandler, "應註冊 click 委派");
+
+    // 分支 1: opts.navigation.setTab
+    clickHandler.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "goto-import";
+        }
+      }
+    );
+    assert.strictEqual(switchedTab, "import", "應透過 opts.navigation 導向 import");
+
+    function makeNavContext(setup) {
+      const d = [];
+      const c = createDeps();
+      c.deps.eventBindings = {
+        delegate: function (target, event, selector, handler) {
+          d.push({ target: target, event: event, selector: selector, handler: handler });
+        }
+      };
+      c.deps.document.addEventListener = function () {};
+      setup(c);
+      coursesModule.createCoursesModule(c.deps);
+      return d.find(function (item) {
+        return item.event === "click" && item.selector === "[data-course-action]";
+      });
+    }
+
+    // 分支 2: MEA.navigation.setTab
+    let meaNavTab = "";
+    const click2 = makeNavContext(function (c) {
+      c.MEA.navigation = {
+        setTab: function (t) {
+          meaNavTab = t;
+        }
+      };
+    });
+    click2.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "goto-import";
+        }
+      }
+    );
+    assert.strictEqual(meaNavTab, "import");
+
+    // 分支 3: MEA.setTab
+    let meaSetTab = "";
+    const click3 = makeNavContext(function (c) {
+      c.MEA.setTab = function (t) {
+        meaSetTab = t;
+      };
+    });
+    click3.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "goto-import";
+        }
+      }
+    );
+    assert.strictEqual(meaSetTab, "import");
+
+    // 分支 4: MEA.app.setTab
+    let appSetTab = "";
+    const click4 = makeNavContext(function (c) {
+      c.MEA.app = {
+        setTab: function (t) {
+          appSetTab = t;
+        }
+      };
+    });
+    click4.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "goto-import";
+        }
+      }
+    );
+    assert.strictEqual(appSetTab, "import");
+
+    // 分支 5: 無導向方法時安全回傳 undefined
+    const click5 = makeNavContext(function () {});
+    assert.strictEqual(
+      click5.handler(
+        {},
+        {
+          getAttribute: function () {
+            return "goto-import";
+          }
+        }
+      ),
+      undefined
+    );
+
+    // reset 與 page 動作
+    const resetResult = click5.handler(
+      {},
+      {
+        getAttribute: function () {
+          return "reset";
+        }
+      }
+    );
+    assert(resetResult && typeof resetResult.then === "function", "reset 應回傳 Promise");
+    assert.strictEqual(
+      click5.handler(
+        {},
+        {
+          getAttribute: function (k) {
+            return k === "data-course-action" ? "page" : "not-a-number";
+          }
+        }
+      ),
+      undefined
+    );
+    assert.strictEqual(
+      click5.handler(
+        {},
+        {
+          getAttribute: function () {
+            return "unknown";
+          }
+        }
+      ),
+      undefined
+    );
+
     console.log("   ✓ Empty State CTA 四維度分流與事件委派驗證通過！\n");
   }
 
