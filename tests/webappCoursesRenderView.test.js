@@ -133,6 +133,41 @@ function run() {
     console.log("   ✓ 安全降級、排除重複與空值防護驗證通過！\n");
   }
 
+  // 14. 全站外部相依安全降級防護測試
+  {
+    console.log("14. courses 全站外部相依安全降級防護測試...");
+    const noUiCtx = createDeps();
+    noUiCtx.MEA.ui = null;
+    noUiCtx.MEA.courseData = null;
+    noUiCtx.state.courses = {
+      list: [
+        {
+          academicYear: "114",
+          semester: "1",
+          grade: "1",
+          courseCode: "C01",
+          subjectName: "<安全科目>",
+          department: "機械科",
+          subjectType: "必修",
+          attribute: "一般",
+          required: "是",
+          credits: "2",
+          hours: "2"
+        }
+      ],
+      total: 1,
+      page: 1,
+      totalPages: 1
+    };
+    const mod = coursesModule.createCoursesModule(noUiCtx.deps);
+    let viewHtml = "";
+    assert.doesNotThrow(function () {
+      viewHtml = mod.renderView();
+    }, "當 MEA.ui 與 MEA.courseData 為空時 renderView 不應拋錯");
+    assert(viewHtml.indexOf("&lt;安全科目&gt;") !== -1, "safeEscapeHtml 應正確跳脫 HTML");
+    console.log("   ✓ courses 外部相依安全降級防護通過！\n");
+  }
+
   console.log("✓ webapp/js/courses.js renderView 測試全數通過！\n");
 }
 

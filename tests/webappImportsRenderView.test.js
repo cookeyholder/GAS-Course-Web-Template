@@ -236,6 +236,24 @@ function run() {
     console.log("   ✓ 課綱官方來源管道指引卡片與無障礙驗證通過！\n");
   }
 
+  // 13. 全站外部相依安全降級防護測試
+  {
+    console.log("13. imports 全站外部相依安全降級防護測試...");
+    const noUiCtx = createDeps();
+    noUiCtx.MEA.ui = null;
+    noUiCtx.MEA.courseData = null;
+    noUiCtx.state.imports.courseCodes = makeEntry({
+      sample: [["114", "1", "1", "C001", "<安全科目>", "機械科", "必修", "2", "2", "", "一般", "3", "0"]]
+    });
+    const mod = importsModule.createImportsModule(noUiCtx.deps);
+    let viewHtml = "";
+    assert.doesNotThrow(function () {
+      viewHtml = mod.renderView();
+    }, "當 MEA.ui 與 MEA.courseData 為空時 renderView 不應拋錯");
+    assert(viewHtml.indexOf("&lt;安全科目&gt;") !== -1, "safeEscapeHtml 應正確跳脫 HTML");
+    console.log("   ✓ imports 外部相依安全降級防護通過！\n");
+  }
+
   console.log("✓ webapp/js/imports.js renderView 測試全數通過！\n");
 }
 

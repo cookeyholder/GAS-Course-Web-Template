@@ -44,6 +44,38 @@
     const listControllerModule =
       typeof require === "function" ? require("./listController.js") : globalThis.MEA.listController;
 
+    const safeEscapeHtml =
+      options.escapeHtml ||
+      (options.MEA && options.MEA.ui && options.MEA.ui.escapeHtml) ||
+      (typeof MEA !== "undefined" && MEA.ui && MEA.ui.escapeHtml) ||
+      function (str) {
+        return String(str == null ? "" : str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      };
+
+    const safeNumber =
+      options.number ||
+      (options.MEA && options.MEA.ui && options.MEA.ui.number) ||
+      (typeof MEA !== "undefined" && MEA.ui && MEA.ui.number) ||
+      function (val) {
+        const n = Number(val);
+        return isNaN(n) ? "0" : String(n);
+      };
+
+    const safeToast = function (message, kind) {
+      if (options.toast && typeof options.toast === "function") {
+        options.toast(message, kind);
+      } else if (options.MEA && options.MEA.ui && typeof options.MEA.ui.toast === "function") {
+        options.MEA.ui.toast(message, kind);
+      } else if (typeof MEA !== "undefined" && MEA.ui && typeof MEA.ui.toast === "function") {
+        MEA.ui.toast(message, kind);
+      }
+    };
+
     const listCtl = listControllerModule.createListController({
       apiAction: "getCourseIndex",
       getState: function () {
@@ -56,7 +88,7 @@
         return MEA.api.call(action, payload);
       },
       toast: function (message, kind) {
-        MEA.ui.toast(message, kind);
+        safeToast(message, kind);
       },
       buildQuery: buildCourseQuery,
       buildFetchKey: buildCourseFetchKey,
@@ -74,7 +106,7 @@
       pagination: {
         actionAttribute: "data-course-action",
         number: function (value) {
-          return MEA.ui.number(value);
+          return safeNumber(value);
         },
         normalize: function (state) {
           return {
@@ -263,17 +295,18 @@
         }
       }
       const comparator =
-        MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
+        options.compareDepartmentsByCode ||
+        (MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
           ? MEA.courseData.compareDepartmentsByCode
           : function (a, b) {
               return String(a).localeCompare(String(b), "zh-TW");
-            };
+            });
       names.sort(comparator);
       for (let i = 0; i < names.length; i++) {
         const name = names[i];
         const selected = selectedDepartment === name ? " selected" : "";
         optionsHtml +=
-          '<option value="' + MEA.ui.escapeHtml(name) + '"' + selected + ">" + MEA.ui.escapeHtml(name) + "</option>";
+          '<option value="' + safeEscapeHtml(name) + '"' + selected + ">" + safeEscapeHtml(name) + "</option>";
       }
       return optionsHtml;
     }
@@ -288,36 +321,36 @@
       return (
         "<tr>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.academicYear) +
+        safeEscapeHtml(item.academicYear) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.semester) +
+        safeEscapeHtml(item.semester) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.grade) +
+        safeEscapeHtml(item.grade) +
         "</td>" +
         '<td class="mono font-sm">' +
-        MEA.ui.escapeHtml(item.courseCode) +
+        safeEscapeHtml(item.courseCode) +
         "</td>" +
         "<td><strong>" +
-        MEA.ui.escapeHtml(item.subjectName) +
+        safeEscapeHtml(item.subjectName) +
         "</strong></td>" +
         '<td><span class="pill muted">' +
-        MEA.ui.escapeHtml(item.department) +
+        safeEscapeHtml(item.department) +
         "</span></td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.subjectType) +
+        safeEscapeHtml(item.subjectType) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.attribute) +
+        safeEscapeHtml(item.attribute) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.required) +
+        safeEscapeHtml(item.required) +
         "</td>" +
         "<td>" +
-        MEA.ui.escapeHtml(item.credits) +
+        safeEscapeHtml(item.credits) +
         " / " +
-        MEA.ui.escapeHtml(item.hours) +
+        safeEscapeHtml(item.hours) +
         "</td>" +
         "</tr>"
       );
@@ -362,7 +395,7 @@
         '  <form class="filter-form" data-course-action="search">' +
         '    <label class="sr-only" for="courseSearchKeyword">搜尋關鍵字</label>' +
         '    <input type="text" id="courseSearchKeyword" class="input" placeholder="搜尋課程代碼、科目名稱或群別..." value="' +
-        MEA.ui.escapeHtml(courses.keyword || "") +
+        safeEscapeHtml(courses.keyword || "") +
         '" />' +
         '    <label class="sr-only" for="courseSearchDept">科別篩選</label>' +
         '    <select id="courseSearchDept" class="select">' +
@@ -370,7 +403,7 @@
         "</select>" +
         '    <label class="sr-only" for="courseSearchYear">開課學年</label>' +
         '    <input type="text" id="courseSearchYear" class="input compact" style="width:100px;" placeholder="學年 (如 114)" value="' +
-        MEA.ui.escapeHtml(courses.academicYear || "") +
+        safeEscapeHtml(courses.academicYear || "") +
         '" />' +
         '    <label class="sr-only" for="courseSearchSem">學期篩選</label>' +
         '    <select id="courseSearchSem" class="select compact" style="width:100px;">' +

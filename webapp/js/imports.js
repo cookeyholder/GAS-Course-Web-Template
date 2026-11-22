@@ -738,15 +738,41 @@
       const busy = MEA.state.importBusy;
       const user = MEA.state.user || {};
       const canImport = canImportCourseCodes(user);
+      const safeEscapeHtml =
+        options.escapeHtml ||
+        (MEA.ui && MEA.ui.escapeHtml) ||
+        function (str) {
+          return String(str == null ? "" : str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#39;");
+        };
+      const safeNumber =
+        options.number ||
+        (MEA.ui && MEA.ui.number) ||
+        function (val) {
+          const n = Number(val);
+          return isNaN(n) ? "0" : String(n);
+        };
+      const compareFn =
+        options.compareDepartmentsByCode ||
+        (MEA.courseData && typeof MEA.courseData.compareDepartmentsByCode === "function"
+          ? MEA.courseData.compareDepartmentsByCode
+          : function (a, b) {
+              return String(a || "").localeCompare(String(b || ""), "zh-TW");
+            });
+
       const contentHtml = entry
         ? renderPreviewCardHtml(
             entry,
             busy,
             canImport,
-            MEA.ui.escapeHtml,
-            MEA.ui.number,
-            MEA.ui,
-            MEA.courseData && MEA.courseData.compareDepartmentsByCode
+            safeEscapeHtml,
+            safeNumber,
+            MEA.ui || {},
+            compareFn
           )
         : buildDropzoneHtml() + renderCourseCodeGuidanceHtml();
 

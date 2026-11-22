@@ -11,7 +11,7 @@
 ## 3. 前端匯入指引與防禦性降級實作
 
 - [x] 3.1 於 `webapp/js/imports.js` 實作 `renderCourseCodeGuidanceHtml` 純函式並置於 `uploadDropzone` 外部下方，使用既有語意變數（`--fill`、`--line-2`、`--ink-2`）與 WCAG AA 標籤，於 `tests/webappImportsRenderView.test.js` 擴充測試
-- [ ] 3.2 於 `webapp/js/imports.js` 與 `webapp/js/courses.js` 實作本地安全純函式 fallback（`safeEscapeHtml`、`safeToast`、`compareDepartmentsByCode`），擴充測試驗證全域相依缺失時之平順回退
+- [x] 3.2 於 `webapp/js/imports.js` 與 `webapp/js/courses.js` 實作本地安全純函式 fallback（`safeEscapeHtml`、`safeToast`、`compareDepartmentsByCode`），擴充測試驗證全域相依缺失時之平順回退
 
 ## 4. 課程清單 Empty State CTA、表格容器擴充與手冊 UI 整合
 
