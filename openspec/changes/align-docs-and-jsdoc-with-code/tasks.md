@@ -20,5 +20,5 @@
 
 ## 4. 驗證防護、建置與完整 CI 預跑
 
-- [ ] 4.1 新增獨立文件完整性測試（`tests/docsIntegrity.test.js`），驗證所有白名單手冊檔案存在、`docs/index.html` 導覽完整性且各手冊間超連結無死鏈，執行 `npm test && npm run check:lang && npm run format:check` 驗證全數通過
+- [x] 4.1 新增獨立文件完整性測試（`tests/docsIntegrity.test.js`），驗證所有白名單手冊檔案存在、`docs/index.html` 導覽完整性且各手冊間超連結無死鏈，執行 `npm test && npm run check:lang && npm run format:check` 驗證全數通過
 - [ ] 4.2 執行 `npm run build:webapp` 重新打包 `index.html`、執行 `npm run test:coverage` 重建覆蓋率快照，並執行本地端完整 11 步 CI 預跑指令鏈全數綠燈通過
