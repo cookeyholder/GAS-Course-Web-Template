@@ -1474,11 +1474,132 @@ function renderDoGetHtml_(initialAuthResult, parameter) {
   }
 }
 
+const WEB_APP_DOC_ROUTE_PARAM = "page";
+
+/** 允許透過 Web App 路由存取的文件白名單（路由值 → HtmlService 檔案與標題） */
+const WEB_APP_DOC_ROUTES = {
+  "docs/architecture-guide.html": {
+    file: "docs/architecture-guide",
+    title: "系統架構指南"
+  },
+  "docs/clasp-guide.html": {
+    file: "docs/clasp-guide",
+    title: "CLASP 部署指南"
+  },
+  "docs/course-normalization-guide.html": {
+    file: "docs/course-normalization-guide",
+    title: "課程代碼正規化指南"
+  },
+  "docs/gis-login-guide.html": {
+    file: "docs/gis-login-guide",
+    title: "GIS 登入指南"
+  },
+  "docs/index.html": {
+    file: "docs/index",
+    title: "技術手冊索引"
+  },
+  "docs/rbac-guide.html": {
+    file: "docs/rbac-guide",
+    title: "RBAC 權限指南"
+  },
+  "docs/user-guide.html": {
+    file: "docs/user-guide",
+    title: "使用者操作手冊"
+  }
+};
+
+/**
+ * 正規化並解析文件路由參數；僅接受白名單完全相符的 docs/*.html 路徑。
+ *
+ * @param {string} requestedPath - 使用者請求的文件路徑
+ * @returns {Object|null} 白名單文件設定，無效時回傳 null
+ */
+function resolveWebAppDocRoute(requestedPath) {
+  let raw = String(requestedPath == null ? "" : requestedPath).trim();
+  if (raw === "") return null;
+  try {
+    raw = decodeURIComponent(raw);
+  } catch (e) {
+    // 保留原始值，後續由白名單比對攔截
+  }
+  raw = raw.replace(/\\/g, "/");
+  if (raw.indexOf("..") !== -1 || raw.indexOf("\0") !== -1) return null;
+  if (raw.charAt(0) === "/" || /^[A-Za-z]:\//.test(raw)) return null;
+  if (!/\.html$/i.test(raw)) return null;
+  return Object.prototype.hasOwnProperty.call(WEB_APP_DOC_ROUTES, raw) ? WEB_APP_DOC_ROUTES[raw] : null;
+}
+
+/**
+ * 建立文件找不到時的回應；不讀取 docs/ 範圍外檔案。
+ *
+ * @returns {Object} HtmlService 輸出或錯誤物件
+ */
+function createWebAppDocNotFoundOutput() {
+  if (typeof HtmlService !== "undefined" && HtmlService.createHtmlOutput) {
+    return HtmlService.createHtmlOutput(
+      '<!doctype html><html lang="zh-TW"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>找不到文件</title></head><body style="font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;padding:24px;line-height:1.6"><h1 style="margin-top:0">找不到文件</h1><p>您請求的文件不存在或未開放存取。</p></body></html>'
+    )
+      .setTitle("找不到文件")
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
+  }
+  return webApiError("not_found", "找不到文件");
+}
+
+/**
+ * 處理 Web App 文件路由回應，相容 clasp 檔案扁平化候選。
+ *
+ * @param {string} requestedPath - 使用者請求的文件路徑
+ * @returns {Object} HtmlService 輸出或錯誤物件
+ */
+function createWebAppDocResponse(requestedPath) {
+  const entry = resolveWebAppDocRoute(requestedPath);
+  if (!entry) return createWebAppDocNotFoundOutput();
+  if (typeof HtmlService === "undefined") {
+    return webApiError("service_unavailable", "文件服務目前無法使用");
+  }
+
+  const base = String(entry.file || "");
+  const candidates = [base];
+  if (base.indexOf("/") !== -1) {
+    candidates.push(base.replace(/\//g, "-"));
+    candidates.push(base.replace(/\//g, "_"));
+    candidates.push(base.replace(/\//g, "."));
+    candidates.push(base.split("/").pop());
+  }
+
+  for (let i = 0; i < candidates.length; i++) {
+    const file = candidates[i];
+    if (!file) continue;
+    try {
+      if (typeof HtmlService.createHtmlOutputFromFile === "function") {
+        return HtmlService.createHtmlOutputFromFile(file)
+          .setTitle(entry.title || "文件")
+          .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.DEFAULT);
+      }
+    } catch (error) {
+      console.error(
+        "createWebAppDocResponse createHtmlOutputFromFile failed: " +
+          file +
+          " / " +
+          (error && error.message ? error.message : error)
+      );
+    }
+  }
+
+  return createWebAppDocNotFoundOutput();
+}
+
 function doGet(e) {
   const parameter = e && e.parameter ? e.parameter : {};
   const action = String(parameter.action || "").trim();
   if (action !== "") {
     return handleDoGetActionRequest_(action, e);
+  }
+
+  // 處理 Web App 文件路由（白名單 docs/*.html）
+  const docPage = String(parameter[WEB_APP_DOC_ROUTE_PARAM] || "").trim();
+  if (docPage !== "") {
+    return createWebAppDocResponse(docPage);
   }
 
   const initialAuthResult = resolveDoGetInitialAuth_(parameter, e);
@@ -1554,6 +1675,10 @@ if (typeof module !== "undefined" && module.exports) {
     recordWebApiIdentity: recordWebApiIdentity_,
     buildActivityLogRecord: buildActivityLogRecord_,
     appendActivityLog: null,
+    WEB_APP_DOC_ROUTE_PARAM: WEB_APP_DOC_ROUTE_PARAM,
+    WEB_APP_DOC_ROUTES: WEB_APP_DOC_ROUTES,
+    resolveWebAppDocRoute: resolveWebAppDocRoute,
+    createWebAppDocResponse: createWebAppDocResponse,
     doGet: doGet,
     doPost: doPost
   };
