@@ -39,7 +39,12 @@ const TRUNCATED_FIELDS = [
   "errorCode"
 ];
 
-/** 解析工作表名稱，優先使用 gasRuntime 單一來源。 */
+/**
+ * 解析操作日誌工作表名稱，優先使用 gasRuntime 單一來源。
+ *
+ * @private
+ * @returns {string} 操作日誌工作表名稱
+ */
 function resolveSheetName_() {
   if (GAS_RUNTIME && typeof GAS_RUNTIME.resolveDependency_ === "function") {
     return GAS_RUNTIME.resolveDependency_("SHEET_ACTIVITY_LOG", "./gasRuntime.js", "操作日誌");

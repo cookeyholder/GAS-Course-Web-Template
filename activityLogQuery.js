@@ -151,6 +151,14 @@ function createActivityLogQuery(deps) {
     };
   }
 
+  /**
+   * 建立空日誌結果物件。純函式，無副作用。
+   *
+   * @param {Object} range - 日期區間物件
+   * @param {number} page - 頁碼
+   * @param {number} pageSize - 每頁筆數
+   * @returns {Object} 格式化空結果物件
+   */
   function buildEmptyActivityLogResult(range, page, pageSize) {
     return {
       ok: true,
@@ -163,16 +171,36 @@ function createActivityLogQuery(deps) {
     };
   }
 
+  /**
+   * 正規化耗時毫秒欄位。純函式，無副作用。
+   *
+   * @param {*} rawDuration - 原始數值或字串
+   * @returns {number|null} 耗時毫秒數或 null
+   */
   function normalizeActivityLogDuration(rawDuration) {
     if (rawDuration === "" || rawDuration === null || rawDuration === undefined) return null;
     const parsedDuration = Number(rawDuration);
     return isFinite(parsedDuration) ? parsedDuration : null;
   }
 
+  /**
+   * 依欄位名稱自 12 欄儲存格陣列安全取值。純函式，無副作用。
+   *
+   * @param {Array<*>} cells - 一列儲存格值
+   * @param {string} field - 欄位名稱
+   * @returns {*} 儲存格值
+   */
   function cellAt(cells, field) {
     return cells[fieldIndex[field]];
   }
 
+  /**
+   * 將原始 12 欄儲存格陣列組裝為日誌物件結構。純函式，無副作用。
+   *
+   * @param {Array<*>} cells - 儲存格陣列
+   * @param {number} rowIndex - 原始試算表列號（由 1 起算）
+   * @returns {Object} 日誌項目物件
+   */
   function buildActivityLogRowItem(cells, rowIndex) {
     return {
       _rowIndex: rowIndex,
@@ -191,6 +219,15 @@ function createActivityLogQuery(deps) {
     };
   }
 
+  /**
+   * 判斷日誌項目是否符合日期與篩選條件。
+   *
+   * @param {Object} item - 日誌物件
+   * @param {Object} range - 日期區間
+   * @param {Object} filters - 篩選條件（email 與類別）
+   * @param {Object} state - 掃描狀態變數
+   * @returns {boolean} 是否匹配
+   */
   function matchActivityLogRow(item, range, filters, state) {
     if (item.timestamp < range.start) {
       state.crossedRangeStart = true;
@@ -202,6 +239,15 @@ function createActivityLogQuery(deps) {
     return true;
   }
 
+  /**
+   * 批次反向掃描工作表列資料並收集匹配日誌項目。
+   *
+   * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - 工作表實體
+   * @param {number} lastRow - 最後一列列號
+   * @param {Object} range - 日期區間
+   * @param {Object} filters - 篩選條件
+   * @returns {{ matched: Array<Object>, scannedRows: number, dataRowCount: number }} 掃描收集結果
+   */
   function collectActivityLogMatches(sheet, lastRow, range, filters) {
     const dataRowCount = lastRow - 1;
     const maxScanRows = Math.min(dataRowCount, ACTIVITY_LOG_MAX_SCAN_ROWS);
