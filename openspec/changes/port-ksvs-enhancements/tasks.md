@@ -1,6 +1,6 @@
 ## 1. 官方參考資料手冊納管與共用模組架構驗證
 
-- [ ] 1.1 建立 `docs/參考資料/README.md`，詳述教育部官方代碼 CSV 來源、版本資訊、UTF-8 BOM 編碼注意事項、欄位編碼規格與 1NF 模組關聯，並執行 `npm run check:lang` 確認無簡體字與中國用語
+- [x] 1.1 建立 `docs/參考資料/README.md`，詳述教育部官方代碼 CSV 來源、版本資訊、UTF-8 BOM 編碼注意事項、欄位編碼規格與 1NF 模組關聯，並執行 `npm run check:lang` 確認無簡體字與中國用語
 - [ ] 1.2 驗證共用模組維持緊湊字串宣告與模組載入期立即解析快取（Eager Memoization），執行 `npm test` 與 `npm run check:complexity` 確認全專案模組維護性指數 MI $\ge 50$ 且不低於基準線 83.666，CRAP $\le 25$
 
 ## 2. 後端 Web App 文件路由、部署放行與使用者手冊建立
