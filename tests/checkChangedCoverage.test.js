@@ -41,6 +41,18 @@ console.log("1. 驗證可解析 unified diff 取得變更行...");
   console.log("   ✓ unified diff 解析驗證通過！\n");
 }
 
+console.log("1.1 驗證 quality-core 目錄納入變更覆蓋率範圍...");
+{
+  assert.strictEqual(typeof checkChangedCoverage.isInScope, "function", "應提供 isInScope");
+  assert.strictEqual(
+    checkChangedCoverage.isInScope("quality-core/openccStableId.js"),
+    true,
+    "quality-core 下之 JS 應納管"
+  );
+  assert.strictEqual(checkChangedCoverage.isInScope("other/probe.js"), false, "其他非納管目錄之 JS 不應納管");
+  console.log("   ✓ quality-core 納管驗證通過！\n");
+}
+
 console.log("2. 驗證變更覆蓋率達標時檢查成功...");
 {
   assert.strictEqual(typeof checkChangedCoverage.computeChangedCoverage, "function", "應提供 computeChangedCoverage");

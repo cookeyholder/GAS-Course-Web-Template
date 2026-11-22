@@ -23,6 +23,21 @@ console.log("1. 驗證 CRAP 計算公式...");
   console.log("   ✓ CRAP 計算公式驗證通過！\n");
 }
 
+console.log("1.1 驗證原始碼收集涵蓋腳本目錄...");
+{
+  assert.strictEqual(typeof checkComplexity.collectSourceFiles, "function", "應提供 collectSourceFiles");
+  const files = checkComplexity.collectSourceFiles();
+  assert(Array.isArray(files), "來源檔案清單應為陣列");
+  assert(files.includes("scripts/qualityConfig.js"), "來源檔案清單應包含 scripts/qualityConfig.js");
+  assert(
+    files.every(function (file) {
+      return typeof file === "string" && file.endsWith(".js");
+    }),
+    "來源檔案清單只能包含 JS 檔案"
+  );
+  console.log("   ✓ 原始碼收集驗證通過！\n");
+}
+
 console.log("2. 驗證可由分析結果與覆蓋率評估 CRAP/MI 門檻...");
 {
   assert.strictEqual(typeof checkComplexity.evaluateComplexity, "function", "應提供 evaluateComplexity");

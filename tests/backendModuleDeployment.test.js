@@ -4,7 +4,8 @@
  * backendModuleDeployment.test.js（task 4.4）
  *
  * 驗證拆分後的新後端模組可隨 clasp push 部署至 GAS：
- * - .claspignore 未排除根目錄 *.js（含 activityLogQuery.js／activityLogInterceptor.js）
+ * - .claspignore 未排除根目錄 *.js（含 activityLogQuery.js／activityLogInterceptor.js），
+ *   且排除規則僅限 Node 工具鏈專用模組與語言報告構件
  * - 兩模組同時支援 Node module.exports 與 GAS globalThis 掛載
  * - GAS 全域環境（無 require、module）下仍可掛載並取得 API
  * - webApi facade 解析邏輯可從 globalThis 取得兩模組（不到處 require）
@@ -31,11 +32,16 @@ console.log("1. .claspignore 應允許根 *.js 上傳且不排除新模組...\n"
       return line && line.charAt(0) !== "#";
     });
   assert(lines.indexOf("!*.js") !== -1, "應以 !*.js 允許根目錄 JS 上傳");
-  // 除了 ** 全排除基礎規則外，不得有任何明確排除特定 JS 的規則。
+  // 僅允許排除 Node 工具鏈專用模組與語言報告構件，後端根目錄 JS 仍須全部上傳。
+  const allowedExclusions = ["quality-core/", "scripts/opencc*.js", "artifacts/"];
   const exclusions = lines.filter(function (line) {
     return line.charAt(0) !== "!" && line !== "**";
   });
-  assert.strictEqual(exclusions.length, 0, "不得再排除特定 JS：\n" + exclusions.join("\n"));
+  assert.deepStrictEqual(
+    exclusions.slice().sort(),
+    allowedExclusions.slice().sort(),
+    "排除規則應僅限 Node 工具鏈與報告構件：\n" + exclusions.join("\n")
+  );
   ["activityLogQuery.js", "activityLogInterceptor.js"].forEach(function (name) {
     assert(fs.existsSync(path.join(ROOT, name)), name + " 應存在於根目錄");
   });
