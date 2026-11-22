@@ -4,8 +4,10 @@
  */
 
 /**
- * 建立試算表工具列選單
- * 當試算表開啟時自動執行
+ * 建立試算表工具列選單。
+ * 當 Google 試算表開啟時由 Apps Script 觸發自動執行。
+ *
+ * @returns {void}
  */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
@@ -18,7 +20,11 @@ function onOpen() {
 }
 
 /**
- * 選單動作：初始化後端資料庫工作表
+ * 選單動作：初始化後端資料庫工作表。
+ * 彈出雙重確認視窗，確認後呼叫 initializeDatabaseSheets 建立系統工作表與預設設定。
+ * 具安全冪等性，若工作表已存在則保留原資料不覆蓋。
+ *
+ * @returns {void}
  */
 function initializeDatabaseSheetsMenu() {
   const ui = SpreadsheetApp.getUi();
@@ -43,7 +49,10 @@ function initializeDatabaseSheetsMenu() {
 }
 
 /**
- * 選單動作：彈出視窗提供 Web App 網頁開啟連結
+ * 選單動作：彈出強制回應對話框提供 Web App 網頁開啟按鈕與完整 URL 連結。
+ * 若尚未發布或無 ScriptApp 服務，顯示部署指引提示。
+ *
+ * @returns {void}
  */
 function openWebAppDialog() {
   const ui = SpreadsheetApp.getUi();

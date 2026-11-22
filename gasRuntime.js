@@ -179,10 +179,10 @@
 
   /**
    * 正規化允許登入網域（task 5.5）：去除前綴 @、前後空白並轉小寫。
-   * 前後端共用單一來源，避免各模組重複規則產生語意漂移。
+   * 前後端共用單一來源，避免各模組重複規則產生語意漂移。純函式，無副作用。
    *
-   * @param {*} configuredDomain - 設定的網域值
-   * @returns {string} 正規化後的網域
+   * @param {*} configuredDomain - 設定的網域值（支援字串或非字串容錯）
+   * @returns {string} 正規化後的純小寫網域名稱（無前綴 @）
    */
   function normalizeAllowedDomain(configuredDomain) {
     return String(configuredDomain || "")

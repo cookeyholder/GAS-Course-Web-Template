@@ -23,6 +23,9 @@
    * gasRuntime 單一來源解析（task 5.3）：GAS 全域優先，Node 由 require 取得。
    * actionRegistry 在 GAS 依檔名順序先於 gasRuntime 載入，無 gasRuntime 時
    * 退回同值常數，維持雙環境載入相容。
+   *
+   * @private
+   * @returns {Object<string, string>} 角色代碼對應物件（包含 ADMIN, STAFF, VIEWER）
    */
   function resolveRoleCodes_() {
     const fallback = { ADMIN: "admin", STAFF: "staff", VIEWER: "viewer" };
