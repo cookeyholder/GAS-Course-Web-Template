@@ -380,6 +380,8 @@
         </div>
         <div class="tools">
           <a href="index.html" style="font-size: 13.5px; font-weight: 500">文件總覽</a>
+          <a href="architecture-guide.html" style="font-size: 13.5px; font-weight: 500">架構手冊</a>
+          <a href="user-guide.html" style="font-size: 13.5px; font-weight: 500">使用者手冊</a>
           <button class="btn-toggle" onclick="toggleTheme()" id="themeBtn">◐ 切換主題</button>
         </div>
       </div>
@@ -879,6 +881,12 @@ function isExcludedCourseRow(row) {
             傳統系統常在上傳檔案後整份丟給後端 GAS 運算，但 GAS 有單次請求時間與記憶體限制。本範本採用前後端同構設計：
           </p>
           <ul>
+            <li>
+              <strong>同構核心模組 (<code>courseNormalizationShared.js</code>)</strong>： 收錄教育部 368
+              筆標準群科代碼與別名池，提供前後端同構之
+              <code>compareDepartmentsByCode</code> 排序演算法與字典對照，確保科別下拉選單與代碼轉換邏輯在瀏覽器與 GAS
+              後端 100% 同步！
+            </li>
             <li>
               <strong
                 >前端
