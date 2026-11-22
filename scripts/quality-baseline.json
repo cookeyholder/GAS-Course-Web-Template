@@ -10,7 +10,7 @@
     "crapFormula": "comp^2 * (1 - cov)^3 + comp"
   },
   "scope": {
-    "include": ["*.js", "webapp/js/*.js", "scripts/*.js"],
+    "include": ["*.js", "webapp/js/*.js", "scripts/*.js", "quality-core/*.js"],
     "exclude": [
       "tests/**",
       "node_modules/**",

@@ -249,7 +249,7 @@ function collectSourceFiles() {
       files.push(entry.name);
     }
   });
-  ["webapp/js", "scripts"].forEach(function (dir) {
+  ["webapp/js", "scripts", "quality-core"].forEach(function (dir) {
     const absDir = path.join(PROJECT_ROOT, dir);
     if (!fs.existsSync(absDir)) return;
     fs.readdirSync(absDir, { withFileTypes: true }).forEach(function (entry) {

@@ -18,7 +18,7 @@ console.log("1. 驗證納管範圍與排除規則...");
   assert(qualityConfig.SCOPE, "應匯出 SCOPE");
   assert.deepStrictEqual(
     qualityConfig.SCOPE.include,
-    ["*.js", "webapp/js/*.js", "scripts/*.js"],
+    ["*.js", "webapp/js/*.js", "scripts/*.js", "quality-core/*.js"],
     "納管範圍 include 應符合全量候選"
   );
   assert(

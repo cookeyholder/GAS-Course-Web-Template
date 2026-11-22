@@ -21,7 +21,7 @@ const PROJECT_ROOT = path.join(__dirname, "..");
  * 排除後可使現行量測與基準線 apples-to-apples 比較，而非放寬門檻。
  */
 const SCOPE = {
-  include: ["*.js", "webapp/js/*.js", "scripts/*.js"],
+  include: ["*.js", "webapp/js/*.js", "scripts/*.js", "quality-core/*.js"],
   exclude: [
     "tests/**",
     "node_modules/**",
@@ -30,7 +30,7 @@ const SCOPE = {
     ".nyc_output/**",
     "scripts/captureGoldenLogSnapshot.js"
   ],
-  sourcePatterns: ["*.js", "webapp/js/*.js", "scripts/*.js"]
+  sourcePatterns: ["*.js", "webapp/js/*.js", "scripts/*.js", "quality-core/*.js"]
 };
 
 /** 報告與中介產物路徑（相對於專案根目錄） */
