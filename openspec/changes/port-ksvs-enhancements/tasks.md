@@ -20,5 +20,5 @@
 
 ## 5. 打包建置與本地端 11 步完整 CI 預跑
 
-- [ ] 5.1 執行 `npm run build:webapp` 打包前端，新增無障礙、空狀態與文件路由綜合單元測試，執行 `npm run check:ui-classes` 與 `npm run check:contrast` 確認無樣式漂移
+- [x] 5.1 執行 `npm run build:webapp` 打包前端，新增無障礙、空狀態與文件路由綜合單元測試，執行 `npm run check:ui-classes` 與 `npm run check:contrast` 確認無樣式漂移
 - [ ] 5.2 執行本地端 11 步完整 CI 預跑指令鏈，確認格式、語言、樣式、無障礙、測試、全域覆蓋率、CRAP/MI、變更覆蓋率與打包產物一致性全數通過
