@@ -168,6 +168,58 @@ function run() {
     console.log("   ✓ courses 外部相依安全降級防護通過！\n");
   }
 
+  // 15. Empty State CTA 四維度分流與事件委派測試
+  {
+    console.log("15. Empty State CTA 四維度分流與事件委派測試...");
+    const emptyCtx = createDeps();
+    let switchedTab = "";
+    emptyCtx.deps.navigation = {
+      setTab: function (tab) {
+        switchedTab = tab;
+      }
+    };
+    emptyCtx.state.courses = {
+      list: [],
+      total: 0,
+      keyword: "",
+      department: "",
+      academicYear: "",
+      semester: "",
+      page: 1,
+      totalPages: 1
+    };
+    const mod = coursesModule.createCoursesModule(emptyCtx.deps);
+    const emptyDbHtml = mod.renderView();
+
+    assert(emptyDbHtml.indexOf("目前尚無符合的課程紀錄") !== -1, "全空狀態應包含相容提示文字");
+    assert(emptyDbHtml.indexOf('data-course-action="goto-import"') !== -1, "全空狀態應包含前往匯入按鈕");
+    assert(emptyDbHtml.indexOf('data-tab="import"') !== -1, "按鈕應標記單數 import 頁籤");
+
+    assert.strictEqual(typeof mod.renderEmptyCoursesStateHtml, "function");
+    const emptyStateHtml = mod.renderEmptyCoursesStateHtml(emptyCtx.state.courses);
+    assert(emptyStateHtml.indexOf("前往匯入課綱代碼") !== -1);
+
+    // 測試篩選條件查無結果分流
+    const filteredCtx = createDeps();
+    filteredCtx.state.courses = {
+      list: [],
+      total: 10,
+      keyword: "不存在的科目",
+      department: "",
+      academicYear: "",
+      semester: "",
+      page: 1,
+      totalPages: 1
+    };
+    const filteredMod = coursesModule.createCoursesModule(filteredCtx.deps);
+    const filteredHtml = filteredMod.renderView();
+    assert(filteredHtml.indexOf("目前尚無符合的課程紀錄") !== -1);
+    assert(filteredHtml.indexOf('data-course-action="reset"') !== -1, "篩選無結果應包含重設按鈕");
+    assert(filteredHtml.indexOf("goto-import") === -1, "篩選無結果不得顯示前往匯入按鈕");
+
+    console.log("   ✓ Empty State CTA 四維度分流與事件委派驗證通過！\n");
+  }
+
   console.log("✓ webapp/js/courses.js renderView 測試全數通過！\n");
 }
 

@@ -481,13 +481,13 @@
         "</div></td></tr>"
       );
     }
-    const emptyText = escapeHtml(opt.emptyText || "查無資料");
+    const emptyContent = opt.emptyHtml ? String(opt.emptyHtml) : escapeHtml(opt.emptyText || "查無資料");
     return (
       '<tr><td colspan="' +
       span +
       '" style="text-align:center; padding:28px; color:var(--ink-2);">' +
       '<div role="status" aria-live="polite">' +
-      emptyText +
+      emptyContent +
       "</div></td></tr>"
     );
   }
@@ -530,7 +530,11 @@
       );
     }
     if (items.length === 0) {
-      return "<tbody>" + renderTableStatusRow({ colspan: span, loading: false, emptyText: opt.emptyText }) + "</tbody>";
+      return (
+        "<tbody>" +
+        renderTableStatusRow({ colspan: span, loading: false, emptyText: opt.emptyText, emptyHtml: opt.emptyHtml }) +
+        "</tbody>"
+      );
     }
     if (typeof opt.rowRenderer === "function") {
       let rows = "";
@@ -580,6 +584,7 @@
       loading: isLoading,
       loadingText: opt.loadingText,
       emptyText: opt.emptyText,
+      emptyHtml: opt.emptyHtml,
       colspan: span
     });
 

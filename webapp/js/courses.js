@@ -135,6 +135,21 @@
           return Number.isFinite(page) ? fetchList(page) : undefined;
         }
         if (action === "reset") return resetSearch();
+        if (action === "goto-import") {
+          if (options.navigation && typeof options.navigation.setTab === "function") {
+            return options.navigation.setTab("import");
+          }
+          if (MEA.navigation && typeof MEA.navigation.setTab === "function") {
+            return MEA.navigation.setTab("import");
+          }
+          if (typeof MEA.setTab === "function") {
+            return MEA.setTab("import");
+          }
+          if (MEA.app && typeof MEA.app.setTab === "function") {
+            return MEA.app.setTab("import");
+          }
+          return undefined;
+        }
         return undefined;
       });
     }
@@ -357,20 +372,63 @@
     }
 
     /**
+     * 產生課程清單空白狀態 HTML（支援全空導向匯入與篩選查無結果重設）。
+     *
+     * @param {Object} courses - 課程狀態
+     * @returns {string} 空狀態 HTML
+     */
+    function renderEmptyCoursesStateHtml(courses) {
+      const cur = courses || {};
+      const hasFilters = Boolean(
+        (cur.keyword || "").trim() ||
+        (cur.department || "").trim() ||
+        (cur.academicYear || "").trim() ||
+        (cur.semester || "").trim()
+      );
+      const total = Number(cur.total) || 0;
+      const isEmptyDb = total === 0 && !hasFilters;
+
+      if (isEmptyDb) {
+        return (
+          '<div class="empty-state" style="padding: 24px 16px; text-align: center;">' +
+          '  <div style="font-size: 2rem; margin-bottom: 8px;" aria-hidden="true">📭</div>' +
+          '  <h3 style="margin: 0 0 6px 0; font-size: 1.1rem; color: var(--ink);">目前尚無符合的課程紀錄</h3>' +
+          '  <p style="margin: 0 0 16px 0; color: var(--ink-2); font-size: 0.9rem;">系統資料庫尚未匯入任何 108 課綱課程代碼，請先上傳課綱 Excel 檔案。</p>' +
+          '  <button type="button" class="btn primary" data-course-action="goto-import" data-tab="import">' +
+          '    <span aria-hidden="true">📥</span> 前往匯入課綱代碼' +
+          "  </button>" +
+          "</div>"
+        );
+      }
+
+      return (
+        '<div class="empty-state" style="padding: 24px 16px; text-align: center;">' +
+        '  <div style="font-size: 2rem; margin-bottom: 8px;" aria-hidden="true">🔍</div>' +
+        '  <h3 style="margin: 0 0 6px 0; font-size: 1.1rem; color: var(--ink);">目前尚無符合的課程紀錄</h3>' +
+        '  <p style="margin: 0 0 16px 0; color: var(--ink-2); font-size: 0.9rem;">找不到符合目前篩選條件的課程，請調整關鍵字、科別或學期設定。</p>' +
+        '  <button type="button" class="btn secondary" data-course-action="reset">' +
+        '    <span aria-hidden="true">🔄</span> 重設搜尋條件' +
+        "  </button>" +
+        "</div>"
+      );
+    }
+
+    /**
      * 產生課程表格內容。
      *
      * @param {Array<Object>} list - 課程陣列
      * @param {boolean} loading - 是否載入中
+     * @param {Object} [courses] - 課程狀態
      * @returns {string} HTML 字串
      */
-    function renderCourseRowsHtml(list, loading) {
+    function renderCourseRowsHtml(list, loading, courses) {
       if (loading) {
         return '<tr><td colspan="10" class="text-center py-8 text-muted">正在載入課程資料...</td></tr>';
       }
-      if (list.length === 0) {
+      if (!list || list.length === 0) {
         return (
-          '<tr><td colspan="10" class="text-center py-8 text-muted">' +
-          "目前尚無符合的課程紀錄，請至「課程代碼匯入」上傳資料或調整篩選條件。" +
+          '<tr><td colspan="10" style="text-align:center; padding:28px; color:var(--ink-2);">' +
+          renderEmptyCoursesStateHtml(courses) +
           "</td></tr>"
         );
       }
@@ -457,6 +515,7 @@
               loading: loading,
               loadingText: "正在載入課程資料...",
               emptyText: "目前尚無符合的課程紀錄",
+              emptyHtml: renderEmptyCoursesStateHtml(courses),
               colspan: 10,
               pagination: {
                 total: courses.total || 0,
@@ -477,7 +536,7 @@
             "      </tr>" +
             "    </thead>" +
             "    <tbody>" +
-            renderCourseRowsHtml(list) +
+            renderCourseRowsHtml(list, loading, courses) +
             "</tbody>" +
             "  </table>" +
             "</div>";
@@ -504,11 +563,16 @@
       fetchStats: fetchStats,
       handleSearch: handleSearch,
       resetSearch: resetSearch,
+      renderEmptyCoursesStateHtml: renderEmptyCoursesStateHtml,
       renderView: renderView
     };
   }
 
   return {
-    createCoursesModule: createCoursesModule
+    createCoursesModule: createCoursesModule,
+    renderEmptyCoursesStateHtml: function (courses) {
+      const mod = createCoursesModule({ exposeInternals: true });
+      return mod.renderEmptyCoursesStateHtml(courses);
+    }
   };
 });
