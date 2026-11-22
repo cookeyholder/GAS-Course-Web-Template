@@ -201,6 +201,9 @@
       return safeErrors.resolveSafeMessage(error, fallback);
     }
 
+    /**
+     * 讀取後端系統參數與成員白名單設定。
+     */
     function loadSettingsAndAccounts() {
       MEA.setState({
         settings: Object.assign({}, MEA.state.settings || {}, { loading: true })
@@ -319,6 +322,11 @@
       }
     }
 
+    /**
+     * 儲存系統設定表單資料至後端。
+     *
+     * @param {Event} [e] - 表單提交事件
+     */
     function saveSettings(e) {
       if (e && e.preventDefault) e.preventDefault();
       const values = collectSettingsFormValues();
@@ -413,6 +421,9 @@
       MEA.ui.closeModal();
     }
 
+    /**
+     * 開啟新增授權成員對話框。
+     */
     function addAccountPrompt() {
       const roleNames = (MEA.config && MEA.config.roleNames) || {};
       const escapeHtml =
@@ -463,6 +474,11 @@
       ]);
     }
 
+    /**
+     * 彈出確認對話框並自白名單移除成員。
+     *
+     * @param {string} email - 目標電子郵件
+     */
     function removeAccount(email) {
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
       const updated = removeAccountFromList(cur, email);
@@ -485,6 +501,11 @@
       );
     }
 
+    /**
+     * 切換指定成員帳號的啟用/停用狀態。
+     *
+     * @param {string} email - 目標電子郵件
+     */
     function toggleAccount(email) {
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
       const updated = toggleAccountInList(cur, email);
@@ -514,6 +535,11 @@
       }
     }
 
+    /**
+     * 將更新後的授權成員清單儲存至後端試算表。
+     *
+     * @param {Array<Object>} accounts - 帳號清單
+     */
     function saveAccountsList(accounts) {
       MEA.setState({
         settings: Object.assign({}, MEA.state.settings || {}, {
@@ -799,6 +825,11 @@
       );
     }
 
+    /**
+     * 渲染系統設定與授權名單主頁面（具備管理員權限守門）。
+     *
+     * @returns {string} 系統設定面板 HTML 字串
+     */
     function renderView() {
       const user = MEA.state.user || {};
       const isAdmin = user.role === ROLE_CODES.ADMIN;

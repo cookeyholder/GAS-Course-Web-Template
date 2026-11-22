@@ -13601,6 +13601,11 @@ window.MEA = window.MEA || {};
 
     let sheetJsPromise = null;
 
+    /**
+     * 非同步載入 SheetJS 解析套件（支援 SRI 驗證與 CDN 降級）。
+     *
+     * @returns {Promise<Object>} SheetJS XLSX 物件
+     */
     function loadSheetJs() {
       if (sheetJsPromise) return sheetJsPromise;
       if (win.XLSX) {
@@ -13638,6 +13643,13 @@ window.MEA = window.MEA || {};
       return sheetJsPromise;
     }
 
+    /**
+     * 讀取活頁簿中指定工作表的所有資料列為二維陣列。
+     *
+     * @param {Object} workbook - XLSX 活頁簿
+     * @param {string} sheetName - 工作表名稱
+     * @returns {Array<Array>} 資料列二維陣列
+     */
     function rowsOfSheet(workbook, sheetName) {
       const sheet = workbook && workbook.Sheets ? workbook.Sheets[sheetName] : null;
       if (!sheet) return [];
@@ -13649,12 +13661,24 @@ window.MEA = window.MEA || {};
       });
     }
 
+    /**
+     * 建立綁定該活頁簿之工作表資料讀取函式。
+     *
+     * @param {Object} workbook - XLSX 活頁簿
+     * @returns {Function} 讀取特定工作表列之函式
+     */
     function readRowsOfSheet(workbook) {
       return function (sheetName) {
         return rowsOfSheet(workbook, sheetName);
       };
     }
 
+    /**
+     * 以 FileReader 非同步讀取上傳檔案並解析為 XLSX 活頁簿。
+     *
+     * @param {File} file - 瀏覽器 File 物件
+     * @returns {Promise<Object>} XLSX 活頁簿 Promise
+     */
     function readFileRows(file) {
       return loadSheetJs().then(function (XLSX) {
         return new Promise(function (resolve, reject) {
@@ -13676,6 +13700,12 @@ window.MEA = window.MEA || {};
       });
     }
 
+    /**
+     * 預先執行 1NF 正規化轉換並產生預覽樣本與統計。
+     *
+     * @param {Array<Array>} rows - 原始工作表二維陣列
+     * @returns {{payload: Array, payloadPreNormalized: boolean, stats: Object, sample: Array}} 預覽資料結構
+     */
     function previewCourseCodes(rows) {
       const result = MEA.courseData.normalizeCourseCodes(rows, { withStats: true });
       return {
@@ -13686,6 +13716,12 @@ window.MEA = window.MEA || {};
       };
     }
 
+    /**
+     * 預覽指定檔案，觸發檔案讀取、工作表挑選與正規化預覽。
+     *
+     * @param {File} file - 上傳之檔案
+     * @returns {Promise<Object|null>} 匯入項目物件或失敗時 null
+     */
     function previewFile(file) {
       if (!file) return Promise.resolve(null);
       MEA.setState({ importBusy: true });
@@ -13722,6 +13758,9 @@ window.MEA = window.MEA || {};
         });
     }
 
+    /**
+     * 程式化觸發隱藏的 file input 點擊。
+     */
     function pickFile() {
       const input = doc.getElementById("fileInput");
       if (input) input.click();
@@ -13740,24 +13779,47 @@ window.MEA = window.MEA || {};
       pickFile();
     }
 
+    /**
+     * 處理檔案選擇變更事件。
+     *
+     * @param {HTMLInputElement} input - 檔案輸入控制項
+     */
     function handleFileSelect(input) {
       const file = input && input.files && input.files[0];
       if (input) input.value = "";
       if (file) previewFile(file);
     }
 
+    /**
+     * 處理拖曳進入區域事件。
+     *
+     * @param {DragEvent} e - 拖曳事件
+     * @param {HTMLElement} [element] - 目標元素
+     */
     function handleDragOver(e, element) {
       e.preventDefault();
       const zone = element || doc.getElementById("uploadDropzone");
       if (zone && zone.classList) zone.classList.add("dragover");
     }
 
+    /**
+     * 處理拖曳離開區域事件。
+     *
+     * @param {DragEvent} e - 拖曳事件
+     * @param {HTMLElement} [element] - 目標元素
+     */
     function handleDragLeave(e, element) {
       e.preventDefault();
       const zone = element || doc.getElementById("uploadDropzone");
       if (zone && zone.classList) zone.classList.remove("dragover");
     }
 
+    /**
+     * 處理拖曳釋放檔案事件。
+     *
+     * @param {DragEvent} e - 拖曳事件
+     * @param {HTMLElement} [element] - 目標元素
+     */
     function handleDrop(e, element) {
       e.preventDefault();
       const zone = element || doc.getElementById("uploadDropzone");
@@ -13767,6 +13829,9 @@ window.MEA = window.MEA || {};
       if (file) previewFile(file);
     }
 
+    /**
+     * 重設匯入預覽狀態，返回初始檔案上傳區。
+     */
     function resetImport() {
       MEA.setState({
         imports: {},
@@ -13774,6 +13839,12 @@ window.MEA = window.MEA || {};
       });
     }
 
+    /**
+     * 處理後端匯入成功回應。
+     *
+     * @param {Object} entry - 當前匯入項目
+     * @param {Object} result - 後端回應
+     */
     function handleImportResult(entry, result) {
       if (!result || result.ok !== true) {
         MEA.setState({ importBusy: false });
@@ -13795,12 +13866,20 @@ window.MEA = window.MEA || {};
       }
     }
 
+    /**
+     * 處理後端匯入失敗或連線錯誤。
+     *
+     * @param {*} error - 例外物件
+     */
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
       const detail = safeErrors.resolveSafeMessage(error, "匯入失敗，請稍後再試");
       MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 
+    /**
+     * 確認將預覽之 1NF 課程代碼資料批次匯入後端試算表。
+     */
     function doImport() {
       const entry = (MEA.state.imports || {}).courseCodes;
       if (!entry || !Array.isArray(entry.payload) || entry.payload.length === 0) {
@@ -13836,6 +13915,11 @@ window.MEA = window.MEA || {};
         .catch(handleImportError);
     }
 
+    /**
+     * 切換預覽表格之科別篩選。
+     *
+     * @param {string} dept - 選定之科別名稱
+     */
     function handleDeptFilter(dept) {
       const current = MEA.state.imports || {};
       const currentEntry = current.courseCodes;
@@ -13850,6 +13934,11 @@ window.MEA = window.MEA || {};
       });
     }
 
+    /**
+     * 渲染課程代碼匯入主畫面。
+     *
+     * @returns {string} 匯入面板 HTML 字串
+     */
     function renderView() {
       const entry = (MEA.state.imports || {}).courseCodes;
       const busy = MEA.state.importBusy;
@@ -14082,6 +14171,13 @@ window.MEA = window.MEA || {};
     const handleSearch = listCtl.handleSearch;
     const resetSearch = listCtl.resetSearch;
 
+    /**
+     * 導向至課綱代碼匯入頁籤。
+     *
+     * @param {Object} [opts] - 工廠選項
+     * @param {Object} [rootMea] - 前端全域物件
+     * @returns {*} 導向回傳值
+     */
     function navigateToImportTab_(opts, rootMea) {
       const nav = (opts && opts.navigation) || (rootMea && rootMea.navigation);
       if (nav && typeof nav.setTab === "function") return nav.setTab("import");
@@ -14090,6 +14186,12 @@ window.MEA = window.MEA || {};
       return undefined;
     }
 
+    /**
+     * 處理課程清單點擊動作（換頁、重整、重設與導向匯入）。
+     *
+     * @param {Element} element - 觸發之按鈕元素
+     * @returns {*} 操作結果
+     */
     function handleCourseClickAction_(element) {
       const action =
         element && typeof element.getAttribute === "function" ? element.getAttribute("data-course-action") : "";
@@ -14439,6 +14541,11 @@ window.MEA = window.MEA || {};
       );
     }
 
+    /**
+     * 渲染正規化課程代碼清單頁籤主畫面。
+     *
+     * @returns {string} 課程清單主面板 HTML 字串
+     */
     function renderView() {
       const courses = MEA.state.courses || {};
       const list = courses.list || [];
@@ -14741,6 +14848,9 @@ window.MEA = window.MEA || {};
       return safeErrors.resolveSafeMessage(error, fallback);
     }
 
+    /**
+     * 讀取後端系統參數與成員白名單設定。
+     */
     function loadSettingsAndAccounts() {
       MEA.setState({
         settings: Object.assign({}, MEA.state.settings || {}, { loading: true })
@@ -14859,6 +14969,11 @@ window.MEA = window.MEA || {};
       }
     }
 
+    /**
+     * 儲存系統設定表單資料至後端。
+     *
+     * @param {Event} [e] - 表單提交事件
+     */
     function saveSettings(e) {
       if (e && e.preventDefault) e.preventDefault();
       const values = collectSettingsFormValues();
@@ -14953,6 +15068,9 @@ window.MEA = window.MEA || {};
       MEA.ui.closeModal();
     }
 
+    /**
+     * 開啟新增授權成員對話框。
+     */
     function addAccountPrompt() {
       const roleNames = (MEA.config && MEA.config.roleNames) || {};
       const escapeHtml =
@@ -15003,6 +15121,11 @@ window.MEA = window.MEA || {};
       ]);
     }
 
+    /**
+     * 彈出確認對話框並自白名單移除成員。
+     *
+     * @param {string} email - 目標電子郵件
+     */
     function removeAccount(email) {
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
       const updated = removeAccountFromList(cur, email);
@@ -15025,6 +15148,11 @@ window.MEA = window.MEA || {};
       );
     }
 
+    /**
+     * 切換指定成員帳號的啟用/停用狀態。
+     *
+     * @param {string} email - 目標電子郵件
+     */
     function toggleAccount(email) {
       const cur = (MEA.state.settings && MEA.state.settings.accounts) || [];
       const updated = toggleAccountInList(cur, email);
@@ -15054,6 +15182,11 @@ window.MEA = window.MEA || {};
       }
     }
 
+    /**
+     * 將更新後的授權成員清單儲存至後端試算表。
+     *
+     * @param {Array<Object>} accounts - 帳號清單
+     */
     function saveAccountsList(accounts) {
       MEA.setState({
         settings: Object.assign({}, MEA.state.settings || {}, {
@@ -15339,6 +15472,11 @@ window.MEA = window.MEA || {};
       );
     }
 
+    /**
+     * 渲染系統設定與授權名單主頁面（具備管理員權限守門）。
+     *
+     * @returns {string} 系統設定面板 HTML 字串
+     */
     function renderView() {
       const user = MEA.state.user || {};
       const isAdmin = user.role === ROLE_CODES.ADMIN;
@@ -15602,10 +15740,23 @@ window.MEA = window.MEA || {};
       };
     }
 
+    /**
+     * 取得特定元素參照。
+     *
+     * @param {string} id - 元素識別碼
+     * @returns {HTMLElement|null} DOM 元素或 null
+     */
     function getElementById(id) {
       return doc && typeof doc.getElementById === "function" ? doc.getElementById(id) : null;
     }
 
+    /**
+     * 解析操作日誌專用之安全錯誤訊息。
+     *
+     * @param {*} value - 錯誤回應物件或代碼
+     * @param {string} [fallbackMessage] - 備援提示字串
+     * @returns {string} 提示訊息
+     */
     function resolveLogError(value, fallbackMessage) {
       const fallback = fallbackMessage || "讀取操作日誌失敗";
       const code = value && (value.error || value.code);
@@ -15813,6 +15964,11 @@ window.MEA = window.MEA || {};
       return html;
     }
 
+    /**
+     * 渲染操作日誌主頁面。
+     *
+     * @returns {string} 操作日誌面板 HTML 字串
+     */
     function renderView() {
       const state = currentState();
       const columns = [
@@ -16002,6 +16158,12 @@ window.MEA = window.MEA || {};
     return null;
   }
 
+  /**
+   * 同步更新瀏覽器分頁標題為系統名稱。
+   *
+   * @param {Object} MEA - 前端全域物件
+   * @param {Document} [doc] - document 物件
+   */
   function syncDocumentTitle(MEA, doc) {
     if (!doc) return;
     const systemName = ((MEA && MEA.state && MEA.state.publicConfig) || {}).systemName;
@@ -16049,6 +16211,13 @@ window.MEA = window.MEA || {};
     }
   }
 
+  /**
+   * 依目前頁籤與權限建構主內容區域 HTML。
+   *
+   * @param {Object} MEA - 前端全域物件
+   * @param {string} tab - 頁籤識別碼
+   * @returns {string} 主內容 HTML 字串
+   */
   function buildBodyHtml(MEA, tab) {
     const allowed = isTabAllowed(findTab(MEA, tab), MEA.state && MEA.state.user);
     const effectiveTab = allowed ? tab : "overview";
@@ -16056,6 +16225,12 @@ window.MEA = window.MEA || {};
     return invokeIfFunction_(MEA[controller.module], controller.render) || "";
   }
 
+  /**
+   * 渲染共用頁尾 HTML（包含系統名稱、版本號與說明手冊連結）。
+   *
+   * @param {Object} MEA - 前端全域物件
+   * @returns {string} 頁尾 HTML 字串
+   */
   function renderFooterHtml(MEA) {
     const config = (MEA && MEA.config) || {};
     const appName = config.appName || "GAS-Course-Web-Template";
@@ -16091,6 +16266,12 @@ window.MEA = window.MEA || {};
     );
   }
 
+  /**
+   * 建立應用程式主控制器實例。
+   *
+   * @param {Object} [deps] - 依賴注入選項（包含 MEA、document、window、setTimeoutFn）
+   * @returns {Object} 包含 setTab, cleanUrlQuery, applyInitialAuth, render, init 等操作介面
+   */
   function createAppController(deps) {
     const options = deps || {};
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
@@ -16103,10 +16284,16 @@ window.MEA = window.MEA || {};
             return setTimeout(fn, ms);
           };
 
+    /** 同步更新網頁標題。 */
     function syncTitle() {
       syncDocumentTitle(MEA, doc);
     }
 
+    /**
+     * 切換應用程式頁籤並觸發該頁籤之載入動作。
+     *
+     * @param {string} tabId - 目標頁籤識別碼
+     */
     function setTab(tabId) {
       const allowed = isTabAllowed(findTab(MEA, tabId), MEA.state && MEA.state.user);
       const effectiveTab = allowed ? tabId : "overview";
@@ -16119,6 +16306,7 @@ window.MEA = window.MEA || {};
       }
     }
 
+    /** 清理網址列之 query 參數（如 token, auth 等敏感回呼字串）。 */
     function cleanUrlQuery() {
       try {
         const topWin = (win && win.top) || win;
@@ -16129,6 +16317,11 @@ window.MEA = window.MEA || {};
       } catch (e) {}
     }
 
+    /**
+     * 套用伺服器端注入之初始身分驗證資料（INITIAL_AUTH）。
+     *
+     * @returns {boolean} 是否成功處理初始授權
+     */
     function applyInitialAuth() {
       const initial = win && win.INITIAL_AUTH;
       if (!initial || typeof initial !== "object") return false;
@@ -16165,6 +16358,11 @@ window.MEA = window.MEA || {};
       return true;
     }
 
+    /**
+     * 處理切換帳號要求。
+     *
+     * @returns {boolean} 是否已觸發切換
+     */
     function applyAccountSwitch() {
       if (!MEA.config || !MEA.config.switchAccount) return false;
       cleanUrlQuery();
@@ -16174,6 +16372,9 @@ window.MEA = window.MEA || {};
       return true;
     }
 
+    /**
+     * 主畫面渲染函式，維護焦點並依據 state.view 渲染適當畫面。
+     */
     function render() {
       syncTitle();
       if (!doc || typeof doc.getElementById !== "function") return;
@@ -16210,12 +16411,18 @@ window.MEA = window.MEA || {};
       restoreFocusState(doc, focusSnapshot);
     }
 
+    /** 結束授權流程並嘗試還原工作階段。 */
     function finishAuth() {
       if (!applyInitialAuth() && !applyAccountSwitch()) {
         MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
       }
     }
 
+    /**
+     * 初始化前端應用程式（載入主題、訂閱狀態變更並讀取公開設定）。
+     *
+     * @returns {Promise<void>} 初始化非同步 Promise
+     */
     function init() {
       MEA.ui && typeof MEA.ui.initThemeAndStyle === "function" ? MEA.ui.initThemeAndStyle() : undefined;
       if (typeof MEA.subscribe === "function") {

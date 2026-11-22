@@ -484,6 +484,11 @@
 
     let sheetJsPromise = null;
 
+    /**
+     * 非同步載入 SheetJS 解析套件（支援 SRI 驗證與 CDN 降級）。
+     *
+     * @returns {Promise<Object>} SheetJS XLSX 物件
+     */
     function loadSheetJs() {
       if (sheetJsPromise) return sheetJsPromise;
       if (win.XLSX) {
@@ -521,6 +526,13 @@
       return sheetJsPromise;
     }
 
+    /**
+     * 讀取活頁簿中指定工作表的所有資料列為二維陣列。
+     *
+     * @param {Object} workbook - XLSX 活頁簿
+     * @param {string} sheetName - 工作表名稱
+     * @returns {Array<Array>} 資料列二維陣列
+     */
     function rowsOfSheet(workbook, sheetName) {
       const sheet = workbook && workbook.Sheets ? workbook.Sheets[sheetName] : null;
       if (!sheet) return [];
@@ -532,12 +544,24 @@
       });
     }
 
+    /**
+     * 建立綁定該活頁簿之工作表資料讀取函式。
+     *
+     * @param {Object} workbook - XLSX 活頁簿
+     * @returns {Function} 讀取特定工作表列之函式
+     */
     function readRowsOfSheet(workbook) {
       return function (sheetName) {
         return rowsOfSheet(workbook, sheetName);
       };
     }
 
+    /**
+     * 以 FileReader 非同步讀取上傳檔案並解析為 XLSX 活頁簿。
+     *
+     * @param {File} file - 瀏覽器 File 物件
+     * @returns {Promise<Object>} XLSX 活頁簿 Promise
+     */
     function readFileRows(file) {
       return loadSheetJs().then(function (XLSX) {
         return new Promise(function (resolve, reject) {
@@ -559,6 +583,12 @@
       });
     }
 
+    /**
+     * 預先執行 1NF 正規化轉換並產生預覽樣本與統計。
+     *
+     * @param {Array<Array>} rows - 原始工作表二維陣列
+     * @returns {{payload: Array, payloadPreNormalized: boolean, stats: Object, sample: Array}} 預覽資料結構
+     */
     function previewCourseCodes(rows) {
       const result = MEA.courseData.normalizeCourseCodes(rows, { withStats: true });
       return {
@@ -569,6 +599,12 @@
       };
     }
 
+    /**
+     * 預覽指定檔案，觸發檔案讀取、工作表挑選與正規化預覽。
+     *
+     * @param {File} file - 上傳之檔案
+     * @returns {Promise<Object|null>} 匯入項目物件或失敗時 null
+     */
     function previewFile(file) {
       if (!file) return Promise.resolve(null);
       MEA.setState({ importBusy: true });
@@ -605,6 +641,9 @@
         });
     }
 
+    /**
+     * 程式化觸發隱藏的 file input 點擊。
+     */
     function pickFile() {
       const input = doc.getElementById("fileInput");
       if (input) input.click();
@@ -623,24 +662,47 @@
       pickFile();
     }
 
+    /**
+     * 處理檔案選擇變更事件。
+     *
+     * @param {HTMLInputElement} input - 檔案輸入控制項
+     */
     function handleFileSelect(input) {
       const file = input && input.files && input.files[0];
       if (input) input.value = "";
       if (file) previewFile(file);
     }
 
+    /**
+     * 處理拖曳進入區域事件。
+     *
+     * @param {DragEvent} e - 拖曳事件
+     * @param {HTMLElement} [element] - 目標元素
+     */
     function handleDragOver(e, element) {
       e.preventDefault();
       const zone = element || doc.getElementById("uploadDropzone");
       if (zone && zone.classList) zone.classList.add("dragover");
     }
 
+    /**
+     * 處理拖曳離開區域事件。
+     *
+     * @param {DragEvent} e - 拖曳事件
+     * @param {HTMLElement} [element] - 目標元素
+     */
     function handleDragLeave(e, element) {
       e.preventDefault();
       const zone = element || doc.getElementById("uploadDropzone");
       if (zone && zone.classList) zone.classList.remove("dragover");
     }
 
+    /**
+     * 處理拖曳釋放檔案事件。
+     *
+     * @param {DragEvent} e - 拖曳事件
+     * @param {HTMLElement} [element] - 目標元素
+     */
     function handleDrop(e, element) {
       e.preventDefault();
       const zone = element || doc.getElementById("uploadDropzone");
@@ -650,6 +712,9 @@
       if (file) previewFile(file);
     }
 
+    /**
+     * 重設匯入預覽狀態，返回初始檔案上傳區。
+     */
     function resetImport() {
       MEA.setState({
         imports: {},
@@ -657,6 +722,12 @@
       });
     }
 
+    /**
+     * 處理後端匯入成功回應。
+     *
+     * @param {Object} entry - 當前匯入項目
+     * @param {Object} result - 後端回應
+     */
     function handleImportResult(entry, result) {
       if (!result || result.ok !== true) {
         MEA.setState({ importBusy: false });
@@ -678,12 +749,20 @@
       }
     }
 
+    /**
+     * 處理後端匯入失敗或連線錯誤。
+     *
+     * @param {*} error - 例外物件
+     */
     function handleImportError(error) {
       MEA.setState({ importBusy: false });
       const detail = safeErrors.resolveSafeMessage(error, "匯入失敗，請稍後再試");
       MEA.ui.toast(detail + "（系統不會自動重送，請確認後再手動重試）", "err");
     }
 
+    /**
+     * 確認將預覽之 1NF 課程代碼資料批次匯入後端試算表。
+     */
     function doImport() {
       const entry = (MEA.state.imports || {}).courseCodes;
       if (!entry || !Array.isArray(entry.payload) || entry.payload.length === 0) {
@@ -719,6 +798,11 @@
         .catch(handleImportError);
     }
 
+    /**
+     * 切換預覽表格之科別篩選。
+     *
+     * @param {string} dept - 選定之科別名稱
+     */
     function handleDeptFilter(dept) {
       const current = MEA.state.imports || {};
       const currentEntry = current.courseCodes;
@@ -733,6 +817,11 @@
       });
     }
 
+    /**
+     * 渲染課程代碼匯入主畫面。
+     *
+     * @returns {string} 匯入面板 HTML 字串
+     */
     function renderView() {
       const entry = (MEA.state.imports || {}).courseCodes;
       const busy = MEA.state.importBusy;

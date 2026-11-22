@@ -124,6 +124,13 @@
     const handleSearch = listCtl.handleSearch;
     const resetSearch = listCtl.resetSearch;
 
+    /**
+     * 導向至課綱代碼匯入頁籤。
+     *
+     * @param {Object} [opts] - 工廠選項
+     * @param {Object} [rootMea] - 前端全域物件
+     * @returns {*} 導向回傳值
+     */
     function navigateToImportTab_(opts, rootMea) {
       const nav = (opts && opts.navigation) || (rootMea && rootMea.navigation);
       if (nav && typeof nav.setTab === "function") return nav.setTab("import");
@@ -132,6 +139,12 @@
       return undefined;
     }
 
+    /**
+     * 處理課程清單點擊動作（換頁、重整、重設與導向匯入）。
+     *
+     * @param {Element} element - 觸發之按鈕元素
+     * @returns {*} 操作結果
+     */
     function handleCourseClickAction_(element) {
       const action =
         element && typeof element.getAttribute === "function" ? element.getAttribute("data-course-action") : "";
@@ -481,6 +494,11 @@
       );
     }
 
+    /**
+     * 渲染正規化課程代碼清單頁籤主畫面。
+     *
+     * @returns {string} 課程清單主面板 HTML 字串
+     */
     function renderView() {
       const courses = MEA.state.courses || {};
       const list = courses.list || [];

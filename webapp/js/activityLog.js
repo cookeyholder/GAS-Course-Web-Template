@@ -207,10 +207,23 @@
       };
     }
 
+    /**
+     * 取得特定元素參照。
+     *
+     * @param {string} id - 元素識別碼
+     * @returns {HTMLElement|null} DOM 元素或 null
+     */
     function getElementById(id) {
       return doc && typeof doc.getElementById === "function" ? doc.getElementById(id) : null;
     }
 
+    /**
+     * 解析操作日誌專用之安全錯誤訊息。
+     *
+     * @param {*} value - 錯誤回應物件或代碼
+     * @param {string} [fallbackMessage] - 備援提示字串
+     * @returns {string} 提示訊息
+     */
     function resolveLogError(value, fallbackMessage) {
       const fallback = fallbackMessage || "讀取操作日誌失敗";
       const code = value && (value.error || value.code);
@@ -418,6 +431,11 @@
       return html;
     }
 
+    /**
+     * 渲染操作日誌主頁面。
+     *
+     * @returns {string} 操作日誌面板 HTML 字串
+     */
     function renderView() {
       const state = currentState();
       const columns = [

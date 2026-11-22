@@ -9,7 +9,7 @@
 
 - [x] 2.1 檢視並重寫前端狀態、網路請求、設定與輔助模組（`webapp/js/state.js`、`webapp/js/api.js`、`webapp/js/auth.js`、`webapp/js/config.js`、`webapp/js/errorMessages.js`、`webapp/js/mock.js`、`webapp/js/moduleHelpers.js`）的函式 JSDoc，同步執行 `npm run build:webapp` 更新 `index.html`，並執行 `npm test && npm run check:lang && npm run format:check` 驗證通過
 - [x] 2.2 檢視並重寫前端共用 UI 元件、清單控制器與事件裝配模組（`webapp/js/ui.js`、`webapp/js/listController.js`、`webapp/js/eventBindings.js`、`webapp/js/wiring.js`、`webapp/js/courseData.js`）的函式 JSDoc，同步執行 `npm run build:webapp` 更新 `index.html`，並執行 `npm test && npm run check:lang && npm run format:check` 驗證通過
-- [ ] 2.3 檢視並重寫前端主要業務頁面與應用入口模組（`webapp/js/app.js`、`webapp/js/courses.js`、`webapp/js/imports.js`、`webapp/js/accounts.js`、`webapp/js/activityLog.js`）的函式 JSDoc，同步執行 `npm run build:webapp` 更新 `index.html`，並執行 `npm test && npm run check:lang && npm run format:check` 驗證通過
+- [x] 2.3 檢視並重寫前端主要業務頁面與應用入口模組（`webapp/js/app.js`、`webapp/js/courses.js`、`webapp/js/imports.js`、`webapp/js/accounts.js`、`webapp/js/activityLog.js`）的函式 JSDoc，同步執行 `npm run build:webapp` 更新 `index.html`，並執行 `npm test && npm run check:lang && npm run format:check` 驗證通過
 
 ## 3. 專案文件與技術手冊實體同步
 
