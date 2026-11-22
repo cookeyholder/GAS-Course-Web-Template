@@ -430,7 +430,7 @@
           <div class="flow-diagram">
             <div class="flow-node">
               <strong>開發階段</strong>
-              webapp/ 下 12 個 JS 模組與 styles.css，另與根目錄共用模組協作
+              webapp/ 下 16 個 JS 模組與 styles.css，另與根目錄共用模組協作
             </div>
             <div class="flow-node">
               <strong>建置腳本</strong>
@@ -458,14 +458,39 @@
 
           <div class="alert info">
             <span
-              >🧩 <strong>單一來源模組</strong>：<code>gasRuntime.js</code> 統一 GAS／Node
+              >🧩 <strong>單一來源與架構核心模組</strong>：<code>gasRuntime.js</code> 統一 GAS／Node
               相依解析、白名單全域注入與工作表／角色／版本號常數；<code>courseNormalizationShared.js</code>
-              由前後端共同引用，避免正規化規則漂移；<code>actionRegistry.js</code> 統一 action
-              登錄、公開／寫入／鎖定清單與 RBAC 矩陣。建置產物另注入
+              由前後端共同引用，避免 1NF 正規化規則漂移；<code>actionRegistry.js</code> 統一 action
+              登錄、公開／寫入／鎖定清單與 RBAC 權限矩陣；<code>systemConfigCodec.js</code>
+              提供系統參數安全編解碼；<code>activityLogInterceptor.js</code> 與 <code>activityLogQuery.js</code>
+              則將日誌攔截與多維度查詢自日誌核心解耦。建置產物另注入
               <code>MEA_PRODUCTION_BUILD</code> 標記以停用正式環境的 Mock 模式，CI
               會檢查建置產物是否與原始碼一致。</span
             >
           </div>
+
+          <h3 style="font-size: 16px; margin: 24px 0 10px">1.2 Web App 文件白名單路由機制 (Documentation Routing)</h3>
+          <p>
+            為了讓使用者與開發者能直接在線上 Web App 閱讀自包含的技術手冊與使用者指南，<code>webApi.js</code> 實作了
+            <code>WEB_APP_DOC_ROUTES</code> 白名單路由機制：
+          </p>
+          <ul>
+            <li>
+              當發送 HTTP GET 請求並夾帶 <code>?page=&lt;路由代碼&gt;</code> 時，後端進行嚴格白名單比對：
+              <code>docs/architecture-guide</code
+              >、<code>docs/clasp-guide</code>、<code>docs/course-normalization-guide</code>、<code>docs/gis-login-guide</code>、<code>docs/rbac-guide</code>、<code
+                >docs/user-guide</code
+              >
+              與 <code>docs/index</code>。
+            </li>
+            <li>
+              若命中白名單，後端使用 <code>HtmlService.createHtmlOutputFromFile()</code> 輸出對應的技術手冊 HTML。
+            </li>
+            <li>
+              若未帶 <code>page</code> 參數或參數不在白名單內，一律安全回退輸出主應用程式
+              <code>index.html</code>，有效防範任意檔案路徑穿越（Path Traversal）風險。
+            </li>
+          </ul>
         </section>
 
         <!-- Section 2 -->
@@ -533,7 +558,7 @@ fetch(apiUrl, {
           <div class="code-box">
             <pre><code>{
   "action": "importCourseCodes", // 👈 必填：欲執行的 API 操作名稱
-  "token": "gas_xxx_xxxxxx",     // 👈 鑑權：由 login 取得的 6 小時 Session Token
+  "token": "gas_xxx_xxxxxx",     // 👈 身分驗證：由 login 取得的 6 小時 Session Token
   "rows": [ ... ],               // 👈 業務資料載荷
   "preNormalized": true
 }</code></pre>
@@ -796,7 +821,7 @@ try {
                 </td>
               </tr>
               <tr>
-                <td><strong>Google ID Token 嚴格校驗</strong></td>
+                <td><strong>Google ID Token 嚴格驗證</strong></td>
                 <td>
                   若後端驗證 JWT 時略過 <code>aud</code> 欄位，攻擊者可持任意其他 GCP 專案簽署的合法 Google Token
                   矇混登入。
@@ -898,10 +923,8 @@ try {
                 <td><strong>Exam-Sections-Arranger 開發手冊</strong></td>
                 <td>母專案技術文獻</td>
                 <td>
-                  驗證並淬煉出免預檢協議、純資料表設計與分批寫入機制的架構實踐。<br /><a
-                    href="file:///home/cookeyholder/Projects/Exam-Sections-Arranger/docs/DEVELOPMENT.md"
-                    >Exam-Sections-Arranger/docs/DEVELOPMENT.md</a
-                  >
+                  驗證並淬煉出免預檢協議、純資料表設計與分批寫入機制的架構實踐。<br />
+                  <code>Exam-Sections-Arranger 專案開發手冊</code>
                 </td>
               </tr>
             </tbody>

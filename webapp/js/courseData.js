@@ -16,6 +16,12 @@
 })(typeof window !== "undefined" ? window : globalThis, function (root) {
   "use strict";
 
+  /**
+   * 解析共用課綱正規化模組 courseNormalizationShared。
+   *
+   * @returns {Object} 共用正規化函式與字典物件
+   * @throws {Error} 當無法由全域或 require 取得模組時拋出例外
+   */
   function resolveShared_() {
     const host = root || {};
     if (host.MEA && host.MEA.courseNormalizationShared) return host.MEA.courseNormalizationShared;

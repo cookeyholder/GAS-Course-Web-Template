@@ -149,6 +149,11 @@
       }
     ];
 
+    /**
+     * 建立模擬之登入成功回應資料。
+     *
+     * @returns {Object} 模擬登入回傳物件
+     */
     function buildLoginPayload() {
       return {
         ok: true,
@@ -163,6 +168,11 @@
       };
     }
 
+    /**
+     * 建立公開系統設定回應資料。
+     *
+     * @returns {Object} 公開設定回應物件
+     */
     function createPublicConfig() {
       return {
         ok: true,
@@ -178,6 +188,12 @@
       };
     }
 
+    /**
+     * 建立模擬 Session 驗證回應資料。
+     *
+     * @param {Object} [payload] - 請求參數
+     * @returns {Object} 模擬 Session 資訊物件
+     */
     function createSession(payload) {
       return {
         ok: true,
@@ -190,6 +206,12 @@
       };
     }
 
+    /**
+     * 模擬匯入課程代碼資料。
+     *
+     * @param {Object} payload - 匯入參數（含 rows 二維陣列）
+     * @returns {{ok: boolean, rows: number}} 匯入結果
+     */
     function importCourseCodes(payload) {
       if (payload && Array.isArray(payload.rows)) {
         mockCoursesList = payload.rows.map(function (r) {
@@ -256,14 +278,30 @@
       };
     }
 
+    /**
+     * 查詢模擬課程資料總筆數。
+     *
+     * @returns {{ok: boolean, total: number}} 統計數據
+     */
     function createCourseIndexStats() {
       return { ok: true, total: mockCoursesList.length };
     }
 
+    /**
+     * 讀取模擬系統設定。
+     *
+     * @returns {{ok: boolean, settings: Object}} 系統設定物件
+     */
     function createSystemSettings() {
       return { ok: true, settings: Object.assign({}, mockSettings) };
     }
 
+    /**
+     * 儲存模擬系統設定。
+     *
+     * @param {Object} payload - 包含 settings 物件的請求參數
+     * @returns {{ok: boolean}} 儲存結果
+     */
     function saveSystemSettings(payload) {
       const incoming = (payload && payload.settings) || {};
       const mapped = Object.assign({}, incoming);
@@ -274,17 +312,31 @@
       return { ok: true };
     }
 
+    /**
+     * 取得模擬授權成員清單。
+     *
+     * @returns {{ok: boolean, accounts: Array<Object>}} 帳號陣列
+     */
     function createAccounts() {
       return { ok: true, accounts: mockAccounts.slice() };
     }
 
-    /** 將毫秒時間戳記格式化為 Asia/Taipei 的 yyyy-MM-dd HH:mm:ss */
+    /**
+     * 將毫秒時間戳記格式化為 Asia/Taipei 的 yyyy-MM-dd HH:mm:ss。
+     *
+     * @param {number} ms - 毫秒時間戳記
+     * @returns {string} 格式化日期字串
+     */
     function formatMockTimestamp(ms) {
       const shifted = new Date(ms + 8 * 60 * 60 * 1000);
       return shifted.toISOString().slice(0, 19).replace("T", " ");
     }
 
-    /** 建立相對於目前時間的示範日誌列（最近六小時內） */
+    /**
+     * 建立相對於目前時間的示範日誌列（最近六小時內）。
+     *
+     * @returns {Array<Object>} 示範日誌陣列
+     */
     function buildMockActivityRows() {
       const now = nowFn();
       return [
@@ -333,6 +385,12 @@
       ];
     }
 
+    /**
+     * 查詢模擬操作日誌。
+     *
+     * @param {Object} [payload] - 查詢條件（日期區間、信箱、分類、分頁）
+     * @returns {Object} 模擬日誌回應物件
+     */
     function getActivityLog(payload) {
       const options = payload || {};
       const page = Math.max(1, Number(options.page) || 1);
@@ -367,6 +425,12 @@
       };
     }
 
+    /**
+     * 儲存模擬授權白名單。
+     *
+     * @param {Object} payload - 包含 accounts 陣列之物件
+     * @returns {{ok: boolean, count: number}} 儲存結果
+     */
     function saveWhitelist(payload) {
       mockAccounts.length = 0;
       const incoming = payload && payload.accounts ? payload.accounts : [];
@@ -397,6 +461,12 @@
       getActivityLog: getActivityLog
     };
 
+    /**
+     * 建立未支援之 mock action 錯誤回應。
+     *
+     * @param {string} action - 未支援的動作名稱
+     * @returns {{ok: boolean, error: string, message: string}} 錯誤物件
+     */
     function createUnknownActionResult(action) {
       return { ok: false, error: "unknown_mock_action", message: "Mock 未支援 action：" + action };
     }
@@ -407,6 +477,13 @@
       (typeof globalThis !== "undefined" && globalThis.actionRegistry) ||
       null;
 
+    /**
+     * 解析並派發 mock action 至對應處理函式。
+     *
+     * @param {string} action - 動作名稱
+     * @param {Object} payload - 動作參數
+     * @returns {Object} 動作處理結果
+     */
     function resolveAction(action, payload) {
       if (actionRegistry && !actionRegistry.hasAction(action)) {
         return createUnknownActionResult(action);
@@ -417,6 +494,13 @@
       return actionHandlers[action](payload);
     }
 
+    /**
+     * 處理 Mock API 請求（模擬非同步延遲）。
+     *
+     * @param {string} action - 動作名稱
+     * @param {Object} payload - 請求參數
+     * @returns {Promise<Object>} 回應成果 Promise
+     */
     function handle(action, payload) {
       return new Promise(function (resolve) {
         setTimeoutFn(function () {

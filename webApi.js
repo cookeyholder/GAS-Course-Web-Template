@@ -111,6 +111,14 @@ const WEB_API_MEMORY_SESSIONS = {};
 // 回應與請求解析輔助函式
 // ============================================================================
 
+/**
+ * 將資料物件封裝為 Google Apps Script JSON 文字回應或原生資料。
+ * 若在 GAS 環境且 ContentService 可用，則回傳設定 MimeType.JSON 的 TextOutput 物件；
+ * 在測試或 Node.js 環境中則直接回傳原物件。
+ *
+ * @param {Object} data - 欲回應的資料物件
+ * @returns {GoogleAppsScript.Content.TextOutput|Object} 封裝後的回應物件
+ */
 function jsonResponse(data) {
   if (typeof ContentService !== "undefined" && ContentService.createTextOutput) {
     return ContentService.createTextOutput(JSON.stringify(data)).setMimeType(ContentService.MimeType.JSON);
@@ -118,6 +126,13 @@ function jsonResponse(data) {
   return data;
 }
 
+/**
+ * 建立標準錯誤結構回應物件。純函式，無副作用。
+ *
+ * @param {string} [code="unknown_error"] - 錯誤代碼（如 unauthorized, forbidden, invalid_payload 等）
+ * @param {string} [message="執行發生未預期的錯誤"] - 臺灣繁體中文之安全錯誤說明訊息
+ * @returns {{ ok: false, error: string, message: string }} 格式化錯誤物件
+ */
 function webApiError(code, message) {
   return {
     ok: false,
@@ -126,6 +141,16 @@ function webApiError(code, message) {
   };
 }
 
+/**
+ * 解析 HTTP 事件物件中的 payload 資料。
+ * 支援 POST postData.contents（JSON 字串解析）以及 GET parameter 物件解析。
+ *
+ * @param {Object} e - Apps Script 傳入之 HTTP 事件物件
+ * @param {Object} [e.postData] - POST 請求資料物件
+ * @param {string} [e.postData.contents] - POST 請求字串內容
+ * @param {Object} [e.parameter] - 查詢參數物件
+ * @returns {Object|null} 解析後的 payload 字典物件；若 JSON 語法無效則回傳 null
+ */
 function parseWebApiPayload(e) {
   if (!e) return {};
   if (e.postData && typeof e.postData.contents === "string") {
@@ -145,12 +170,25 @@ function parseWebApiPayload(e) {
 // 權限、Session 與安全驗證
 // ============================================================================
 
+/**
+ * 檢查指定角色是否具備呼叫某 action 之權限。
+ *
+ * @param {string} role - 角色名稱（admin, staff, viewer 等）
+ * @param {string} action - action 動作名稱
+ * @returns {boolean} 是否具備權限
+ */
 function hasPermission(role, action) {
   const normRole = normalizeRole(role);
   const permissions = ROLE_PERMISSIONS[normRole] || [];
   return permissions.indexOf(action) !== -1;
 }
 
+/**
+ * 取得工作階段快取儲存實例。
+ * 在 GAS 環境中回傳 CacheService.getScriptCache()；在 Node.js 測試環境中回傳記憶體暫存替身。
+ *
+ * @returns {{ get: Function, put: Function, remove: Function }} 快取儲存實例
+ */
 function getCacheStore() {
   if (typeof CacheService !== "undefined" && CacheService.getScriptCache) {
     return CacheService.getScriptCache();
@@ -168,6 +206,12 @@ function getCacheStore() {
   };
 }
 
+/**
+ * 產生唯一的工作階段 Session Token 字串。
+ * 格式為 `gas_` 加上 UUID 或隨機字串。
+ *
+ * @returns {string} Session Token
+ */
 function generateSessionToken() {
   if (typeof Utilities !== "undefined" && Utilities.getUuid) {
     return "gas_" + Utilities.getUuid().replace(/-/g, "");
@@ -178,6 +222,12 @@ function generateSessionToken() {
   return "gas_" + time + "_" + rand1 + rand2;
 }
 
+/**
+ * 產生唯一的防跨站請求偽造 CSRF Token 字串。
+ * 格式為 `csrf_` 加上 UUID 或隨機字串。
+ *
+ * @returns {string} CSRF Token
+ */
 function generateCsrfToken() {
   if (typeof Utilities !== "undefined" && Utilities.getUuid) {
     return "csrf_" + Utilities.getUuid().replace(/-/g, "");
@@ -188,10 +238,25 @@ function generateCsrfToken() {
   return "csrf_" + time + "_" + rand1 + rand2;
 }
 
+/**
+ * 正規化允許登入網域，委派至 gasRuntime 單一來源。
+ *
+ * @param {*} configuredDomain - 設定之網域值
+ * @returns {string} 正規化後的小寫網域名稱（無前綴 @）
+ */
 function normalizeAllowedDomain(configuredDomain) {
   return GAS_RUNTIME.normalizeAllowedDomain(configuredDomain);
 }
 
+/**
+ * 驗證使用者的 Google 電子郵件或受託管網域是否符合系統設定的允許登入網域。
+ * 若系統未限制網域（空字串），則一律允許通過。純函式，無副作用。
+ *
+ * @param {string} email - 使用者電子郵件
+ * @param {string} [configuredDomain] - 系統設定的限制網域
+ * @param {string} [hostedDomain] - Google ID Token 的 hd (hosted domain) claim
+ * @returns {boolean} 是否符合網域限制
+ */
 function isAllowedGoogleDomain(email, configuredDomain, hostedDomain) {
   const allowedDomain = normalizeAllowedDomain(configuredDomain);
   if (!allowedDomain) return true;
@@ -257,11 +322,26 @@ function withScriptLock_(options, fn) {
 /**
  * 在短臨界區內執行首次管理員開通；寫入前重新檢查白名單以避免並發覆寫。
  * 無 LockService 的 Node 測試環境直接執行回呼。
+ *
+ * @private
+ * @param {Function} fn - 臨界區內執行的開通回呼函式
+ * @returns {*} 回呼函式之回傳值
  */
 function runBootstrapWithLock_(fn) {
   return withScriptLock_({}, fn);
 }
 
+/**
+ * 依據指定的 Email 與姓名建立系統工作階段（Session）並寫入快取。
+ * 若系統未初始化且請求明確允許 bootstrap，則自動在安全鎖內將其開通為首位管理員。
+ *
+ * @param {string} email - 使用者 Email
+ * @param {string} [name] - 使用者姓名
+ * @param {Object} [options={}] - 選項設定
+ * @param {boolean} [options.allowBootstrap=false] - 是否允許首次自動開通管理員
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [options.spreadsheet] - 試算表實體注入
+ * @returns {Object} 登入成功物件（含 token, csrfToken, role 等）或 webApiError 結構
+ */
 function createSessionForEmail(email, name, options) {
   options = options || {};
   const ss = GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
@@ -337,6 +417,15 @@ function createSessionForEmail(email, name, options) {
   };
 }
 
+/**
+ * 發送 HTTP 請求至 Google tokeninfo 端點取得 ID Token 解密資訊。
+ *
+ * @private
+ * @param {string} idToken - Google ID Token
+ * @param {Object} [deps] - 相依注入物件（支援測試替身）
+ * @param {Function|null} [deps.fetch] - 自訂 fetch 實作
+ * @returns {Object} HTTP 回應物件或 `{ unavailable: true }`
+ */
 function fetchTokenInfoResponse_(idToken, deps) {
   const context = deps && typeof deps === "object" ? deps : {};
   const url = GOOGLE_TOKENINFO_URL + "?id_token=" + encodeURIComponent(idToken);
@@ -350,10 +439,24 @@ function fetchTokenInfoResponse_(idToken, deps) {
   return { unavailable: true };
 }
 
+/**
+ * 驗證 Token 發行者是否為合法 Google 帳號服務。純函式，無副作用。
+ *
+ * @private
+ * @param {string} issuer - 發行者字串
+ * @returns {boolean} 是否合法
+ */
 function isValidGoogleIssuer_(issuer) {
   return issuer === "https://accounts.google.com" || issuer === "accounts.google.com";
 }
 
+/**
+ * 判斷 Token 中的 email_verified 宣告是否為真。純函式，無副作用。
+ *
+ * @private
+ * @param {boolean|string} value - 宣告值
+ * @returns {boolean} 是否已驗證
+ */
 function isVerifiedGoogleEmail_(value) {
   return value === true || value === "true";
 }
@@ -361,6 +464,13 @@ function isVerifiedGoogleEmail_(value) {
 /** ID Token 時間宣告容許的時鐘誤差（秒） */
 const GOOGLE_TOKEN_CLOCK_SKEW_SECONDS = 60;
 
+/**
+ * 解析 Token 時間宣告欄位為有效秒數數值。純函式，無副作用。
+ *
+ * @private
+ * @param {*} value - 時間數值或字串
+ * @returns {number|null} 秒數時間戳記，若無效則回傳 null
+ */
 function parseTokenTimeClaim_(value) {
   if (value === null || value === undefined || value === "") return null;
   const numeric = Number(value);
@@ -368,6 +478,17 @@ function parseTokenTimeClaim_(value) {
   return numeric;
 }
 
+/**
+ * 驗證 Google tokeninfo 回傳之各項聲明（Claims）。純函式，無副作用。
+ *
+ * @private
+ * @param {Object} info - Google tokeninfo 解析物件
+ * @param {string} expectedClientId - 預期的 OAuth Client ID
+ * @param {string} [configuredDomain] - 系統限制之登入網域
+ * @param {Object} [options] - 驗證選項
+ * @param {Function} [options.now] - 取得目前秒數時間戳記之回呼
+ * @returns {Object|null} 驗證失敗回傳 webApiError 物件，全數通過回傳 null
+ */
 function validateTokenInfoClaims_(info, expectedClientId, configuredDomain, options) {
   if (!info.email) {
     return webApiError("invalid_token_payload", "Google 憑證缺少 Email 欄位");
@@ -408,6 +529,13 @@ function validateTokenInfoClaims_(info, expectedClientId, configuredDomain, opti
   return null;
 }
 
+/**
+ * 建立通過驗證之 Google 身分資料物件。純函式，無副作用。
+ *
+ * @private
+ * @param {Object} info - tokeninfo 回傳之 payload 物件
+ * @returns {{ ok: true, email: string, name: string, sub: string, picture: string }} 格式化身分物件
+ */
 function buildVerifiedGoogleIdentity_(info) {
   return {
     ok: true,
@@ -418,6 +546,15 @@ function buildVerifiedGoogleIdentity_(info) {
   };
 }
 
+/**
+ * 呼叫 Google tokeninfo API 驗證 ID Token 之簽名、發行者、受眾與有效期。
+ *
+ * @param {string} idToken - 由前端 Google Identity Services (GIS) 取得的憑證字串
+ * @param {string} expectedClientId - 系統設定之 OAuth Client ID
+ * @param {string} [configuredDomain] - 系統限制之登入網域
+ * @param {Object} [deps] - 相依注入物件（支援測試替身）
+ * @returns {Object} 驗證成功回傳身分物件，失敗回傳 webApiError
+ */
 function verifyGoogleIdToken(idToken, expectedClientId, configuredDomain, deps) {
   if (!idToken || typeof idToken !== "string") {
     return webApiError("missing_id_token", "缺少 Google ID Token");
@@ -453,6 +590,16 @@ function verifyGoogleIdToken(idToken, expectedClientId, configuredDomain, deps) 
   }
 }
 
+/**
+ * 透過 Google ID Token 執行登入驗證並建立 Session。
+ *
+ * @param {string} idToken - Google ID Token 字串
+ * @param {Object} [options] - 選項設定
+ * @param {string} [options.clientId] - 覆寫 Client ID
+ * @param {boolean} [options.allowBootstrap] - 是否允許首次自動開通管理員
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [options.spreadsheet] - 試算表實體注入
+ * @returns {Object} 登入成功物件或 webApiError
+ */
 function loginWithGoogleIdToken(idToken, options) {
   const resolvedOptions = options || {};
   const ss = resolveLoginSpreadsheet_(resolvedOptions);
@@ -471,10 +618,23 @@ function loginWithGoogleIdToken(idToken, options) {
   });
 }
 
+/**
+ * 安全解析登入所需的試算表實體。
+ *
+ * @private
+ * @param {Object} [options] - 選項設定
+ * @returns {GoogleAppsScript.Spreadsheet.Spreadsheet|null} 試算表實體
+ */
 function resolveLoginSpreadsheet_(options) {
   return GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
 }
 
+/**
+ * 透過 Apps Script Session.getActiveUser() 取得目前執行者的 Google 帳號 Email。
+ *
+ * @private
+ * @returns {string} 小寫 Email 字串；若無法取得則回傳空字串
+ */
 function getActiveUserEmail_() {
   try {
     if (typeof Session !== "undefined" && Session.getActiveUser) {
@@ -488,6 +648,14 @@ function getActiveUserEmail_() {
   return "";
 }
 
+/**
+ * 透過 GAS 現存使用中帳號（Active User）自動執行免密碼/免提示登入。
+ * 僅在同一組織或以使用者身分執行之部署情境生效。
+ *
+ * @param {Object} [options] - 選項設定
+ * @param {boolean} [options.allowBootstrap] - 是否允許首次開通管理員
+ * @returns {Object} 登入成功物件或 webApiError
+ */
 function loginWithActiveUser(options) {
   const ss = resolveLoginSpreadsheet_(options);
   const email = getActiveUserEmail_();
@@ -505,6 +673,12 @@ function loginWithActiveUser(options) {
   });
 }
 
+/**
+ * 檢查 OAuth 重新導向 URI 是否符合白名單規則（GAS 部署網址或本機 localhost）。純函式，無副作用。
+ *
+ * @param {string} uri - 待檢查之重新導向 URI
+ * @returns {boolean} 是否符合白名單
+ */
 function isAllowedOAuthRedirectUri(uri) {
   const target = String(uri || "").trim();
   if (!target) return false;
@@ -517,6 +691,13 @@ function isAllowedOAuthRedirectUri(uri) {
   return false;
 }
 
+/**
+ * 將 Base64 編碼之 OAuth state 字串解碼為 UTF-8 明文字串。
+ *
+ * @private
+ * @param {string} raw - Base64 字串
+ * @returns {string} 解碼後字串
+ */
 function decodeOAuthState_(raw) {
   if (typeof Utilities !== "undefined" && Utilities.base64Decode && Utilities.newBlob) {
     return Utilities.newBlob(Utilities.base64Decode(raw)).getDataAsString();
@@ -528,7 +709,11 @@ function decodeOAuthState_(raw) {
 }
 
 /**
- * 解析 OAuth state；回傳 { nonce, redirectUri }，舊格式或非物件回傳 null。
+ * 解析 OAuth state 字串；回傳包含 nonce 與 redirectUri 之物件，若格式非有效 JSON 則回傳 null。純函式，無副作用。
+ *
+ * @private
+ * @param {string} raw - 原始 state 字串（Base64 編碼）
+ * @returns {{ nonce: string, redirectUri: string }|null} 解析結果
  */
 function parseOAuthState_(raw) {
   const text = String(raw || "").trim();
@@ -547,6 +732,13 @@ function parseOAuthState_(raw) {
   }
 }
 
+/**
+ * 解析並驗證 OAuth 重新導向 URI；若符合白名單則採用，否則退回 fallbackUrl。純函式，無副作用。
+ *
+ * @param {string} state - OAuth state 參數
+ * @param {string} [fallbackUrl] - 預設備援網址
+ * @returns {string} 安全的重新導向網址
+ */
 function resolveOAuthRedirectUri(state, fallbackUrl) {
   const fallback = String(fallbackUrl || "").trim();
   const parsed = parseOAuthState_(state);
@@ -556,6 +748,10 @@ function resolveOAuthRedirectUri(state, fallbackUrl) {
 
 /**
  * 取得 nonce 一次性消耗的快取；GAS 用 CacheService，Node 測試用記憶體備援。
+ *
+ * @private
+ * @param {Object} [deps] - 相依注入物件
+ * @returns {{ get: Function, put: Function }} 快取實例
  */
 function getOAuthNonceCache_(deps) {
   if (
@@ -580,7 +776,12 @@ function getOAuthNonceCache_(deps) {
 }
 
 /**
- * 一次性消耗 nonce；重放或格式異常時回傳 false。
+ * 一次性消耗 OAuth state 中的 nonce；若重放（Replay Attack）或格式異常時回傳 false。
+ *
+ * @private
+ * @param {string} nonce - 隨機字串
+ * @param {Object} [deps] - 相依注入物件
+ * @returns {boolean} 是否消耗成功（未被重放）
  */
 function consumeOAuthNonce_(nonce, deps) {
   const clean = String(nonce || "").trim();
@@ -598,6 +799,12 @@ function consumeOAuthNonce_(nonce, deps) {
 
 /**
  * 驗證 OAuth 回呼的 state：nonce 必須存在且未使用，redirectUri 必須與設定相符。
+ *
+ * @private
+ * @param {string} state - 回呼 state 字串
+ * @param {string} expectedRedirectUri - 系統預期導向網址
+ * @param {Object} [deps] - 相依注入
+ * @returns {Object} 驗證成功回傳 `{ ok: true, redirectUri }`，失敗回傳 webApiError
  */
 function validateOAuthCallbackState_(state, expectedRedirectUri, deps) {
   const parsed = parseOAuthState_(state);
@@ -617,10 +824,25 @@ function validateOAuthCallbackState_(state, expectedRedirectUri, deps) {
   return { ok: true, redirectUri: parsed.redirectUri };
 }
 
+/**
+ * 安全取得 OAuth 流程中的試算表實體。
+ *
+ * @private
+ * @param {Object} [deps] - 相依注入物件
+ * @returns {GoogleAppsScript.Spreadsheet.Spreadsheet|null} 試算表實體
+ */
 function getOAuthSpreadsheet_(deps) {
   return GAS_RUNTIME.getActiveSpreadsheetSafe_(deps);
 }
 
+/**
+ * 讀取系統設定供 OAuth 流程使用。
+ *
+ * @private
+ * @param {Object} [deps] - 相依注入物件
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [ss] - 試算表實體
+ * @returns {Object} 系統設定字典物件
+ */
 function getOAuthSettings_(deps, ss) {
   if (deps && deps.settings) return deps.settings;
   const readSettings =
@@ -632,6 +854,13 @@ function getOAuthSettings_(deps, ss) {
   return readSettings ? readSettings(ss) : {};
 }
 
+/**
+ * 取得目前發布之 Web App URL 供 OAuth 回呼導向使用。
+ *
+ * @private
+ * @param {Object} [deps] - 相依注入物件
+ * @returns {string} Web App URL
+ */
 function getOAuthWebAppUrl_(deps) {
   if (deps && typeof deps.webAppUrl === "string") return deps.webAppUrl;
   try {
@@ -644,6 +873,15 @@ function getOAuthWebAppUrl_(deps) {
   return "";
 }
 
+/**
+ * 發送 POST 請求至 Google OAuth Token 端點進行授權碼交換。
+ *
+ * @private
+ * @param {Object} deps - 相依注入物件
+ * @param {string} redirectUri - 導向網址
+ * @param {Object} payload - 交換引數
+ * @returns {Object} 原生 HTTP 回應物件
+ */
 function getOAuthFetchResponse_(deps, redirectUri, payload) {
   if (deps && deps.fetch === null) return { unavailable: true };
   const options = {
@@ -660,6 +898,12 @@ function getOAuthFetchResponse_(deps, redirectUri, payload) {
   return { unavailable: true };
 }
 
+/**
+ * 正規化 OAuth HTTP 回應結構，相容 Apps Script HTTPResponse 與 Node 測試替身。純函式，無副作用。
+ *
+ * @param {Object} response - 原始回應物件
+ * @returns {{ statusCode: number, text: string }} 正規化回應物件
+ */
 function normalizeOAuthHttpResponse_(response) {
   if (!response) return { statusCode: 0, text: "" };
   if (typeof response.getResponseCode === "function" && typeof response.getContentText === "function") {
@@ -671,6 +915,13 @@ function normalizeOAuthHttpResponse_(response) {
   };
 }
 
+/**
+ * 解析 OAuth Token 端點回應之 JSON 字串。純函式，無副作用。
+ *
+ * @private
+ * @param {string} responseText - 回應字串
+ * @returns {{ ok: true, data: Object }|Object} 解析成功或 webApiError
+ */
 function parseOAuthTokenData_(responseText) {
   try {
     return { ok: true, data: JSON.parse(responseText) };
@@ -679,6 +930,14 @@ function parseOAuthTokenData_(responseText) {
   }
 }
 
+/**
+ * 建立 OAuth 授權碼交換失敗的友善錯誤回應。純函式，無副作用。
+ *
+ * @private
+ * @param {number} statusCode - HTTP 狀態碼
+ * @param {Object} tokenData - 錯誤 payload
+ * @returns {Object} webApiError
+ */
 function buildTokenExchangeFailure_(statusCode, tokenData) {
   const detail = String(tokenData.error_description || tokenData.error || "HTTP " + statusCode);
   const staleCode = tokenData.error === "invalid_grant" || detail.indexOf("Bad Request") !== -1;
@@ -693,12 +952,29 @@ function buildTokenExchangeFailure_(statusCode, tokenData) {
 /**
  * 在短臨界區內執行 OAuth 回呼寫入；取得失敗時回傳 lock_timeout，並在 finally 釋放鎖。
  * deps.lockService 可供測試注入，正式環境使用全域 LockService。
+ *
+ * @private
+ * @param {Function} fn - 臨界區回呼函式
+ * @param {Object} [deps] - 相依注入物件
+ * @returns {*} 回呼函式之執行結果
  */
 function runOAuthCallbackWriteLock_(fn, deps) {
   // deps.lockService 可供測試注入；未注入時由 withScriptLock_ 使用全域 LockService。
   return withScriptLock_({ lockService: deps && deps.lockService ? deps.lockService : undefined }, fn);
 }
 
+/**
+ * 驗證 Token 資料並在安全臨界區內建立 OAuth 工作階段。
+ *
+ * @private
+ * @param {Object} deps - 相依注入物件
+ * @param {Object} tokenData - 交換回傳之 Token 資料
+ * @param {string} clientId - OAuth Client ID
+ * @param {Object} settings - 系統設定
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @param {Object} stateContext - 狀態脈絡
+ * @returns {Object} 登入成功物件或 webApiError
+ */
 function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss, stateContext) {
   const verifyFn =
     deps && typeof deps.verifyGoogleIdToken === "function" ? deps.verifyGoogleIdToken : verifyGoogleIdToken;
@@ -719,6 +995,13 @@ function verifyAndCreateOAuthSession_(deps, tokenData, clientId, settings, ss, s
   }, deps);
 }
 
+/**
+ * 驗證系統是否已完成 OAuth 憑證（Client ID 與 Client Secret）設定。純函式，無副作用。
+ *
+ * @private
+ * @param {Object} settings - 系統設定物件
+ * @returns {{ valid: boolean, clientId?: string, clientSecret?: string, error?: Object }} 檢查結果
+ */
 function validateOAuthCredentials_(settings) {
   const current = settings || {};
   const clientId = String(current.clientId || "").trim();
@@ -742,6 +1025,13 @@ function validateOAuthCredentials_(settings) {
   return { valid: true, clientId: clientId, clientSecret: clientSecret };
 }
 
+/**
+ * 評估 Token 交換之 HTTP 回應狀態並解析 Token 物件。
+ *
+ * @private
+ * @param {Object} rawResponse - 原始 HTTP 回應物件
+ * @returns {Object} `{ ok: true, tokenData }` 或 webApiError
+ */
 function evaluateTokenExchangeResponse_(rawResponse) {
   if (rawResponse && rawResponse.unavailable) {
     return webApiError("environment_error", "目前環境不支援交換 Google 授權碼");
@@ -759,6 +1049,14 @@ function evaluateTokenExchangeResponse_(rawResponse) {
   return { ok: true, tokenData: tokenData };
 }
 
+/**
+ * 處理 Google OAuth 授權碼回呼請求（Authorization Code Flow）。
+ *
+ * @param {string} code - Google 授權碼
+ * @param {Object} e - HTTP 請求事件物件
+ * @param {Object} [deps] - 測試相依注入物件
+ * @returns {Object} 登入成功物件或 webApiError
+ */
 function handleOAuthCodeCallback(code, e, deps) {
   const authorizationCode = String(code || "").trim();
   if (!authorizationCode) {
@@ -794,6 +1092,12 @@ function handleOAuthCodeCallback(code, e, deps) {
   }
 }
 
+/**
+ * 依據 Session Token 讀取快取中的工作階段詳細資料。
+ *
+ * @param {string} token - Session Token
+ * @returns {{ ok: true, session: Object }|Object} 成功回傳 session，失敗回傳 webApiError
+ */
 function getSessionInfo(token) {
   const cleanToken = String(token || "").trim();
   if (!cleanToken) {
@@ -814,6 +1118,12 @@ function getSessionInfo(token) {
   }
 }
 
+/**
+ * 取得公開的前端工作階段狀態（過濾內部細節，提供身分、角色與 CSRF Token）。
+ *
+ * @param {string} token - Session Token
+ * @returns {Object} 工作階段狀態物件或 webApiError
+ */
 function getSessionState(token) {
   const result = getSessionInfo(token);
   if (!result.ok) return result;
@@ -828,6 +1138,12 @@ function getSessionState(token) {
   };
 }
 
+/**
+ * 註銷指定的 Session Token，從快取中清除。
+ *
+ * @param {string} token - Session Token
+ * @returns {{ ok: true }} 登出結果
+ */
 function logoutSession(token) {
   const cleanToken = String(token || "").trim();
   if (cleanToken) {
@@ -837,6 +1153,13 @@ function logoutSession(token) {
   return { ok: true };
 }
 
+/**
+ * 驗證呼叫 action 之授權狀態（公開 action 放行，受保護 action 檢核 Session 與角色權限）。
+ *
+ * @param {string} action - action 名稱
+ * @param {Object} [payload] - 請求內容（包含 token）
+ * @returns {{ ok: true, session: Object|null }|Object} 授權通過或 webApiError
+ */
 function authorizeWebApiAction(action, payload) {
   if (WEB_API_PUBLIC_ACTIONS.indexOf(action) !== -1) {
     return { ok: true, session: null };
@@ -856,6 +1179,11 @@ function authorizeWebApiAction(action, payload) {
 // Action 路由派發
 // ============================================================================
 
+/**
+ * 取得 Web App 公開設定資訊（供前端初始化、登入介面判斷使用）。
+ *
+ * @returns {Object} 包含系統名稱、Client ID、網域限制、版本等公開欄位之物件
+ */
 function getPublicConfig() {
   const ss = GAS_RUNTIME.getActiveSpreadsheetSafe_();
   const settings = readSystemSettings(ss);
@@ -1334,6 +1662,14 @@ function finalizeWebApiRequest_(context, actionMeta, payload, finalResult, befor
   ACTIVITY_LOG_INTERCEPTOR.finalize(context, actionMeta, payload, finalResult, beforeSnapshot);
 }
 
+/**
+ * 執行 Web API Action 進入點，供 doPost 與 google.script.run 共用。
+ * 負責請求 JSON 格式解析、動作授權檢查、ScriptLock 保護與最外層統一操作日誌寫入。
+ *
+ * @param {Object|string} payload - 請求資料物件或 JSON 字串
+ * @param {Object} [event] - HTTP 原始事件物件
+ * @returns {Object} Action 執行結果物件或標準錯誤物件（webApiError）
+ */
 function executeWebApi(payload, event) {
   const context = resolveRouteDependency_("createWebApiLogContext", createWebApiLogContext_)(
     getWebApiAction_(payload, event, false),
@@ -1418,6 +1754,14 @@ function executeWebApi(payload, event) {
   }
 }
 
+/**
+ * 處理經由 GET 傳入之 action 操作請求（僅允許 ping 與 getPublicConfig 等白名單）。
+ *
+ * @private
+ * @param {string} action - action 名稱
+ * @param {Object} event - GET 請求事件物件
+ * @returns {GoogleAppsScript.Content.TextOutput|Object} JSON 回應物件
+ */
 function handleDoGetActionRequest_(action, event) {
   if (WEB_API_DO_GET_ACTIONS.indexOf(action) === -1) {
     return jsonResponse(
@@ -1436,6 +1780,14 @@ function handleDoGetActionRequest_(action, event) {
   }
 }
 
+/**
+ * 解析 doGet 中的 Google OAuth 授權碼回傳參數並執行初始登入。
+ *
+ * @private
+ * @param {Object} parameter - 查詢參數字典
+ * @param {Object} event - GET 事件物件
+ * @returns {Object|null} 授權處理結果物件，若無授權碼則回傳 null
+ */
 function resolveDoGetInitialAuth_(parameter, event) {
   const authorizationCode = String(parameter.code || "").trim();
   if (authorizationCode === "") return null;
@@ -1447,6 +1799,12 @@ function resolveDoGetInitialAuth_(parameter, event) {
   }
 }
 
+/**
+ * 建立 doGet 在無 HtmlService 或無樣板時的備援 JSON 回應。
+ *
+ * @private
+ * @returns {GoogleAppsScript.Content.TextOutput|Object} JSON 回應
+ */
 function buildDoGetFallbackResponse_() {
   return jsonResponse({
     ok: true,
@@ -1455,6 +1813,14 @@ function buildDoGetFallbackResponse_() {
   });
 }
 
+/**
+ * 渲染前端主應用程式之 index.html 樣板。
+ *
+ * @private
+ * @param {Object|null} initialAuthResult - 初始登入驗證結果
+ * @param {Object} parameter - 查詢參數
+ * @returns {GoogleAppsScript.HTML.HtmlOutput|null} 渲染後的 HTML 頁面輸出，失敗時回傳 null
+ */
 function renderDoGetHtml_(initialAuthResult, parameter) {
   if (typeof HtmlService === "undefined" || !HtmlService.createTemplateFromFile) {
     return null;
@@ -1589,6 +1955,14 @@ function createWebAppDocResponse(requestedPath) {
   return createWebAppDocNotFoundOutput();
 }
 
+/**
+ * Google Apps Script Web App HTTP GET 請求主進入點。
+ * 負責派發白名單 GET Action（如 ping、getPublicConfig）、文件路由（?page=docs/...）或主頁面渲染。
+ *
+ * @param {Object} e - HTTP GET 事件物件
+ * @param {Object} [e.parameter] - 查詢參數字典
+ * @returns {GoogleAppsScript.HTML.HtmlOutput|GoogleAppsScript.Content.TextOutput} HTML 或 JSON 回應
+ */
 function doGet(e) {
   const parameter = e && e.parameter ? e.parameter : {};
   const action = String(parameter.action || "").trim();
@@ -1607,6 +1981,15 @@ function doGet(e) {
   return htmlOutput || buildDoGetFallbackResponse_();
 }
 
+/**
+ * Google Apps Script Web App HTTP POST 請求主進入點。
+ * 接收 text/plain;charset=utf-8 傳入之 JSON 字串，統一交由 executeWebApi 執行。
+ *
+ * @param {Object} e - HTTP POST 事件物件
+ * @param {Object} [e.postData] - POST 請求內容
+ * @param {string} [e.postData.contents] - 原始字串內容
+ * @returns {GoogleAppsScript.Content.TextOutput} JSON 文字輸出回應
+ */
 function doPost(e) {
   let payload = null;
   try {

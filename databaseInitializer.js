@@ -90,12 +90,25 @@ function getRoleDisplayName(role) {
 // 工作表初始化主函式
 // ============================================================================
 
+/**
+ * 解析試算表實體，委派至 gasRuntime 安全解析（options.spreadsheet > SpreadsheetApp > null）。
+ *
+ * @private
+ * @param {Object} [options] - 選項設定
+ * @returns {GoogleAppsScript.Spreadsheet.Spreadsheet|null} 試算表實體
+ */
 function resolveDbSpreadsheet_(options) {
   if (GAS_RUNTIME) return GAS_RUNTIME.getActiveSpreadsheetSafe_(options);
   const opts = options || {};
   return opts.spreadsheet || null;
 }
 
+/**
+ * 取得 108 課綱 1NF 正規化 14 欄標準表頭陣列。
+ *
+ * @private
+ * @returns {Array<string>} 14 欄表頭名稱陣列
+ */
 function getNormalizedCourseHeaders_() {
   if (GAS_RUNTIME) {
     return GAS_RUNTIME.resolveDependency_("NORMALIZED_COURSE_HEADERS", "./subjectCodeTransformer.js", []);
@@ -103,6 +116,13 @@ function getNormalizedCourseHeaders_() {
   return [];
 }
 
+/**
+ * 建立「系統設定與授權」工作表並寫入預設參數與白名單表頭。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet} 建立後之工作表
+ */
 function createSystemConfigSheet_(ss) {
   const configSheet = ss.insertSheet(SHEET_SYSTEM_CONFIG);
   configSheet.getRange(1, 1, DEFAULT_SYSTEM_PARAMS.length, 2).setValues(DEFAULT_SYSTEM_PARAMS);
@@ -113,6 +133,14 @@ function createSystemConfigSheet_(ss) {
   return configSheet;
 }
 
+/**
+ * 檢核並修復「系統設定與授權」區塊 A（A:B 設定項目）：補齊缺漏之表頭與新設定項目。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} configSheet - 工作表實體
+ * @returns {void}
+ */
 function repairSystemConfigBlockA_(ss, configSheet) {
   if (configSheet.getRange(1, 1).getValue() !== DEFAULT_SYSTEM_PARAMS[0][0]) {
     configSheet.getRange(1, 1, 1, 2).setValues([DEFAULT_SYSTEM_PARAMS[0]]);
@@ -132,6 +160,13 @@ function repairSystemConfigBlockA_(ss, configSheet) {
   }
 }
 
+/**
+ * 檢核並修復「系統設定與授權」區塊 B（D:G 授權白名單）：確保至少有 8 欄並補齊表頭。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} configSheet - 工作表實體
+ * @returns {void}
+ */
 function repairSystemConfigBlockB_(configSheet) {
   if (configSheet.getMaxColumns() < 8) {
     configSheet.insertColumnsAfter(configSheet.getMaxColumns(), 8 - configSheet.getMaxColumns());
@@ -142,6 +177,14 @@ function repairSystemConfigBlockB_(configSheet) {
   }
 }
 
+/**
+ * 確保「系統設定與授權」工作表存在並修復欄位缺漏。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @param {Array<string>} createdSheets - 追蹤新建工作表之陣列
+ * @returns {void}
+ */
 function ensureSystemConfigSheet_(ss, createdSheets) {
   let configSheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
   if (!configSheet) {
@@ -153,6 +196,13 @@ function ensureSystemConfigSheet_(ss, createdSheets) {
   repairSystemConfigBlockB_(configSheet);
 }
 
+/**
+ * 建立「正規化課程代碼」工作表並寫入 14 欄表頭。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet} 工作表實體
+ */
 function createCourseIndexSheet_(ss) {
   const courseSheet = ss.insertSheet(SHEET_COURSE_INDEX);
   const headers = getNormalizedCourseHeaders_();
@@ -165,6 +215,14 @@ function createCourseIndexSheet_(ss) {
   return courseSheet;
 }
 
+/**
+ * 確保「正規化課程代碼」工作表存在；若為舊版名稱則自動更名遷移。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @param {Array<string>} createdSheets - 追蹤新建工作表之陣列
+ * @returns {void}
+ */
 function ensureCourseIndexSheet_(ss, createdSheets) {
   if (ss.getSheetByName(SHEET_COURSE_INDEX)) return;
   const legacySheet = ss.getSheetByName(LEGACY_SHEET_COURSE_INDEX);
@@ -176,6 +234,12 @@ function ensureCourseIndexSheet_(ss, createdSheets) {
   createdSheets.push(SHEET_COURSE_INDEX);
 }
 
+/**
+ * 取得「系統使用說明」工作表內容文字二維陣列。純函式，無副作用。
+ *
+ * @private
+ * @returns {Array<Array<string>>} 說明列陣列
+ */
 function getSystemInstructionRows_() {
   return [
     ["=== Google Apps Script 應用程式範本使用說明 ==="],
@@ -203,6 +267,14 @@ function getSystemInstructionRows_() {
   ];
 }
 
+/**
+ * 確保「系統使用說明」工作表存在並寫入說明文字。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @param {Array<string>} createdSheets - 追蹤新建工作表之陣列
+ * @returns {void}
+ */
 function ensureInstructionsSheet_(ss, createdSheets) {
   if (ss.getSheetByName(SHEET_SYSTEM_INSTRUCTIONS)) return;
   const instructSheet = ss.insertSheet(SHEET_SYSTEM_INSTRUCTIONS);
@@ -240,6 +312,7 @@ function resolveActivityLogFormatRowCount_(sheet) {
  * `Date` 物件，或將 JSON 內容誤判為公式、數字。
  *
  * @param {Object} sheet - 操作日誌工作表
+ * @returns {void}
  */
 function applyActivityLogTextFormat_(sheet) {
   if (!sheet || typeof sheet.getRange !== "function") return;
@@ -253,6 +326,13 @@ function applyActivityLogTextFormat_(sheet) {
   });
 }
 
+/**
+ * 建立「操作日誌」工作表並設定 12 欄表頭與純文字儲存格格式。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet} 工作表實體
+ */
 function createActivityLogSheet_(ss) {
   const sheet = ss.insertSheet(SHEET_ACTIVITY_LOG);
   const headerRange = sheet.getRange(1, 1, 1, ACTIVITY_LOG_HEADERS.length);
@@ -264,6 +344,14 @@ function createActivityLogSheet_(ss) {
   return sheet;
 }
 
+/**
+ * 確保「操作日誌」工作表存在；若已存在則檢查並套用純文字格式。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @param {Array<string>} createdSheets - 追蹤新建工作表之陣列
+ * @returns {void}
+ */
 function ensureActivityLogSheet_(ss, createdSheets) {
   const existing = ss.getSheetByName(SHEET_ACTIVITY_LOG);
   if (existing) {
@@ -330,19 +418,45 @@ function parseConfigBoolean(value) {
   return getSystemConfigCodec_().parseConfigBoolean(value);
 }
 
+/**
+ * 取得純編解碼器模組（systemConfigCodec）。
+ *
+ * @private
+ * @returns {Object} systemConfigCodec 模組物件
+ */
 function getSystemConfigCodec_() {
   return GAS_RUNTIME.resolveDependency_("systemConfigCodec", "./systemConfigCodec.js", null, null, true);
 }
 
+/**
+ * 自記憶體快取讀取系統設定（Node 測試備援模式）。
+ *
+ * @private
+ * @returns {Object} 雙軌鍵值標準設定物件
+ */
 function readSystemSettingsFromMemory_() {
   return getSystemConfigCodec_().normalizeSystemSettings(MEMORY_SYSTEM_CONFIG);
 }
 
+/**
+ * 自「系統設定與授權」工作表讀取區塊 A（A:B）原始列陣列。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - 工作表實體
+ * @returns {Array<Array<*>>} 原始二維列矩陣
+ */
 function readSystemSettingsRows_(sheet) {
   const lastRow = Math.max(sheet.getLastRow(), 2);
   return sheet.getRange(1, 1, lastRow, 2).getValues();
 }
 
+/**
+ * 自試算表實體讀取並解析系統設定。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @returns {Object} 雙軌鍵值標準設定物件
+ */
 function readSystemSettingsFromSheet_(ss) {
   const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
   if (!sheet) return {};
@@ -351,10 +465,11 @@ function readSystemSettingsFromSheet_(ss) {
 }
 
 /**
- * 讀取「系統設定與授權」區塊 A 之設定項目
+ * 讀取「系統設定與授權」區塊 A 之設定項目。
+ * 若無試算表實體則自動退回記憶體儲存（In-Memory Fallback）。
  *
- * @param {Spreadsheet} [ss] - 試算表物件
- * @returns {Object} 鍵值對設定物件
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [ss] - 試算表物件
+ * @returns {Object} 鍵值對設定物件（含中文原始鍵與駝峰便捷鍵）
  */
 function readSystemSettings(ss) {
   const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
@@ -363,11 +478,11 @@ function readSystemSettings(ss) {
 }
 
 /**
- * 儲存系統設定
+ * 將系統設定更新寫入記憶體備援物件。
  *
- * @param {Object} settings - 欲更新的設定物件
- * @param {Spreadsheet} [ss] - 試算表物件
- * @returns {Object} `{ ok: true }`
+ * @private
+ * @param {Object} updates - 更新鍵值對
+ * @returns {{ ok: true }}
  */
 function saveSystemSettingsToMemory_(updates) {
   const codec = getSystemConfigCodec_();
@@ -378,12 +493,27 @@ function saveSystemSettingsToMemory_(updates) {
   return { ok: true };
 }
 
+/**
+ * 取得「系統設定與授權」工作表；若不存在則拋出例外。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet} 工作表實體
+ */
 function getSystemConfigSheet_(ss) {
   const sheet = ss.getSheetByName(SHEET_SYSTEM_CONFIG);
   if (!sheet) throw new Error("找不到工作表：" + SHEET_SYSTEM_CONFIG);
   return sheet;
 }
 
+/**
+ * 將系統設定更新合併並寫入「系統設定與授權」工作表 A:B 欄位。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @param {Object} updates - 更新鍵值對
+ * @returns {{ ok: true }}
+ */
 function saveSystemSettingsToSheet_(ss, updates) {
   const sheet = getSystemConfigSheet_(ss);
   const lastRow = Math.max(sheet.getLastRow(), 30);
@@ -404,6 +534,13 @@ function saveSystemSettingsToSheet_(ss, updates) {
   return { ok: true };
 }
 
+/**
+ * 儲存系統設定。支援試算表儲存與無試算表時之記憶體備援。
+ *
+ * @param {Object} settings - 欲更新的設定物件（支援中英文鍵名）
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [ss] - 試算表物件
+ * @returns {{ ok: true }} 儲存結果
+ */
 function saveSystemSettings(settings, ss) {
   const targetSs = GAS_RUNTIME.getActiveSpreadsheetSafe_({ spreadsheet: ss });
   const updates = Object.assign({}, settings);
@@ -415,10 +552,24 @@ function saveSystemSettings(settings, ss) {
 // 授權白名單讀寫
 // ============================================================================
 
+/**
+ * 取得「系統設定與授權」工作表（供白名單區塊使用）。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @returns {GoogleAppsScript.Spreadsheet.Sheet|null} 工作表實體
+ */
 function getWhitelistSheet_(ss) {
   return ss.getSheetByName(SHEET_SYSTEM_CONFIG);
 }
 
+/**
+ * 自工作表讀取 D2:G 白名單原始二維列矩陣。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - 工作表實體
+ * @returns {Array<Array<*>>} 原始二維列陣列
+ */
 function readWhitelistRowsFromSheet_(sheet) {
   if (!sheet) return [];
   const lastRow = sheet.getLastRow();
@@ -427,10 +578,10 @@ function readWhitelistRowsFromSheet_(sheet) {
 }
 
 /**
- * 讀取授權白名單清單（區塊 B，D2:G）
+ * 讀取授權白名單清單（區塊 B，D2:G）。
  *
- * @param {Spreadsheet} [ss] - 試算表物件
- * @returns {Array<Object>} 白名單帳號陣列
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} [ss] - 試算表物件
+ * @returns {Array<Object>} 白名單帳號物件陣列
  */
 function readWhitelist(ss) {
   const targetSs = resolveDbSpreadsheet_({ spreadsheet: ss });
@@ -439,6 +590,13 @@ function readWhitelist(ss) {
   return getSystemConfigCodec_().parseWhitelistRows(values);
 }
 
+/**
+ * 儲存授權白名單至記憶體備援陣列。
+ *
+ * @private
+ * @param {Array<Object>} list - 帳號陣列
+ * @returns {{ ok: true, count: number }} 儲存結果
+ */
 function saveWhitelistToMemory_(list) {
   MEMORY_WHITELIST.length = 0;
   const codec = getSystemConfigCodec_();
@@ -449,17 +607,40 @@ function saveWhitelistToMemory_(list) {
   return { ok: true, count: MEMORY_WHITELIST.length };
 }
 
+/**
+ * 清除工作表既有之 D2:G 白名單內容。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - 工作表實體
+ * @returns {void}
+ */
 function clearWhitelistSheetRange_(sheet) {
   const currentLastRow = Math.max(sheet.getLastRow(), 2);
   sheet.getRange(2, 4, currentLastRow, 4).clearContent();
 }
 
+/**
+ * 寫入白名單列至工作表，並執行公式跳脫防護（Formula Immunization）。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Sheet} sheet - 工作表實體
+ * @param {Array<Array<string>>} rows - 欲寫入之矩陣
+ * @returns {void}
+ */
 function writeWhitelistSheetRows_(sheet, rows) {
   if (rows.length === 0) return;
   const safeRows = typeof sanitizeRowMatrix === "function" ? sanitizeRowMatrix(rows) : rows;
   sheet.getRange(2, 4, safeRows.length, 4).setValues(safeRows);
 }
 
+/**
+ * 將帳號清單序列化並寫入工作表 D:G 欄位。
+ *
+ * @private
+ * @param {GoogleAppsScript.Spreadsheet.Spreadsheet} ss - 試算表實體
+ * @param {Array<Object>} list - 帳號清單
+ * @returns {{ ok: true, count: number }}
+ */
 function saveWhitelistToSheet_(ss, list) {
   const sheet = getSystemConfigSheet_(ss);
   const rows = getSystemConfigCodec_().serializeWhitelistRows(list);

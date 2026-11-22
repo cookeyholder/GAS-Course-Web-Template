@@ -91,6 +91,12 @@
     return null;
   }
 
+  /**
+   * 同步更新瀏覽器分頁標題為系統名稱。
+   *
+   * @param {Object} MEA - 前端全域物件
+   * @param {Document} [doc] - document 物件
+   */
   function syncDocumentTitle(MEA, doc) {
     if (!doc) return;
     const systemName = ((MEA && MEA.state && MEA.state.publicConfig) || {}).systemName;
@@ -138,6 +144,13 @@
     }
   }
 
+  /**
+   * 依目前頁籤與權限建構主內容區域 HTML。
+   *
+   * @param {Object} MEA - 前端全域物件
+   * @param {string} tab - 頁籤識別碼
+   * @returns {string} 主內容 HTML 字串
+   */
   function buildBodyHtml(MEA, tab) {
     const allowed = isTabAllowed(findTab(MEA, tab), MEA.state && MEA.state.user);
     const effectiveTab = allowed ? tab : "overview";
@@ -145,6 +158,12 @@
     return invokeIfFunction_(MEA[controller.module], controller.render) || "";
   }
 
+  /**
+   * 渲染共用頁尾 HTML（包含系統名稱、版本號與說明手冊連結）。
+   *
+   * @param {Object} MEA - 前端全域物件
+   * @returns {string} 頁尾 HTML 字串
+   */
   function renderFooterHtml(MEA) {
     const config = (MEA && MEA.config) || {};
     const appName = config.appName || "GAS-Course-Web-Template";
@@ -180,6 +199,12 @@
     );
   }
 
+  /**
+   * 建立應用程式主控制器實例。
+   *
+   * @param {Object} [deps] - 依賴注入選項（包含 MEA、document、window、setTimeoutFn）
+   * @returns {Object} 包含 setTab, cleanUrlQuery, applyInitialAuth, render, init 等操作介面
+   */
   function createAppController(deps) {
     const options = deps || {};
     const MEA = options.MEA || (typeof window !== "undefined" ? window.MEA : null) || {};
@@ -192,10 +217,16 @@
             return setTimeout(fn, ms);
           };
 
+    /** 同步更新網頁標題。 */
     function syncTitle() {
       syncDocumentTitle(MEA, doc);
     }
 
+    /**
+     * 切換應用程式頁籤並觸發該頁籤之載入動作。
+     *
+     * @param {string} tabId - 目標頁籤識別碼
+     */
     function setTab(tabId) {
       const allowed = isTabAllowed(findTab(MEA, tabId), MEA.state && MEA.state.user);
       const effectiveTab = allowed ? tabId : "overview";
@@ -208,6 +239,7 @@
       }
     }
 
+    /** 清理網址列之 query 參數（如 token, auth 等敏感回呼字串）。 */
     function cleanUrlQuery() {
       try {
         const topWin = (win && win.top) || win;
@@ -218,6 +250,11 @@
       } catch (e) {}
     }
 
+    /**
+     * 套用伺服器端注入之初始身分驗證資料（INITIAL_AUTH）。
+     *
+     * @returns {boolean} 是否成功處理初始授權
+     */
     function applyInitialAuth() {
       const initial = win && win.INITIAL_AUTH;
       if (!initial || typeof initial !== "object") return false;
@@ -254,6 +291,11 @@
       return true;
     }
 
+    /**
+     * 處理切換帳號要求。
+     *
+     * @returns {boolean} 是否已觸發切換
+     */
     function applyAccountSwitch() {
       if (!MEA.config || !MEA.config.switchAccount) return false;
       cleanUrlQuery();
@@ -263,6 +305,9 @@
       return true;
     }
 
+    /**
+     * 主畫面渲染函式，維護焦點並依據 state.view 渲染適當畫面。
+     */
     function render() {
       syncTitle();
       if (!doc || typeof doc.getElementById !== "function") return;
@@ -299,12 +344,18 @@
       restoreFocusState(doc, focusSnapshot);
     }
 
+    /** 結束授權流程並嘗試還原工作階段。 */
     function finishAuth() {
       if (!applyInitialAuth() && !applyAccountSwitch()) {
         MEA.auth && typeof MEA.auth.restore === "function" ? MEA.auth.restore() : undefined;
       }
     }
 
+    /**
+     * 初始化前端應用程式（載入主題、訂閱狀態變更並讀取公開設定）。
+     *
+     * @returns {Promise<void>} 初始化非同步 Promise
+     */
     function init() {
       MEA.ui && typeof MEA.ui.initThemeAndStyle === "function" ? MEA.ui.initThemeAndStyle() : undefined;
       if (typeof MEA.subscribe === "function") {
