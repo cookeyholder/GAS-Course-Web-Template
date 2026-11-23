@@ -95,7 +95,10 @@ console.log("4. 受保護判定與來源失敗可觀測性...");
   ["系統管理員", "設備組", "課程代碼", TRADITIONAL_PROJECT, S2TWP_PROJECT, "許可權"].forEach(function (term) {
     assert.strictEqual(protectedTerms.isProtectedText(term), true, "應受保護：" + term);
   });
-  assert.strictEqual(protectedTerms.isProtectedText("完全沒有契約意義的文字"), false);
+  assert.strictEqual(
+    protectedTerms.isProtectedText("完全沒有契約意義的文字", { includeContractLiterals: false }),
+    false
+  );
   assert.strictEqual(protectedTerms.isProtectedText(null), false);
 
   const failing = protectedTerms.createProtectedTermsModule({
@@ -111,7 +114,11 @@ console.log("4. 受保護判定與來源失敗可觀測性...");
   assert.ok(report.termCount >= 60, "移除單一來源後靜態清冊仍應完整保留");
   assert.strictEqual(failing.getStatus(), protectedTerms.STATUS_UNAVAILABLE);
   assert.strictEqual(failing.isProtectedText("系統管理員"), true);
-  assert.strictEqual(failing.isProtectedText("心跳檢查"), false, "失敗來源的條目不應被抽入");
+  assert.strictEqual(
+    failing.isProtectedText("心跳檢查", { includeContractLiterals: false }),
+    false,
+    "失敗來源的條目不應被抽入"
+  );
 
   const emptySource = protectedTerms.createProtectedTermsModule({
     readFile: function (filePath) {
