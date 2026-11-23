@@ -11,3 +11,5 @@ package-lock.json
 *.xlsx
 *.pdf
 openspec/
+artifacts/
+docs/參考資料/opencc/

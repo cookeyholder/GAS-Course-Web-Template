@@ -211,6 +211,16 @@ npm run check:complexity
 
 # 建置前端
 npm run build:webapp
+
+# OpenCC 可用性 smoke（非阻斷）
+npm run language:smoke
+
+# 語言檢查報告／乾跑／修正／核准／撤銷
+npm run language:report
+npm run language:check
+npm run language:fix
+npm run language:approve -- <id> [建議來源] [建議文字]
+npm run language:revoke -- <id>
 ```
 
 ### Git Hook 與自動格式化（Prettier）
@@ -249,6 +259,57 @@ npm run build:webapp
 `.github/workflows/quality-gates.yml`（Quality Gates）在每次推送與 Pull Request 時，以 Node 24 依序執行：checkout（取得完整 Git 歷史供變更覆蓋率比對）、安裝相依（CI 環境略過 Husky 初始化）、`format:check`、`check:lang`、`check:ui-classes`、`check:contrast`、`check:a11y`（前端無障礙稽核）、建置產物一致性（`npm run build:webapp` 後 `git diff --exit-code -- index.html`）、`npm test`、`check:coverage`、`check:complexity`、`check:changed-coverage`。任一步驟失敗即阻擋合併；所有步驟都可在本機以同名 npm 指令重現。
 
 相依套件由 `package-lock.json` 鎖定，CI 使用 `npm ci --ignore-scripts || npm install --ignore-scripts` 安裝並搭配 npm cache；SheetJS 於前端由 CDN 動態載入，故不列為 npm 相依。
+
+在上述強制閘門之後，CI 另執行一組**非阻斷、只讀不寫**的語言證據步驟：OpenCC smoke、`npm run language:report`、契約漂移檢查、構件 meta 驗證、構件上傳（`language-report-${{ github.sha }}`）與簽核標籤嘗試，全部標記 `if: always()` 與 `continue-on-error: true`，**不得包含 `--fix`／`--approve`／`--revoke`**，故不影響合併結果。構件檢查會驗證報告檔案存在、JSONL 首行可解析為 meta、空檔視為警告，並檢查 `generatedAt` 是否落在該步驟執行時刻前 15 分鐘至後 5 分鐘（ISO 8601 UTC，`Z` 結尾），避免舊構件被誤用。凡有新步驟發出警告，工作流程摘要即輸出固定錨點 `LANGUAGE_SIGNOFF_REQUIRED` 與「語言警告未處理，合併前須人工簽核」，並嘗試為 Pull Request 加上 `language-signoff-required` 標籤；標籤新增失敗時摘要額外警示「標籤新增失敗，須人工確認語言簽核」。錨點存在即視為帶警告，合併前查核須主動檢查工作流程摘要，不得僅依賴標籤。
+
+### 臺灣繁體語言檢查與 OpenCC 候選定位
+
+既有 `npm run check:lang` 是**強制硬閘門**：違規只由既有精簡字集與中國用語表觸發，輸出格式、行內豁免標記（`language-check: ignore`）與結束碼維持不變，排除政策僅新增本變更新增的 `artifacts/`（仍掃描 `openspec/` 與 `docs/參考資料/`）。**零違規僅代表向後相容錨點，不代表完整語言合規**；此語意只記載於本文件與 `AGENTS.md`，不寫入 `check:lang` 輸出。
+
+OpenCC 工具是**輔助定位與人工選詞**的第二條路徑，與硬閘門分工如下：
+
+| 面向                                                                                     | 硬閘門 `check:lang`      | OpenCC 候選工具                                                       |
+| ---------------------------------------------------------------------------------------- | ------------------------ | --------------------------------------------------------------------- |
+| 定位來源                                                                                 | 既有精簡字集＋中國用語表 | 僅 `s2tw` 差異定位真正的簡體字                                        |
+| 建議來源                                                                                 | 固定轉譯                 | `S2TW` 字級、`S2TWP` 臺灣慣用語、`MAINLAND_TERMS` 專案對照表          |
+| 正體「項目」                                                                             | 不違規                   | `s2tw` 無差異，不產生候選；`s2twp` 會誤改為「專案」，但不據此建立候選 |
+| 由正體字組成的中國用語（`\u652f\u6301`、`\u914d\u7f6e`、`\u53bb\u91cd`、`\u54c8\u5e0c`） | 回報違規，須人工修正     | `s2tw` 無差異，不進候選工具                                           |
+| 寫入                                                                                     | 不寫入                   | 僅經明確核准的 `--fix` 寫入                                           |
+
+**實測案例**：繁體「項目」在 `s2tw` 下不變，故不產生候選；簡體 `\u9879\u76ee` 才由 `s2tw` 定位，其 `suggestionOptions` 同時含 `S2TW` 的「項目」與 `S2TWP`／`MAINLAND_TERMS` 的「專案」。候選預設建議恆為最保守的 `S2TW` 字級結果；若要改用「專案」，須由人工依上下文挑選並核准。受保護語意是**候選原文**的屬性，故 `\u9879\u76ee` 候選核准寫入「專案」屬預期行為，即使「專案」在受保護清冊中亦不影響；反之正體原文位置的「項目」仍受保護不寫入。
+
+#### 指令一覽
+
+| 指令                                             | 用途                                            | 阻斷性       |
+| ------------------------------------------------ | ----------------------------------------------- | ------------ |
+| `npm run check:lang`                             | 既有強制硬閘門                                  | 阻斷         |
+| `npm run language:smoke`                         | 檢查 OpenCC `s2tw`／`s2twp` 黃金案例與精確版本  | 非阻斷       |
+| `npm run language:report`                        | 產生 `artifacts/language-report.jsonl` 與 `.md` | 非阻斷       |
+| `npm run language:check`                         | 等同 `--dry-run`，只回報不寫入                  | 本機         |
+| `npm run language:fix`                           | 僅寫入核准紀錄指定的建議                        | 本機，須核准 |
+| `npm run language:approve -- <id> [來源] [建議]` | 核准指定建議並綁定至候選                        | 本機         |
+| `npm run language:revoke -- <id>`                | 撤銷核准                                        | 本機         |
+
+另有漂移檢查 `node scripts/generateOpenccS2twpContractLiterals.js --check`：契約字面值清冊由測試原始碼 AST 產生並版控；新增字面值僅警告並回 0，移除數量超過 `max(10, ceil(清冊筆數 × 0.05))` 或原始檔解析失敗時回非零結束碼。
+
+#### 人工選詞與核准流程
+
+1. 執行 `npm run language:report`，從 JSONL 逐筆查看 `original`、`suggestionOptions` 與核准狀態。
+2. 依上下文挑選合適來源與文字，例如 `npm run language:approve -- <id> S2TWP 專案`。所選組合必須存在於 `suggestionOptions`，否則輸出 `SUGGESTION_NOT_IN_OPTIONS` 並列出可用選項且不寫入清冊。
+3. 執行 `npm run language:fix`；工具只寫入核准紀錄綁定的建議，受保護、豁免與未核准候選保留原文。寫入後重新執行檢查。
+4. 必要時以 `npm run language:revoke -- <id>` 撤銷；撤銷後該候選不再具備寫入授權。
+
+核准清冊 `scripts/openccS2twpApprovals.json` 以 JSON `\uXXXX` 標準跳脫保存為純 ASCII，**直接改寫清冊等同核准，須經 Pull Request 核閱**。識別碼由 `file`、`original`、`contextHash`、`occurrenceIndex` 四欄位以 `\0` 分隔後取 SHA-256 前 16 碼，**不含行號、欄位偏移與建議文字**；故同行格式化或前方插入相同字面值會使目前 ID 改變，舊報告的 `reportedId` 只做否決與診斷。**重新核准後須重新產生報告**，否則舊報告的 `reportedId` 會回 `ORIGINAL_MISMATCH` 而不寫入。`ID_ALGORITHM_CHANGED`（工具版本升級使舊 ID 無法驗證）與 `APPROVAL_TAMPERED`（紀錄欄位遭竄改）皆為 `INVALID_RECORD` 診斷，兩者皆禁止寫入且要求重新核准。**明文禁止同時執行多個 `--approve`／`--revoke`／`--fix`**，以免後寫入者以舊快照覆蓋清冊使已撤銷核准復活；請由 Pull Request 流程序列化核准變更。
+
+#### 降級、診斷與寫入失敗
+
+原生套件採延遲載入且僅供 Node 工具鏈，不進入前端打包或 GAS 部署產物。相依版本精確鎖定 `opencc@1.4.2` 與 `@babel/parser@7.29.15`；套件不可用時硬閘門照常執行並在標準錯誤輸出提示下列診斷碼，結束碼仍由違規數決定，報告模式則在每筆與摘要標記降級並維持成功結束碼：
+
+- `OPENCC_BINARY_MISSING`：平台二進位 optional dependency 缺失（`ERR_DLOPEN_FAILED` 或 `@opencc/opencc-` 前綴）。
+- `OPENCC_UNAVAILABLE`：其他 OpenCC 載入、建構或轉換失敗。
+- `PARSER_UNAVAILABLE`：`@babel/parser` 缺失，僅由契約漂移檢查步驟輸出。
+
+報告寫入失敗時，stderr 出現 `REPORT_WRITE_FAILED`，stdout 輸出 `{"ok":false,"code":"REPORT_WRITE_FAILED","bytes":0}`，結束碼仍為成功；成功時則輸出 `{"ok":true,"code":"REPORT_OK","bytes":<n>}`。`--output` 僅供本機除錯，CI 與 `npm run language:report` 一律寫入預設 `artifacts/`；指向專案根目錄外或逃逸的符號連結路徑會被拒絕且結束碼仍為成功。報告 JSONL 維持純 ASCII，Markdown 採 `\uXXXX` 呈現層跳脫，故含禁詞原文亦不污染硬閘門。
 
 ### 疑難排解
 

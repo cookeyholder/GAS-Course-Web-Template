@@ -45,10 +45,11 @@ function isInScope(file) {
   if (normalized.indexOf("reports/") === 0) return false;
   if (normalized.indexOf(".nyc_output/") === 0) return false;
 
-  // 納管：根目錄 *.js、webapp/js/*.js、scripts/*.js
+  // 納管：根目錄 *.js、webapp/js/*.js、scripts/*.js、quality-core/*.js
   if (normalized.indexOf("/") === -1) return true;
   if (normalized.indexOf("webapp/js/") === 0) return true;
   if (normalized.indexOf("scripts/") === 0) return true;
+  if (normalized.indexOf("quality-core/") === 0) return true;
   return false;
 }
 

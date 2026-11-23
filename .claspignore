@@ -5,5 +5,11 @@
 !appsscript.json
 !*.js
 !index.html
+# 離線手冊僅放行 HTML，其餘 Markdown、PDF、CSV 與核閱文件不上傳
 !docs/
-!docs/**
+!docs/**/*.html
+
+# Node 工具鏈專用模組、OpenCC 外殼與語言報告構件不上傳
+quality-core/
+scripts/opencc*.js
+artifacts/
