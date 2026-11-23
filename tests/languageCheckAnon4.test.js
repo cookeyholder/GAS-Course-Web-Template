@@ -86,7 +86,7 @@ console.log("3. collectFiles 應排除指定目錄與檔案...");
   const project = helpers.createTempProject();
   try {
     project.write("webapp/keep.js", "");
-    ["node_modules", "coverage", ".git", "dist", ".clasp", ".codegraph"].forEach(function (dir) {
+    ["node_modules", "coverage", ".git", "dist", ".clasp", ".codegraph", "artifacts"].forEach(function (dir) {
       project.write("webapp/" + dir + "/skip.js", "");
     });
     ["AGENTS.md", "languageCheck.js", "package-lock.json", "index.html"].forEach(function (file) {
@@ -99,20 +99,23 @@ console.log("3. collectFiles 應排除指定目錄與檔案...");
   console.log("   ✓ 排除規則驗證通過！\n");
 }
 
-console.log("3b. openspec 目錄應納入語言檢查，不再被排除...");
+console.log("3b. openspec 與 docs/參考資料 目錄應納入硬閘門，artifacts 應排除...");
 {
   const project = helpers.createTempProject();
   try {
     project.write("webapp/openspec/changes/add-activity-logging/proposal.md", "# 提案文件");
     project.write("webapp/openspec/specs/example/spec.md", "# 規格文件");
+    project.write("webapp/docs/參考資料/opencc/SOURCES.md", "# 來源文件");
+    project.write("webapp/artifacts/language-report.jsonl", "{}");
     assert.deepStrictEqual(languageCheck.collectFiles(project.webapp), [
+      "docs/參考資料/opencc/SOURCES.md",
       "openspec/changes/add-activity-logging/proposal.md",
       "openspec/specs/example/spec.md"
     ]);
   } finally {
     project.cleanup();
   }
-  console.log("   ✓ OpenSpec 納入檢查驗證通過！\n");
+  console.log("   ✓ OpenSpec 與 docs/參考資料 納入、artifacts 排除驗證通過！\n");
 }
 
 console.log("4. 注入檔案系統時應略過非檔案非目錄項目...");
@@ -135,6 +138,41 @@ console.log("4. 注入檔案系統時應略過非檔案非目錄項目...");
     assert.deepStrictEqual(call.options, { withFileTypes: true });
   });
   console.log("   ✓ 注入依賴驗證通過！\n");
+}
+
+console.log("4b. checkProject 注入 fs 時讀取呼叫次數與選項應精確相等...");
+{
+  const project = helpers.createTempProject();
+  try {
+    project.write("webapp/a.js", "");
+    project.write("webapp/sub/b.md", "");
+    project.write("webapp/artifacts/skip.js", "");
+    const realFs = require("fs");
+    const readdirCalls = [];
+    const readFileCalls = [];
+    const injectedFs = {
+      readdirSync: function (directory, options) {
+        readdirCalls.push({ directory: directory, options: options });
+        return realFs.readdirSync(directory, options);
+      },
+      readFileSync: function (file, options) {
+        readFileCalls.push({ file: file, options: options });
+        return realFs.readFileSync(file, options);
+      }
+    };
+    assert.deepStrictEqual(languageCheck.checkProject(project.webapp, { fs: injectedFs }), []);
+    assert.strictEqual(readdirCalls.length, 3, "只走訪根目錄、預設 js/ 與 sub/");
+    readdirCalls.forEach(function (call) {
+      assert.deepStrictEqual(call.options, { withFileTypes: true });
+    });
+    assert.strictEqual(readFileCalls.length, 2, "只讀取兩個納入掃描的檔案");
+    readFileCalls.forEach(function (call) {
+      assert.strictEqual(call.options, "utf8");
+    });
+  } finally {
+    project.cleanup();
+  }
+  console.log("   ✓ 注入 fs 呼叫次數與選項驗證通過！\n");
 }
 
 console.log("5. 空目錄應回傳空陣列，讀取失敗則向外傳播...");
