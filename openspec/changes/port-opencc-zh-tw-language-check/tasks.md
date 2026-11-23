@@ -53,7 +53,7 @@
 
 ## 7. 整合驗證
 
-- [ ] 7.1 執行本地完整 CI 預跑指令鏈（format:check、check:lang、check:ui-classes、check:contrast、check:a11y、npm test、check:coverage、check:complexity、CHANGED_COVERAGE_BASE=origin/main check:changed-coverage、build:webapp 與 index.html 一致性）；驗證全數通過且工作區乾淨。
+- [x] 7.1 執行本地完整 CI 預跑指令鏈（format:check、check:lang、check:ui-classes、check:contrast、check:a11y、npm test、check:coverage、check:complexity、CHANGED_COVERAGE_BASE=origin/main check:changed-coverage、build:webapp 與 index.html 一致性）；驗證全數通過且工作區乾淨。
 - [ ] 7.2 驗證 `index.html?mock=true` 離線模式仍可渲染，且前端與 GAS 後端檔案未引用 `opencc`；驗證 `npm run build:webapp` 後 `git diff --exit-code -- index.html` 通過。
 
 ## Workflow follow-up
