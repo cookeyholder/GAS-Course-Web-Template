@@ -438,6 +438,294 @@ function buildReportData(options) {
 }
 
 /**
+ * 取得寫入授權判定；受保護、豁免、空泛建議與未核准候選一律否決。
+ *
+ * @param {Object} entry - 候選
+ * @param {Object} registry - 核准清冊
+ * @returns {?Object} 授權判定，通過時回傳
+ */
+function getWritableDecision(entry, registry) {
+  if (!entry || entry.protected === true || entry.exempt === true) return null;
+  if (!entry.suggestion || entry.suggestion === "改用繁體字") return null;
+  const decision = approvals.authorizeCandidate(registry, entry);
+  if (decision.result !== approvals.RESULT.AUTHORIZED) return null;
+  return decision;
+}
+
+/** 判斷候選是否可寫入。 */
+function isWritable(entry, registry) {
+  return getWritableDecision(entry, registry) !== null;
+}
+
+/**
+ * 將單檔候選由右向左套用，任一不變式失敗即略過該行。
+ *
+ * @param {string[]} originalLines - 原始行陣列
+ * @param {Object[]} entries - 該檔候選
+ * @param {Object} registry - 核准清冊
+ * @param {string[]} protectedTerms - 受保護詞彙
+ * @returns {{lines: string[], applied: number, skipped: number}} 套用結果
+ */
+function applyFileFixes(originalLines, entries, registry, protectedTerms) {
+  const lines = (originalLines || []).slice();
+  const byLine = new Map();
+  (entries || []).forEach(function (entry) {
+    const decision = getWritableDecision(entry, registry);
+    if (!decision) return;
+    const line = Number(entry.line) || 0;
+    if (!byLine.has(line)) byLine.set(line, []);
+    byLine.get(line).push({ entry: entry, decision: decision });
+  });
+  let applied = 0;
+  let skipped = 0;
+  byLine.forEach(function (list, line) {
+    list.sort(function (a, b) {
+      return (Number(b.entry.column) || 0) - (Number(a.entry.column) || 0);
+    });
+    const before = lines[line - 1];
+    if (typeof before !== "string") {
+      skipped += list.length;
+      return;
+    }
+    let after = before;
+    list.forEach(function (item) {
+      const start = Number(item.entry.column) || 0;
+      const original = String(item.entry.original || "");
+      if (after.slice(start, start + original.length) !== original) return;
+      const replacement = String(item.decision.record.suggestion || "");
+      after = after.slice(0, start) + replacement + after.slice(start + original.length);
+    });
+    // 保護是候選「原文」的屬性，由 authorizeCandidate() 步驟⓪-a 否決；
+    // 真正簡體原文經人工核准寫入「專案」等受保護詞屬預期，不在此處二次過濾。
+    const pua = protectedCore.checkPuaInvariant(before, after);
+    if (after === before || !pua.ok) {
+      skipped += list.length;
+      return;
+    }
+    lines[line - 1] = after;
+    applied += list.length;
+  });
+  return { lines: lines, applied: applied, skipped: skipped };
+}
+
+/** 建立報告項目與目前候選共用的穩定比對鍵。 */
+function reportIdentityKey(item) {
+  if (!item || typeof item.file !== "string" || typeof item.original !== "string") return "";
+  return [item.file, item.original, String(item.occurrenceIndex)].join("\0");
+}
+
+/**
+ * 讀取既有報告 JSONL；檔案不存在或首行 meta 無法解析時回空陣列並發出警告。
+ * 報告僅提供定位與舊 id 做為 reportedId，所有分析欄位一律由目前原始檔重新計算。
+ *
+ * @param {Object} [options] - 含 root、fs、reportPath 或 outputDir
+ * @returns {Array<Object>} 報告項目
+ */
+function loadReportEntries(options) {
+  const settings = options || {};
+  const fsApi = settings.fs || fs;
+  const root = settings.root || path.join(__dirname, "..");
+  const outputDir = settings.outputDir || DEFAULT_REPORT_DIR;
+  const reportPath = settings.reportPath || path.resolve(root, outputDir, REPORT_JSONL);
+  const warn = settings.error || console.error;
+  let text;
+  try {
+    text = fsApi.readFileSync(reportPath, "utf8");
+  } catch (error) {
+    warn("REPORT_READ_WARNING：無法讀取既有報告，改以目前分析結果修正：" + reportPath);
+    return [];
+  }
+  const lines = String(text)
+    .replace(/^\uFEFF/, "")
+    .replace(/\n$/, "")
+    .split("\n");
+  if (lines.length < 2 || lines[0].trim() === "") {
+    warn("REPORT_READ_WARNING：既有報告為空或缺少 meta，改以目前分析結果修正：" + reportPath);
+    return [];
+  }
+  let meta;
+  try {
+    meta = JSON.parse(lines[0]);
+  } catch (error) {
+    warn("REPORT_READ_WARNING：既有報告 meta 無法解析，改以目前分析結果修正：" + reportPath);
+    return [];
+  }
+  if (!meta || typeof meta !== "object" || meta.type !== "meta") {
+    warn("REPORT_READ_WARNING：既有報告首行不是 meta，改以目前分析結果修正：" + reportPath);
+    return [];
+  }
+  const entries = [];
+  for (let index = 1; index < lines.length; index += 1) {
+    if (lines[index].trim() === "") continue;
+    try {
+      const entry = JSON.parse(lines[index]);
+      if (entry && typeof entry.id === "string") entries.push(entry);
+    } catch (error) {
+      warn("REPORT_READ_WARNING：略過無法解析的報告項目：" + reportPath + "#" + (index + 1));
+    }
+  }
+  return entries;
+}
+
+/**
+ * 建立修正用候選：目前分析提供所有可信任欄位，舊報告只提供 reportedId 診斷證據。
+ *
+ * @param {Object} [options] - 含 root、registry、reportData 與報告路徑選項
+ * @returns {{candidates: Array<Object>, entries: Array<Object>, meta: Object}} 修正用資料
+ */
+function buildFixCandidates(options) {
+  const settings = options || {};
+  const root = settings.root || path.join(__dirname, "..");
+  const registry = settings.registry || approvals.loadRegistry(settings.approvalsPath);
+  const data = settings.reportData || buildReportData(Object.assign({ root: root }, settings, { registry: registry }));
+  const oldEntries = settings.reportEntries || loadReportEntries(settings);
+  const oldByIdentity = new Map();
+  oldEntries.forEach(function (entry) {
+    const key = reportIdentityKey(entry);
+    if (key && !oldByIdentity.has(key)) oldByIdentity.set(key, entry);
+  });
+  const candidates = (data.candidates || []).map(function (candidate) {
+    const old = oldByIdentity.get(reportIdentityKey(candidate));
+    const reportedId = old && typeof old.id === "string" && old.id !== candidate.id ? old.id : "";
+    return Object.assign({}, candidate, { reportedId: reportedId });
+  });
+  return { candidates: candidates, entries: data.entries, meta: data.meta };
+}
+
+/**
+ * 執行修正模式：僅寫入核准紀錄指定的建議。
+ *
+ * @param {Object} [options] - 含 root、registryPath 與其他報告選項
+ * @returns {{changedFiles: string[], applied: number, skipped: number}} 修正結果
+ */
+function applyFixes(options) {
+  const settings = options || {};
+  const root = settings.root || path.join(__dirname, "..");
+  const fsApi = settings.fs || fs;
+  const registry = settings.registry || approvals.loadRegistry(settings.approvalsPath);
+  const data = buildFixCandidates(settings);
+  const protectedTerms = getProtectedTerms();
+  const byFile = new Map();
+  data.candidates.forEach(function (candidate) {
+    if (!candidate || !candidate.file) return;
+    if (!byFile.has(candidate.file)) byFile.set(candidate.file, []);
+    byFile.get(candidate.file).push(candidate);
+  });
+  const changedFiles = [];
+  let applied = 0;
+  let skipped = 0;
+  byFile.forEach(function (entries, relative) {
+    const target = path.join(root, relative);
+    let original;
+    try {
+      original = fsApi.readFileSync(target, "utf8");
+    } catch (error) {
+      skipped += entries.length;
+      return;
+    }
+    // split("\n") 與 join("\n") 互為逆運算，尾端換行會保留為最後一個空字串元素。
+    const result = applyFileFixes(original.split("\n"), entries, registry, protectedTerms);
+    applied += result.applied;
+    skipped += result.skipped;
+    if (result.applied === 0) return;
+    const next = result.lines.join("\n");
+    if (next === original) return;
+    fsApi.writeFileSync(target, next, "utf8");
+    changedFiles.push(relative);
+  });
+  return { changedFiles: changedFiles, applied: applied, skipped: skipped };
+}
+
+/**
+ * 驗證所選建議存在於目前建議選項。
+ *
+ * @param {Object} entry - 報告項目
+ * @param {string} source - 建議來源
+ * @param {string} suggestion - 建議文字
+ * @returns {boolean} 是否為有效選項
+ */
+function isSuggestedOption(entry, source, suggestion) {
+  return (entry && entry.suggestionOptions ? entry.suggestionOptions : []).some(function (option) {
+    return option && option.source === source && option.text === suggestion;
+  });
+}
+
+/**
+ * 執行核准或撤銷命令。
+ *
+ * @param {Object} parsed - parseArgs 結果
+ * @param {Object} [options] - 含 root、approvalsPath 與其他報告選項
+ * @returns {number} 結束碼
+ */
+function runApprovalCommand(parsed, options) {
+  const settings = options || {};
+  const log = settings.log || console.log;
+  const error = settings.error || console.error;
+  const registryPath = settings.approvalsPath || approvals.APPROVALS_PATH;
+  const ids = parsed.ids || [];
+
+  if (parsed.mode === "revoke") {
+    const current = approvals.loadRegistry(registryPath, settings);
+    const result = approvals.revokeApprovals(current, ids);
+    approvals.saveRegistry(result.registry, registryPath);
+    log(approvals.formatOperationResult(result));
+    return result.missing.length ? 1 : 0;
+  }
+
+  const root = settings.root || path.join(__dirname, "..");
+  const reportData = buildReportData(Object.assign({ root: root }, settings));
+  const byId = new Map();
+  reportData.entries.forEach(function (entry) {
+    byId.set(entry.id, entry);
+  });
+  const current = approvals.loadRegistry(registryPath, settings);
+  let registry = current;
+  const added = [];
+  const missing = [];
+  const rejected = [];
+  for (let index = 0; index < ids.length; index += 1) {
+    const id = ids[index];
+    const entry = byId.get(id);
+    if (!entry) {
+      missing.push(id);
+      continue;
+    }
+    const source = ids[index + 1];
+    const suggestion = ids[index + 2];
+    const hasSelection = source !== undefined || suggestion !== undefined;
+    if (hasSelection) {
+      if (!isSuggestedOption(entry, source, suggestion)) {
+        const optionsText = entry.suggestionOptions
+          .map(function (option) {
+            return option.source + ":" + option.text;
+          })
+          .join(", ");
+        error("SUGGESTION_NOT_IN_OPTIONS：" + id + "；可用選項：" + optionsText);
+        rejected.push(id);
+        index += 2;
+        continue;
+      }
+      index += 2;
+    }
+    const candidate = approvals.candidateFromReportEntry(entry);
+    const result = approvals.addApprovals(
+      registry,
+      [candidate],
+      Object.assign({}, settings, {
+        suggestionSource: hasSelection ? source : candidate.suggestionSource,
+        suggestion: hasSelection ? suggestion : candidate.suggestion
+      })
+    );
+    registry = result.registry;
+    added.push(result.added[0]);
+  }
+  if (rejected.length === 0) approvals.saveRegistry(registry, registryPath);
+  const result = { added: added, missing: missing, rejected: rejected };
+  log(approvals.formatOperationResult(result));
+  return missing.length || rejected.length ? 1 : 0;
+}
+
+/**
  * 呈現層跳脫：逐 UTF-16 程式碼單元將非 ASCII 字元轉為 \uXXXX。
  *
  * @param {*} value - 任意值
@@ -756,6 +1044,22 @@ function main(argv, options) {
     return 0;
   }
 
+  if (parsed.mode === "fix") {
+    const result = applyFixes(settings);
+    const remaining = checkProject(settings.root, settings);
+    const total = printViolations(remaining, log);
+    if (total > 0) {
+      error("\n✗ 語言規範檢查失敗：共 " + total + " 項違規");
+      return 1;
+    }
+    log("✓ 修正完成，共寫入 " + result.changedFiles.length + " 個檔案。");
+    return 0;
+  }
+
+  if (parsed.mode === "approve" || parsed.mode === "revoke") {
+    return runApprovalCommand(parsed, settings);
+  }
+
   error("尚未支援的模式：" + parsed.mode);
   return 1;
 }
@@ -794,6 +1098,15 @@ if (typeof module !== "undefined" && module.exports) {
     formatMarkdownReport: formatMarkdownReport,
     writeReport: writeReport,
     isReportOutputDirSafe: isReportOutputDirSafe,
+    getWritableDecision: getWritableDecision,
+    isWritable: isWritable,
+    reportIdentityKey: reportIdentityKey,
+    loadReportEntries: loadReportEntries,
+    buildFixCandidates: buildFixCandidates,
+    applyFileFixes: applyFileFixes,
+    applyFixes: applyFixes,
+    isSuggestedOption: isSuggestedOption,
+    runApprovalCommand: runApprovalCommand,
     parseArgs: parseArgs,
     printViolations: printViolations,
     main: main
