@@ -27,6 +27,7 @@ jobs:
         run: npm run format:check
 
       - name: Language check
+        id: language-hard-gate
         run: npm run check:lang
 
       - name: UI class alignment check
@@ -54,3 +55,244 @@ jobs:
         env:
           CHANGED_COVERAGE_BASE: ${{ github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}
         run: npm run check:changed-coverage
+
+      # 以下皆為非阻斷、只讀不寫之語言證據步驟；不得包含 --fix／--approve／--revoke。
+      # 診斷映射：ERR_DLOPEN_FAILED 或 @opencc/opencc- 前綴 → OPENCC_BINARY_MISSING；
+      # MODULE_NOT_FOUND 且含 @babel/parser → PARSER_UNAVAILABLE（僅漂移檢查步驟）；
+      # 其餘 OpenCC 載入／建構／轉換失敗 → OPENCC_UNAVAILABLE。
+      - name: OpenCC 可用性檢查（非阻斷）
+        id: opencc-smoke
+        if: always()
+        continue-on-error: true
+        run: |
+          set +e
+          output=$(node scripts/openccS2twp.js --smoke 2>&1)
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if printf '%s' "$output" | grep -Eq 'ERR_DLOPEN_FAILED|@opencc/opencc-'; then
+              code=OPENCC_BINARY_MISSING
+            else
+              code=OPENCC_UNAVAILABLE
+            fi
+            echo "::warning::${code}：OpenCC 可用性檢查失敗（smoke）"
+            echo "1" >> "$RUNNER_TEMP/language-warnings"
+            echo "LANGUAGE_SIGNOFF_REQUIRED：語言警告未處理，合併前須人工簽核" >> "$GITHUB_STEP_SUMMARY"
+            echo "${code}：OpenCC 可用性檢查失敗（smoke）" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' "$output"
+            exit "$status"
+          fi
+
+      - name: 產生語言檢查結構化報告（非阻斷）
+        id: language-report
+        if: always()
+        continue-on-error: true
+        run: |
+          set +e
+          output=$(npm run language:report 2>&1)
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if printf '%s' "$output" | grep -Eq 'ERR_DLOPEN_FAILED|@opencc/opencc-'; then
+              code=OPENCC_BINARY_MISSING
+            else
+              code=OPENCC_UNAVAILABLE
+            fi
+            echo "::warning::${code}：語言報告產生失敗"
+            echo "1" >> "$RUNNER_TEMP/language-warnings"
+            echo "LANGUAGE_SIGNOFF_REQUIRED：語言警告未處理，合併前須人工簽核" >> "$GITHUB_STEP_SUMMARY"
+            echo "${code}：語言報告產生失敗" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' "$output"
+            exit "$status"
+          fi
+
+      - name: 檢查契約字面值漂移（非阻斷）
+        id: literal-drift-check
+        if: always()
+        continue-on-error: true
+        run: |
+          set +e
+          output=$(node scripts/generateOpenccS2twpContractLiterals.js --check 2>&1)
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            if printf '%s' "$output" | grep -q 'MODULE_NOT_FOUND' && printf '%s' "$output" | grep -q '@babel/parser'; then
+              code=PARSER_UNAVAILABLE
+            elif printf '%s' "$output" | grep -Eq 'ERR_DLOPEN_FAILED|@opencc/opencc-'; then
+              code=OPENCC_BINARY_MISSING
+            else
+              code=OPENCC_UNAVAILABLE
+            fi
+            echo "::warning::${code}：契約字面值漂移檢查失敗"
+            echo "1" >> "$RUNNER_TEMP/language-warnings"
+            echo "LANGUAGE_SIGNOFF_REQUIRED：語言警告未處理，合併前須人工簽核" >> "$GITHUB_STEP_SUMMARY"
+            echo "${code}：契約字面值漂移檢查失敗" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' "$output"
+            exit "$status"
+          fi
+
+      - name: 檢查語言報告構件與 meta（非阻斷）
+        id: report-artifact-check
+        if: always()
+        continue-on-error: true
+        env:
+          HARD_GATE_FAILED: ${{ steps.language-hard-gate.outcome != 'success' }}
+        run: |
+          export CHECKED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          node <<'NODE'
+          "use strict";
+          const fs = require("fs");
+          const summaryPath = process.env.GITHUB_STEP_SUMMARY;
+          const outputPath = process.env.GITHUB_OUTPUT;
+          const reportPath = "artifacts/language-report.jsonl";
+          const hardGateFailed = process.env.HARD_GATE_FAILED === "true";
+          const checkedAt = Date.parse(process.env.CHECKED_AT);
+          const warningMarker = process.env.RUNNER_TEMP
+            ? require("path").join(process.env.RUNNER_TEMP, "language-warnings")
+            : "";
+          const warnings = [];
+
+          function markWarning(message) {
+            warnings.push(message);
+            console.log("::warning::" + message);
+            if (summaryPath) fs.appendFileSync(summaryPath, "::warning::" + message + "\n");
+            if (warningMarker) fs.writeFileSync(warningMarker, "1\n");
+          }
+
+          function readMeta() {
+            let raw;
+            try {
+              raw = fs.readFileSync(reportPath, "utf8");
+            } catch (error) {
+              markWarning("REPORT_ARTIFACT_MISSING：語言報告構件缺失");
+              return null;
+            }
+            const lines = raw.replace(/\n$/, "").split("\n");
+            if (lines.length === 0 || lines[0].trim() === "") {
+              markWarning("REPORT_ARTIFACT_EMPTY：語言報告 JSONL 為空檔");
+              return null;
+            }
+            try {
+              const meta = JSON.parse(lines[0]);
+              if (!meta || typeof meta !== "object" || meta.type !== "meta") {
+                markWarning("REPORT_META_INVALID：JSONL 首行無法解析為 meta");
+                return null;
+              }
+              return meta;
+            } catch (error) {
+              markWarning("REPORT_META_INVALID：JSONL 首行無法解析為 meta");
+              return null;
+            }
+          }
+
+          function checkFreshness(meta) {
+            if (typeof meta.generatedAt !== "string" || !meta.generatedAt.endsWith("Z")) {
+              markWarning("REPORT_GENERATED_AT_INVALID：generatedAt 非 ISO 8601 UTC 格式");
+              return;
+            }
+            const generatedAt = Date.parse(meta.generatedAt);
+            if (!Number.isFinite(checkedAt) || !Number.isFinite(generatedAt)) {
+              markWarning("REPORT_GENERATED_AT_INVALID：generatedAt 或檢查基準時刻無法解析");
+              return;
+            }
+            const earliest = checkedAt - 15 * 60 * 1000;
+            const latest = checkedAt + 5 * 60 * 1000;
+            if (generatedAt < earliest || generatedAt > latest) {
+              markWarning("REPORT_STALE：generatedAt 超出本次執行之有效區間（前 15 分鐘至後 5 分鐘）");
+            }
+          }
+
+          function checkCounts(meta) {
+            const has = function (key) {
+              return Object.hasOwn(meta, key);
+            };
+            const keys = ["generatedAt", "degraded", "candidateCount", "protectedCount", "unprotectedCount", "exemptCandidateCount", "violationCount"];
+            keys.forEach(function (key) {
+              if (!has(key)) markWarning("REPORT_META_FIELD_MISSING：" + key + " 欄位缺失");
+            });
+            if (meta.degraded === true) {
+              markWarning("OPENCC_UNAVAILABLE：報告標記降級，候選證據不完整");
+            }
+            if (!has("candidateCount") || !has("violationCount")) return;
+            const candidates = Number(meta.candidateCount);
+            const violations = Number(meta.violationCount);
+            const degraded = meta.degraded === true;
+
+            if (violations > 0 && candidates === 0 && !degraded) {
+              markWarning("無 s2tw 可定位候選；由正體字組成的中國用語違規不在 OpenCC 候選範圍，須依硬閘門輸出人工修正");
+            }
+
+            if (candidates > 0) {
+              const protectedCount = Number(meta.protectedCount);
+              const unprotectedCount = Number(meta.unprotectedCount);
+              const exemptCount = Number(meta.exemptCandidateCount);
+              if (protectedCount === candidates) {
+                markWarning("候選全數受保護，工具不寫入");
+              } else if (exemptCount === candidates) {
+                markWarning("候選全數豁免，工具不寫入");
+              }
+              if (Number.isFinite(protectedCount) && Number.isFinite(unprotectedCount) && unprotectedCount !== candidates - protectedCount) {
+                markWarning("REPORT_COUNT_INVARIANT：unprotectedCount 應等於 candidateCount 減 protectedCount");
+              }
+              if (Number.isFinite(exemptCount) && Number.isFinite(unprotectedCount) && exemptCount > unprotectedCount) {
+                markWarning("REPORT_COUNT_INVARIANT：exemptCandidateCount 不得大於 unprotectedCount");
+              }
+            }
+
+            if (has("violationCount") && Number.isFinite(violations)) {
+              const violationHasRows = violations > 0;
+              if (hardGateFailed !== violationHasRows) {
+                markWarning("HARD_GATE_MISMATCH：硬閘門成敗與 violationCount 不一致，不得視為本次有效掃描證據");
+              }
+            }
+          }
+
+          const meta = readMeta();
+          if (meta) {
+            checkFreshness(meta);
+            checkCounts(meta);
+          }
+
+          if (summaryPath) {
+            fs.appendFileSync(summaryPath, "### 語言檢查報告構件檢查\n");
+            if (warnings.length === 0) {
+              fs.appendFileSync(summaryPath, "語言檢查報告構件檢查無警告。\n");
+            } else {
+              fs.appendFileSync(summaryPath, "LANGUAGE_SIGNOFF_REQUIRED：語言警告未處理，合併前須人工簽核\n");
+            }
+          }
+          if (outputPath) {
+            fs.appendFileSync(outputPath, "has_warnings=" + (warnings.length > 0 ? "true" : "false") + "\n");
+          }
+          NODE
+
+      - name: 上傳語言檢查報告構件（非阻斷）
+        id: report-artifact-upload
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: language-report-${{ github.sha }}
+          path: artifacts/language-report.*
+          if-no-files-found: warn
+
+      - name: 標記語言簽核需求（非阻斷）
+        id: language-signoff-label
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          if [ ! -f "$RUNNER_TEMP/language-warnings" ] || [ -z "$PR_NUMBER" ]; then
+            exit 0
+          fi
+          set +e
+          output=$(gh pr edit "$PR_NUMBER" --add-label language-signoff-required 2>&1)
+          status=$?
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo "::warning::標籤新增失敗，須人工確認語言簽核"
+            echo "標籤新增失敗，須人工確認語言簽核" >> "$GITHUB_STEP_SUMMARY"
+            printf '%s\n' "$output"
+          fi
