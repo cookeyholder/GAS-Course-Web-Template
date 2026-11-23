@@ -74,7 +74,7 @@ console.log("2. 報告讀取異常分支...");
   const context = createRegistry();
   const captured = helpers.captureConsole();
   try {
-    assert.deepStrictEqual(languageCheck.loadReportEntries(), []);
+    assert.deepStrictEqual(languageCheck.loadReportEntries({ root: context.root, error: function () {} }), []);
     languageCheck.buildFixCandidates({
       root: context.root,
       registry: approvals.emptyRegistry(),
