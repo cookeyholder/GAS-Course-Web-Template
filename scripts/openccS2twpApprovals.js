@@ -227,10 +227,13 @@ function loadRegistry(filePath, options) {
  * @description 核准清冊唯一寫入點；寫入前通過純 ascii 與ID重新計算雙驗證。
  * @param {{version: number, approvals: Object}} registry - 清冊
  * @param {string} [filePath] - 清冊路徑
+ * @param {{fs?: Object}} [options] - 可注入檔案系統以驗證寫入失敗路徑
  * @returns {number} 寫入位元組數
  * @throws {Error} 版本不支援或序列化驗證失敗時拋出
  */
-function saveRegistry(registry, filePath) {
+function saveRegistry(registry, filePath, options) {
+  const settings = options || {};
+  const fsApi = settings.fs || fs;
   if (!isSupportedVersion(registry && registry.version)) {
     const error = new Error(VERSION_UNSUPPORTED);
     error.code = VERSION_UNSUPPORTED;
@@ -245,8 +248,20 @@ function saveRegistry(registry, filePath) {
   }
   const target = filePath || APPROVALS_PATH;
   const bytes = Buffer.byteLength(content, "ascii");
-  fs.mkdirSync(path.dirname(target), { recursive: true });
-  fs.writeFileSync(target, content, "ascii");
+  fsApi.mkdirSync(path.dirname(target), { recursive: true });
+  // 先寫暫存檔再原子替換，避免寫入中斷留下損毀的信任邊界清冊。
+  const temporary = target + ".tmp";
+  try {
+    fsApi.writeFileSync(temporary, content, "ascii");
+    fsApi.renameSync(temporary, target);
+  } catch (error) {
+    try {
+      fsApi.unlinkSync(temporary);
+    } catch (cleanupError) {
+      // 暫存檔不存在或無法移除時不掩蓋原始寫入錯誤。
+    }
+    throw error;
+  }
   return bytes;
 }
 

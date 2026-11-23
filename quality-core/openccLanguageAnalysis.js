@@ -4,7 +4,7 @@
  * @file openccLanguageAnalysis.js
  * @description 語言檢查候選分析之純函式核心。候選僅由 s2tw 差異定位，
  *              s2twp 與 MAINLAND_TERMS 僅附加建議選項；硬違規偵測、
- *              授權四態與報告中繼資料集中於此，全部無副作用且仅供 Node 工具鏈使用。
+ *              授權四態與報告中繼資料集中於此，全部無副作用且僅供 Node 工具鏈使用。
  */
 
 const stableId = require("./openccStableId.js");

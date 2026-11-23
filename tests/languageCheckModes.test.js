@@ -398,4 +398,48 @@ console.log("開始執行語言檢查四模式契約測試...\n");
   }
 }
 
+{
+  // 核准清冊讀取失敗時不得被空清冊覆寫（PR #19 審查意見）
+  const env = makeEnvironment('const a = "\u9879\u76ee";\n');
+  try {
+    const entry = reportData(env).entries[0];
+    assert.strictEqual(approve(env, entry), 0);
+    const before = fs.readFileSync(env.registryPath, "utf8");
+    const denied = Object.assign({}, env.options, {
+      readFile: function () {
+        throw new Error("EACCES");
+      }
+    });
+    const revokeMessages = [];
+    const revokeOptions = Object.assign({}, denied, {
+      error: function (message) {
+        revokeMessages.push(message);
+      }
+    });
+    assert.strictEqual(languageCheck.runApprovalCommand({ mode: "revoke", ids: [] }, revokeOptions), 1);
+    assert.strictEqual(fs.readFileSync(env.registryPath, "utf8"), before);
+    assert.ok(
+      revokeMessages.some(function (message) {
+        return message.includes("APPROVALS_UNAVAILABLE");
+      })
+    );
+    const approveMessages = [];
+    const approveOptions = Object.assign({}, denied, {
+      error: function (message) {
+        approveMessages.push(message);
+      }
+    });
+    assert.strictEqual(languageCheck.runApprovalCommand({ mode: "approve", ids: [entry.id] }, approveOptions), 1);
+    assert.strictEqual(fs.readFileSync(env.registryPath, "utf8"), before);
+    assert.ok(
+      approveMessages.some(function (message) {
+        return message.includes("APPROVALS_UNAVAILABLE");
+      })
+    );
+    console.log("   ✓ 清冊讀取失敗時核准與撤銷皆中止且不覆寫既有紀錄");
+  } finally {
+    env.project.cleanup();
+  }
+}
+
 console.log("✓ 語言檢查四模式契約測試全數通過！\n");

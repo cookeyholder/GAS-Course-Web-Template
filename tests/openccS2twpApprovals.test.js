@@ -447,4 +447,87 @@ console.log("7. 授權決策表：無效紀錄與 reportedId 診斷...");
   console.log("   ✓ 無效紀錄與 reportedId 診斷驗證通過！\n");
 }
 
+{
+  // 原子寫入失敗路徑：寫入或替換失敗時不得保留暫存檔，且不得掩蓋原始錯誤。
+  const registry = approvals.emptyRegistry();
+  const originalError = new Error("DISK_FULL");
+  let unlinkCount = 0;
+  const failingFs = {
+    mkdirSync: function () {},
+    writeFileSync: function () {
+      throw originalError;
+    },
+    renameSync: function () {},
+    unlinkSync: function () {
+      unlinkCount += 1;
+    }
+  };
+  assert.throws(
+    function () {
+      approvals.saveRegistry(registry, path.join(os.tmpdir(), "approvals-fail.json"), { fs: failingFs });
+    },
+    function (error) {
+      return error === originalError;
+    }
+  );
+  assert.strictEqual(unlinkCount, 1);
+
+  unlinkCount = 0;
+  const renameError = new Error("RENAME_FAILED");
+  const renameFs = {
+    mkdirSync: function () {},
+    writeFileSync: function () {},
+    renameSync: function () {
+      throw renameError;
+    },
+    unlinkSync: function () {
+      unlinkCount += 1;
+    }
+  };
+  assert.throws(
+    function () {
+      approvals.saveRegistry(registry, path.join(os.tmpdir(), "approvals-rename-fail.json"), { fs: renameFs });
+    },
+    function (error) {
+      return error === renameError;
+    }
+  );
+  assert.strictEqual(unlinkCount, 1);
+
+  const cleanupError = new Error("CLEANUP_FAILED");
+  const cleanupFs = {
+    mkdirSync: function () {},
+    writeFileSync: function () {},
+    renameSync: function () {
+      throw renameError;
+    },
+    unlinkSync: function () {
+      throw cleanupError;
+    }
+  };
+  assert.throws(
+    function () {
+      approvals.saveRegistry(registry, path.join(os.tmpdir(), "approvals-cleanup-fail.json"), { fs: cleanupFs });
+    },
+    function (error) {
+      return error === renameError;
+    }
+  );
+
+  const writes = [];
+  const injectedFs = {
+    mkdirSync: function () {},
+    writeFileSync: function (target, content) {
+      writes.push({ target: target, content: content });
+    },
+    renameSync: function () {},
+    unlinkSync: function () {}
+  };
+  const bytes = approvals.saveRegistry(registry, undefined, { fs: injectedFs });
+  assert.strictEqual(writes.length, 1);
+  assert.strictEqual(writes[0].target, approvals.APPROVALS_PATH + ".tmp");
+  assert.strictEqual(bytes, Buffer.byteLength(writes[0].content, "ascii"));
+  console.log("   ✓ 原子寫入失敗路徑與預設清冊路徑驗證通過！\n");
+}
+
 console.log("✓ 核准清冊外殼契約測試全數通過！\n");

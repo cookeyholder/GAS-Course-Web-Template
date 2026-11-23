@@ -10,8 +10,27 @@
 
 const fs = require("fs");
 const path = require("path");
-const parser = require("@babel/parser");
 const drift = require("../quality-core/openccContractDrift.js");
+
+/**
+ * 解析器延遲載入：僅產生／檢查契約清冊時需要。
+ * 硬閘門與語言報告模式不得因解析器相依缺失而無法載入。
+ *
+ * @returns {Object} @babel/parser 模組
+ */
+function getParser() {
+  return require("@babel/parser");
+}
+
+/**
+ * 判斷是否為解析器相依缺失，避免與一般語法解析失敗混淆。
+ *
+ * @param {*} error - 例外
+ * @returns {boolean} 是否為解析器缺失
+ */
+function isParserUnavailableError(error) {
+  return Boolean(error && error.code === "MODULE_NOT_FOUND" && /@babel\/parser/.test(String(error.message)));
+}
 
 /** 專案根目錄 */
 const ROOT = path.join(__dirname, "..");
@@ -137,11 +156,11 @@ function visitNode(node, lines, found) {
  * @param {Array<{file: string, message: string}>} [parseFailures] - 解析失敗紀錄
  * @returns {string[]} 字面值陣列
  */
-function extractFromFile(file, parseFailures) {
+function extractFromFile(file, parseFailures, parserApi) {
   const source = fs.readFileSync(file, "utf8");
   let ast;
   try {
-    ast = parser.parse(source, { sourceType: "unambiguous" });
+    ast = (parserApi || getParser()).parse(source, { sourceType: "unambiguous" });
   } catch (error) {
     if (Array.isArray(parseFailures)) parseFailures.push({ file: file, message: error.message });
     return [];
@@ -168,8 +187,10 @@ function collectContractLiterals(testsDir) {
 function collectContractLiteralsWithStatus(testsDir) {
   const found = new Set();
   const parseFailures = [];
+  // 解析器缺失時直接向外拋出，避免被誤記為大量測試檔解析失敗並掩蓋 MODULE_NOT_FOUND 診斷。
+  const parserApi = getParser();
   collectTestFiles(testsDir).forEach(function (file) {
-    extractFromFile(file, parseFailures).forEach(function (literal) {
+    extractFromFile(file, parseFailures, parserApi).forEach(function (literal) {
       found.add(literal);
     });
   });
@@ -182,13 +203,27 @@ function collectContractLiteralsWithStatus(testsDir) {
  * @returns {string[]} 字面值陣列
  */
 function readManifest(outputPath) {
+  const status = readManifestStatus(outputPath);
+  return status.ok ? status.literals : [];
+}
+
+/**
+ * @description 讀取版控清冊並回報可用性，避免清冊遺失或損毀時漂移檢查fail-open。
+ * @param {string} [outputPath] - 清冊路徑
+ * @returns {{ok: boolean, literals: string[], reason: ?string}} 讀取結果
+ */
+function readManifestStatus(outputPath) {
   const target = outputPath || OUTPUT_PATH;
+  let data;
   try {
-    const data = JSON.parse(fs.readFileSync(target, "utf8"));
-    return Array.isArray(data.literals) ? data.literals : [];
+    data = JSON.parse(fs.readFileSync(target, "utf8"));
   } catch (error) {
-    return [];
+    return { ok: false, literals: [], reason: "MANIFEST_UNAVAILABLE" };
   }
+  if (!data || typeof data !== "object" || !Array.isArray(data.literals)) {
+    return { ok: false, literals: [], reason: "MANIFEST_UNAVAILABLE" };
+  }
+  return { ok: true, literals: data.literals, reason: null };
 }
 
 /**
@@ -230,13 +265,27 @@ function main(argv, options) {
   const outputPath = settings.outputPath || OUTPUT_PATH;
   const log = settings.log || console.log;
   const error = settings.error || console.error;
-  const status = collectContractLiteralsWithStatus(settings.testsDir || TESTS_DIR);
+  let status;
+  try {
+    status = collectContractLiteralsWithStatus(settings.testsDir || TESTS_DIR);
+  } catch (caught) {
+    if (isParserUnavailableError(caught)) {
+      error("PARSER_UNAVAILABLE：" + caught.message + "（code: " + caught.code + "）");
+      return 1;
+    }
+    throw caught;
+  }
   const current = status.literals;
   status.parseFailures.forEach(function (failure) {
     error("::warning::契約字面值解析失敗：" + path.relative(ROOT, failure.file) + "：" + failure.message);
   });
   if (args.includes("--check")) {
-    const manifest = readManifest(outputPath);
+    const manifestStatus = readManifestStatus(outputPath);
+    if (!manifestStatus.ok) {
+      error("::warning::" + manifestStatus.reason + "：契約字面值清冊遺失或格式無效，漂移檢查中止");
+      return 1;
+    }
+    const manifest = manifestStatus.literals;
     const result = compareWithManifest(current, manifest);
     log(drift.formatDriftWarning(result) || "契約字面值清冊無漂移。");
     log("目前字面值筆數：" + current.length);
@@ -280,6 +329,7 @@ module.exports = {
   collectContractLiterals: collectContractLiterals,
   collectContractLiteralsWithStatus: collectContractLiteralsWithStatus,
   readManifest: readManifest,
+  readManifestStatus: readManifestStatus,
   writeManifest: writeManifest,
   compareWithManifest: compareWithManifest,
   main: main

@@ -21,7 +21,12 @@ const approvals = require("./openccS2twpApprovals.js");
 const analysis = require("../quality-core/openccLanguageAnalysis.js");
 const candidateCore = require("../quality-core/openccCandidates.js");
 const protectedCore = require("../quality-core/openccProtectedTerms.js");
-const literalGenerator = require("./generateOpenccS2twpContractLiterals.js");
+
+/**
+ * 報告模式的契約漂移佔位值。
+ * `@babel/parser` 僅由契約漂移檢查步驟使用，硬閘門與報告步驟不得載入該解析器。
+ */
+const REPORT_LITERAL_DRIFT = Object.freeze({ drifted: false, added: [], removed: [] });
 
 /** 明確簡體專用字（每一字在繁體皆有不同碼位） */
 const SIMPLIFIED_CHARACTERS = new Set(
@@ -416,7 +421,7 @@ function buildReportData(options) {
     rawCandidates.push.apply(rawCandidates, result.raw);
   });
   const registry = settings.registry || approvals.loadRegistry(settings.approvalsPath);
-  const literalDrift = settings.literalDrift || literalGenerator.compareWithManifest();
+  const literalDrift = settings.literalDrift || REPORT_LITERAL_DRIFT;
   const violations = checkProject(root, settings);
   const violationCount = violations.reduce(function (total, item) {
     return total + item.violations.length;
@@ -666,6 +671,10 @@ function runApprovalCommand(parsed, options) {
 
   if (parsed.mode === "revoke") {
     const current = approvals.loadRegistry(registryPath, settings);
+    if (current.diagnostic) {
+      error("APPROVALS_UNAVAILABLE：" + current.diagnostic + "；已中止撤銷以避免覆寫既有核准");
+      return 1;
+    }
     const result = approvals.revokeApprovals(current, ids);
     approvals.saveRegistry(result.registry, registryPath);
     log(approvals.formatOperationResult(result));
@@ -679,6 +688,10 @@ function runApprovalCommand(parsed, options) {
     byId.set(entry.id, entry);
   });
   const current = approvals.loadRegistry(registryPath, settings);
+  if (current.diagnostic) {
+    error("APPROVALS_UNAVAILABLE：" + current.diagnostic + "；已中止核准以避免覆寫既有清冊");
+    return 1;
+  }
   let registry = current;
   const added = [];
   const missing = [];
@@ -867,7 +880,9 @@ function formatMarkdownReport(data) {
 function writeReport(data, outputDir, options) {
   const settings = options || {};
   const fsApi = settings.fs || fs;
-  const dir = path.resolve(outputDir || DEFAULT_REPORT_DIR);
+  // 與 isReportOutputDirSafe 共用同一基準（專案根目錄），避免檢查與寫入對象不一致。
+  const root = settings.root || path.join(__dirname, "..");
+  const dir = path.resolve(root, outputDir || DEFAULT_REPORT_DIR);
   try {
     fsApi.mkdirSync(dir, { recursive: true });
     const meta = Object.assign({ type: "meta" }, (data && data.meta) || {});

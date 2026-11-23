@@ -278,4 +278,41 @@ console.log("5. --check 漂移警告與移除閾值...");
   }
 }
 
+{
+  // 清冊遺失或格式無效時 --check 必須 fail-closed（PR #19 審查意見）
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "contract-manifest-status-"));
+  try {
+    const missing = path.join(tempDir, "missing.json");
+    assert.deepStrictEqual(generator.readManifestStatus(missing), {
+      ok: false,
+      literals: [],
+      reason: "MANIFEST_UNAVAILABLE"
+    });
+    const invalid = path.join(tempDir, "invalid.json");
+    fs.writeFileSync(invalid, "not json", "utf8");
+    assert.strictEqual(generator.readManifestStatus(invalid).reason, "MANIFEST_UNAVAILABLE");
+    const captured = createCapture();
+    assert.strictEqual(
+      generator.main(["--check"], {
+        testsDir: path.join(tempDir, "empty-tests"),
+        outputPath: missing,
+        log: captured.capture,
+        error: captured.capture
+      }),
+      1
+    );
+    assert.ok(
+      captured.lines.some(function (line) {
+        return line.includes("MANIFEST_UNAVAILABLE");
+      })
+    );
+    const valid = path.join(tempDir, "valid.json");
+    fs.writeFileSync(valid, JSON.stringify({ version: 1, literals: ["甲"] }), "utf8");
+    assert.deepStrictEqual(generator.readManifestStatus(valid), { ok: true, literals: ["甲"], reason: null });
+    console.log("   ✓ 清冊可用性檢查驗證通過！\n");
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 console.log("✓ 契約字面值清冊產生器測試全數通過！\n");

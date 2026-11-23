@@ -70,7 +70,8 @@ function matchesRule(rule, file) {
     return normalized === prefix || normalized.indexOf(prefix + "/") === 0;
   }
   if (pattern.indexOf("/") === -1) {
-    if (pattern.charAt(0) === "*") return base.endsWith(pattern.slice(1));
+    // 無斜線的全域模式僅比對根目錄檔案，與 clasp 使用的 micromatch 語意一致。
+    if (pattern.charAt(0) === "*") return !normalized.includes("/") && base.endsWith(pattern.slice(1));
     return base === pattern;
   }
   return normalized === pattern || normalized.indexOf(pattern + "/") === 0;
@@ -144,9 +145,11 @@ console.log("4. Markdown、PDF、CSV 與核閱文件不在上傳集合...");
 
 console.log("5. 必要後端檔案與打包產物仍在上傳集合...");
 {
-  ["appsscript.json", "index.html", "main.js", "webApi.js", "scripts/build-webapp.js"].forEach(function (file) {
+  ["appsscript.json", "index.html", "main.js", "webApi.js", "actionRegistry.js"].forEach(function (file) {
     assert.ok(isUploaded(file), file + " 應在上傳集合");
   });
+  // `!*.js` 僅放行根目錄 JS；scripts/ 下的 Node 工具鏈檔案本就不該上傳 GAS。
+  assert.ok(!isUploaded("scripts/build-webapp.js"), "scripts/build-webapp.js 不得在上傳集合");
   console.log("   ✓ 必要檔案驗證通過！\n");
 }
 
