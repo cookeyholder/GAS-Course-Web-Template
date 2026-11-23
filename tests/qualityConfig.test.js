@@ -2,7 +2,8 @@
 
 /**
  * 品質設定與基準檔測試（G1.2）
- * 驗證品質量測設定可被腳本讀取，且 2026-11-18 基準資訊可追溯。
+ * 驗證品質量測設定可被腳本讀取，2026-11-18 基準資訊可追溯，
+ * 且 quality-core 純函式核心已納入覆蓋率與複雜度量測。
  */
 
 const assert = require("assert");
@@ -99,6 +100,44 @@ console.log("4. 驗證 2026-11-18 過期快照仍可供歷史比較...");
   assert.strictEqual(history.crap.crapOver30Count, 56);
   assert.strictEqual(history.maintainability.miMin, 69.134);
   console.log("   ✓ 過期快照歷史比較驗證通過！\n");
+}
+
+console.log("5. 驗證品質核心模組已納入覆蓋率與複雜度量測...\n");
+{
+  const baseline = qualityConfig.loadBaseline();
+  const coreModules = [
+    "openccStableId.js",
+    "openccTextDiff.js",
+    "openccCandidates.js",
+    "openccProtectedTerms.js",
+    "openccLanguageAnalysis.js",
+    "openccContractDrift.js"
+  ];
+
+  assert.deepStrictEqual(baseline.scope.include, qualityConfig.SCOPE.include, "基準納管範圍應與設定一致");
+  assert(baseline.scope.files >= 49, "基準納管檔案數應反映加入核心後的重新量測");
+  assert(baseline.scope.methods >= 1104, "基準納管函式數應反映加入核心後的重新量測");
+
+  const checkChangedCoverage = require("../scripts/checkChangedCoverage.js");
+  coreModules.forEach(function (name) {
+    assert(checkChangedCoverage.isInScope("quality-core/" + name), "覆蓋率量測範圍應含品質核心模組：" + name);
+  });
+
+  const checkComplexity = require("../scripts/checkComplexity.js");
+  const sources = checkComplexity.collectSourceFiles();
+  coreModules.forEach(function (name) {
+    assert(sources.includes("quality-core/" + name), "複雜度來源應含品質核心模組：" + name);
+  });
+  const analyses = checkComplexity.collectAnalyses({
+    sourceFiles: coreModules.map(function (name) {
+      return "quality-core/" + name;
+    })
+  });
+  assert.strictEqual(analyses.length, coreModules.length, "六個品質核心模組皆應通過複雜度分析");
+  analyses.forEach(function (analysis) {
+    assert(analysis.methods.length > 0, "品質核心模組應含可量測函式：" + analysis.file);
+  });
+  console.log("   ✓ 六個品質核心模組已出現在覆蓋率與複雜度量測驗證通過！\n");
 }
 
 console.log("✓ 品質設定與基準檔測試全數通過！\n");

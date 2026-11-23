@@ -110,6 +110,18 @@ CRAP 最高值恰等於硬門檻 30，未超標；MI 最低值遠高於硬門檻
 
 `courses.js` 與 `activityLog.js` 的共用清單控制邏輯抽至 `listController.js`，inline 事件字串改由 `eventBindings.js` 統一委派，`wiring.js` 負責最後的依賴組裝。
 
+## 品質基準範圍演進（OpenCC 語言檢查移植）
+
+> 本節記錄 `port-opencc-zh-tw-language-check` 變更對量測範圍的影響；上方表格保留 2026-11-20 量測當下的原始數字，做為歷史與 ratchet 比較依據。
+
+| 時間點                            | 納管模組 | 納管函式 | 說明                                                 |
+| --------------------------------- | -------- | -------- | ---------------------------------------------------- |
+| 2026-11-20 現行基準               | 42       | 900      | 尚未建立 `quality-core/`，範圍僅含根目錄、前端與腳本 |
+| 加入核心前現況（task 1.5 完成後） | 43       | 990      | 已於設定加入 `quality-core/*.js`，但核心檔案尚未建立 |
+| 加入核心後重新量測（task 2.6）    | 49       | 1104     | 六個 OpenCC 純函式核心完成後的最終數字               |
+
+`scripts/quality-baseline.json` 的 `measuredAt`、`miMin`、`crapMax`、`ratchet` 與 2026-11-18 過期快照比較維持原值做為歷史地板，僅 `scope.include`／`scope.files`／`scope.methods` 隨量測範圍更新。加入核心後重新量測結果：Lines／Statements 97.50%、Functions 95.14%、Branches 86.52%，CRAP 最高 24.04，MI 最低 85.28；七個 ratchet 維度皆未回退，且 CRAP ≤ 25、MI ≥ 50。
+
 ## 追溯檔案
 
 - 現行基準：`scripts/quality-baseline.json`

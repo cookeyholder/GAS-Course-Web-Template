@@ -793,6 +793,7 @@ module.exports = {
   findProtectedSpans: findProtectedSpans,
   overlapsProtected: overlapsProtected,
   isProtectedByText: isProtectedByText,
+  findAllOccurrences: findAllOccurrences,
   detectHardViolations: detectHardViolations,
   findLongestCoveringViolation: findLongestCoveringViolation,
   buildConversionMap: buildConversionMap,

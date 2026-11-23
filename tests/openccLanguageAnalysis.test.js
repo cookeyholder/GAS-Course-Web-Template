@@ -520,4 +520,76 @@ console.log("16. 報告中繼資料計數與報告資料組合...\n");
   console.log("   ✓ 中繼計數、不變式與報告資料組合驗證通過！\n");
 }
 
+console.log("17. 防禦性預設、空值與快取分支...\n");
+{
+  const terms = ["設備組"];
+  assert.deepStrictEqual(
+    analysis.findProtectedSpans("設備組", terms),
+    analysis.findProtectedSpans("設備組", terms),
+    "重複呼叫應命中 trie 快取"
+  );
+  assert.strictEqual(analysis.overlapsProtected(null, [{ start: 0, end: 1 }]), false);
+  assert.strictEqual(analysis.isProtectedByText("未在清冊", null), false);
+  assert.strictEqual(analysis.isProtectedByText("x", [null, "", 123]), false);
+  assert.strictEqual(analysis.isProtectedByText("設備", ["設備組"]), true);
+  assert.strictEqual(analysis.isProtectedByText("設備組", ["設備"]), true, "反向包含亦視為受保護");
+  assert.deepStrictEqual(analysis.findAllOccurrences("abc", ""), []);
+  assert.deepStrictEqual(analysis.detectHardViolations("完全正常"), []);
+  assert.deepStrictEqual(
+    analysis.detectHardViolations("完全正常", { mainlandTerms: [null, ["", "替代"]], simplifiedCharacters: null }),
+    []
+  );
+  assert.strictEqual(analysis.findLongestCoveringViolation({ start: 0, end: 1 }, null), null);
+  assert.deepStrictEqual(analysis.buildConversionMap("abc", null), ["a", "b", "c"]);
+  assert.strictEqual(analysis.projectConvertedRange([], 5, 8), "", "超出對照表範圍回空字串");
+  const emptyRaw = analysis.makeRawCandidate();
+  assert.strictEqual(emptyRaw.protected, false);
+  assert.deepStrictEqual(emptyRaw.suggestionOptions, []);
+  assert.strictEqual(emptyRaw.reason, "");
+  const emptyExempt = analysis.makeExemptCandidate();
+  assert.strictEqual(emptyExempt.exempt, true);
+  assert.strictEqual(emptyExempt.lineText, "");
+  assert.deepStrictEqual(analysis.analyzeLine(), []);
+
+  const unlisted = analysis.analyzeLine(
+    makeContext({
+      lineText: SIMPLED_JIN,
+      convertedText: TRAD_JIN,
+      s2twpText: TRAD_JIN,
+      simplifiedCharacters: new Set(),
+      mainlandTerms: []
+    })
+  );
+  assert.strictEqual(unlisted.length, 1);
+  assert.strictEqual(unlisted[0].rule, analysis.RULE_S2TWP, "未命中硬違規時 rule 為 S2TWP");
+  assert.strictEqual(unlisted[0].reason, "s2tw 簡體字差異");
+
+  const minimalEntry = analysis.candidateFromReportEntry({ id: "aaaaaaaaaaaaaaaa", column: 0 });
+  assert.strictEqual(minimalEntry.lineText, "");
+  assert.strictEqual(minimalEntry.end, 0);
+  assert.deepStrictEqual(minimalEntry.suggestionOptions, []);
+  assert.deepStrictEqual(analysis.authorizeCandidates(null, null), {
+    authorized: [],
+    unauthorized: [],
+    invalid: [],
+    mismatched: []
+  });
+  const approved = makeCandidate();
+  const grouped = analysis.authorizeCandidates(makeRegistry(approved), [
+    makeCandidate({ original: "含\0分隔" }),
+    makeCandidate({ original: "不同原文", reportedId: stableId.computeStableId(approved) })
+  ]);
+  assert.strictEqual(grouped.invalid.length, 1);
+  assert.strictEqual(grouped.mismatched.length, 1);
+  const defaultEntry = analysis.toReportEntry({ id: "bbbbbbbbbbbbbbbb", file: "a", original: "x" }, false);
+  assert.strictEqual(defaultEntry.approvalState, analysis.RESULT.UNAPPROVED);
+  const emptyMeta = analysis.buildReportMeta();
+  assert.strictEqual(emptyMeta.candidateCount, 0);
+  assert.strictEqual(emptyMeta.protectedTermsStatus, analysis.PROTECTED_TERMS_AVAILABLE);
+  assert.deepStrictEqual(emptyMeta.literalDrift, { drifted: false, added: [], removed: [] });
+  assert.deepStrictEqual(emptyMeta.outOfScopeFiles, []);
+  assert.strictEqual(analysis.buildReportEntries(null).entries.length, 0);
+  console.log("   ✓ 防禦性預設與空值分支驗證通過！\n");
+}
+
 console.log("✓ 語言分析核心契約測試全數通過！\n");
