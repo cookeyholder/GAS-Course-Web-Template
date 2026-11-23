@@ -179,6 +179,15 @@ npm run test:coverage
 npm run check:coverage
 npm run check:changed-coverage
 npm run check:complexity
+
+# 12. 臺灣繁體語言檢查與 OpenCC 候選定位（僅 Node 工具鏈）
+npm run language:smoke
+npm run language:report
+npm run language:check        # 等同 --dry-run
+npm run language:fix          # 僅寫入核准紀錄指定的建議
+npm run language:approve -- <id> [建議來源] [建議文字]
+npm run language:revoke -- <id>
+node scripts/generateOpenccS2twpContractLiterals.js --check
 ```
 
 ---
@@ -205,6 +214,29 @@ npm run check:complexity
 
 ---
 
+## 語言合規與 OpenCC 工具紀律
+
+`npm run check:lang` 是**強制硬閘門**，違規判定來源、輸出格式、行內豁免標記（`language-check: ignore`）與結束碼不得變動，排除政策僅新增 `artifacts/`，仍掃描 `openspec/` 與 `docs/參考資料/`。**零違規僅為向後相容錨點，不代表完整語言合規**；此語意只記載於文件，不寫入 `check:lang` 輸出。
+
+### 模組職責
+
+- `scripts/openccS2twp.js`：OpenCC 延遲載入外殼與診斷碼映射，僅供 Node 工具鏈。
+- `quality-core/openccStableId.js`、`quality-core/openccLanguageAnalysis.js`、`quality-core/openccContractDrift.js`：純函式核心，納入覆蓋率與複雜度量測，不上傳 GAS。
+- `scripts/languageCheck.js`：硬閘門與 `--report`／`--dry-run`／`--fix`／`--approve`／`--revoke` 單一入口。
+- `scripts/openccS2twpApprovals.js` 與 `scripts/openccS2twpApprovals.json`：核准清冊外殼與純 ASCII 清冊。
+- `scripts/openccS2twpProtectedTerms.js`、`scripts/generateOpenccS2twpContractLiterals.js` 與 `scripts/openccS2twpContractLiterals.json`：受保護清冊與契約字面值清冊。
+
+### 工具使用紀律
+
+1. **候選定位與人工選詞**：候選存在與位置**僅由 `s2tw` 差異決定**；`s2twp` 差異不得單獨建立候選，只對已定位候選提供 `S2TWP` 建議。繁體「項目」在 `s2tw` 下無差異，故不產生候選；即使 `s2twp` 誤改為「專案」亦不得據此建立候選。由正體字組成的中國用語違規（如 `\u652f\u6301`、`\u914d\u7f6e`）仍由硬閘門回報並人工修正，不進候選工具。所有建議皆須人工依上下文挑選並以 `--approve` 明確核准，`--fix` 不得因 `rule === "HARD"`、`high` 層或建議來源而自動寫入。
+2. **穩定 ID 已知限制**：ID 由 `file`、`original`、`contextHash`、`occurrenceIndex` 四欄位以 `\0` 分隔後取 SHA-256 前 16 碼，**不含行號、欄位偏移與建議文字**；已知取捨為同行重新格式化或前方插入相同字面值會改變 `contextHash`／`occurrenceIndex`，使既有核准失效，須重新核准後重新產生報告。
+3. **`reportedId` 是否決導向欄位**：不得做為正向授權來源，但**必須查詢**做為衝突與失效診斷，足以否決目前 ID 的授權。`authorizeCandidate()` 為 `buildReportData()` 與 `--fix` 共用的單一計算點，須如實反映 `protected`／`exempt` 否決，避免報告顯示 `AUTHORIZED` 而寫入不執行。
+4. **序列化層與呈現層分離**：JSON 檔案只做 `JSON.stringify` 後逐 UTF-16 程式碼單元 `\uXXXX` 後處理，保持純 ASCII 且以 `JSON.parse` 為唯一解碼點；Markdown 報告與核閱表格另採呈現層，逐碼元跳脫所有非 ASCII 字元，不逐詞比對簡體字集。切記 `\uXXXX` 是 JSON 標準跳脫，不是字面雙反斜線。
+5. **核准清冊信任邊界**：**直接改寫 `scripts/openccS2twpApprovals.json` 等同核准，須經 Pull Request 核閱**。**明文禁止同時執行多個 `--approve`／`--revoke`／`--fix`**，以免後寫入者以舊快照覆蓋清冊使已撤銷核准復活；請由 Pull Request 流程序列化核准變更。
+6. **非阻斷 CI 與錨點語意**：CI 新增的 smoke、報告、漂移檢查、構件 meta 驗證、構件上傳與標籤步驟全部 `if: always()` 且 `continue-on-error: true`，只報不寫，不改變強制閘門結果。凡有警告，工作流程摘要即輸出固定錨點 `LANGUAGE_SIGNOFF_REQUIRED` 與「語言警告未處理，合併前須人工簽核」，並嘗試加上 `language-signoff-required` 標籤；核閱文件 SIGNOFF 欄位另標註「語言警告已處理，合併前人工簽核」並填寫核閱者與日期，兩處字串語意不同且皆須出現。
+
+---
+
 ## 測試與變更檢驗標準
 
 任何程式碼或功能變更前與提交前，必須通過以下檢驗標準：
@@ -220,7 +252,7 @@ npm run check:complexity
 - **全域覆蓋率**：初始門檻 Lines >= 60%、Statements >= 30%、Functions >= 60%、Branches >= 60%，且不得低於基準線（不回退）。
 - **變更覆蓋率**：Lines >= 80%、Branches >= 80%（無可量測變更時略過）。
 - **複雜度**：每個納管函式 **CRAP MUST NOT > 25**；每個納管模組 **MI MUST >= 50**。
-- **基準線與設定**：`scripts/quality-baseline.json`、`scripts/qualityConfig.js`（2026-11-18 基準）；CI 品質閘門見 `.github/workflows/quality-gates.yml`。
+- **基準線與設定**：`scripts/quality-baseline.json`、`scripts/qualityConfig.js`（2026-11-20 基準）；CI 品質閘門見 `.github/workflows/quality-gates.yml`。
 
 ### CI 品質閘門與相依套件
 
@@ -363,6 +395,7 @@ PR 內文應包含以下五大核心區塊：
 
 1. **壓扁合併（Squash Merge）**：
    - 確認遠端 GitHub Actions CI 檢查全數通過（全綠燈）、且所有審查意見均已妥善處理完畢後，執行 Squash Merge 將該 PR 合併至 `main` 分支。
+   - **語言簽核禁合規則**：帶 `language-signoff-required` 標籤或工作流程摘要含 `LANGUAGE_SIGNOFF_REQUIRED` 錨點的 PR，若核閱文件 SIGNOFF 空白、未填寫核閱者與日期或 Reviewer 未明確核准，**絕對嚴禁 Squash Merge 該 PR**。合併前查核須主動檢查工作流程摘要是否含該錨點，不得僅依賴 PR 標籤；**錨點存在即視為帶警告，不因標籤缺失而放行**。若摘要仍輸出該錨點或「語言警告未處理，合併前須人工簽核」，代表語言證據步驟仍有警告，須由人工完成核閱文件 SIGNOFF（標註「語言警告已處理，合併前人工簽核」並填寫核閱者與日期）並重跑 CI 確認警告消失後方可放行；標籤新增失敗時仍須人工確認。
 2. **本地分支同步與清理**：
    - **同步最新 `main` 分支**：切換至本地 `main` 分支並取得最新變更（`git checkout main && git pull origin main`）。
    - **解除 Worktree 鎖定與分支清理（順序不可顛倒）**：
