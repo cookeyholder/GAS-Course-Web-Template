@@ -47,7 +47,7 @@
 ## 6. 全專案核閱與證據
 
 - [x] 6.1 執行 `npm run language:report` 產生分層報告，先定義同類合併判定與抽樣規則，再逐筆從 `suggestionOptions` 判斷上下文挑選合適建議，並將確認為 OpenCC 過度轉換的原文與誤改結果補入受保護清冊；可量測完成條件為：重新產生報告後 `candidateCount` 不再下降，且所有剩餘未保護候選皆能逐筆歸類為「diff 對齊工具輸出」或「已補入受保護清冊」兩類之一（不要求歸零，但不得有未分類項目），每筆並記錄所選來源與理由，報告數字可追溯。
-- [ ] 6.2 執行 `node scripts/generateOpenccS2twpContractLiterals.js --check`；驗證無非預期漂移，若有新增則重新生成清冊並通過檢查。
+- [x] 6.2 執行 `node scripts/generateOpenccS2twpContractLiterals.js --check`；驗證無非預期漂移，若有新增則重新生成清冊並通過檢查。
 - [ ] 6.3 撰寫 `docs/opencc-s2twp-review.md`，記錄硬閘門違規數、候選總數、受保護與未保護候選數、分層數量、豁免行數、漂移狀態、誤改判定、逐筆建議挑選理由、`.css` 等自動範圍外檔案的人工確認證據，以及 `openspec/`／`docs/參考資料/` 違規的人工處理結果；另須逐條記錄「硬閘門違規但零候選」（如 `\u652f\u6301`、`\u914d\u7f6e`、`\u53bb\u91cd`、`\u54c8\u5e0c`）的人工修正前後證據，不得以候選工具未涵蓋視為合規。數字須與報告 meta 的 `candidateCount`／`protectedCount`／`unprotectedCount`／`exemptCandidateCount`／`tierCounts`／`violationCount` 一致。引用候選原文時依 4.2 的呈現層規則，將所有非 ASCII 字元一律 `\uXXXX` 轉義（不逐詞比對），並建立「人工全數跳脫紀律＋完成後再跑一次 `check:lang`」雙重防線；若 `original` 本身是字面 `\uXXXX` 六字元，呈現層會顯示為 `\\uXXXX`，文件須加註說明以免誤讀。文件須增設 SIGNOFF 欄位記錄「語言警告已處理，合併前人工簽核」的核閱者與日期；此字串與工作流程摘要的 `LANGUAGE_SIGNOFF_REQUIRED` 錨點及「語言警告未處理，合併前須人工簽核」不同，兩者皆須出現且不得互換。驗證文件數字與報告一致且 `npm run check:lang` 通過。
 - [ ] 6.4 確認核准清冊維持空白（`{ "version": 1, "approvals": {} }`）且 `npm run language:fix` 不產生任何原始檔變更；於文件明確此為本次掃描結論（CI 與本次核閱只報不寫），並引用 4.6 的端到端測試證明核准寫入路徑可用；驗證 `git status --short` 除預期文件外無異動。
 
