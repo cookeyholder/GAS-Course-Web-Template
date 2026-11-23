@@ -437,6 +437,227 @@ function buildReportData(options) {
   return report;
 }
 
+/**
+ * 呈現層跳脫：逐 UTF-16 程式碼單元將非 ASCII 字元轉為 \uXXXX。
+ *
+ * @param {*} value - 任意值
+ * @returns {string} 純 ASCII 字串
+ */
+function escapePresentationText(value) {
+  const text = String(value === undefined || value === null ? "" : value);
+  let result = "";
+  for (let index = 0; index < text.length; index += 1) {
+    const code = text.charCodeAt(index);
+    result += code > 0x7f ? "\\u" + code.toString(16).padStart(4, "0") : text[index];
+  }
+  return result;
+}
+
+/**
+ * Markdown 表格儲存格呈現層跳脫；所有非 ASCII 與管線符號皆不保留原文。
+ *
+ * @param {*} value - 任意值
+ * @returns {string} 純 ASCII 儲存格文字
+ */
+function escapeMarkdownCell(value) {
+  return escapePresentationText(value).replace(/\|/g, "\\|").replace(/\r?\n/g, " ");
+}
+
+/**
+ * 驗證序列化後 JSONL 為純 ASCII 且 JSON.parse 可完整還原原始值。
+ *
+ * @param {string} jsonl - 序列化結果
+ * @param {Object} meta - 原始 meta
+ * @param {Array<Object>} entries - 原始項目
+ * @returns {{ok: boolean, reason: string}} 驗證結果
+ */
+function verifySerializedJsonl(jsonl, meta, entries) {
+  if (!approvals.isPureAscii(jsonl)) return { ok: false, reason: "NON_ASCII_SERIALIZATION" };
+  const lines = jsonl.replace(/\n$/, "").split("\n");
+  if (lines.length !== entries.length + 1) return { ok: false, reason: "JSONL_LINE_COUNT_MISMATCH" };
+  if (JSON.stringify(JSON.parse(lines[0])) !== JSON.stringify(meta))
+    return { ok: false, reason: "JSONL_META_MISMATCH" };
+  for (let index = 0; index < entries.length; index += 1) {
+    if (JSON.stringify(JSON.parse(lines[index + 1])) !== JSON.stringify(entries[index])) {
+      return { ok: false, reason: "JSONL_VALUE_MISMATCH" };
+    }
+  }
+  return { ok: true, reason: "" };
+}
+
+/**
+ * 產生人讀 Markdown 摘要；整份文件皆經呈現層跳脫，故為純 ASCII。
+ *
+ * @param {Object} data - 報告資料
+ * @returns {string} 純 ASCII Markdown
+ */
+function formatMarkdownReport(data) {
+  const report = data || {};
+  const meta = report.meta || {};
+  const entries = (report.entries || []).filter(function (entry) {
+    return entry && entry.exempt !== true;
+  });
+  const text = function (value) {
+    return escapePresentationText(value);
+  };
+  const cell = function (value) {
+    return escapeMarkdownCell(value);
+  };
+  const tierCounts = meta.tierCounts || {};
+  const lines = [];
+  lines.push("# " + text("語言檢查報告"));
+  lines.push("");
+  lines.push("- " + text("產生時間") + "：" + text(meta.generatedAt));
+  lines.push("- " + text("硬閘門違規數") + "：" + text(meta.violationCount));
+  lines.push("- " + text("候選總數") + "：" + text(meta.candidateCount));
+  lines.push("- " + text("高信心候選數") + "：" + text(tierCounts.high));
+  lines.push("- " + text("待核可候選數") + "：" + text(tierCounts.pending));
+  lines.push("- " + text("受保護候選數") + "：" + text(meta.protectedCount));
+  lines.push("- " + text("未保護候選數") + "：" + text(meta.unprotectedCount));
+  lines.push("- " + text("豁免候選數") + "：" + text(meta.exemptCandidateCount));
+  lines.push("- " + text("豁免行數") + "：" + text(meta.exemptLines));
+  lines.push(
+    "- " +
+      text("OpenCC 狀態") +
+      "：" +
+      (meta.degraded
+        ? text(OPENCC_UNAVAILABLE) + "（degraded: true）：" + text(meta.degradedReason)
+        : text("正常") + "（degraded: false）")
+  );
+  lines.push(
+    "- " + text("契約漂移") + "：" + (meta.literalDrift && meta.literalDrift.drifted ? text("有漂移") : text("無漂移"))
+  );
+  lines.push("- " + text("受保護清冊狀態") + "：" + text(meta.protectedTermsStatus));
+  lines.push("");
+  lines.push("| " + ["檔案", "行", "欄", "原文", "建議", "分層", "規則", "保護", "狀態"].map(cell).join(" | ") + " |");
+  lines.push("| " + ["---", "---", "---", "---", "---", "---", "---", "---", "---"].map(cell).join(" | ") + " |");
+  entries.slice(0, 500).forEach(function (entry) {
+    lines.push(
+      "| " +
+        [
+          entry.file,
+          entry.line,
+          entry.column,
+          entry.original,
+          entry.suggestion,
+          entry.tier,
+          entry.rule,
+          entry.protected,
+          entry.approvalState
+        ]
+          .map(cell)
+          .join(" | ") +
+        " |"
+    );
+  });
+  if (entries.length > 500) {
+    lines.push("");
+    lines.push(cell("僅列出前 500 筆，其餘請參閱 JSONL 報告。"));
+  }
+  const exempt = (report.entries || []).filter(function (entry) {
+    return entry && entry.exempt === true;
+  });
+  if (exempt.length > 0) {
+    lines.push("", "<details>", "<summary>" + cell("豁免行") + "</summary>", "");
+    exempt.forEach(function (entry) {
+      lines.push("- `" + cell(entry.file) + ":" + cell(entry.line) + "`");
+    });
+    lines.push("", "</details>");
+  }
+  return escapePresentationText(lines.join("\n") + "\n");
+}
+
+/**
+ * 寫出 JSONL 與 Markdown 報告。
+ *
+ * @param {Object} data - 報告資料
+ * @param {string} [outputDir] - 輸出目錄
+ * @param {Object} [options] - 可注入 fs
+ * @returns {{bytes: number, jsonlPath: string, mdPath: string}} 寫入結果
+ * @throws {Error} 驗證或寫入失敗時拋出 REPORT_WRITE_FAILED
+ */
+function writeReport(data, outputDir, options) {
+  const settings = options || {};
+  const fsApi = settings.fs || fs;
+  const dir = path.resolve(outputDir || DEFAULT_REPORT_DIR);
+  try {
+    fsApi.mkdirSync(dir, { recursive: true });
+    const meta = Object.assign({ type: "meta" }, (data && data.meta) || {});
+    const entries = (data && data.entries) || [];
+    const jsonlRaw =
+      [JSON.stringify(meta)]
+        .concat(
+          entries.map(function (entry) {
+            return JSON.stringify(entry);
+          })
+        )
+        .join("\n") + "\n";
+    const jsonl = approvals.escapeNonAscii(jsonlRaw);
+    const verified = verifySerializedJsonl(jsonl, meta, entries);
+    if (!verified.ok) {
+      const wrapped = new Error(verified.reason);
+      wrapped.code = verified.reason;
+      throw wrapped;
+    }
+    const markdown = formatMarkdownReport(data);
+    if (!approvals.isPureAscii(markdown)) {
+      const wrapped = new Error("NON_ASCII_MARKDOWN");
+      wrapped.code = "NON_ASCII_MARKDOWN";
+      throw wrapped;
+    }
+    const jsonlPath = path.join(dir, REPORT_JSONL);
+    const mdPath = path.join(dir, REPORT_MD);
+    fsApi.writeFileSync(jsonlPath, jsonl, "ascii");
+    fsApi.writeFileSync(mdPath, markdown, "ascii");
+    return {
+      bytes: Buffer.byteLength(jsonl, "ascii") + Buffer.byteLength(markdown, "ascii"),
+      jsonlPath: jsonlPath,
+      mdPath: mdPath
+    };
+  } catch (error) {
+    const wrapped = new Error("報告寫入失敗：" + error.message);
+    wrapped.code = REPORT_WRITE_FAILED;
+    throw wrapped;
+  }
+}
+
+/**
+ * 檢查報告輸出目錄是否位於專案根目錄內，且最近既有祖先解析後未逃逸。
+ *
+ * @param {string} outputDir - 輸出目錄
+ * @param {string} root - 專案根目錄
+ * @param {Object} [options] - 可注入 fs
+ * @returns {boolean} 是否安全
+ */
+function isReportOutputDirSafe(outputDir, root, options) {
+  const settings = options || {};
+  const fsApi = settings.fs || fs;
+  const exists = fsApi.existsSync || fs.existsSync;
+  const realpath = fsApi.realpathSync || fs.realpathSync;
+  const base = path.resolve(root || path.join(__dirname, ".."));
+  const target = path.resolve(base, String(outputDir || ""));
+  const relative = path.relative(base, target);
+  if (relative === ".." || relative.startsWith(".." + path.sep) || path.isAbsolute(relative)) return false;
+
+  let ancestor = target;
+  while (!exists(ancestor)) {
+    const parent = path.dirname(ancestor);
+    if (parent === ancestor) return false;
+    ancestor = parent;
+  }
+  let realAncestor;
+  let realBase;
+  try {
+    realAncestor = realpath(ancestor);
+    realBase = realpath(base);
+  } catch (error) {
+    return false;
+  }
+  const realRelative = path.relative(realBase, realAncestor);
+  if (realRelative === ".." || realRelative.startsWith(".." + path.sep) || path.isAbsolute(realRelative)) return false;
+  return true;
+}
+
 /** 解析命令列參數，模式優先序固定。 */
 function parseArgs(argv) {
   const args = Array.isArray(argv) ? argv : [];
@@ -503,6 +724,25 @@ function main(argv, options) {
   const error = settings.error || console.error;
   const parsed = parseArgs(args);
 
+  if (parsed.mode === "report") {
+    const root = settings.root || path.join(__dirname, "..");
+    const outputDir = parsed.outputDir || DEFAULT_REPORT_DIR;
+    if (!isReportOutputDirSafe(outputDir, root, settings)) {
+      error(REPORT_WRITE_FAILED + "：報告輸出目錄必須位於專案根目錄內");
+      log(JSON.stringify({ ok: false, code: REPORT_WRITE_FAILED, bytes: 0 }));
+      return 0;
+    }
+    const data = settings.reportData || buildReportData(Object.assign({ root: root }, settings));
+    try {
+      const written = writeReport(data, outputDir, settings);
+      log(JSON.stringify({ ok: true, code: "REPORT_OK", bytes: written.bytes }));
+    } catch (caught) {
+      error(REPORT_WRITE_FAILED + "：" + caught.message);
+      log(JSON.stringify({ ok: false, code: REPORT_WRITE_FAILED, bytes: 0 }));
+    }
+    return 0;
+  }
+
   if (parsed.mode === "default" || parsed.mode === "dry-run") {
     probeOpenCcAvailability(settings.module);
     const results = checkProject(settings.root, settings);
@@ -548,6 +788,12 @@ if (typeof module !== "undefined" && module.exports) {
     collectReportFiles: collectReportFiles,
     compareReportEntries: compareReportEntries,
     buildReportData: buildReportData,
+    escapePresentationText: escapePresentationText,
+    escapeMarkdownCell: escapeMarkdownCell,
+    verifySerializedJsonl: verifySerializedJsonl,
+    formatMarkdownReport: formatMarkdownReport,
+    writeReport: writeReport,
+    isReportOutputDirSafe: isReportOutputDirSafe,
     parseArgs: parseArgs,
     printViolations: printViolations,
     main: main
