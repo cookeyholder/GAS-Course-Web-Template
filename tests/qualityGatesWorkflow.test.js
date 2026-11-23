@@ -225,4 +225,73 @@ console.log("11. 驗證構件名稱含 SHA 與上傳動作...");
   console.log("   ✓ 構件名稱與上傳驗證通過！\n");
 }
 
+console.log("12. 驗證零候選且零違規不誤報、成功零違規不誤發交叉比對警告...");
+{
+  const artifact = stepBlock("檢查語言報告構件與 meta（非阻斷）");
+  assert.ok(
+    artifact.indexOf("const violationHasRows = violations > 0;") !== -1,
+    "應以 violations > 0 推導違規布林，零違規時為 false"
+  );
+  assert.ok(
+    artifact.indexOf("if (hardGateFailed !== violationHasRows)") !== -1,
+    "硬閘門成功且零違規時 false !== false 成立為假，不得發警告"
+  );
+  assert.ok(
+    artifact.indexOf("violations > 0 && candidates === 0 && !degraded") !== -1,
+    "零候選且零違規時第一項為假，不得觸發零候選警告"
+  );
+  const zeroCandidateWarning = artifact.indexOf("無 s2tw 可定位候選");
+  const zeroCandidateCondition = artifact.indexOf("violations > 0 && candidates === 0 && !degraded");
+  assert.ok(zeroCandidateWarning > zeroCandidateCondition, "零候選警告須由有違規條件守門");
+  assert.ok(
+    !/violations\s*===\s*0|candidates\s*===\s*0[^\n]*markWarning/.test(artifact),
+    "不得對零違規或零候選單獨警告"
+  );
+  console.log("   ✓ 零候選零違規不誤報驗證通過！\n");
+}
+
+console.log("13. 以三種假錯誤注入驗證診斷映射歸屬與禁止 catch-all...");
+{
+  const smoke = stepBlock("OpenCC 可用性檢查（非阻斷）");
+  const report = stepBlock("產生語言檢查結構化報告（非阻斷）");
+  const drift = stepBlock("檢查契約字面值漂移（非阻斷）");
+
+  // 假錯誤一：平台二進位缺失（ERR_DLOPEN_FAILED 或 @opencc/opencc- 前綴）。
+  const binaryFake = "ERR_DLOPEN_FAILED: Cannot open @opencc/opencc-linux-x64.node";
+  [smoke, report, drift].forEach(function (block, index) {
+    const label = ["smoke", "報告", "漂移"][index];
+    assert.ok(
+      block.indexOf("ERR_DLOPEN_FAILED|@opencc/opencc-") !== -1 || block.indexOf("'@opencc/opencc-'") !== -1,
+      label + " 應攔截平台二進位假錯誤：" + binaryFake
+    );
+    assert.ok(block.indexOf("OPENCC_BINARY_MISSING") !== -1, label + " 應將二進位假錯誤映射為 OPENCC_BINARY_MISSING");
+  });
+
+  // 假錯誤二：解析器缺失（MODULE_NOT_FOUND 且含 @babel/parser），僅漂移步驟成立。
+  const parserFake = "Error: Cannot find module '@babel/parser' (MODULE_NOT_FOUND)";
+  assert.ok(
+    drift.indexOf("MODULE_NOT_FOUND") !== -1 && drift.indexOf("@babel/parser") !== -1,
+    "漂移步驟應攔截解析器假錯誤：" + parserFake
+  );
+  assert.ok(drift.indexOf("PARSER_UNAVAILABLE") !== -1, "漂移步驟應將解析器假錯誤映射為 PARSER_UNAVAILABLE");
+  assert.ok(!/PARSER_UNAVAILABLE/.test(smoke + report), "smoke 與報告步驟不得輸出 PARSER_UNAVAILABLE");
+
+  // 假錯誤三：其餘 OpenCC 載入／建構／轉換失敗。
+  const genericFake = "OpenCC conversion failed unexpectedly";
+  [smoke, report, drift].forEach(function (block, index) {
+    assert.ok(
+      block.indexOf("OPENCC_UNAVAILABLE") !== -1,
+      ["smoke", "報告", "漂移"][index] + " 應有通用 OpenCC 碼：" + genericFake
+    );
+    const elseBranch = block.split("\n").find(function (line) {
+      return line.indexOf("code=OPENCC_UNAVAILABLE") !== -1 || line.indexOf("code=OPENCC_BINARY_MISSING") !== -1;
+    });
+    assert.ok(elseBranch !== undefined, "應以明確 else 分支映射其餘錯誤，禁止 catch-all");
+  });
+
+  // 三種碼皆為固定字面值，不得由錯誤訊息原樣帶出。
+  assert.ok(!/code=\"?\$output/.test(smoke + report + drift), "診斷碼不得直接取自錯誤輸出");
+  console.log("   ✓ 假錯誤注入映射驗證通過！\n");
+}
+
 console.log("✓ CI 品質閘門 workflow 測試全數通過！\n");
