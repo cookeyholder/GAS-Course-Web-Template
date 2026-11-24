@@ -7173,3 +7173,66 @@ html[data-style="nes"][data-theme="dark"] .table-hover tbody tr:hover td {
     animation: none !important;
   }
 }
+
+/* ==========================================================================
+   移植自 KSVS 的三款視覺風格（角色宣告）
+   ========================================================================== */
+
+/* 藏青磚紅 (Navy Brick) - 米紙底色、藏青導覽、磚紅強調 */
+html[data-style="navy-brick"] {
+  --bg: #fbf9f3;
+  --paper: #ffffff;
+  --ink: #1b2f47;
+  --ink-2: #4a5a6d;
+  --ink-3: #5f6d7e;
+  --line: #1b2f47;
+  --line-2: #d9d1bd;
+  --fill: #f5f1e7;
+  --fill-2: #e9e3d5;
+  --accent: #b8402d;
+  --accent-bg: #f7ece8;
+  --ok: #2e6b4f;
+  --ok-bg: #e4f0e8;
+  --err: #b3261e;
+  --err-bg: #f9e4e2;
+  --danger: var(--err);
+  --warn: #8a5a12;
+  --warn-bg: #f8ecda;
+  --shadow: none;
+  --radius: 2px;
+  --head-font: var(--sans);
+  --bg-pattern: none;
+  --bg-size: auto;
+  --style-nav-bg: #1b2f47;
+  --style-nav-ink: #fbf9f3;
+  --style-band-accent: #b8402d;
+}
+
+html[data-style="navy-brick"][data-theme="dark"] {
+  --bg: #101b28;
+  --paper: #18283a;
+  --ink: #eef3f9;
+  --ink-2: #bccadc;
+  --ink-3: #94a7bd;
+  --line: #3c5066;
+  --line-2: #26384c;
+  --fill: #1c2c3e;
+  --fill-2: #24374c;
+  --accent: #ef8a72;
+  --accent-bg: #43251f;
+  --ok: #6fd6a6;
+  --ok-bg: #173a2c;
+  --err: #ff9a94;
+  --err-bg: #451d22;
+  --danger: var(--err);
+  --warn: #f6c277;
+  --warn-bg: #3b2a13;
+  --shadow: none;
+  --radius: 2px;
+  --head-font: var(--sans);
+  --bg-pattern: none;
+  --bg-size: auto;
+  --style-nav-bg: #0b1420;
+  --style-nav-ink: #eef3f9;
+  --style-band-accent: #ef8a72;
+}

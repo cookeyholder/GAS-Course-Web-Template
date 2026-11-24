@@ -6,10 +6,29 @@
  */
 
 const assert = require("assert");
+const fs = require("fs");
+const path = require("path");
 const configModule = require("../webapp/js/config.js");
 const helpers = require("./helpers/importsUiDeps.js");
 
+const STYLES_CSS = fs.readFileSync(path.join(__dirname, "..", "webapp", "styles.css"), "utf8");
 const NEW_STYLE_IDS = ["navy-brick", "celadon-mint", "cover-lime"];
+
+function parseDeclarations(body) {
+  const vars = {};
+  body.split(";").forEach(function (line) {
+    const match = /^\s*(--[\w-]+)\s*:\s*([^;]+?)\s*$/.exec(line);
+    if (match) vars[match[1]] = match[2];
+  });
+  return vars;
+}
+
+function readCssBlock(selector) {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const match = new RegExp(escaped + "\\s*\\{([^}]*)\\}").exec(STYLES_CSS);
+  assert(match, `找不到 CSS 區塊：${selector}`);
+  return parseDeclarations(match[1]);
+}
 
 console.log("開始執行 visualStyleThemes 測試...\n");
 
@@ -65,6 +84,70 @@ function createUiContext(initialStore) {
 function run() {
   const config = realConfig();
   assert.strictEqual(config.styles.length, 16, "真實設定應提供 16 款風格");
+
+  const navyLight = readCssBlock('html[data-style="navy-brick"]');
+  const navyDark = readCssBlock('html[data-style="navy-brick"][data-theme="dark"]');
+  assert.deepStrictEqual(
+    {
+      bg: navyLight["--bg"],
+      paper: navyLight["--paper"],
+      ink: navyLight["--ink"],
+      accent: navyLight["--accent"],
+      accentBg: navyLight["--accent-bg"],
+      ink3: navyLight["--ink-3"]
+    },
+    {
+      bg: "#fbf9f3",
+      paper: "#ffffff",
+      ink: "#1b2f47",
+      accent: "#b8402d",
+      accentBg: "#f7ece8",
+      ink3: "#5f6d7e"
+    }
+  );
+  assert.deepStrictEqual(
+    {
+      bg: navyDark["--bg"],
+      paper: navyDark["--paper"],
+      ink: navyDark["--ink"],
+      accent: navyDark["--accent"],
+      accentBg: navyDark["--accent-bg"],
+      ink3: navyDark["--ink-3"]
+    },
+    {
+      bg: "#101b28",
+      paper: "#18283a",
+      ink: "#eef3f9",
+      accent: "#ef8a72",
+      accentBg: "#43251f",
+      ink3: "#94a7bd"
+    }
+  );
+  [
+    "--line",
+    "--line-2",
+    "--fill",
+    "--fill-2",
+    "--ok",
+    "--ok-bg",
+    "--err",
+    "--err-bg",
+    "--warn",
+    "--warn-bg",
+    "--radius",
+    "--danger",
+    "--shadow",
+    "--head-font",
+    "--bg-pattern",
+    "--bg-size",
+    "--style-nav-bg",
+    "--style-nav-ink",
+    "--style-band-accent"
+  ].forEach(function (name) {
+    assert(Object.prototype.hasOwnProperty.call(navyLight, name), `淺色缺少角色 ${name}`);
+    assert(Object.prototype.hasOwnProperty.call(navyDark, name), `深色缺少角色 ${name}`);
+  });
+  console.log("   ✓ navy-brick 深淺角色宣告驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const ctx = createUiContext({});
