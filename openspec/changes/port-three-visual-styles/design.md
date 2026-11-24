@@ -97,8 +97,8 @@
 
 - 調整 `tests/webappConfig.test.js` 的 13 款斷言為 16，新增中繼資料、順序、預設值與儲存鍵斷言；`tests/webappUiToggleTheme.test.js` 已符合未知 id 回退，標明不變。
 - 按鈕文字色與焦點環斷言放在加入對應 CSS 的 task 3.x，不放進 task 2.4，確保每個 task 的驗證對象與產出一致。
-- 所有中文契約字面值完成後才執行 `node scripts/generateOpenccS2twpContractLiterals.js`，並在完整 CI 指令鏈加入 `--check`；建議須人工核准，不以 `--fix` 自動寫入。
-- 更新 `README.md`（7、38、381 行）與 `AGENTS.md:84`；凡触及 `webapp/` 的 task 皆執行 `npm run build:webapp`，並把 `index.html` 納入同一原子提交。
+- 所有中文契約字面值完成後才執行 `node scripts/generateOpenccS2twpContractLiterals.js`，並在完整 CI 指令鏈加入 `--check`；建議須人工核准，不以 `--fix` 自動寫入。本次新增 62 筆契約字面值（測試訊息與風格描述）已逐項人工核對，皆為臺灣繁體中文且無中國用語，另移除 1 筆過期字面值；逐筆結果紀錄於 `opencc-literal-signoff.md`。`--check` 顯示無漂移，OpenCC 候選報告與 `origin/main` 相比未新增候選，核准清冊維持空白，從未使用 `--fix`。
+- 更新 `README.md`（7、38、381 行）與 `AGENTS.md:84`；凡觸及 `webapp/` 的 task 皆執行 `npm run build:webapp`，並把 `index.html` 納入同一原子提交。
 - 工作流順序：task 0 先提交提案 → 逐 task 驗證並提交 → task 5.3 封存並提交 → task 5.4 本地完整 CI → PR。
 
 ### D6：舊風格角色斷層以明確值修補
@@ -201,7 +201,7 @@
 - [九款既有風格的按鈕對比低於 4.5:1] → 實測 `modern-slate:dark` 3.68:1、`blueprint:dark` 2.41:1 等屬移植前既有基準，非本次變更造成；本變更不修改其色彩，契約如實排除並保留功能完整性驗證，另由既有 `check:contrast` 把關不回退。
 - [新規則與既有約 7,000 行 CSS 發生特異性衝突] → 集中檔尾並限定 `html[data-style]`，不使用 `!important`；以瀏覽器逐一檢查計算樣式。
 - [既有稽核盲點] → 靜態契約補足按鈕／頁籤／表格懸停，結構稽核明確標示不驗證 CSS，不以既有綠燈代表全風格可用。
-- [部署產物漂移或語言檢查違規] → 每個触及 `webapp/` 的 task 都重建並提交 `index.html`；最終執行 `check:lang` 與 OpenCC `--check`。
+- [部署產物漂移或語言檢查違規] → 每個觸及 `webapp/` 的 task 都重建並提交 `index.html`；最終執行 `check:lang` 與 OpenCC `--check`。
 - [品質門檻不回退] → 每完成一項 task 即驗證並獨立提交；完成後執行 `AGENTS.md` 所列完整本地 CI 指令鏈。
 
 ## Migration Plan
