@@ -206,6 +206,31 @@ function run() {
   );
   console.log("   ✓ celadon-mint 深淺角色宣告驗證通過");
 
+  assertStyleRoles(
+    "cover-lime",
+    {
+      "--bg": "#f1efe4",
+      "--paper": "#fffdf7",
+      "--ink": "#111111",
+      "--ink-3": "#63635a",
+      "--accent-bg": "#c7f03b",
+      "--cover-lime": "#c7f03b"
+    },
+    {
+      "--bg": "#14140f",
+      "--paper": "#1e1e17",
+      "--ink": "#f3efe4",
+      "--ink-3": "#a9a494",
+      "--accent-bg": "#2b3812",
+      "--cover-lime": "#c7f03b"
+    }
+  );
+  const coverLight = readCssBlock('html[data-style="cover-lime"]');
+  const coverDark = readCssBlock('html[data-style="cover-lime"][data-theme="dark"]');
+  assert.strictEqual(coverLight["--ink"], "#111111", "檸檬底按鈕的墨黑字取自淺色 --ink");
+  assert.strictEqual(coverDark["--cover-lime"], "#c7f03b", "深色仍保留檸檬色票供按鈕使用");
+  console.log("   ✓ cover-lime 深淺角色與檸檬色票驗證通過");
+
   NEW_STYLE_IDS.forEach(function (styleId) {
     const ctx = createUiContext({});
     assert.strictEqual(ctx.ui.applyStyle(styleId), styleId);

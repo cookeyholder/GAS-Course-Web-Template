@@ -7295,3 +7295,64 @@ html[data-style="celadon-mint"][data-theme="dark"] {
   --style-nav-ink: #edf5f0;
   --style-band-accent: #86d8bf;
 }
+
+/* 封面檸檬 (Cover Lime) - 暖米封面、墨黑粗體、檸檬螢光 */
+html[data-style="cover-lime"] {
+  --bg: #f1efe4;
+  --paper: #fffdf7;
+  --ink: #111111;
+  --ink-2: #3d3d36;
+  --ink-3: #63635a;
+  --line: #111111;
+  --line-2: #cfcbbd;
+  --fill: #f9ebda;
+  --fill-2: #f6ead4;
+  --accent: #111111;
+  --accent-bg: #c7f03b;
+  --ok: #2f6b3f;
+  --ok-bg: #e4f0d5;
+  --err: #b3261e;
+  --err-bg: #f9e4e2;
+  --danger: var(--err);
+  --warn: #8a5a12;
+  --warn-bg: #f8ecda;
+  --shadow: none;
+  --radius: 0px;
+  --head-font: var(--sans);
+  --bg-pattern: none;
+  --bg-size: auto;
+  --style-nav-bg: #111111;
+  --style-nav-ink: #f1efe4;
+  --style-band-accent: #c7f03b;
+  --cover-lime: #c7f03b;
+}
+
+html[data-style="cover-lime"][data-theme="dark"] {
+  --bg: #14140f;
+  --paper: #1e1e17;
+  --ink: #f3efe4;
+  --ink-2: #d6d1c1;
+  --ink-3: #a9a494;
+  --line: #484636;
+  --line-2: #2e2e24;
+  --fill: #1d1d16;
+  --fill-2: #26261d;
+  --accent: #c7f03b;
+  --accent-bg: #2b3812;
+  --ok: #a3e635;
+  --ok-bg: #1f3310;
+  --err: #ff8f8f;
+  --err-bg: #401c1c;
+  --danger: var(--err);
+  --warn: #ffc46b;
+  --warn-bg: #3c2a12;
+  --shadow: none;
+  --radius: 0px;
+  --head-font: var(--sans);
+  --bg-pattern: none;
+  --bg-size: auto;
+  --style-nav-bg: #000000;
+  --style-nav-ink: #f3efe4;
+  --style-band-accent: #c7f03b;
+  --cover-lime: #c7f03b;
+}
