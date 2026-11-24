@@ -3,6 +3,7 @@
 /**
  * 視覺風格主題契約測試。
  * 驗證新增風格的套用、持久化、下拉中繼資料，以及後續全部風格的完整可用性契約。
+ * 無障礙部分僅做 DOM 結構稽核：jsdom 不套用 CSS，也不驗證色彩；色彩由靜態契約與 check:contrast 把關。
  */
 
 const assert = require("assert");
@@ -11,6 +12,8 @@ const fs = require("fs");
 const path = require("path");
 const configModule = require("../webapp/js/config.js");
 const helpers = require("./helpers/importsUiDeps.js");
+const harness = require("./helpers/a11yHarness.js");
+const checkA11y = require("../scripts/checkA11y.js");
 const { buildThemeMap, computeContrast, parseCssBlocks } = require("../scripts/checkContrast.js");
 
 const STYLES_CSS = fs.readFileSync(path.join(__dirname, "..", "webapp", "styles.css"), "utf8");
@@ -587,13 +590,70 @@ function run() {
     assert(html.indexOf(style.icon + " " + style.name) !== -1, `下拉應含 ${styleId} 圖示與名稱`);
   });
   console.log("   ✓ 下拉選單圖示與名稱驗證通過");
+}
 
+async function runA11yAudit() {
+  const dom = harness.createA11yDocument("light");
+  dom.window.HTMLCanvasElement.prototype.getContext = function () {
+    return null;
+  };
+  const fixtures = harness.collectFixtures().filter(function (fixture) {
+    return (
+      fixture.theme === "light" && ["overview", "courses", "settings", "activity-log"].indexOf(fixture.name) !== -1
+    );
+  });
+  assert.strictEqual(fixtures.length, 4, "須取得四個代表的已登入畫面");
+  const cases = [];
+  NEW_STYLE_IDS.forEach(function (styleId) {
+    ["light", "dark"].forEach(function (theme) {
+      fixtures.forEach(function (fixture) {
+        cases.push({ styleId: styleId, theme: theme, fixture: fixture });
+      });
+    });
+  });
+  ["modern-slate", "blueprint", "nes", "happyhues9"].forEach(function (styleId) {
+    cases.push({ styleId: styleId, theme: "light", fixture: fixtures[0] });
+  });
+  const previousWindow = global.window;
+  const previousDocument = global.document;
+  global.window = dom.window;
+  global.document = dom.window.document;
+  // axe-core 在載入時擷取全域 window，必須於設定 globals 之後才 require。
+  const axe = require("axe-core");
+  const failures = [];
+  try {
+    for (let i = 0; i < cases.length; i++) {
+      const testCase = cases[i];
+      const doc = checkA11y.renderFixture(Object.assign({}, testCase.fixture, { theme: testCase.theme }), dom);
+      doc.documentElement.dataset.style = testCase.styleId;
+      const results = await axe.run(doc, checkA11y.RUN_OPTIONS);
+      results.violations.forEach(function (violation) {
+        failures.push({
+          style: testCase.styleId,
+          theme: testCase.theme,
+          fixture: testCase.fixture.name,
+          rule: violation.id,
+          nodes: violation.nodes.map(function (node) {
+            return node.target.join(" ");
+          })
+        });
+      });
+    }
+  } finally {
+    global.window = previousWindow;
+    global.document = previousDocument;
+  }
+  assert.deepStrictEqual(failures, [], `結構稽核發現違規：${JSON.stringify(failures)}`);
+  console.log(`   ✓ ${cases.length} 個風格畫面結構稽核通過（僅結構，不驗證色彩）`);
+}
+
+async function main() {
+  run();
+  await runA11yAudit();
   console.log("✓ visualStyleThemes 測試全數通過！\n");
 }
 
-try {
-  run();
-} catch (error) {
+main().catch(function (error) {
   console.error(error);
   process.exit(1);
-}
+});
