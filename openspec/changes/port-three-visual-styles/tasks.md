@@ -14,7 +14,7 @@
 ## 2. 新增三款色票與深色變體
 
 - [x] 2.1 在 `webapp/styles.css` 檔尾加入 `navy-brick` 淺色與深色完整角色區塊，數值依 `design.md` D2（淺色 `--accent-bg` 為 `#f7ece8`、`--ink-3` 為 `#5f6d7e`），並於新測試檔加入角色斷言；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 與 `npm run check:contrast` 通過。
-- [ ] 2.2 加入 `celadon-mint` 淺色與深色角色區塊與斷言（淺色 `--ink-3` 為 `#52746a`）；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 與 `npm run check:contrast` 通過。
+- [x] 2.2 加入 `celadon-mint` 淺色與深色角色區塊與斷言（淺色 `--ink-3` 為 `#52746a`）；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 與 `npm run check:contrast` 通過。
 - [x] 2.3 加入 `cover-lime` 淺色與深色角色區塊、`--cover-lime` 局部變數、檸檬底墨黑字契約與斷言；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 與 `npm run check:contrast` 通過。
 - [x] 2.4 在新測試檔加入表驅動對比矩陣：次要文字對背景與卡片 ≥4.5:1、未啟用頁籤對深色帶 ≥4.5:1、焦點環對紙面 ≥3:1，以及三款 `--accent-bg` 存在性與「來源差異僅兩款 `--ink-3`」斷言；按鈕文字色與焦點環斷言留至 task 3.3；驗證 `npm test` 通過。
 
@@ -31,7 +31,7 @@
 - [x] 4.2 在同一測試檔共用單一 JSDOM window，呼叫 `a11yHarness.resetDocument()` 與 `app.render()` 後才設定 `data-style`（避免 `app.init()` 由 localStorage 覆寫），並設定 `global.window`／`global.document`、沿用 `checkA11y.RUN_OPTIONS`；對三款新風格 × overview／courses／settings／activity-log × 深淺，以及四款舊風格各一個代表畫面執行 axe 結構稽核；測試檔案加註「僅結構稽核，jsdom 不套用 CSS，不驗證色彩」；驗證 `npm test` 通過，且 `scripts/checkA11y.js`、`tests/helpers/a11yHarness.js` 無變更。
 - [x] 4.3 依 `design.md` D6 以明示色值補足 `happyhues2`／`happyhues3`／`happyhues5`／`happyhues9` 的必要角色，禁止 `--sans`／`--mono` 循環別名與兩層 `var()`；新增 `happyhues3` 的 `.btn.primary`／`.nav-tab.active` 深淺明示規則（淺 `#00214d`／`#3da9fc` 6.25:1，深 `#fffffe`／`#1e3b5f` 11.37:1），以及四款 `.pill.ok`／`.pill.err` 深淺明示規則（色對見 D6 附表，特異性須高於既有 `.pill` 的 0,2,1）；不新增 `.matrix-filter-pill` 規則；加入修補前後解析值對照與 Adjusted Roles 界限斷言；在 `design.md` D6 記錄修補清單（欄位：風格／角色／原解析值／新解析值／驗證結果）；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 與 `npm run check:contrast` 通過。
 - [x] 4.4 加入「全部風格」動態操作測試：直接呼叫 `ui.applyStyle()`、`ui.initThemeAndStyle()`、`ui.toggleTheme()`（不呼叫 `app.init()`，避免 localStorage 覆寫 `data-style`），遍歷所有 id 的套用、持久化、重新初始化、主題切換、未知值回退，以一般使用者與管理員兩種角色渲染並明確斷言一般 4 個、管理員 5 個頁籤且 `adminOnly` 守門生效，確認各畫面控制項存在且可聚焦，並驗證切換風格／主題時輸入內容、目前頁籤與焦點不變；驗證 `npm test` 通過。
-- [ ] 4.5 以 `webapp/index.html?mock=true`（不可用根目錄 `index.html?mock=true`）在 1440×900 與 375×812 逐一操作全部風格與深淺主題，檢查頁籤切換、匯入預覽、課程搜尋與分頁、設定表單、授權成員與操作日誌篩選，確認無水平溢出、按鈕／焦點環可見、瀏覽器無主控台錯誤；截圖留存於 `/tmp/opencode/style-review/`，並以固定欄位檢查表（風格／主題／視窗／操作／結果／截圖路徑）記錄；驗證結果與 D3／D4／D8 一致。
+- [x] 4.5 以 `webapp/index.html?mock=true`（不可用根目錄 `index.html?mock=true`）在 1440×900 與 375×812 逐一操作全部風格與深淺主題，檢查頁籤切換、匯入預覽、課程搜尋與分頁、設定表單、授權成員與操作日誌篩選，確認無水平溢出、按鈕／焦點環可見、瀏覽器無主控台錯誤；截圖留存於 `/tmp/opencode/style-review/`，並以固定欄位檢查表（風格／主題／視窗／操作／結果／截圖路徑）記錄；驗證結果與 D3／D4／D8 一致。
 
 ## 5. 文件、產物、封存與整合驗證
 
