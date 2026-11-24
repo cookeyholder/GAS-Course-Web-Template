@@ -30,6 +30,42 @@ function readCssBlock(selector) {
   return parseDeclarations(match[1]);
 }
 
+const REQUIRED_ROLES = [
+  "--line",
+  "--line-2",
+  "--fill",
+  "--fill-2",
+  "--ok",
+  "--ok-bg",
+  "--err",
+  "--err-bg",
+  "--warn",
+  "--warn-bg",
+  "--radius",
+  "--danger",
+  "--shadow",
+  "--head-font",
+  "--bg-pattern",
+  "--bg-size",
+  "--style-nav-bg",
+  "--style-nav-ink",
+  "--style-band-accent"
+];
+
+function assertStyleRoles(styleId, lightExpected, darkExpected) {
+  const light = readCssBlock(`html[data-style="${styleId}"]`);
+  const dark = readCssBlock(`html[data-style="${styleId}"][data-theme="dark"]`);
+  [light, dark].forEach(function (vars, index) {
+    const expected = index === 0 ? lightExpected : darkExpected;
+    Object.keys(expected).forEach(function (name) {
+      assert.strictEqual(vars[name], expected[name], `${styleId} ${name} 值不符`);
+    });
+    REQUIRED_ROLES.forEach(function (name) {
+      assert(Object.prototype.hasOwnProperty.call(vars, name), `${styleId} 缺少角色 ${name}`);
+    });
+  });
+}
+
 console.log("開始執行 visualStyleThemes 測試...\n");
 
 function baseEnv() {
@@ -148,6 +184,27 @@ function run() {
     assert(Object.prototype.hasOwnProperty.call(navyDark, name), `深色缺少角色 ${name}`);
   });
   console.log("   ✓ navy-brick 深淺角色宣告驗證通過");
+
+  assertStyleRoles(
+    "celadon-mint",
+    {
+      "--bg": "#fbfcfa",
+      "--paper": "#ffffff",
+      "--ink": "#17453f",
+      "--accent": "#17453f",
+      "--accent-bg": "#d8e6de",
+      "--ink-3": "#52746a"
+    },
+    {
+      "--bg": "#101b18",
+      "--paper": "#182923",
+      "--ink": "#edf5f0",
+      "--accent": "#86d8bf",
+      "--accent-bg": "#1b3c33",
+      "--ink-3": "#91a99d"
+    }
+  );
+  console.log("   ✓ celadon-mint 深淺角色宣告驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const ctx = createUiContext({});

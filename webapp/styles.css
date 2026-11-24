@@ -7236,3 +7236,62 @@ html[data-style="navy-brick"][data-theme="dark"] {
   --style-nav-ink: #eef3f9;
   --style-band-accent: #ef8a72;
 }
+
+/* 青瓷薄荷 (Celadon Mint) - 瓷白底色、松綠導覽、薄荷強調 */
+html[data-style="celadon-mint"] {
+  --bg: #fbfcfa;
+  --paper: #ffffff;
+  --ink: #17453f;
+  --ink-2: #3f6a61;
+  --ink-3: #52746a;
+  --line: #17453f;
+  --line-2: #c8d6cd;
+  --fill: #f2f7f4;
+  --fill-2: #d8e6de;
+  --accent: #17453f;
+  --accent-bg: #d8e6de;
+  --ok: #2e6b4f;
+  --ok-bg: #e3f1e8;
+  --err: #b3261e;
+  --err-bg: #f9e4e2;
+  --danger: var(--err);
+  --warn: #8a5a12;
+  --warn-bg: #f8ecda;
+  --shadow: none;
+  --radius: 4px;
+  --head-font: var(--sans);
+  --bg-pattern: none;
+  --bg-size: auto;
+  --style-nav-bg: #17453f;
+  --style-nav-ink: #fbfcfa;
+  --style-band-accent: #c8d6cd;
+}
+
+html[data-style="celadon-mint"][data-theme="dark"] {
+  --bg: #101b18;
+  --paper: #182923;
+  --ink: #edf5f0;
+  --ink-2: #b8ccc2;
+  --ink-3: #91a99d;
+  --line: #3a574e;
+  --line-2: #253c35;
+  --fill: #1b2e28;
+  --fill-2: #22382f;
+  --accent: #86d8bf;
+  --accent-bg: #1b3c33;
+  --ok: #6fd6a6;
+  --ok-bg: #173a2c;
+  --err: #ff9a94;
+  --err-bg: #451d22;
+  --danger: var(--err);
+  --warn: #f6c277;
+  --warn-bg: #3b2a13;
+  --shadow: none;
+  --radius: 4px;
+  --head-font: var(--sans);
+  --bg-pattern: none;
+  --bg-size: auto;
+  --style-nav-bg: #0b1613;
+  --style-nav-ink: #edf5f0;
+  --style-band-accent: #86d8bf;
+}
