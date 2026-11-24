@@ -7403,3 +7403,56 @@ html[data-style="celadon-mint"] .panel-header {
   border-bottom: 1px solid var(--line-2);
   background: var(--fill-2);
 }
+
+/* 封面檸檬：56px 頂列、深色頁籤帶、檸檬底墨黑字與米紙標題帶。 */
+html[data-style="cover-lime"] .app-header {
+  min-height: 56px;
+  border-radius: 0;
+  box-shadow: none;
+  background: #ffffff;
+  color: #212121;
+}
+
+html[data-style="cover-lime"][data-theme="dark"] .app-header {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+html[data-style="cover-lime"] .app-nav {
+  margin-top: 0;
+  border: 0;
+  border-bottom: 6px solid var(--style-band-accent);
+  border-radius: 0;
+  background: var(--style-nav-bg);
+  box-shadow: none;
+  color: var(--style-nav-ink);
+  min-height: 56px;
+}
+
+html[data-style="cover-lime"] .nav-tab {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+html[data-style="cover-lime"] .nav-tab:not(.active):not(:hover) {
+  color: var(--style-nav-ink);
+}
+
+html[data-style="cover-lime"] .panel-head,
+html[data-style="cover-lime"] .panel-header {
+  border-bottom: 1px solid var(--line-2);
+  background: var(--fill-2);
+}
+
+html[data-style="cover-lime"] .panel-title,
+html[data-style="cover-lime"] .brand-title {
+  font-size: clamp(24px, 2vw, 28px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+html[data-style="cover-lime"] .nav-tab.active {
+  color: var(--accent);
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}

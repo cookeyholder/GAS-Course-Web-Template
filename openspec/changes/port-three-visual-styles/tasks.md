@@ -21,7 +21,7 @@
 ## 3. 重現字級與區塊切割
 
 - [x] 3.1 為 `navy-brick` 與 `celadon-mint` 複寫 `.app-header`（56px、淺色白底深灰字、深色跟隨 `--paper`）、`.app-nav`（深色帶、6px 強調帶、`border-radius: 0`）、`.nav-tab` 字級與未啟用狀態，以及 `.panel-header`／`.panel-head` 米紙標題帶；以契約測試斷言新選擇器存在（不以 `check:ui-classes` 作為唯一證據）；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 通過。
-- [ ] 3.2 為 `cover-lime` 複寫 `.app-header`、`.app-nav`、`.nav-tab`、`.panel-header`／`.panel-head`，加入 `.panel-title`／`.brand-title` 的 `clamp(24px, 2vw, 28px)`／字重 800／`-0.02em` 與 `.nav-tab.active` 檸檬底黑字；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 通過。
+- [x] 3.2 為 `cover-lime` 複寫 `.app-header`、`.app-nav`、`.nav-tab`、`.panel-header`／`.panel-head`，加入 `.panel-title`／`.brand-title` 的 `clamp(24px, 2vw, 28px)`／字重 800／`-0.02em` 與 `.nav-tab.active` 檸檬底黑字；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 通過。
 - [ ] 3.3 加入按鈕與焦點環覆寫：`cover-lime` 深淺 `.btn.primary` 檸檬底墨黑字、`navy-brick`／`celadon-mint` 深色 `.btn.primary` 深底淺字、`.app-nav :focus-visible` 用 `var(--style-nav-ink)`、`cover-lime` 按鈕／啟用頁籤依 D3 取色，並加入對應對比斷言（明確以 `outline-offset` 落點為背景取色）；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 與 `npm run check:contrast` 通過。
 - [ ] 3.4 加入 `@media (min-width: 1200px)` 的 `min-height: 232px` 深色帶，其餘寬度回到 56px 單列橫向捲動；以契約測試斷言不覆寫 `.app-nav` 的 `overflow-x: auto`、不新增第五處 `outline: none`、不移植 `prefers-contrast` 外圈，並維持既有事件委派、`aria-current` 與 `<option>` 渲染；375px 下頁面本體無非預期水平溢出因 jsdom 不計算版面，僅由 task 4.5 瀏覽器核閱，不寫成自動化斷言；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test`、`npm run check:ui-classes`（僅回歸）與 `git diff webapp/js/ui.js` 為空。
 

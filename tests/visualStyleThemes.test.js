@@ -341,7 +341,7 @@ function run() {
   assertSourceDifferencesOnlyInk3();
   console.log("   ✓ 來源差異僅兩款淺色 --ink-3 驗證通過");
 
-  ["navy-brick", "celadon-mint"].forEach(function (styleId) {
+  NEW_STYLE_IDS.forEach(function (styleId) {
     const header = findRuleDeclarations(`html[data-style="${styleId}"] .app-header`);
     const darkHeader = findRuleDeclarations(`html[data-style="${styleId}"][data-theme="dark"] .app-header`);
     const nav = findRuleDeclarations(`html[data-style="${styleId}"] .app-nav`);
@@ -361,7 +361,17 @@ function run() {
       assert(/background:\s*var\(--fill-2\)/.test(rule), `${styleId} 標題帶須用 --fill-2`);
     });
   });
-  console.log("   ✓ navy-brick／celadon-mint 區塊切割規則驗證通過");
+  const limeTitle = findRuleDeclarations('html[data-style="cover-lime"] .panel-title');
+  const limeBrand = findRuleDeclarations('html[data-style="cover-lime"] .brand-title');
+  [limeTitle, limeBrand].forEach(function (rule) {
+    assert(/font-size:\s*clamp\(24px,\s*2vw,\s*28px\)/.test(rule), "標題字級須使用 clamp");
+    assert(/font-weight:\s*800/.test(rule), "標題字重須為 800");
+    assert(/letter-spacing:\s*-0\.02em/.test(rule), "標題字距須為 -0.02em");
+  });
+  const limeActiveTab = findRuleDeclarations('html[data-style="cover-lime"] .nav-tab.active');
+  assert(/color:\s*var\(--accent\)/.test(limeActiveTab), "啟用頁籤文字須用 --accent");
+  assert(/background:\s*var\(--accent-bg\)/.test(limeActiveTab), "啟用頁籤底色須用 --accent-bg");
+  console.log("   ✓ 三款風格區塊切割與 cover-lime 標題字級驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const ctx = createUiContext({});
