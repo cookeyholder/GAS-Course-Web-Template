@@ -13,7 +13,20 @@ const helpers = require("./helpers/importsUiDeps.js");
 const { computeContrast } = require("../scripts/checkContrast.js");
 
 const STYLES_CSS = fs.readFileSync(path.join(__dirname, "..", "webapp", "styles.css"), "utf8");
+const CSS_WITHOUT_COMMENTS = STYLES_CSS.replace(/\/\*[\s\S]*?\*\//g, "");
 const NEW_STYLE_IDS = ["navy-brick", "celadon-mint", "cover-lime"];
+
+function findRuleDeclarations(selector) {
+  const blockPattern = /([^{}]+)\{([^{}]*)\}/g;
+  let match = null;
+  while ((match = blockPattern.exec(CSS_WITHOUT_COMMENTS)) !== null) {
+    const selectors = match[1].split(",").map(function (part) {
+      return part.trim();
+    });
+    if (selectors.indexOf(selector) !== -1) return match[2];
+  }
+  assert.fail(`找不到 CSS 規則：${selector}`);
+}
 
 function parseDeclarations(body) {
   const vars = {};
@@ -327,6 +340,28 @@ function run() {
 
   assertSourceDifferencesOnlyInk3();
   console.log("   ✓ 來源差異僅兩款淺色 --ink-3 驗證通過");
+
+  ["navy-brick", "celadon-mint"].forEach(function (styleId) {
+    const header = findRuleDeclarations(`html[data-style="${styleId}"] .app-header`);
+    const darkHeader = findRuleDeclarations(`html[data-style="${styleId}"][data-theme="dark"] .app-header`);
+    const nav = findRuleDeclarations(`html[data-style="${styleId}"] .app-nav`);
+    const navTab = findRuleDeclarations(`html[data-style="${styleId}"] .nav-tab`);
+    const inactiveTab = findRuleDeclarations(`html[data-style="${styleId}"] .nav-tab:not(.active):not(:hover)`);
+    const panelHead = findRuleDeclarations(`html[data-style="${styleId}"] .panel-head`);
+    const panelHeader = findRuleDeclarations(`html[data-style="${styleId}"] .panel-header`);
+    assert(/min-height:\s*56px/.test(header), `${styleId} 頂列須為 56px`);
+    assert(/background:\s*#ffffff/.test(header), `${styleId} 淺色頂列須為白底`);
+    assert(/background:\s*var\(--paper\)/.test(darkHeader), `${styleId} 深色頂列須跟隨 --paper`);
+    assert(/border-bottom:\s*6px solid var\(--style-band-accent\)/.test(nav), `${styleId} 須有 6px 強調帶`);
+    assert(/background:\s*var\(--style-nav-bg\)/.test(nav), `${styleId} 導覽須用深色帶`);
+    assert(/min-height:\s*56px/.test(nav), `${styleId} 導覽須為 56px`);
+    assert(/font-size:\s*16px/.test(navTab) && /font-weight:\s*700/.test(navTab), `${styleId} 頁籤字級`);
+    assert(/color:\s*var\(--style-nav-ink\)/.test(inactiveTab), `${styleId} 未啟用頁籤文字`);
+    [panelHead, panelHeader].forEach(function (rule) {
+      assert(/background:\s*var\(--fill-2\)/.test(rule), `${styleId} 標題帶須用 --fill-2`);
+    });
+  });
+  console.log("   ✓ navy-brick／celadon-mint 區塊切割規則驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const ctx = createUiContext({});

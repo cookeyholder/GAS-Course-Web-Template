@@ -7356,3 +7356,50 @@ html[data-style="cover-lime"][data-theme="dark"] {
   --style-band-accent: #c7f03b;
   --cover-lime: #c7f03b;
 }
+
+/* 藏青磚紅與青瓷薄荷：56px 頂列、深色頁籤帶與米紙標題帶。 */
+html[data-style="navy-brick"] .app-header,
+html[data-style="celadon-mint"] .app-header {
+  min-height: 56px;
+  border-radius: 0;
+  box-shadow: none;
+  background: #ffffff;
+  color: #212121;
+}
+
+html[data-style="navy-brick"][data-theme="dark"] .app-header,
+html[data-style="celadon-mint"][data-theme="dark"] .app-header {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+html[data-style="navy-brick"] .app-nav,
+html[data-style="celadon-mint"] .app-nav {
+  margin-top: 0;
+  border: 0;
+  border-bottom: 6px solid var(--style-band-accent);
+  border-radius: 0;
+  background: var(--style-nav-bg);
+  box-shadow: none;
+  color: var(--style-nav-ink);
+  min-height: 56px;
+}
+
+html[data-style="navy-brick"] .nav-tab,
+html[data-style="celadon-mint"] .nav-tab {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+html[data-style="navy-brick"] .nav-tab:not(.active):not(:hover),
+html[data-style="celadon-mint"] .nav-tab:not(.active):not(:hover) {
+  color: var(--style-nav-ink);
+}
+
+html[data-style="navy-brick"] .panel-head,
+html[data-style="navy-brick"] .panel-header,
+html[data-style="celadon-mint"] .panel-head,
+html[data-style="celadon-mint"] .panel-header {
+  border-bottom: 1px solid var(--line-2);
+  background: var(--fill-2);
+}
