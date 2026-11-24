@@ -8,7 +8,7 @@
 
 ## 1. 註冊風格清單與持久化契約
 
-- [ ] 1.1 在 `webapp/js/config.js` 的 `styles[]` 末端加入 `navy-brick`「藏青磚紅 (Navy Brick)」`📘`、`celadon-mint`「青瓷薄荷 (Celadon Mint)」`🍵`、`cover-lime`「封面檸檬 (Cover Lime)」`🍋` 三筆（含 `desc`）；將 `tests/webappConfig.test.js` 的 13 款斷言改為 16，補上三款中繼資料、既有順序、`defaultStyle === "modern-slate"` 與 `styleKey === "gas_tmpl.style.v1"` 斷言；確認 `tests/webappUiToggleTheme.test.js` 無須變更、`git diff webapp/js/ui.js` 為空；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 通過。
+- [x] 1.1 在 `webapp/js/config.js` 的 `styles[]` 末端加入 `navy-brick`「藏青磚紅 (Navy Brick)」`📘`、`celadon-mint`「青瓷薄荷 (Celadon Mint)」`🍵`、`cover-lime`「封面檸檬 (Cover Lime)」`🍋` 三筆（含 `desc`）；將 `tests/webappConfig.test.js` 的 13 款斷言改為 16，補上三款中繼資料、既有順序、`defaultStyle === "modern-slate"` 與 `styleKey === "gas_tmpl.style.v1"` 斷言；確認 `tests/webappUiToggleTheme.test.js` 無須變更、`git diff webapp/js/ui.js` 為空；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 通過。
 - [ ] 1.2 新增 `tests/visualStyleThemes.test.js`，使用 `buildFrontendConfig()` 的真實設定驗證三款新 id 的 `applyStyle()`、`initThemeAndStyle()`、`toggleTheme()` 後風格不變、未知 id 回退至 `modern-slate` 且寫入風格儲存鍵、其他設定不被改寫，以及 `<option>` 同時含圖示與名稱；驗證 `npm test` 通過。
 
 ## 2. 新增三款色票與深色變體
