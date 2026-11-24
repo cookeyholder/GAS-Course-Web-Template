@@ -798,6 +798,119 @@ function run() {
     assert(html.indexOf(style.icon + " " + style.name) !== -1, `下拉應含 ${styleId} 圖示與名稱`);
   });
   console.log("   ✓ 下拉選單圖示與名稱驗證通過");
+
+  assertDynamicOperations(config);
+}
+
+function assertDynamicOperations(config) {
+  const dom = harness.createA11yDocument("light");
+  const styleIds = config.styles.map(function (style) {
+    return style.id;
+  });
+  assert.strictEqual(styleIds.length, 16, "風格總數須為 16");
+
+  styleIds.forEach(function (styleId) {
+    harness.resetDocument(dom, "light");
+    const ctx = harness.createFrontend(dom, {
+      view: "ready",
+      tab: "courses",
+      courses: { list: [harness.COURSE_ROW], page: 1, pageSize: 30, total: 1 }
+    });
+    ctx.app.render();
+    const keyword = ctx.document.getElementById("courseSearchKeyword");
+    assert(keyword, `${styleId} 課程頁須有搜尋輸入`);
+    keyword.value = `關鍵字-${styleId}`;
+    keyword.focus();
+    assert.strictEqual(ctx.document.activeElement, keyword, `${styleId} 搜尋輸入須可聚焦`);
+    const activeTabBefore = ctx.document.querySelector(".nav-tab.active");
+    assert(activeTabBefore && activeTabBefore.dataset.tab === "courses", `${styleId} 目前頁籤須為 courses`);
+    const themeBefore = ctx.MEA.ui.currentTheme();
+
+    assert.strictEqual(ctx.MEA.ui.applyStyle(styleId), styleId);
+    assert.strictEqual(ctx.document.documentElement.dataset.style, styleId);
+    assert.strictEqual(ctx.window.localStorage.getItem(config.styleKey), styleId);
+    ctx.MEA.ui.toggleTheme();
+    assert.notStrictEqual(ctx.MEA.ui.currentTheme(), themeBefore, `${styleId} 主題切換須生效`);
+    assert.strictEqual(ctx.document.documentElement.dataset.style, styleId, `${styleId} 主題切換不得改變風格`);
+    assert.strictEqual(ctx.document.getElementById("courseSearchKeyword").value, `關鍵字-${styleId}`);
+    assert.strictEqual(ctx.document.querySelector(".nav-tab.active").dataset.tab, "courses");
+    assert.strictEqual(ctx.document.activeElement, ctx.document.getElementById("courseSearchKeyword"));
+
+    // 不呼叫 app.init()，直接以新的前端上下文讀回 localStorage，驗證重新初始化。
+    harness.resetDocument(dom, "light");
+    const restored = harness.createFrontend(dom, { view: "ready", tab: "overview" });
+    restored.app.render();
+    restored.MEA.ui.initThemeAndStyle();
+    assert.strictEqual(restored.document.documentElement.dataset.style, styleId, `${styleId} 重新初始化須還原風格`);
+    assert.strictEqual(restored.MEA.ui.currentTheme(), ctx.MEA.ui.currentTheme(), `${styleId} 重新初始化須還原主題`);
+  });
+  console.log(`   ✓ ${styleIds.length} 款風格套用、持久化、重新初始化與主題切換驗證通過`);
+
+  dom.window.localStorage.setItem(config.styleKey, "unknown-style-for-test");
+  harness.resetDocument(dom, "light");
+  const fallback = harness.createFrontend(dom, { view: "ready", tab: "overview" });
+  fallback.app.render();
+  fallback.MEA.ui.initThemeAndStyle();
+  assert.strictEqual(fallback.document.documentElement.dataset.style, config.defaultStyle);
+  assert.strictEqual(dom.window.localStorage.getItem(config.styleKey), config.defaultStyle);
+  console.log("   ✓ 全部風格未知值回退驗證通過");
+
+  const controlByTab = {
+    overview: "styleSelect",
+    import: "fileInput",
+    courses: "courseSearchKeyword",
+    settings: "cfgSystemName",
+    activityLog: "activityLogStartDate"
+  };
+  const roles = [
+    {
+      label: "一般使用者",
+      user: { name: "測試教師", email: "teacher@example.edu.tw", role: "teacher", roleName: "授課教師" },
+      expected: 4
+    },
+    { label: "管理員", user: harness.ADMIN_USER, expected: 5 }
+  ];
+  roles.forEach(function (role) {
+    Object.keys(controlByTab).forEach(function (tabId) {
+      harness.resetDocument(dom, "light");
+      const ctx = harness.createFrontend(dom, { view: "ready", tab: tabId, user: role.user });
+      ctx.app.render();
+      const tabs = Array.from(ctx.document.querySelectorAll(".nav-tab"));
+      assert.strictEqual(tabs.length, role.expected, `${role.label} 頁籤數不符`);
+      assert.strictEqual(
+        tabs.some(function (tab) {
+          return tab.dataset.tab === "activityLog";
+        }),
+        role.expected === 5,
+        `${role.label} 的 adminOnly 頁籤可見性不符`
+      );
+      if (role.expected === 4 && tabId === "activityLog") {
+        assert(ctx.document.querySelector(".overview-panel"), "一般使用者不得進入操作日誌內容");
+        assert(!ctx.document.getElementById(controlByTab.activityLog), "一般使用者不得見到操作日誌控制項");
+        ctx.MEA.setTab("activityLog");
+        assert.strictEqual(ctx.MEA.state.tab, "overview", "setTab 須將一般使用者導回概覽");
+        return;
+      }
+      if (role.expected === 4 && tabId === "settings") {
+        const deniedTitle = ctx.document.querySelector(".panel-title");
+        assert(deniedTitle && deniedTitle.textContent.indexOf("權限不足") !== -1, "一般使用者設定頁須顯示權限不足");
+        assert(ctx.document.querySelector(".alert.err"), "一般使用者設定頁須顯示權限警示");
+        assert(!ctx.document.getElementById(controlByTab.settings), "一般使用者不得見到系統設定控制項");
+        return;
+      }
+      assert(
+        tabs.some(function (tab) {
+          return tab.dataset.tab === tabId;
+        }),
+        `${role.label} 缺少 ${tabId} 頁籤`
+      );
+      const control = ctx.document.getElementById(controlByTab[tabId]);
+      assert(control, `${role.label} ${tabId} 缺少控制項 ${controlByTab[tabId]}`);
+      control.focus();
+      assert.strictEqual(ctx.document.activeElement, control, `${role.label} ${tabId} 控制項須可聚焦`);
+    });
+  });
+  console.log("   ✓ 一般使用者 4 頁籤與管理員 5 頁籤守門及控制項可聚焦驗證通過");
 }
 
 async function runA11yAudit() {
