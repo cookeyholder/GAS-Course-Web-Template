@@ -373,6 +373,45 @@ function run() {
   assert(/background:\s*var\(--accent-bg\)/.test(limeActiveTab), "啟用頁籤底色須用 --accent-bg");
   console.log("   ✓ 三款風格區塊切割與 cover-lime 標題字級驗證通過");
 
+  [
+    'html[data-style="cover-lime"] .btn.primary',
+    'html[data-style="cover-lime"][data-theme="dark"] .btn.primary'
+  ].forEach(function (selector) {
+    const rule = findRuleDeclarations(selector);
+    assert(/background:\s*var\(--cover-lime\)/.test(rule), `${selector} 須為檸檬底`);
+    assert(/color:\s*#111111/.test(rule), `${selector} 須為墨黑字`);
+  });
+  ["navy-brick", "celadon-mint"].forEach(function (styleId) {
+    const rule = findRuleDeclarations(`html[data-style="${styleId}"][data-theme="dark"] .btn.primary`);
+    assert(/background:\s*var\(--accent-bg\)/.test(rule), `${styleId} 深色按鈕須用 --accent-bg`);
+    assert(/color:\s*var\(--ink\)/.test(rule), `${styleId} 深色按鈕須用 --ink`);
+    const vars = readCssBlock(`html[data-style="${styleId}"][data-theme="dark"]`);
+    const ratio = computeContrast(vars["--ink"], vars["--accent-bg"]);
+    assert(ratio !== null && ratio >= 4.5, `${styleId} 深色按鈕對比不足：${ratio}`);
+  });
+  assert.strictEqual(computeContrast("#111111", coverLight["--accent-bg"]) >= 4.5, true);
+  assert.strictEqual(computeContrast("#111111", "#c7f03b") >= 4.5, true);
+  NEW_STYLE_IDS.forEach(function (styleId) {
+    const rule = findRuleDeclarations(`html[data-style="${styleId}"] .app-nav :focus-visible`);
+    assert(/outline-color:\s*var\(--style-nav-ink\)/.test(rule), `${styleId} 深色帶焦點環須用 --style-nav-ink`);
+  });
+  const limeActiveFocus = findRuleDeclarations('html[data-style="cover-lime"] .nav-tab.active:focus-visible');
+  const limeDarkActiveFocus = findRuleDeclarations(
+    'html[data-style="cover-lime"][data-theme="dark"] .nav-tab.active:focus-visible'
+  );
+  assert(/outline-color:\s*#111111/.test(limeActiveFocus), "淺色啟用頁籤焦點環須為墨黑");
+  assert(/outline-offset:\s*-5px/.test(limeActiveFocus), "啟用頁籤焦點環須向內 5px");
+  assert(/outline-color:\s*#c7f03b/.test(limeDarkActiveFocus), "深色啟用頁籤焦點環須為檸檬色");
+  const focusPairs = [
+    ["#111111", coverLight["--accent-bg"], "淺色"],
+    ["#c7f03b", coverDark["--accent-bg"], "深色"]
+  ];
+  focusPairs.forEach(function ([foreground, background, label]) {
+    const ratio = computeContrast(foreground, background);
+    assert(ratio !== null && ratio >= 3, `cover-lime ${label} 啟用頁籤焦點環對比不足：${ratio}`);
+  });
+  console.log("   ✓ 按鈕與焦點環對比契約驗證通過");
+
   NEW_STYLE_IDS.forEach(function (styleId) {
     const ctx = createUiContext({});
     assert.strictEqual(ctx.ui.applyStyle(styleId), styleId);

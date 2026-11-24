@@ -83,7 +83,7 @@
 - `cover-lime` 深淺主題的 `.btn.primary` 皆改為檸檬底墨黑字，避免白字配檸檬約 1.32:1。
 - `navy-brick`／`celadon-mint` 深色 `.btn.primary` 改為深底淺字（背景 `var(--accent-bg)`、文字 `var(--ink)`）。
 - 未啟用頁籤用 `.nav-tab:not(.active):not(:hover)` 限定範圍，避免覆蓋既有狀態色；字級規則不設 `color`／`background`。
-- 焦點環以 `outline-color` 覆寫：`.app-nav :focus-visible` 用 `var(--style-nav-ink)`；`cover-lime` 檸檬底按鈕的焦點環在 2px `outline-offset` 下落於深色紙面，故深色用 `#c7f03b` 仍可見；深色 `.nav-tab.active` 背景為 `#2b3812`（非檸檬），檸檬焦點環同樣可見。「外側相鄰背景」明確定義為 outline 落點的背景，契約測試據此取色。
+- 焦點環以 `outline-color` 覆寫：`.app-nav :focus-visible` 用 `var(--style-nav-ink)`；`cover-lime` 檸檬底按鈕的焦點環在 2px `outline-offset` 下落於深色紙面，故深色用 `#c7f03b` 仍可見；深色 `.nav-tab.active` 背景為 `#2b3812`（非檸檬），檸檬焦點環同樣可見。「外側相鄰背景」明確定義為 outline 落點的背景，契約測試據此取色。來源對 `.nav-tab.active:focus-visible` 深淺皆寫死 `#111111`，但深色落在 `#2b3812` 僅 1.51:1，故本範本另加深色規則改用 `#c7f03b`（10.90:1）；此為 D3 明示的最小覆寫，不改變既有 `--focus-ring` 模型。
 - 不為已無對應 DOM 的 `.stage-*`／`.matrix-*`／`.teacher-roster-table` 新增規則；`.panel-head` 僅保留為既有別名。不移植來源的 `prefers-contrast` 外圈，也不新增第五處 `outline: none`。
 
 ### D4：全風格可用性採「靜態契約＋結構稽核＋動態操作＋瀏覽器核閱」四層驗證
