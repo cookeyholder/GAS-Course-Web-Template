@@ -55,7 +55,7 @@
 | `--err` | `#b3261e` | `#ff9a94` | `#b3261e` | `#ff9a94` | `#b3261e` | `#ff8f8f` |
 | `--err-bg` | `#f9e4e2` | `#451d22` | `#f9e4e2` | `#451d22` | `#f9e4e2` | `#401c1c` |
 | `--warn` | `#8a5a12` | `#f6c277` | `#8a5a12` | `#f6c277` | `#8a5a12` | `#ffc46b` |
-| `--warn-bg` | `#f8ecda` | `#3b2a13` | `#f8ecda` | `#3a2a13` | `#f8ecda` | `#3c2a12` |
+| `--warn-bg` | `#f8ecda` | `#3b2a13` | `#f8ecda` | `#3b2a13` | `#f8ecda` | `#3c2a12` |
 | `--radius` | `2px` | `2px` | `4px` | `4px` | `0px` | `0px` |
 | `--danger` | `var(--err)` | `var(--err)` | `var(--err)` | `var(--err)` | `var(--err)` | `var(--err)` |
 | `--shadow` | `none` | `none` | `none` | `none` | `none` | `none` |

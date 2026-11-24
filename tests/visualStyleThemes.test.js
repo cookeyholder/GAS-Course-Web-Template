@@ -10,6 +10,7 @@ const fs = require("fs");
 const path = require("path");
 const configModule = require("../webapp/js/config.js");
 const helpers = require("./helpers/importsUiDeps.js");
+const { computeContrast } = require("../scripts/checkContrast.js");
 
 const STYLES_CSS = fs.readFileSync(path.join(__dirname, "..", "webapp", "styles.css"), "utf8");
 const NEW_STYLE_IDS = ["navy-brick", "celadon-mint", "cover-lime"];
@@ -29,6 +30,43 @@ function readCssBlock(selector) {
   assert(match, `找不到 CSS 區塊：${selector}`);
   return parseDeclarations(match[1]);
 }
+
+// commit 56d3a1a 的六個角色區塊快照；順序為 navy 淺／深、celadon 淺／深、cover 淺／深。
+// 本範本僅刻意調整兩款淺色 --ink-3，其餘角色須與此快照完全一致。
+const SOURCE_ROLES = {
+  "--bg": ["#fbf9f3", "#101b28", "#fbfcfa", "#101b18", "#f1efe4", "#14140f"],
+  "--paper": ["#ffffff", "#18283a", "#ffffff", "#182923", "#fffdf7", "#1e1e17"],
+  "--ink": ["#1b2f47", "#eef3f9", "#17453f", "#edf5f0", "#111111", "#f3efe4"],
+  "--ink-2": ["#4a5a6d", "#bccadc", "#3f6a61", "#b8ccc2", "#3d3d36", "#d6d1c1"],
+  "--ink-3": ["#6d7b8c", "#94a7bd", "#64887e", "#91a99d", "#63635a", "#a9a494"],
+  "--line": ["#1b2f47", "#3c5066", "#17453f", "#3a574e", "#111111", "#484636"],
+  "--line-2": ["#d9d1bd", "#26384c", "#c8d6cd", "#253c35", "#cfcbbd", "#2e2e24"],
+  "--fill": ["#f5f1e7", "#1c2c3e", "#f2f7f4", "#1b2e28", "#f9ebda", "#1d1d16"],
+  "--fill-2": ["#e9e3d5", "#24374c", "#d8e6de", "#22382f", "#f6ead4", "#26261d"],
+  "--accent": ["#b8402d", "#ef8a72", "#17453f", "#86d8bf", "#111111", "#c7f03b"],
+  "--accent-bg": ["#f7ece8", "#43251f", "#d8e6de", "#1b3c33", "#c7f03b", "#2b3812"],
+  "--ok": ["#2e6b4f", "#6fd6a6", "#2e6b4f", "#6fd6a6", "#2f6b3f", "#a3e635"],
+  "--ok-bg": ["#e4f0e8", "#173a2c", "#e3f1e8", "#173a2c", "#e4f0d5", "#1f3310"],
+  "--err": ["#b3261e", "#ff9a94", "#b3261e", "#ff9a94", "#b3261e", "#ff8f8f"],
+  "--err-bg": ["#f9e4e2", "#451d22", "#f9e4e2", "#451d22", "#f9e4e2", "#401c1c"],
+  "--danger": ["var(--err)", "var(--err)", "var(--err)", "var(--err)", "var(--err)", "var(--err)"],
+  "--warn": ["#8a5a12", "#f6c277", "#8a5a12", "#f6c277", "#8a5a12", "#ffc46b"],
+  "--warn-bg": ["#f8ecda", "#3b2a13", "#f8ecda", "#3b2a13", "#f8ecda", "#3c2a12"],
+  "--shadow": ["none", "none", "none", "none", "none", "none"],
+  "--radius": ["2px", "2px", "4px", "4px", "0px", "0px"],
+  "--head-font": ["var(--sans)", "var(--sans)", "var(--sans)", "var(--sans)", "var(--sans)", "var(--sans)"],
+  "--bg-pattern": ["none", "none", "none", "none", "none", "none"],
+  "--bg-size": ["auto", "auto", "auto", "auto", "auto", "auto"],
+  "--style-nav-bg": ["#1b2f47", "#0b1420", "#17453f", "#0b1613", "#111111", "#000000"],
+  "--style-nav-ink": ["#fbf9f3", "#eef3f9", "#fbfcfa", "#edf5f0", "#f1efe4", "#f3efe4"],
+  "--style-band-accent": ["#b8402d", "#ef8a72", "#c8d6cd", "#86d8bf", "#c7f03b", "#c7f03b"],
+  "--cover-lime": ["(無)", "(無)", "(無)", "(無)", "#c7f03b", "#c7f03b"]
+};
+
+const ADJUSTED_INK3 = {
+  "navy-brick:light": ["#6d7b8c", "#5f6d7e"],
+  "celadon-mint:light": ["#64887e", "#52746a"]
+};
 
 const REQUIRED_ROLES = [
   "--line",
@@ -62,6 +100,59 @@ function assertStyleRoles(styleId, lightExpected, darkExpected) {
     });
     REQUIRED_ROLES.forEach(function (name) {
       assert(Object.prototype.hasOwnProperty.call(vars, name), `${styleId} 缺少角色 ${name}`);
+    });
+  });
+}
+
+const THEMES = NEW_STYLE_IDS.reduce(function (list, styleId) {
+  [
+    { key: `${styleId}:light`, selector: `html[data-style="${styleId}"]`, dark: false },
+    {
+      key: `${styleId}:dark`,
+      selector: `html[data-style="${styleId}"][data-theme="dark"]`,
+      dark: true
+    }
+  ].forEach(function (theme) {
+    list.push(theme);
+  });
+  return list;
+}, []);
+
+function assertContrastMatrix() {
+  THEMES.forEach(function (theme) {
+    const vars = readCssBlock(theme.selector);
+    ["--bg", "--paper"].forEach(function (background) {
+      const ratio = computeContrast(vars["--ink-3"], vars[background]);
+      assert(ratio !== null && ratio >= 4.5, `${theme.key} 次要文字對 ${background} 對比不足：${ratio}`);
+    });
+    const navRatio = computeContrast(vars["--style-nav-ink"], vars["--style-nav-bg"]);
+    assert(navRatio !== null && navRatio >= 4.5, `${theme.key} 未啟用頁籤對深色帶對比不足：${navRatio}`);
+    const focusRatio = computeContrast(vars["--accent"], vars["--paper"]);
+    assert(focusRatio !== null && focusRatio >= 3, `${theme.key} 焦點環對紙面對比不足：${focusRatio}`);
+    assert(/^#[0-9a-f]{6}$/i.test(vars["--accent-bg"]), `${theme.key} --accent-bg 須為明確色值`);
+  });
+}
+
+function assertSourceDifferencesOnlyInk3() {
+  assert.strictEqual(THEMES.length, 6);
+  THEMES.forEach(function (theme, index) {
+    const vars = readCssBlock(theme.selector);
+    const sourceRoleCount = Object.keys(SOURCE_ROLES).filter(function (role) {
+      return SOURCE_ROLES[role][index] !== "(無)";
+    }).length;
+    assert.strictEqual(Object.keys(vars).length, sourceRoleCount, `${theme.key} 角色數與來源不同`);
+    Object.keys(SOURCE_ROLES).forEach(function (role) {
+      const sourceValue = SOURCE_ROLES[role][index];
+      if (sourceValue === "(無)") {
+        assert(!Object.prototype.hasOwnProperty.call(vars, role), `${theme.key} 不應宣告 ${role}`);
+        return;
+      }
+      if (Object.prototype.hasOwnProperty.call(ADJUSTED_INK3, theme.key) && role === "--ink-3") {
+        assert.strictEqual(sourceValue, ADJUSTED_INK3[theme.key][0], `${theme.key} 來源色值快照不符`);
+        assert.strictEqual(vars[role], ADJUSTED_INK3[theme.key][1], `${theme.key} 調整後色值不符`);
+        return;
+      }
+      assert.strictEqual(vars[role], sourceValue, `${theme.key} ${role} 與來源不同`);
     });
   });
 }
@@ -230,6 +321,12 @@ function run() {
   assert.strictEqual(coverLight["--ink"], "#111111", "檸檬底按鈕的墨黑字取自淺色 --ink");
   assert.strictEqual(coverDark["--cover-lime"], "#c7f03b", "深色仍保留檸檬色票供按鈕使用");
   console.log("   ✓ cover-lime 深淺角色與檸檬色票驗證通過");
+
+  assertContrastMatrix();
+  console.log("   ✓ 六個主題次要文字／頁籤／焦點環對比矩陣驗證通過");
+
+  assertSourceDifferencesOnlyInk3();
+  console.log("   ✓ 來源差異僅兩款淺色 --ink-3 驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const ctx = createUiContext({});

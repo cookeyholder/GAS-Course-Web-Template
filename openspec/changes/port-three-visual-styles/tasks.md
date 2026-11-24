@@ -16,7 +16,7 @@
 - [x] 2.1 在 `webapp/styles.css` 檔尾加入 `navy-brick` 淺色與深色完整角色區塊，數值依 `design.md` D2（淺色 `--accent-bg` 為 `#f7ece8`、`--ink-3` 為 `#5f6d7e`），並於新測試檔加入角色斷言；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 與 `npm run check:contrast` 通過。
 - [ ] 2.2 加入 `celadon-mint` 淺色與深色角色區塊與斷言（淺色 `--ink-3` 為 `#52746a`）；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 與 `npm run check:contrast` 通過。
 - [x] 2.3 加入 `cover-lime` 淺色與深色角色區塊、`--cover-lime` 局部變數、檸檬底墨黑字契約與斷言；執行 `npm run build:webapp` 並連同 `index.html` 提交；驗證 `npm test` 與 `npm run check:contrast` 通過。
-- [ ] 2.4 在新測試檔加入表驅動對比矩陣：次要文字對背景與卡片 ≥4.5:1、未啟用頁籤對深色帶 ≥4.5:1、焦點環對紙面 ≥3:1，以及三款 `--accent-bg` 存在性與「來源差異僅兩款 `--ink-3`」斷言；按鈕文字色與焦點環斷言留至 task 3.3；驗證 `npm test` 通過。
+- [x] 2.4 在新測試檔加入表驅動對比矩陣：次要文字對背景與卡片 ≥4.5:1、未啟用頁籤對深色帶 ≥4.5:1、焦點環對紙面 ≥3:1，以及三款 `--accent-bg` 存在性與「來源差異僅兩款 `--ink-3`」斷言；按鈕文字色與焦點環斷言留至 task 3.3；驗證 `npm test` 通過。
 
 ## 3. 重現字級與區塊切割
 
