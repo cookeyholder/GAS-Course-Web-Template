@@ -139,7 +139,50 @@
 
 `happyhues3` 深色 `.btn.primary` 現況只改 `border-color`、背景仍是 `#3da9fc`，故須連同背景改為 `#1e3b5f`。四款 `.pill` 規則特異性 (0,2,1) 高於共用 `.pill.ok`／`.pill.err` (0,2,0) 且以 `border` shorthand 覆寫框線色，因此調整 `--ok-bg`／`--err-bg` 角色值不會改善實際畫面，必須新增明確的元件規則。`.matrix-filter-pill` 在目前前端沒有對應 DOM，不新增其規則；既有死規則不刪除以免超出本變更範圍。
 
-修補後由「全部風格」契約測試逐款逐主題驗證上表所列全部色對，並在 `design.md` 本節記錄修補前後解析值（欄位：風格／角色／原解析值／新解析值／驗證結果）。
+修補後由「全部風格」契約測試逐款逐主題驗證上表所列全部色對，並在 `design.md` 本節記錄修補前後解析值（欄位：風格／角色／原解析值／新解析值／驗證結果）。原解析值中，缺失的角色由共用 `:root`（淺）或 `html[data-theme="dark"]`（深）帶入，`--ok`／`--warn` 則原已宣告在各風格自身區塊；成對前景對底色皆 ≥4.5:1，`--grid`／`--shadow`／`--sans`／`--mono`／`--radius` 未在四款重複宣告。
+
+| 風格 | 角色 | 原解析值（淺／深） | 新解析值（淺／深） | 驗證結果 |
+| ---- | ---- | ---- | ---- | ---- |
+| happyhues2 | `--line-2` | `#d6dae1`／`#23385a` | `#c8d2df`／`#1b2d45` | 通過 |
+| happyhues2 | `--fill` | `#f3f5f8`／`#12253f` | `#eef2f7`／`#0d2544` | 通過 |
+| happyhues2 | `--fill-2` | `#e9edf3`／`#172e4d` | `#e2e9f1`／`#001534` | 通過 |
+| happyhues2 | `--accent-bg` | `#e4ecf8`／`#12253f` | `#4a1020`／`#4a1020` | 通過 |
+| happyhues2 | `--ok` | `#00ebc7`／`#00ebc7` | `#00ebc7`／`#00ebc7` | 通過 |
+| happyhues2 | `--ok-bg` | `#e3f3ea`／`#0e2f24` | `#004d40`／`#082142` | 通過 |
+| happyhues2 | `--err` | `#c62828`／`#ff7b7b` | `#b91c1c`／`#fca5a5` | 通過 |
+| happyhues2 | `--err-bg` | `#fbe7e7`／`#35141a` | `#fee2e2`／`#450a0a` | 通過 |
+| happyhues2 | `--warn` | `#fde24f`／`#fde24f` | `#96570a`／`#fbbf24` | 通過 |
+| happyhues2 | `--warn-bg` | `#fbf0dd`／`#33240e` | `#fff1e0`／`#3b2a13` | 通過 |
+| happyhues3 | `--line-2` | `#d6dae1`／`#23385a` | `#90b4ce`／`#1e3b5f` | 通過 |
+| happyhues3 | `--fill` | `#f3f5f8`／`#12253f` | `#e8f2fb`／`#162b47` | 通過 |
+| happyhues3 | `--fill-2` | `#e9edf3`／`#172e4d` | `#d8eefe`／`#0b1a2d` | 通過 |
+| happyhues3 | `--accent-bg` | `#e4ecf8`／`#12253f` | `#2a0810`／`#2a0810` | 通過 |
+| happyhues3 | `--ok` | `#2cb67d`／`#2cb67d` | `#166534`／`#86efac` | 通過 |
+| happyhues3 | `--ok-bg` | `#e3f3ea`／`#0e2f24` | `#e3f3ea`／`#164e63` | 通過 |
+| happyhues3 | `--err` | `#c62828`／`#ff7b7b` | `#b91c1c`／`#fca5a5` | 通過 |
+| happyhues3 | `--err-bg` | `#fbe7e7`／`#35141a` | `#fee2e2`／`#450a0a` | 通過 |
+| happyhues3 | `--warn` | `#ff8e3c`／`#ff8e3c` | `#96570a`／`#fbbf24` | 通過 |
+| happyhues3 | `--warn-bg` | `#fbf0dd`／`#33240e` | `#fff1e0`／`#3b2a13` | 通過 |
+| happyhues5 | `--line-2` | `#d6dae1`／`#23385a` | `#b7d5cd`／`#0f4d44` | 通過 |
+| happyhues5 | `--fill` | `#f3f5f8`／`#12253f` | `#e8f4f0`／`#0a3a34` | 通過 |
+| happyhues5 | `--fill-2` | `#e9edf3`／`#172e4d` | `#d9ebe5`／`#00473e` | 通過 |
+| happyhues5 | `--accent-bg` | `#e4ecf8`／`#12253f` | `#2a0a06`／`#2a0a06` | 通過 |
+| happyhues5 | `--ok` | `#2cb67d`／`#2cb67d` | `#00473e`／`#86efac` | 通過 |
+| happyhues5 | `--ok-bg` | `#e3f3ea`／`#0e2f24` | `#e3f3ea`／`#00473e` | 通過 |
+| happyhues5 | `--err` | `#c62828`／`#ff7b7b` | `#b91c1c`／`#fca5a5` | 通過 |
+| happyhues5 | `--err-bg` | `#fbe7e7`／`#35141a` | `#fee2e2`／`#450a0a` | 通過 |
+| happyhues5 | `--warn` | `#faae2b`／`#faae2b` | `#96570a`／`#fbbf24` | 通過 |
+| happyhues5 | `--warn-bg` | `#fbf0dd`／`#33240e` | `#fff1e0`／`#3b2a13` | 通過 |
+| happyhues9 | `--line-2` | `#d6dae1`／`#23385a` | `#d0d2d8`／`#333333` | 通過 |
+| happyhues9 | `--fill` | `#f3f5f8`／`#12253f` | `#f5f5f7`／`#202020` | 通過 |
+| happyhues9 | `--fill-2` | `#e9edf3`／`#172e4d` | `#eff0f3`／`#0d0d0d` | 通過 |
+| happyhues9 | `--accent-bg` | `#e4ecf8`／`#12253f` | `#0a0004`／`#0a0004` | 通過 |
+| happyhues9 | `--ok` | `#2cb67d`／`#2cb67d` | `#166534`／`#86efac` | 通過 |
+| happyhues9 | `--ok-bg` | `#e3f3ea`／`#0e2f24` | `#e3f3ea`／`#2a2a2a` | 通過 |
+| happyhues9 | `--err` | `#c62828`／`#ff7b7b` | `#b91c1c`／`#fca5a5` | 通過 |
+| happyhues9 | `--err-bg` | `#fbe7e7`／`#35141a` | `#fee2e2`／`#450a0a` | 通過 |
+| happyhues9 | `--warn` | `#ff8e3c`／`#ff8e3c` | `#96570a`／`#fbbf24` | 通過 |
+| happyhues9 | `--warn-bg` | `#fbf0dd`／`#33240e` | `#fff1e0`／`#3b2a13` | 通過 |
 
 ### D7：高對比媒體查詢維持目標現況
 

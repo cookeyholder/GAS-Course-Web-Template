@@ -20,19 +20,20 @@ const STYLES_CSS = fs.readFileSync(path.join(__dirname, "..", "webapp", "styles.
 const CSS_WITHOUT_COMMENTS = STYLES_CSS.replace(/\/\*[\s\S]*?\*\//g, "");
 const UI_JS = fs.readFileSync(path.join(__dirname, "..", "webapp", "js", "ui.js"), "utf8");
 const NEW_STYLE_IDS = ["navy-brick", "celadon-mint", "cover-lime"];
-// task 4.3 前尚未補角色的四款；4.1 先驗證其餘契約，4.3 補色後移除此例外。
-const PENDING_D6 = ["happyhues2", "happyhues3", "happyhues5", "happyhues9"];
+const D6_STYLE_IDS = ["happyhues2", "happyhues3", "happyhues5", "happyhues9"];
 
-function findRuleDeclarations(selector) {
+function findRuleDeclarations(selector, last) {
   const blockPattern = /([^{}]+)\{([^{}]*)\}/g;
   let match = null;
+  let found = null;
   while ((match = blockPattern.exec(CSS_WITHOUT_COMMENTS)) !== null) {
     const selectors = match[1].split(",").map(function (part) {
       return part.trim();
     });
-    if (selectors.indexOf(selector) !== -1) return match[2];
+    if (selectors.indexOf(selector) !== -1 && (last || found === null)) found = match[2];
   }
-  assert.fail(`找不到 CSS 規則：${selector}`);
+  assert(found !== null, `找不到 CSS 規則：${selector}`);
+  return found;
 }
 
 function parseDeclarations(body) {
@@ -219,6 +220,152 @@ const UNCHANGED_BASELINE = {
   "happyhues14:dark": "69d0ac769076"
 };
 
+// D6：四款舊風格修補前已宣告的角色；--ok／--warn 依 Adjusted Roles 調整，其餘須完全不變。
+const D6_UNCHANGED_ROLES = [
+  "--bg",
+  "--paper",
+  "--ink",
+  "--ink-2",
+  "--ink-3",
+  "--line",
+  "--line-subtle",
+  "--primary",
+  "--primary-ink",
+  "--accent",
+  "--danger",
+  "--radius-panel",
+  "--radius-btn",
+  "--shadow-panel",
+  "--shadow-btn",
+  "--body-font",
+  "--head-font",
+  "--bg-pattern",
+  "--bg-size"
+];
+const D6_UNCHANGED_BASELINE = {
+  "happyhues2:light": "149569ac04e5",
+  "happyhues2:dark": "2349f9192c60",
+  "happyhues3:light": "9796db6d4fb2",
+  "happyhues3:dark": "82caed0c3fa7",
+  "happyhues5:light": "da766131e2f2",
+  "happyhues5:dark": "0cabe167a78d",
+  "happyhues9:light": "ffa1f956a3ba",
+  "happyhues9:dark": "7b8a7b88721f"
+};
+const D6_EXPECTED_ROLES = {
+  happyhues2: {
+    light: {
+      "--line-2": "#c8d2df",
+      "--fill": "#eef2f7",
+      "--fill-2": "#e2e9f1",
+      "--accent-bg": "#4a1020",
+      "--ok": "#00ebc7",
+      "--ok-bg": "#004d40",
+      "--err": "#b91c1c",
+      "--err-bg": "#fee2e2",
+      "--warn": "#96570a",
+      "--warn-bg": "#fff1e0"
+    },
+    dark: {
+      "--line-2": "#1b2d45",
+      "--fill": "#0d2544",
+      "--fill-2": "#001534",
+      "--accent-bg": "#4a1020",
+      "--ok": "#00ebc7",
+      "--ok-bg": "#082142",
+      "--err": "#fca5a5",
+      "--err-bg": "#450a0a",
+      "--warn": "#fbbf24",
+      "--warn-bg": "#3b2a13"
+    }
+  },
+  happyhues3: {
+    light: {
+      "--line-2": "#90b4ce",
+      "--fill": "#e8f2fb",
+      "--fill-2": "#d8eefe",
+      "--accent-bg": "#2a0810",
+      "--ok": "#166534",
+      "--ok-bg": "#e3f3ea",
+      "--err": "#b91c1c",
+      "--err-bg": "#fee2e2",
+      "--warn": "#96570a",
+      "--warn-bg": "#fff1e0"
+    },
+    dark: {
+      "--line-2": "#1e3b5f",
+      "--fill": "#162b47",
+      "--fill-2": "#0b1a2d",
+      "--accent-bg": "#2a0810",
+      "--ok": "#86efac",
+      "--ok-bg": "#164e63",
+      "--err": "#fca5a5",
+      "--err-bg": "#450a0a",
+      "--warn": "#fbbf24",
+      "--warn-bg": "#3b2a13"
+    }
+  },
+  happyhues5: {
+    light: {
+      "--line-2": "#b7d5cd",
+      "--fill": "#e8f4f0",
+      "--fill-2": "#d9ebe5",
+      "--accent-bg": "#2a0a06",
+      "--ok": "#00473e",
+      "--ok-bg": "#e3f3ea",
+      "--err": "#b91c1c",
+      "--err-bg": "#fee2e2",
+      "--warn": "#96570a",
+      "--warn-bg": "#fff1e0"
+    },
+    dark: {
+      "--line-2": "#0f4d44",
+      "--fill": "#0a3a34",
+      "--fill-2": "#00473e",
+      "--accent-bg": "#2a0a06",
+      "--ok": "#86efac",
+      "--ok-bg": "#00473e",
+      "--err": "#fca5a5",
+      "--err-bg": "#450a0a",
+      "--warn": "#fbbf24",
+      "--warn-bg": "#3b2a13"
+    }
+  },
+  happyhues9: {
+    light: {
+      "--line-2": "#d0d2d8",
+      "--fill": "#f5f5f7",
+      "--fill-2": "#eff0f3",
+      "--accent-bg": "#0a0004",
+      "--ok": "#166534",
+      "--ok-bg": "#e3f3ea",
+      "--err": "#b91c1c",
+      "--err-bg": "#fee2e2",
+      "--warn": "#96570a",
+      "--warn-bg": "#fff1e0"
+    },
+    dark: {
+      "--line-2": "#333333",
+      "--fill": "#202020",
+      "--fill-2": "#0d0d0d",
+      "--accent-bg": "#0a0004",
+      "--ok": "#86efac",
+      "--ok-bg": "#2a2a2a",
+      "--err": "#fca5a5",
+      "--err-bg": "#450a0a",
+      "--warn": "#fbbf24",
+      "--warn-bg": "#3b2a13"
+    }
+  }
+};
+const D6_PILL_OK = {
+  happyhues2: { light: ["#00214d", "#00ebc7"], dark: ["#00ebc7", "#082142"] },
+  happyhues3: { light: ["#166534", "#e3f3ea"], dark: ["#86efac", "#164e63"] },
+  happyhues5: { light: ["#00473e", "#e3f3ea"], dark: ["#86efac", "#00473e"] },
+  happyhues9: { light: ["#166534", "#e3f3ea"], dark: ["#86efac", "#2a2a2a"] }
+};
+const D6_PILL_ERR = { light: ["#b91c1c", "#fee2e2"], dark: ["#fca5a5", "#450a0a"] };
+
 function resolveValue(raw, themeVars, seen) {
   const references = String(raw).match(/var\(/g) || [];
   assert(references.length <= 1, `兩層以上 var() 無法明確解析：${raw}`);
@@ -242,8 +389,11 @@ function resolvedRole(themeKey, role) {
   return resolveCustomProperty(role, THEME_MAP.themes[themeKey], new Set());
 }
 
-function themeHash(vars) {
-  const entries = Object.keys(vars)
+function themeHash(vars, roles) {
+  const entries = (roles || Object.keys(vars))
+    .filter(function (name) {
+      return Object.prototype.hasOwnProperty.call(vars, name);
+    })
     .sort()
     .map(function (name) {
       return [name, vars[name]];
@@ -259,11 +409,9 @@ function assertStaticContract(config) {
       const key = `${style.id}:${mode}`;
       const vars = THEME_MAP.themes[key];
       assert(vars, `缺少 ${key} 主題區塊`);
-      if (PENDING_D6.indexOf(style.id) === -1) {
-        CORE_ROLES.forEach(function (role) {
-          assert(Object.prototype.hasOwnProperty.call(vars, role), `${key} 自身區塊缺少核心角色 ${role}`);
-        });
-      }
+      CORE_ROLES.forEach(function (role) {
+        assert(Object.prototype.hasOwnProperty.call(vars, role), `${key} 自身區塊缺少核心角色 ${role}`);
+      });
       const override = THEME_MAP.focusOverrides[style.id];
       const focusValue = override || vars["--focus-ring"] || THEME_MAP.rootVars["--focus-ring"] || vars["--accent"];
       const focusColor = resolveValue(focusValue, vars, new Set());
@@ -289,6 +437,63 @@ function assertStaticContract(config) {
       });
     });
   });
+}
+
+function assertComponentPair(selector, foreground, background) {
+  // D6 規則刻意重複宣告以蓋過既有風格規則，取最後一筆才等同於瀏覽器套用後的結果。
+  const rule = findRuleDeclarations(selector, true);
+  assert(new RegExp(`background-color:\\s*${background}\\s*;`, "i").test(rule), `${selector} 背景須為 ${background}`);
+  assert(new RegExp(`color:\\s*${foreground}\\s*;`, "i").test(rule), `${selector} 前景須為 ${foreground}`);
+  const ratio = computeContrast(foreground, background);
+  assert(ratio !== null && ratio >= 4.5, `${selector} 對比不足：${ratio}`);
+}
+
+function assertD6Contract() {
+  D6_STYLE_IDS.forEach(function (styleId) {
+    ["light", "dark"].forEach(function (mode) {
+      const key = `${styleId}:${mode}`;
+      const vars = THEME_MAP.themes[key];
+      const expected = D6_EXPECTED_ROLES[styleId][mode];
+      assert.strictEqual(
+        themeHash(vars, D6_UNCHANGED_ROLES),
+        D6_UNCHANGED_BASELINE[key],
+        `${key} D6 禁止變更的角色被改動`
+      );
+      Object.keys(expected).forEach(function (role) {
+        assert.strictEqual(vars[role], expected[role], `${key} ${role} 修補值不符`);
+        assert(/^#[0-9a-f]{6}$/i.test(vars[role]), `${key} ${role} 須為明示色值`);
+      });
+      ["--grid", "--shadow", "--sans", "--mono", "--radius"].forEach(function (role) {
+        assert(!Object.prototype.hasOwnProperty.call(vars, role), `${key} 不應重複宣告已由 :root 提供的 ${role}`);
+      });
+      [
+        ["--accent", "--accent-bg"],
+        ["--ok", "--ok-bg"],
+        ["--err", "--err-bg"],
+        ["--warn", "--warn-bg"]
+      ].forEach(function ([foreground, background]) {
+        const ratio = computeContrast(resolvedRole(key, foreground), resolvedRole(key, background));
+        assert(ratio !== null && ratio >= 4.5, `${key} ${foreground} 對 ${background} 對比不足：${ratio}`);
+      });
+      const themeSuffix = mode === "dark" ? '[data-theme="dark"]' : "";
+      const pillOk = D6_PILL_OK[styleId][mode];
+      const pillErr = D6_PILL_ERR[mode];
+      assertComponentPair(`html[data-style="${styleId}"]${themeSuffix} .pill.ok`, pillOk[0], pillOk[1]);
+      assertComponentPair(`html[data-style="${styleId}"]${themeSuffix} .pill.err`, pillErr[0], pillErr[1]);
+      assert.notStrictEqual(pillOk[0], pillErr[0], `${key} 成功與失敗前景須可區辨`);
+      assert.notStrictEqual(pillOk[1], pillErr[1], `${key} 成功與失敗背景須可區辨`);
+    });
+  });
+  [
+    ['html[data-style="happyhues3"] .btn.primary', "#00214d", "#3da9fc"],
+    ['html[data-style="happyhues3"][data-theme="dark"] .btn.primary', "#fffffe", "#1e3b5f"],
+    ['html[data-style="happyhues3"] .nav-tab.active', "#00214d", "#3da9fc"],
+    ['html[data-style="happyhues3"][data-theme="dark"] .nav-tab.active', "#fffffe", "#1e3b5f"]
+  ].forEach(function ([selector, foreground, background]) {
+    assertComponentPair(selector, foreground, background);
+  });
+  assert.strictEqual(STYLES_CSS.indexOf("--sans: var(--body-font)"), -1, "不得建立 --sans 循環別名");
+  assert.strictEqual((STYLES_CSS.match(/matrix-filter-pill/g) || []).length, 45, "不得新增 .matrix-filter-pill 規則");
 }
 
 console.log("開始執行 visualStyleThemes 測試...\n");
@@ -464,6 +669,9 @@ function run() {
 
   assertStaticContract(config);
   console.log("   ✓ 全部風格角色完整、焦點環與既有色值不回退驗證通過");
+
+  assertD6Contract();
+  console.log("   ✓ D6 四款角色修補與元件色對契約驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const header = findRuleDeclarations(`html[data-style="${styleId}"] .app-header`);
