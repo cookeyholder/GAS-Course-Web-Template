@@ -7486,3 +7486,12 @@ html[data-style="cover-lime"] .nav-tab.active:focus-visible {
 html[data-style="cover-lime"][data-theme="dark"] .nav-tab.active:focus-visible {
   outline-color: #c7f03b;
 }
+
+/* 單列頁籤導覽：小螢幕維持 56px 可橫向捲動，寬螢幕才拉高深色帶。 */
+@media (min-width: 1200px) {
+  html[data-style="navy-brick"] .app-nav,
+  html[data-style="celadon-mint"] .app-nav,
+  html[data-style="cover-lime"] .app-nav {
+    min-height: 232px;
+  }
+}

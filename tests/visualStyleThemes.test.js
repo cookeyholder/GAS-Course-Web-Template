@@ -14,6 +14,7 @@ const { computeContrast } = require("../scripts/checkContrast.js");
 
 const STYLES_CSS = fs.readFileSync(path.join(__dirname, "..", "webapp", "styles.css"), "utf8");
 const CSS_WITHOUT_COMMENTS = STYLES_CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+const UI_JS = fs.readFileSync(path.join(__dirname, "..", "webapp", "js", "ui.js"), "utf8");
 const NEW_STYLE_IDS = ["navy-brick", "celadon-mint", "cover-lime"];
 
 function findRuleDeclarations(selector) {
@@ -411,6 +412,23 @@ function run() {
     assert(ratio !== null && ratio >= 3, `cover-lime ${label} 啟用頁籤焦點環對比不足：${ratio}`);
   });
   console.log("   ✓ 按鈕與焦點環對比契約驗證通過");
+
+  const wideBand = /@media\s*\(min-width:\s*1200px\)\s*\{([\s\S]*?)\}/.exec(CSS_WITHOUT_COMMENTS);
+  assert(wideBand, "須有 1200px 以上寬螢幕規則");
+  NEW_STYLE_IDS.forEach(function (styleId) {
+    assert(wideBand[1].indexOf(`html[data-style="${styleId}"] .app-nav`) !== -1, `${styleId} 須納入寬螢幕深色帶`);
+  });
+  assert(/min-height:\s*232px/.test(wideBand[1]), "寬螢幕深色帶高度須為 232px");
+  assert(/overflow-x:\s*auto/.test(findRuleDeclarations(".app-nav")), "共用 .app-nav 仍須可橫向捲動");
+  assert.strictEqual((CSS_WITHOUT_COMMENTS.match(/outline:\s*none/g) || []).length, 4, "不得新增第五處 outline: none");
+  assert.strictEqual(STYLES_CSS.indexOf("prefers-contrast"), -1, "不得移植 prefers-contrast 外圈");
+  assert(
+    UI_JS.indexOf('bindings.delegate(doc, "change", "[data-ui-action=\'apply-style\']"') !== -1,
+    "風格事件委派須保留"
+  );
+  assert(UI_JS.indexOf('aria-current="page"') !== -1, "頁籤 aria-current 須保留");
+  assert(UI_JS.indexOf('<option value="') !== -1, "風格下拉 option 渲染須保留");
+  console.log("   ✓ 寬螢幕深色帶與既有事件／無障礙行為回歸驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const ctx = createUiContext({});
