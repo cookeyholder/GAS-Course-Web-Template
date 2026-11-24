@@ -4,7 +4,7 @@
 
 ## 0. 提案先行落盤
 
-- [ ] 0.1 確認兩輪雙代理審查修訂皆已寫入 `openspec/changes/port-three-visual-styles/`，執行 `npm run format:check`、`openspec validate port-three-visual-styles --strict` 與 `npm run check:lang`；將整份提案獨立提交一次（commit 僅含該目錄），驗證 `git show --stat HEAD` 只列出提案檔案。**必須在 task 1 前完成。**
+- [x] 0.1 確認兩輪雙代理審查修訂皆已寫入 `openspec/changes/port-three-visual-styles/`，執行 `npm run format:check`、`openspec validate port-three-visual-styles --strict` 與 `npm run check:lang`；將整份提案獨立提交一次（commit 僅含該目錄），驗證 `git show --stat HEAD` 只列出提案檔案。**必須在 task 1 前完成。**
 
 ## 1. 註冊風格清單與持久化契約
 
