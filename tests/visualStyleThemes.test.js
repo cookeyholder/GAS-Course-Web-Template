@@ -6,16 +6,19 @@
  */
 
 const assert = require("assert");
+const crypto = require("crypto");
 const fs = require("fs");
 const path = require("path");
 const configModule = require("../webapp/js/config.js");
 const helpers = require("./helpers/importsUiDeps.js");
-const { computeContrast } = require("../scripts/checkContrast.js");
+const { buildThemeMap, computeContrast, parseCssBlocks } = require("../scripts/checkContrast.js");
 
 const STYLES_CSS = fs.readFileSync(path.join(__dirname, "..", "webapp", "styles.css"), "utf8");
 const CSS_WITHOUT_COMMENTS = STYLES_CSS.replace(/\/\*[\s\S]*?\*\//g, "");
 const UI_JS = fs.readFileSync(path.join(__dirname, "..", "webapp", "js", "ui.js"), "utf8");
 const NEW_STYLE_IDS = ["navy-brick", "celadon-mint", "cover-lime"];
+// task 4.3 前尚未補角色的四款；4.1 先驗證其餘契約，4.3 補色後移除此例外。
+const PENDING_D6 = ["happyhues2", "happyhues3", "happyhues5", "happyhues9"];
 
 function findRuleDeclarations(selector) {
   const blockPattern = /([^{}]+)\{([^{}]*)\}/g;
@@ -167,6 +170,120 @@ function assertSourceDifferencesOnlyInk3() {
         return;
       }
       assert.strictEqual(vars[role], sourceValue, `${theme.key} ${role} 與來源不同`);
+    });
+  });
+}
+
+// 與 scripts/checkContrast.js 的單層解析不同：這裡遞迴拆解 var()，並以「主題自身 → :root」順序查找，
+// 且偵測循環與兩層 var()；因此可涵蓋 --body-font: var(--sans) 等鏈結，也不會把 D6 禁止的別名視為合格。
+const THEME_MAP = buildThemeMap(parseCssBlocks(CSS_WITHOUT_COMMENTS));
+const CORE_ROLES = [
+  "--bg",
+  "--paper",
+  "--ink",
+  "--ink-2",
+  "--ink-3",
+  "--line",
+  "--line-2",
+  "--fill",
+  "--fill-2",
+  "--accent",
+  "--accent-bg",
+  "--ok",
+  "--ok-bg",
+  "--err",
+  "--err-bg",
+  "--warn-bg"
+];
+const UNCHANGED_BASELINE = {
+  "modern-slate:light": "9dd6976d2624",
+  "modern-slate:dark": "3fe17209f557",
+  "blueprint:light": "38a57f99ebb5",
+  "blueprint:dark": "b8c67a0dd790",
+  "paper:light": "1f34a3558fbf",
+  "paper:dark": "434db149c935",
+  "neobrutalism:light": "7e1e6f0a7bf4",
+  "neobrutalism:dark": "686a62e1f847",
+  "claymorphism:light": "45f76ddb86ee",
+  "claymorphism:dark": "a9fa37043c32",
+  "nes:light": "d6dec599b426",
+  "nes:dark": "94bbab1178ad",
+  "happyhues10:light": "b21ff71dba4f",
+  "happyhues10:dark": "8513aa43d073",
+  "happyhues12:light": "47522d53761e",
+  "happyhues12:dark": "0cc73ab01a4f",
+  "happyhues14:light": "2e6f76e82c9b",
+  "happyhues14:dark": "69d0ac769076"
+};
+
+function resolveValue(raw, themeVars, seen) {
+  const references = String(raw).match(/var\(/g) || [];
+  assert(references.length <= 1, `兩層以上 var() 無法明確解析：${raw}`);
+  const single = /^var\(\s*(--[\w-]+)\s*\)$/.exec(String(raw).trim());
+  if (!single) {
+    assert(references.length === 0, `var() 形式不受支援：${raw}`);
+    return raw;
+  }
+  return resolveCustomProperty(single[1], themeVars, seen || new Set());
+}
+
+function resolveCustomProperty(name, themeVars, seen) {
+  assert(!seen.has(name), `角色的 var() 參考形成循環：${name}`);
+  seen.add(name);
+  const raw = Object.prototype.hasOwnProperty.call(themeVars, name) ? themeVars[name] : THEME_MAP.rootVars[name];
+  assert(raw !== undefined, `找不到角色 ${name}`);
+  return resolveValue(raw, themeVars, seen);
+}
+
+function resolvedRole(themeKey, role) {
+  return resolveCustomProperty(role, THEME_MAP.themes[themeKey], new Set());
+}
+
+function themeHash(vars) {
+  const entries = Object.keys(vars)
+    .sort()
+    .map(function (name) {
+      return [name, vars[name]];
+    });
+  return crypto.createHash("sha256").update(JSON.stringify(entries)).digest("hex").slice(0, 12);
+}
+
+function assertStaticContract(config) {
+  const expectedThemeCount = config.styles.length * 2;
+  assert.strictEqual(Object.keys(THEME_MAP.themes).length, expectedThemeCount, "主題總數應為風格數的兩倍");
+  config.styles.forEach(function (style) {
+    ["light", "dark"].forEach(function (mode) {
+      const key = `${style.id}:${mode}`;
+      const vars = THEME_MAP.themes[key];
+      assert(vars, `缺少 ${key} 主題區塊`);
+      if (PENDING_D6.indexOf(style.id) === -1) {
+        CORE_ROLES.forEach(function (role) {
+          assert(Object.prototype.hasOwnProperty.call(vars, role), `${key} 自身區塊缺少核心角色 ${role}`);
+        });
+      }
+      const override = THEME_MAP.focusOverrides[style.id];
+      const focusValue = override || vars["--focus-ring"] || THEME_MAP.rootVars["--focus-ring"] || vars["--accent"];
+      const focusColor = resolveValue(focusValue, vars, new Set());
+      const focusContrast = computeContrast(focusColor, resolvedRole(key, "--paper"));
+      assert(focusContrast !== null && focusContrast >= 3, `${key} 焦點環對比不足：${focusContrast}`);
+      ["--ok", "--ok-bg", "--err", "--err-bg"].forEach(function (role) {
+        assert(/^#[0-9a-f]{6}$/i.test(resolvedRole(key, role)), `${key} ${role} 須解析為明確色值`);
+      });
+    });
+  });
+  Object.keys(UNCHANGED_BASELINE).forEach(function (key) {
+    assert.strictEqual(themeHash(THEME_MAP.themes[key]), UNCHANGED_BASELINE[key], `${key} 既有角色值被改變`);
+  });
+  NEW_STYLE_IDS.forEach(function (styleId) {
+    ["light", "dark"].forEach(function (mode) {
+      const key = `${styleId}:${mode}`;
+      [
+        ["--ok", "--ok-bg"],
+        ["--err", "--err-bg"]
+      ].forEach(function ([foreground, background]) {
+        const ratio = computeContrast(resolvedRole(key, foreground), resolvedRole(key, background));
+        assert(ratio !== null && ratio >= 4.5, `${key} ${foreground} 對比不足：${ratio}`);
+      });
     });
   });
 }
@@ -341,6 +458,9 @@ function run() {
 
   assertSourceDifferencesOnlyInk3();
   console.log("   ✓ 來源差異僅兩款淺色 --ink-3 驗證通過");
+
+  assertStaticContract(config);
+  console.log("   ✓ 全部風格角色完整、焦點環與既有色值不回退驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const header = findRuleDeclarations(`html[data-style="${styleId}"] .app-header`);
