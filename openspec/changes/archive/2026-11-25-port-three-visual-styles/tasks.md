@@ -37,7 +37,7 @@
 
 - [x] 5.1 將 `README.md`（7、38、381 行）的「13 款」更新為「16 款」並列舉三款新風格，於 `AGENTS.md:84` 的風格清單補上三款說明；驗證 `grep -rn '13 款' README.md AGENTS.md` 無輸出後提交。
 - [x] 5.2 所有新增測試完成後執行 `node scripts/generateOpenccS2twpContractLiterals.js` 與 `node scripts/generateOpenccS2twpContractLiterals.js --check`；逐項人工核對 `--check` 輸出的新增字面值並顯示核准紀錄（生成器對新增僅警告不回傳失敗，不得以結束碼 0 推定已核可），不得以 `--fix` 自動寫入；再次執行 `npm run build:webapp`，確認根目錄 `index.html` 與原始檔一致、`git diff --check` 通過；逐筆核可紀錄寫入 `opencc-literal-signoff.md`（新增 62 筆、移除 1 筆過期值）；提交清冊、核可紀錄與殘留產物變更。
-- [ ] 5.3 執行 `openspec-archive-change port-three-visual-styles` 並將封存成果獨立提交；驗證 change 已從 `openspec/changes/` 移至封存目錄。
+- [x] 5.3 執行 `openspec-archive-change port-three-visual-styles` 並將封存成果獨立提交；驗證 change 已從 `openspec/changes/` 移至封存目錄。
 - [ ] 5.4 先執行 `git rev-parse --verify origin/main` 確認變更覆蓋率基準存在（`getDiff()` 失敗會安靜略過），再執行完整本地 CI 指令鏈（`npm run format:check`、`npm run check:lang`、`npm run check:ui-classes`、`npm run check:contrast`、`npm run check:a11y`、`npm test`、`npm run check:coverage`、`npm run check:complexity`、`CHANGED_COVERAGE_BASE=origin/main npm run check:changed-coverage`、`node scripts/generateOpenccS2twpContractLiterals.js --check`、`npm run build:webapp`、`git diff --exit-code -- index.html`、`git diff --exit-code -- version.generated.js`）；驗證全部結束碼為 0、基準線不回退、品質基準線檔案無變更，且 OpenCC `--check` 輸出無未核可的新增字面值。
 
 ## Workflow follow-up（非程式碼 task）
