@@ -45,6 +45,42 @@ function parseDeclarations(body) {
   return vars;
 }
 
+function parseCssDeclarations(body) {
+  const declarations = {};
+  body.split(";").forEach(function (line) {
+    const match = /^\s*([\w-]+)\s*:\s*([^;]+?)\s*$/.exec(line);
+    if (match) declarations[match[1]] = match[2];
+  });
+  return declarations;
+}
+
+// 依共用 → 風格 → 主題的層級順序合併宣告；目前原始碼順序與特異性層級一致，不處理跨特異性衝突。
+function collectRuleDeclarations(selectors) {
+  const wanted = selectors.filter(Boolean);
+  const merged = {};
+  const blockPattern = /([^{}]+)\{([^{}]*)\}/g;
+  let match = null;
+  while ((match = blockPattern.exec(CSS_WITHOUT_COMMENTS)) !== null) {
+    const ruleSelectors = match[1].split(",").map(function (part) {
+      return part.trim();
+    });
+    if (
+      ruleSelectors.some(function (selector) {
+        return wanted.indexOf(selector) !== -1;
+      })
+    ) {
+      Object.assign(merged, parseCssDeclarations(match[2]));
+    }
+  }
+  return merged;
+}
+
+function stripImportant(value) {
+  return String(value)
+    .replace(/\s*!important\s*$/i, "")
+    .trim();
+}
+
 function readCssBlock(selector) {
   const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   const match = new RegExp(escaped + "\\s*\\{([^}]*)\\}").exec(STYLES_CSS);
@@ -496,6 +532,104 @@ function assertD6Contract() {
   assert.strictEqual((STYLES_CSS.match(/matrix-filter-pill/g) || []).length, 45, "不得新增 .matrix-filter-pill 規則");
 }
 
+function assertTableHoverContrast(config) {
+  const shared = collectRuleDeclarations([".table-hover tbody tr:hover td"]);
+  assert(
+    /var\(\s*--accent-bg\s*\)/i.test(stripImportant(shared["background-color"] || "")),
+    "共用表格懸停底色須沿用 var(--accent-bg)"
+  );
+  config.styles.forEach(function (style) {
+    ["light", "dark"].forEach(function (mode) {
+      const key = `${style.id}:${mode}`;
+      const vars = THEME_MAP.themes[key];
+      const selectors = [
+        ".table-hover tbody tr:hover td",
+        `html[data-style="${style.id}"] .table-hover tbody tr:hover td`
+      ];
+      selectors.push(
+        mode === "dark"
+          ? `html[data-style="${style.id}"][data-theme="dark"] .table-hover tbody tr:hover td`
+          : `html[data-style="${style.id}"]:not([data-theme="dark"]) .table-hover tbody tr:hover td`
+      );
+      const declarations = collectRuleDeclarations(selectors);
+      const background = resolveValue(
+        stripImportant(declarations["background-color"] || "var(--accent-bg)"),
+        vars,
+        new Set()
+      );
+      const foreground = declarations.color
+        ? resolveValue(stripImportant(declarations.color), vars, new Set())
+        : resolvedRole(key, "--ink");
+      const ratio = computeContrast(foreground, background);
+      assert(
+        ratio !== null && ratio >= 4.5,
+        `${key} 表格懸停文字 ${foreground} 對底色 ${background} 對比不足：${ratio}`
+      );
+    });
+  });
+}
+
+function assertD6HoverComponents() {
+  D6_STYLE_IDS.forEach(function (styleId) {
+    const hoverTargets = [
+      ".feature-item:hover",
+      ".upload-dropzone:hover",
+      ".upload-dropzone.dragover",
+      ".dragover",
+      ".upload-dropzone:hover .dropzone-title",
+      ".upload-dropzone:hover .dropzone-desc",
+      ".upload-dropzone.dragover .dropzone-title",
+      ".upload-dropzone.dragover .dropzone-desc",
+      ".dragover .dropzone-title",
+      ".dragover .dropzone-desc"
+    ];
+    hoverTargets.forEach(function (target) {
+      const selector = `html[data-style="${styleId}"]:not([data-theme="dark"]) ${target}`;
+      const declarations = collectRuleDeclarations([selector]);
+      assert(declarations.color, `${selector} 缺少淺色文字覆寫`);
+      assert.strictEqual(stripImportant(declarations.color).toLowerCase(), "#fffffe", `${selector} 前景須為 #fffffe`);
+    });
+    const background = resolvedRole(`${styleId}:light`, "--accent-bg");
+    const ratio = computeContrast("#fffffe", background);
+    assert(ratio !== null && ratio >= 4.5, `${styleId}:light 懸停前景對 ${background} 對比不足：${ratio}`);
+  });
+  [
+    ["light", "", "#2998ec", "#00214d"],
+    ["dark", '[data-theme="dark"]', "#1e3b5f", "#fffffe"]
+  ].forEach(function ([mode, suffix, expectedBackground, expectedForeground]) {
+    const selector = `html[data-style="happyhues3"]${suffix} .btn.primary:hover`;
+    const declarations = collectRuleDeclarations([selector]);
+    assert.strictEqual(stripImportant(declarations.color), expectedForeground, `${selector} 前景不符`);
+    assert.strictEqual(stripImportant(declarations["background-color"]), expectedBackground, `${selector} 背景不符`);
+    const ratio = computeContrast(expectedForeground, expectedBackground);
+    assert(ratio !== null && ratio >= 4.5, `happyhues3:${mode} 按鈕懸停對比不足：${ratio}`);
+  });
+}
+
+function assertD6DangerButtonInHoveredRow() {
+  D6_STYLE_IDS.forEach(function (styleId) {
+    const key = `${styleId}:light`;
+    const vars = THEME_MAP.themes[key];
+    const foreground = resolvedRole(key, "--err");
+    [
+      ["", "--paper"],
+      [":hover", "--err-bg"]
+    ].forEach(function ([suffix, backgroundRole]) {
+      const selector =
+        `html[data-style="${styleId}"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger` + suffix;
+      const declarations = collectRuleDeclarations([selector]);
+      const background = resolveValue(
+        stripImportant(declarations["background-color"] || "transparent"),
+        vars,
+        new Set()
+      );
+      assert.strictEqual(background, resolvedRole(key, backgroundRole), `${selector} 底色角色不符`);
+      const ratio = computeContrast(foreground, background);
+      assert(ratio !== null && ratio >= 4.5, `${selector} 對比不足：${foreground} / ${background} = ${ratio}`);
+    });
+  });
+}
+
 console.log("開始執行 visualStyleThemes 測試...\n");
 
 function baseEnv() {
@@ -672,6 +806,15 @@ function run() {
 
   assertD6Contract();
   console.log("   ✓ D6 四款角色修補與元件色對契約驗證通過");
+
+  assertTableHoverContrast(config);
+  console.log("   ✓ 全部風格表格列懸停文字對比驗證通過");
+
+  assertD6HoverComponents();
+  console.log("   ✓ D6 四款懸停區塊與 happyhues3 按鈕懸停色對驗證通過");
+
+  assertD6DangerButtonInHoveredRow();
+  console.log("   ✓ D6 四款懸停列內危險按鈕對比驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const header = findRuleDeclarations(`html[data-style="${styleId}"] .app-header`);
