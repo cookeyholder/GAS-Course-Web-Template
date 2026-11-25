@@ -96,7 +96,7 @@
 ### D5：測試、文件、產物與提交順序
 
 - 調整 `tests/webappConfig.test.js` 的 13 款斷言為 16，新增中繼資料、順序、預設值與儲存鍵斷言；`tests/webappUiToggleTheme.test.js` 已符合未知 id 回退，標明不變。
-- 按鈕文字色與焦點環斷言放在加入對應 CSS 的 task 3.x，不放進 task 2.4，確保每個 task 的驗證對象與產出一致。
+- 按鈕文字色與焦點環斷言放在加入對應 CSS 的 task 3.x，不放進 task 2.4，確保每個 task 的驗證標的與產出一致。
 - 所有中文契約字面值完成後才執行 `node scripts/generateOpenccS2twpContractLiterals.js`，並在完整 CI 指令鏈加入 `--check`；建議須人工核准，不以 `--fix` 自動寫入。本次新增 62 筆契約字面值（測試訊息與風格描述）已逐項人工核對，皆為臺灣繁體中文且無中國用語，另移除 1 筆過期字面值；逐筆結果紀錄於 `opencc-literal-signoff.md`。`--check` 顯示無漂移，OpenCC 候選報告與 `origin/main` 相比未新增候選，核准清冊維持空白，從未使用 `--fix`。
 - 更新 `README.md`（7、38、381 行）與 `AGENTS.md:84`；凡觸及 `webapp/` 的 task 皆執行 `npm run build:webapp`，並把 `index.html` 納入同一原子提交。
 - 工作流順序：task 0 先提交提案 → 逐 task 驗證並提交 → task 5.3 封存並提交 → task 5.4 本地完整 CI → PR。

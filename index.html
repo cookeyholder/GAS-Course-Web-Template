@@ -7558,6 +7558,13 @@ html[data-style="cover-lime"] .app-nav :focus-visible {
   outline-color: var(--style-nav-ink);
 }
 
+/* 已啟用頁籤底色為 --accent-bg，深色帶用的 --style-nav-ink 在淺色下對比不足，改往內並用 --ink。 */
+html[data-style="navy-brick"] .nav-tab.active:focus-visible,
+html[data-style="celadon-mint"] .nav-tab.active:focus-visible {
+  outline-color: var(--ink);
+  outline-offset: -5px;
+}
+
 html[data-style="cover-lime"] .nav-tab.active:focus-visible {
   outline-color: #111111;
   outline-offset: -5px;

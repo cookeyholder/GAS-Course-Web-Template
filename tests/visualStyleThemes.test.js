@@ -742,7 +742,33 @@ function run() {
     const ratio = computeContrast(foreground, background);
     assert(ratio !== null && ratio >= 3, `cover-lime ${label} 啟用頁籤焦點環對比不足：${ratio}`);
   });
+  ["navy-brick", "celadon-mint"].forEach(function (styleId) {
+    const activeFocus = findRuleDeclarations(`html[data-style="${styleId}"] .nav-tab.active:focus-visible`);
+    assert(/outline-color:\s*var\(--ink\)/.test(activeFocus), `${styleId} 啟用頁籤焦點環須用 --ink`);
+    assert(/outline-offset:\s*-5px/.test(activeFocus), `${styleId} 啟用頁籤焦點環須向內 5px`);
+    [
+      [readCssBlock(`html[data-style="${styleId}"]`), "淺色"],
+      [readCssBlock(`html[data-style="${styleId}"][data-theme="dark"]`), "深色"]
+    ].forEach(function ([vars, label]) {
+      const ratio = computeContrast(vars["--ink"], vars["--accent-bg"]);
+      assert(ratio !== null && ratio >= 3, `${styleId} ${label} 啟用頁籤焦點環對比不足：${ratio}`);
+    });
+  });
   console.log("   ✓ 按鈕與焦點環對比契約驗證通過");
+
+  const hoverRule = findRuleDeclarations(".table-hover tbody tr:hover td");
+  assert(
+    /background-color:\s*var\(--accent-bg\)\s*!important/.test(hoverRule),
+    "表格列懸停底色須用 --accent-bg !important"
+  );
+  NEW_STYLE_IDS.forEach(function (styleId) {
+    ["", '[data-theme="dark"]'].forEach(function (theme) {
+      const vars = readCssBlock(`html[data-style="${styleId}"]${theme}`);
+      const ratio = computeContrast(vars["--ink"], vars["--accent-bg"]);
+      assert(ratio !== null && ratio >= 4.5, `${styleId}${theme} 表格列懸停文字對比不足：${ratio}`);
+    });
+  });
+  console.log("   ✓ 表格列懸停底色與對比契約驗證通過");
 
   const wideBand = /@media\s*\(min-width:\s*1200px\)\s*\{([\s\S]*?)\}/.exec(CSS_WITHOUT_COMMENTS);
   assert(wideBand, "須有 1200px 以上寬螢幕規則");
