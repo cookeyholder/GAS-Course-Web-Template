@@ -4,7 +4,7 @@
 
 1. **雙軌身分驗證與 Session 安全機制**：支援一般網頁環境之 Google Identity Services（GIS）憑證登入，以及 GAS HtmlService 容器內的 ActiveUser / AccountChooser 帳號切換流程；並可依部署條件處理 OAuth 授權碼回呼與 `INITIAL_AUTH` 還原。後端驗證 Google ID Token（`iss`、`email_verified`、`aud`）、支援可選登入網域限制，登入後核發 Session 與 CSRF Token（寫入型 API 強制驗證），並提供 `?mock=true` 本機離線測試模式。
 2. **課程代碼匯入與 1NF 正規化模組**：依據教育部國民及學前教育署政策與[全國高級中等學校課程計畫平臺](https://course.k12ea.gov.tw/courseinformation/course.asp)規範，自動解析自該平臺下載之 39 欄課綱寬表 Excel，完整匯入全數課程代碼（包含不分屬性 0 與特殊需求領域 6 等所有科目），展開為三年六學期實質開課之 14 欄標準第一正規化（1NF）課程代碼表，並提供前端拖曳上傳、即時預覽統計與分頁檢索清單（全面採用 `paged-table-container` 高階純函式表格容器呈現，科別選單依教育部 3 碼科別代碼升冪排序）。
-3. **多風格現代前端設計系統**：內建極簡曜藍（Modern Slate）、圖紙風格（Blueprint）、典雅紙張（Paper）、新粗獷主義（Neo-Brutalism）、黏土擬物（Claymorphism）、紅白機像素（NES）、Happy Hues 等 13 款視覺風格切換與深淺色模式；全面支援通用卡片元件（`.card`）、頁籤導覽列（`.app-nav`、`.nav-tab`）、統計指標網格（`.metrics-grid`、`.metric-card`）、響應式表格（`.table-responsive`）、搜尋防彈跳（`debounce`）、說明手冊指引彈窗與頁尾連結、列印防斷頁（`.print-signatures`），以及完整的 Toast 通知與 Modal 對話框。
+3. **多風格現代前端設計系統**：內建極簡曜藍（Modern Slate）、圖紙風格（Blueprint）、典雅紙張（Paper）、新粗獷主義（Neo-Brutalism）、黏土擬物（Claymorphism）、紅白機像素（NES）、Happy Hues 色彩盤、藏青磚紅（Navy Brick）、青瓷薄荷（Celadon Mint）、封面檸檬（Cover Lime）等 16 款視覺風格切換與深淺色模式；全面支援通用卡片元件（`.card`）、頁籤導覽列（`.app-nav`、`.nav-tab`）、統計指標網格（`.metrics-grid`、`.metric-card`）、響應式表格（`.table-responsive`）、搜尋防彈跳（`debounce`）、說明手冊指引彈窗與頁尾連結、列印防斷頁（`.print-signatures`），以及完整的 Toast 通知與 Modal 對話框。
 4. **全方位資訊安全與通訊強化機制**：前端 API 客戶端採 GAS `google.script.run.executeWebApi` RPC 優先、`fetch` 備援與暫時性錯誤指數退避；後端統一 `executeWebApi` 路由入口與錯誤格式，實作 RBAC、CSRF、Web App 離線技術文件白名單安全路由（`?page=docs/...`）、HTTP GET 端點白名單、試算表公式注入防護、UUID Session 與 `LockService` 寫入保護，並強化登入授權與公開設定欄位控管。
 5. **可稽核操作日誌與容量治理**：後端在最外層統一記錄每次 API 請求的事件類別、動作、操作者身分、結果、耗時與版本化詳情；僅系統管理員可透過「操作日誌」頁籤查詢與稽核。日誌工作表內建 20,000 列清理閾值與每日 03:00（Asia/Taipei）自動觸發器，避免工作表無限成長。
 
@@ -35,7 +35,7 @@ GAS-Course-Web-Template/
 │
 ├── webapp/                     # 前端原始碼目錄 (模組化開發，便於維護)
 │   ├── index.html              # HTML 骨架與建置標記 (BUILD:CSS、BUILD:JS；本機 mock 開發入口)
-│   ├── styles.css              # 多風格 CSS 設計系統 (13 款風格、通用卡片/導覽、深色模式高對比度校正)
+│   ├── styles.css              # 多風格 CSS 設計系統 (16 款風格、通用卡片/導覽、深色模式高對比度校正)
 │   └── js/
 │       ├── config.js           # 前端全域設定、API 端點白名單、分頁導覽與樣式清單
 │       ├── courseData.js       # 轉發共用正規化模組，供前端 1NF 即時預覽計算
@@ -378,7 +378,7 @@ OpenCC 工具是**輔助定位與人工選詞**的第二條路徑，與硬閘門
 
 可在網頁右上角下拉選單即時切換風格，並支援深色／淺色模式記憶（儲存於 LocalStorage）：
 
-- **13 款風格**：
+- **16 款風格**：
   - `modern-slate`：極簡曜藍（預設風格 · Slate 冷灰極簡 · 曜藍高對比 · 精緻微陰影）
   - `blueprint`：圖紙風格（工程網格底紋 · 冷調科技藍）
   - `paper`：紙張風格（人文襯線字型 · 典雅米紙護眼）
@@ -386,6 +386,9 @@ OpenCC 工具是**輔助定位與人工選詞**的第二條路徑，與硬閘門
   - `claymorphism`：黏土擬物（澎潤大圓角 · 雙層軟陰影）
   - `nes`：紅白機像素（8-bit 復古點陣 · 經典任天堂風格）
   - `happyhues*`：多款色彩調配盤（曜藍薄荷、海洋湛藍、松石暖金、黑曜暖橘、森林琥珀、午夜蜜桃、薄荷暖陽）
+  - `navy-brick`：藏青磚紅（📘 · 藏青頂帶 · 磚紅強調 · 米紙標題）
+  - `celadon-mint`：青瓷薄荷（🍵 · 青瓷底色 · 薄荷強調 · 米紙標題）
+  - `cover-lime`：封面檸檬（🍋 · 檸檬深色帶 · 墨黑標題 · 高對比按鈕）
 - **通用元件類別齊全**：全面支援 `.card`、`.app-nav`、`.nav-tab`、`.metrics-grid`、`.metric-card`、`.table-responsive` 等元件類別。
 - **深色模式對比度校正**：強化深色模式下啟用態按鈕與標籤膠囊之邊框、文字色彩與外發光立體感。
 - **搜尋防抖 (Debounce)**：內建 `MEA.ui.debounce` 工具函式，在課程代碼即時檢索時自動以 300ms 延遲防抖，操作體驗順暢無延遲。

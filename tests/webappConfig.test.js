@@ -154,7 +154,7 @@ console.log("7. buildFrontendConfig 應包含固定中繼資料、儲存鍵與�
   assert.strictEqual(c.themeKey, "gas_tmpl.theme.v1");
   assert.strictEqual(c.styleKey, "gas_tmpl.style.v1");
   assert.strictEqual(c.defaultStyle, "modern-slate");
-  assert(Array.isArray(c.styles) && c.styles.length === 13, "應包含 13 種視覺風格");
+  assert(Array.isArray(c.styles) && c.styles.length === 16, "應包含 16 種視覺風格");
   assert(Array.isArray(c.tabs) && c.tabs.length === 5, "應包含 5 個導覽頁籤");
   assert.deepStrictEqual(c.roleNames, gasRuntime.ROLE_DEFINITIONS);
   console.log("   ✓ 固定設定驗證通過！\n");
@@ -179,8 +179,25 @@ console.log("8. styles 應包含各風格識別與名稱（確保所有視覺風
     "happyhues9",
     "happyhues10",
     "happyhues12",
-    "happyhues14"
+    "happyhues14",
+    "navy-brick",
+    "celadon-mint",
+    "cover-lime"
   ]);
+  assert.deepStrictEqual(
+    c.styles
+      .filter(function (s) {
+        return ["navy-brick", "celadon-mint", "cover-lime"].indexOf(s.id) !== -1;
+      })
+      .map(function (s) {
+        return [s.id, s.name, s.icon, s.desc];
+      }),
+    [
+      ["navy-brick", "藏青磚紅 (Navy Brick)", "📘", "米紙底色 · 藏青導覽 · 磚紅強調"],
+      ["celadon-mint", "青瓷薄荷 (Celadon Mint)", "🍵", "瓷白底色 · 松綠導覽 · 薄荷強調"],
+      ["cover-lime", "封面檸檬 (Cover Lime)", "🍋", "暖米封面 · 墨黑粗體 · 檸檬螢光"]
+    ]
+  );
   c.styles.forEach(function (s) {
     assert(typeof s.id === "string" && s.id.length > 0);
     assert(typeof s.name === "string" && s.name.length > 0);

@@ -226,6 +226,24 @@
           name: "薄荷暖陽 (Happy Hues #14)",
           icon: "☀️",
           desc: "清爽薄荷底 · 陽光亮黃按鈕 · 深墨藍高對比"
+        },
+        {
+          id: "navy-brick",
+          name: "藏青磚紅 (Navy Brick)",
+          icon: "📘",
+          desc: "米紙底色 · 藏青導覽 · 磚紅強調"
+        },
+        {
+          id: "celadon-mint",
+          name: "青瓷薄荷 (Celadon Mint)",
+          icon: "🍵",
+          desc: "瓷白底色 · 松綠導覽 · 薄荷強調"
+        },
+        {
+          id: "cover-lime",
+          name: "封面檸檬 (Cover Lime)",
+          icon: "🍋",
+          desc: "暖米封面 · 墨黑粗體 · 檸檬螢光"
         }
       ],
       tabs: [

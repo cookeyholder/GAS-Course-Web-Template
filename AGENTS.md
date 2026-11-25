@@ -81,7 +81,7 @@ Always check `@/openspec/` or repository documentation when the request:
 ### 前端模組（`webapp/` 目錄）
 
 - **`webapp/index.html`**: 前端骨架樣板，定義 `BUILD:CSS` 與 `BUILD:JS` 注入標記。
-- **`webapp/styles.css`**: 多風格 CSS 設計系統（包含極簡曜藍 Modern Slate、圖紙風格 Blueprint、紙張風格 Paper、新粗獷主義 Neo-Brutalism、黏土擬物 Claymorphism、紅白機 NES、Happy Hues 色彩盤）與深淺色模式。
+- **`webapp/styles.css`**: 多風格 CSS 設計系統（包含極簡曜藍 Modern Slate、圖紙風格 Blueprint、紙張風格 Paper、新粗獷主義 Neo-Brutalism、黏土擬物 Claymorphism、紅白機 NES、Happy Hues 色彩盤、藏青磚紅 Navy Brick、青瓷薄荷 Celadon Mint、封面檸檬 Cover Lime）與深淺色模式。
 - **`webapp/js/config.js`**: 前端全域參數、導覽頁籤清單（概覽、匯入、課程、設定、操作日誌）與樣式字典；操作日誌頁籤以 `adminOnly` 標記僅管理員可見；版本號與角色顯示名稱取自 `gasRuntime` 單一來源。
 - **`webapp/js/courseData.js`**: 前端 1NF 正規化同構運算模組（轉發 courseNormalizationShared.js，供瀏覽器即時預覽統計與科別排序）。
 - **`webapp/js/mock.js`**: 本地離線開發測試 Mock API 模擬器（支援 `?mock=true` 零設定測試）。
