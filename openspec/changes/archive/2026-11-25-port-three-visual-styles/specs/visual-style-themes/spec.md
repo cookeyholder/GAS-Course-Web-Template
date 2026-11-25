@@ -189,4 +189,3 @@
 
 - **WHEN** 在以有限取樣畫面設定 `data-style` 的 jsdom 文件執行 axe 結構稽核
 - **THEN** 無 wcag2a／wcag2aa／wcag21a／wcag21aa 違規；並明確記載 jsdom 不套用CSS 樣式，色彩可讀性由靜態契約與人工核閱負責
-
