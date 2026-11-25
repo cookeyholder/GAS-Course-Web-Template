@@ -6998,6 +6998,21 @@ html[data-style="happyhues9"]:not([data-theme="dark"]) .dragover .dropzone-desc 
   color: #fffffe;
 }
 
+/* 淺色懸停列的 --accent-bg 為深色，列內透明危險按鈕須改用淺色底色，讓 --err 文字達 4.5:1。 */
+html[data-style="happyhues2"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger,
+html[data-style="happyhues3"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger,
+html[data-style="happyhues5"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger,
+html[data-style="happyhues9"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger {
+  background-color: var(--paper);
+}
+
+html[data-style="happyhues2"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger:hover,
+html[data-style="happyhues3"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger:hover,
+html[data-style="happyhues5"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger:hover,
+html[data-style="happyhues9"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger:hover {
+  background-color: var(--err-bg);
+}
+
 .pagination-bar-top {
   margin-bottom: 8px;
 }
@@ -7629,7 +7644,7 @@ html[data-style="happyhues3"][data-theme="dark"] .nav-tab.active {
   background-color: #1e3b5f;
   color: #fffffe;
 }
-/* :hover 特異性高於上面的 D6 基底規則，深色模式亦須明確指定可讀色對。 */
+/* 深色基底與淺色 hover 特異性相同且位置較後；此更高特異性規則明確鎖住深色 hover 色對。 */
 html[data-style="happyhues3"][data-theme="dark"] .btn.primary:hover {
   background-color: #1e3b5f;
   color: #fffffe;

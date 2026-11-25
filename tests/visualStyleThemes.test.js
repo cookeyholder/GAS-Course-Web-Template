@@ -54,7 +54,7 @@ function parseCssDeclarations(body) {
   return declarations;
 }
 
-// 依 CSS 原始順序合併指定選擇器的宣告，模擬同特異性「後宣告覆蓋前宣告」的結果。
+// 依共用 → 風格 → 主題的層級順序合併宣告；目前原始碼順序與特異性層級一致，不處理跨特異性衝突。
 function collectRuleDeclarations(selectors) {
   const wanted = selectors.filter(Boolean);
   const merged = {};
@@ -606,6 +606,30 @@ function assertD6HoverComponents() {
   });
 }
 
+function assertD6DangerButtonInHoveredRow() {
+  D6_STYLE_IDS.forEach(function (styleId) {
+    const key = `${styleId}:light`;
+    const vars = THEME_MAP.themes[key];
+    const foreground = resolvedRole(key, "--err");
+    [
+      ["", "--paper"],
+      [":hover", "--err-bg"]
+    ].forEach(function ([suffix, backgroundRole]) {
+      const selector =
+        `html[data-style="${styleId}"]:not([data-theme="dark"]) .table-hover tbody tr:hover td .btn.danger` + suffix;
+      const declarations = collectRuleDeclarations([selector]);
+      const background = resolveValue(
+        stripImportant(declarations["background-color"] || "transparent"),
+        vars,
+        new Set()
+      );
+      assert.strictEqual(background, resolvedRole(key, backgroundRole), `${selector} 底色角色不符`);
+      const ratio = computeContrast(foreground, background);
+      assert(ratio !== null && ratio >= 4.5, `${selector} 對比不足：${foreground} / ${background} = ${ratio}`);
+    });
+  });
+}
+
 console.log("開始執行 visualStyleThemes 測試...\n");
 
 function baseEnv() {
@@ -788,6 +812,9 @@ function run() {
 
   assertD6HoverComponents();
   console.log("   ✓ D6 四款懸停區塊與 happyhues3 按鈕懸停色對驗證通過");
+
+  assertD6DangerButtonInHoveredRow();
+  console.log("   ✓ D6 四款懸停列內危險按鈕對比驗證通過");
 
   NEW_STYLE_IDS.forEach(function (styleId) {
     const header = findRuleDeclarations(`html[data-style="${styleId}"] .app-header`);
